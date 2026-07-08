@@ -35,3 +35,11 @@ class RedirectLimitExceededError(TransportPolicyError):
 
 class ResponseTooLargeError(TransportPolicyError):
     """Raised before a response body exceeds the configured size limit."""
+
+
+class UnsafeRequestHeaderError(TransportPolicyError):
+    """Raised when a caller attempts to override a protected HTTP header."""
+
+
+class TransportRequestError(TransportPolicyError):
+    """Raised when an HTTP request fails in a controlled manner."""

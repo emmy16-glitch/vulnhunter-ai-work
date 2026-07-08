@@ -120,7 +120,7 @@ def _validate_ip_address(address_text: str) -> str:
     )
 
 
-def _normalize_hostname(hostname: str) -> str:
+def normalize_hostname(hostname: str) -> str:
     """Convert a hostname to its normalized ASCII/IDNA representation."""
     try:
         return hostname.rstrip(".").encode("idna").decode("ascii").lower()
@@ -168,7 +168,7 @@ def validate_target(
     if parsed.fragment:
         raise ScopeValidationError("URL fragments are not permitted when defining a target scope.")
 
-    hostname = _normalize_hostname(parsed.hostname)
+    hostname = normalize_hostname(parsed.hostname)
 
     try:
         port = parsed.port

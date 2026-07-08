@@ -1,0 +1,46 @@
+# Python virtual environment
+.venv/
+
+# Python cache files
+__pycache__/
+*.py[cod]
+
+# Test and lint caches
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Local databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Generated datasets and reports
+data/
+exports/
+reports/
+
+# Logs and temporary scan files
+*.log
+tmp/
+.cache/
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# Browser and Crawl4AI caches
+.playwright/
+browser-cache/
+
+# Python packaging artifacts
+*.egg-info/
+build/
+dist/
+
+# Temporary backup files
+*.bak
+*.backup
+*~

@@ -127,3 +127,38 @@ def test_reviewed_benchmark_trains_provenance_marked_model(tmp_path: Path) -> No
     assert artifact.benchmark_catalog_version == manifest.catalog_version
     assert artifact.benchmark_manifest_sha256 == manifest_sha256(manifest)
     assert set(artifact.training_scan_ids).isdisjoint(artifact.holdout_scan_ids)
+
+
+def test_reviewed_benchmark_tunes_and_diagnoses_locked_holdout(tmp_path: Path) -> None:
+    from vulnhunter.ml import diagnose_holdout, train_tuned
+
+    database = tmp_path / "benchmark.db"
+    manifest_path = tmp_path / "manifest.json"
+    manifest = asyncio.run(run_benchmark_suite(database, manifest_path))
+    repository = _repository(database)
+
+    for scenario_id in pending_by_scenario(manifest, database, repository):
+        apply_scenario_review(
+            manifest,
+            database,
+            repository,
+            scenario_id,
+            "accept",
+        )
+
+    dataset = build_dataset(repository.list_training_observations())
+    artifact = train_tuned(
+        dataset,
+        benchmark_provenance=BenchmarkProvenance(
+            run_id=manifest.run_id,
+            catalog_version=manifest.catalog_version,
+            manifest_sha256=manifest_sha256(manifest),
+        ),
+    )
+    report = diagnose_holdout(dataset, artifact)
+
+    assert artifact.artifact_version == 4
+    assert artifact.tuning is not None
+    assert artifact.tuning.cross_validation.test_samples == artifact.training_samples
+    assert report.metrics == artifact.evaluation
+    assert set(artifact.training_scan_ids).isdisjoint(artifact.holdout_scan_ids)

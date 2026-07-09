@@ -36,12 +36,14 @@ from vulnhunter.ml import (
     BenchmarkProvenance,
     assess_dataset_quality,
     build_dataset,
+    diagnose_holdout,
     export_jsonl,
     load_model,
     predict,
     save_model,
     to_model_input,
     train_baseline,
+    train_tuned,
 )
 from vulnhunter.observations.models import ReviewOutcome
 from vulnhunter.observations.storage import ScanRepository
@@ -562,6 +564,15 @@ def ml_info(
         typer.echo(f"Benchmark catalog version: {artifact.benchmark_catalog_version}")
         typer.echo(f"Benchmark manifest SHA-256: {artifact.benchmark_manifest_sha256}")
     typer.echo(f"Features: {len(artifact.feature_schema.feature_names)}")
+    typer.echo(f"Decision threshold: {artifact.decision_threshold:.3f}")
+    if artifact.tuning is not None:
+        tuning = artifact.tuning
+        typer.echo(f"Cross-validation folds: {tuning.fold_count}")
+        typer.echo(f"Candidates evaluated: {tuning.candidate_count}")
+        typer.echo(f"Selected algorithm: {tuning.selected_model_type}")
+        typer.echo(f"Selected alpha: {tuning.selected_alpha:g}")
+        typer.echo(f"Selected threshold: {tuning.selected_threshold:.3f}")
+        typer.echo(f"Training-only CV F1: {tuning.cross_validation.f1_score:.3f}")
     typer.echo(f"Accuracy: {metrics.accuracy:.3f}")
     typer.echo(f"Precision: {metrics.precision:.3f}")
     typer.echo(f"Recall: {metrics.recall:.3f}")
@@ -833,6 +844,181 @@ def benchmark_train(
         "represent real-world vulnerability-detection performance.",
         fg=typer.colors.YELLOW,
     )
+
+
+@benchmark_app.command("tune")
+def benchmark_tune(
+    database: DatabaseOption = Path("artifacts/benchmark.db"),
+    manifest_path: Annotated[
+        Path,
+        typer.Option("--manifest", help="Completed benchmark manifest."),
+    ] = Path("artifacts/benchmark-manifest.json"),
+    model_path: Annotated[
+        Path,
+        typer.Option("--model", "-m", help="Tuned benchmark model artifact."),
+    ] = Path("artifacts/vulnhunter-benchmark-tuned.json"),
+    test_fraction: Annotated[
+        float,
+        typer.Option("--test-fraction", min=0.05, max=0.45),
+    ] = 0.2,
+    random_seed: Annotated[int, typer.Option("--seed")] = 42,
+) -> None:
+    """Tune on training scans only, then evaluate once on locked holdout scans."""
+    repository = _repository(database)
+
+    try:
+        manifest = load_manifest(manifest_path)
+        validate_manifest_database(manifest, database, repository)
+        status = benchmark_status(manifest, database, repository)
+        if not status.complete:
+            raise BenchmarkError(
+                f"Benchmark review is incomplete; {status.pending} finding(s) remain pending."
+            )
+
+        dataset = build_dataset(repository.list_training_observations())
+        artifact = train_tuned(
+            dataset,
+            minimum_samples=20,
+            minimum_per_class=5,
+            minimum_scans=6,
+            minimum_scans_per_class=3,
+            test_fraction=test_fraction,
+            random_seed=random_seed,
+            benchmark_provenance=BenchmarkProvenance(
+                run_id=manifest.run_id,
+                catalog_version=manifest.catalog_version,
+                manifest_sha256=manifest_sha256(manifest),
+            ),
+        )
+        save_model(artifact, model_path)
+    except (
+        BenchmarkError,
+        BenchmarkManifestError,
+        MachineLearningError,
+        ValidationError,
+        ValueError,
+        OSError,
+    ) as exc:
+        typer.secho(f"Benchmark tuning stopped safely: {exc}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=2) from exc
+
+    metrics = artifact.evaluation
+    tuning = artifact.tuning
+    if tuning is None:
+        raise typer.Exit(code=2)
+
+    typer.secho("Controlled benchmark model tuned", fg=typer.colors.GREEN)
+    typer.echo(f"Selected algorithm: {artifact.model_type}")
+    typer.echo(f"Selected alpha: {artifact.alpha:g}")
+    typer.echo(f"Selected threshold: {artifact.decision_threshold:.3f}")
+    typer.echo(f"Training-only CV F1: {tuning.cross_validation.f1_score:.3f}")
+    typer.echo(f"Training samples: {artifact.training_samples}")
+    typer.echo(f"Untouched holdout samples: {artifact.holdout_samples}")
+    typer.echo(f"Holdout accuracy: {metrics.accuracy:.3f}")
+    typer.echo(f"Holdout precision: {metrics.precision:.3f}")
+    typer.echo(f"Holdout recall: {metrics.recall:.3f}")
+    typer.echo(f"Holdout F1 score: {metrics.f1_score:.3f}")
+    typer.echo(f"Model: {model_path.expanduser().resolve()}")
+    typer.secho(
+        "Candidate selection used training scans only. Synthetic benchmark metrics do not "
+        "represent real-world vulnerability-detection performance.",
+        fg=typer.colors.YELLOW,
+    )
+
+
+@benchmark_app.command("diagnose")
+def benchmark_diagnose(
+    database: DatabaseOption = Path("artifacts/benchmark.db"),
+    manifest_path: Annotated[
+        Path,
+        typer.Option("--manifest", help="Benchmark manifest used for the model."),
+    ] = Path("artifacts/benchmark-manifest.json"),
+    model_path: Annotated[
+        Path,
+        typer.Option("--model", "-m", help="Benchmark model artifact to diagnose."),
+    ] = Path("artifacts/vulnhunter-benchmark-tuned.json"),
+) -> None:
+    """Explain locked-holdout errors without retraining or changing labels."""
+    repository = _repository(database)
+
+    try:
+        manifest = load_manifest(manifest_path)
+        validate_manifest_database(manifest, database, repository)
+        artifact = load_model(model_path)
+        if artifact.training_context != "controlled_benchmark":
+            raise BenchmarkError("The selected model is not a controlled benchmark artifact.")
+        if artifact.benchmark_run_id != manifest.run_id:
+            raise BenchmarkManifestError("Model and manifest benchmark run IDs differ.")
+        if artifact.benchmark_catalog_version != manifest.catalog_version:
+            raise BenchmarkManifestError("Model and manifest catalog versions differ.")
+        if artifact.benchmark_manifest_sha256 != manifest_sha256(manifest):
+            raise BenchmarkManifestError("Model and manifest integrity digests differ.")
+
+        dataset = build_dataset(repository.list_training_observations())
+        report = diagnose_holdout(dataset, artifact)
+    except (
+        BenchmarkError,
+        BenchmarkManifestError,
+        MachineLearningError,
+        ValidationError,
+        ValueError,
+        OSError,
+    ) as exc:
+        typer.secho(f"Benchmark diagnosis stopped safely: {exc}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=2) from exc
+
+    metrics = report.metrics
+    typer.secho("Locked holdout diagnosis", fg=typer.colors.CYAN)
+    typer.echo(
+        "Confusion matrix: "
+        f"TP={metrics.true_positive}, FP={metrics.false_positive}, "
+        f"FN={metrics.false_negative}, TN={metrics.true_negative}"
+    )
+    typer.echo(
+        f"Accuracy={metrics.accuracy:.3f}, Precision={metrics.precision:.3f}, "
+        f"Recall={metrics.recall:.3f}, F1={metrics.f1_score:.3f}"
+    )
+
+    typer.echo("")
+    typer.echo("Metrics by category:")
+    for item in report.by_category:
+        slice_metrics = item.metrics
+        typer.echo(
+            f"  {item.key}: n={slice_metrics.test_samples}, "
+            f"TP={slice_metrics.true_positive}, FP={slice_metrics.false_positive}, "
+            f"FN={slice_metrics.false_negative}, TN={slice_metrics.true_negative}, "
+            f"Accuracy={slice_metrics.accuracy:.3f}, F1={slice_metrics.f1_score:.3f}"
+        )
+
+    typer.echo("")
+    typer.echo("Metrics by holdout scan:")
+    for item in report.by_scan:
+        slice_metrics = item.metrics
+        typer.echo(
+            f"  scan {item.key}: n={slice_metrics.test_samples}, "
+            f"TP={slice_metrics.true_positive}, FP={slice_metrics.false_positive}, "
+            f"FN={slice_metrics.false_negative}, TN={slice_metrics.true_negative}, "
+            f"Accuracy={slice_metrics.accuracy:.3f}, F1={slice_metrics.f1_score:.3f}"
+        )
+
+    typer.echo("")
+    typer.echo(f"False negatives: {len(report.false_negatives)}")
+    for item in report.false_negatives:
+        typer.echo(
+            f"  #{item.observation_id} scan={item.scan_id} category={item.category} "
+            f"p_confirmed={item.confirmed_probability:.3f}"
+        )
+        typer.echo(f"    {item.url}")
+
+    typer.echo(f"False positives: {len(report.false_positives)}")
+    for item in report.false_positives:
+        typer.echo(
+            f"  #{item.observation_id} scan={item.scan_id} category={item.category} "
+            f"p_confirmed={item.confirmed_probability:.3f}"
+        )
+        typer.echo(f"    {item.url}")
+
+    typer.echo("Diagnosis is read-only; no model, label, or database record was changed.")
 
 
 if __name__ == "__main__":

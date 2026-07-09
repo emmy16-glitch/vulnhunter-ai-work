@@ -17,6 +17,8 @@ def test_benchmark_help_lists_safe_workflow_commands() -> None:
     assert "status" in result.stdout
     assert "review" in result.stdout
     assert "train" in result.stdout
+    assert "tune" in result.stdout
+    assert "diagnose" in result.stdout
 
 
 def test_benchmark_run_and_status_cli(tmp_path: Path) -> None:
@@ -52,3 +54,13 @@ def test_benchmark_run_and_status_cli(tmp_path: Path) -> None:
     assert status_result.exit_code == 0, status_result.stdout
     assert "Pending review:" in status_result.stdout
     assert "Review complete: no" in status_result.stdout
+
+
+def test_benchmark_tune_and_diagnose_help() -> None:
+    tune_result = runner.invoke(app, ["benchmark", "tune", "--help"])
+    diagnose_result = runner.invoke(app, ["benchmark", "diagnose", "--help"])
+
+    assert tune_result.exit_code == 0
+    assert "training scans only" in tune_result.stdout
+    assert diagnose_result.exit_code == 0
+    assert "holdout" in diagnose_result.stdout.lower()

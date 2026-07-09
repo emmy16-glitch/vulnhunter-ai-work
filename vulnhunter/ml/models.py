@@ -1,4 +1,4 @@
-"""Validated dataset, feature, model, and evaluation contracts."""
+"""Validated dataset, feature, model, tuning, and evaluation contracts."""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 TrainingLabel = Literal["confirmed", "false_positive"]
+ModelType = Literal["multinomial_naive_bayes", "bernoulli_naive_bayes"]
 
 
 class ObservationInput(BaseModel):
@@ -37,7 +38,7 @@ class FeatureSchema(BaseModel):
 
     model_config = ConfigDict(frozen=True)
 
-    schema_version: Literal[1] = 1
+    schema_version: Literal[1, 2] = 1
     categories: tuple[str, ...] = ()
     tokens: tuple[str, ...] = ()
     fixed_features: tuple[str, ...]
@@ -83,7 +84,7 @@ class Prediction(BaseModel):
 
 
 class EvaluationMetrics(BaseModel):
-    """Holdout metrics for the positive `confirmed` class."""
+    """Evaluation metrics for the positive `confirmed` class."""
 
     model_config = ConfigDict(frozen=True, allow_inf_nan=False)
 
@@ -96,6 +97,50 @@ class EvaluationMetrics(BaseModel):
     precision: float = Field(ge=0, le=1)
     recall: float = Field(ge=0, le=1)
     f1_score: float = Field(ge=0, le=1)
+
+    @model_validator(mode="after")
+    def validate_confusion_total(self) -> EvaluationMetrics:
+        total = self.true_positive + self.false_positive + self.true_negative + self.false_negative
+        if total != self.test_samples:
+            raise ValueError("Confusion-matrix counts must sum to test_samples.")
+        return self
+
+
+class TuningSummary(BaseModel):
+    """Training-only grouped cross-validation selection provenance."""
+
+    model_config = ConfigDict(frozen=True, allow_inf_nan=False)
+
+    selection_metric: Literal["f1"] = "f1"
+    fold_count: int = Field(ge=2)
+    candidate_count: int = Field(ge=1)
+    algorithm_candidates: tuple[ModelType, ...]
+    alpha_candidates: tuple[float, ...]
+    threshold_candidates: tuple[float, ...]
+    selected_model_type: ModelType
+    selected_alpha: float = Field(gt=0, le=100)
+    selected_threshold: float = Field(gt=0, lt=1)
+    cross_validation: EvaluationMetrics
+
+    @model_validator(mode="after")
+    def validate_selection(self) -> TuningSummary:
+        if len(self.algorithm_candidates) != len(set(self.algorithm_candidates)):
+            raise ValueError("algorithm_candidates must not contain duplicates.")
+        if len(self.alpha_candidates) != len(set(self.alpha_candidates)):
+            raise ValueError("alpha_candidates must not contain duplicates.")
+        if len(self.threshold_candidates) != len(set(self.threshold_candidates)):
+            raise ValueError("threshold_candidates must not contain duplicates.")
+        if self.selected_model_type not in self.algorithm_candidates:
+            raise ValueError("selected_model_type must be one of algorithm_candidates.")
+        if self.selected_alpha not in self.alpha_candidates:
+            raise ValueError("selected_alpha must be one of alpha_candidates.")
+        if self.selected_threshold not in self.threshold_candidates:
+            raise ValueError("selected_threshold must be one of threshold_candidates.")
+        if any(value <= 0 or value > 100 for value in self.alpha_candidates):
+            raise ValueError("alpha_candidates must be greater than zero and at most 100.")
+        if any(value <= 0 or value >= 1 for value in self.threshold_candidates):
+            raise ValueError("threshold_candidates must be between zero and one.")
+        return self
 
 
 class BenchmarkProvenance(BaseModel):
@@ -117,16 +162,17 @@ class BenchmarkProvenance(BaseModel):
 
 
 class ModelArtifact(BaseModel):
-    """Portable, versioned Multinomial Naive Bayes model artifact."""
+    """Portable, versioned Naive Bayes model artifact."""
 
     model_config = ConfigDict(frozen=True, allow_inf_nan=False)
 
-    artifact_version: Literal[1, 2, 3] = 2
-    model_type: Literal["multinomial_naive_bayes"] = "multinomial_naive_bayes"
+    artifact_version: Literal[1, 2, 3, 4] = 2
+    model_type: ModelType = "multinomial_naive_bayes"
     created_at: datetime
     application_version: str
     random_seed: int
     alpha: float = Field(gt=0, le=100)
+    decision_threshold: float = Field(default=0.5, gt=0, lt=1)
     positive_label: Literal["confirmed"] = "confirmed"
     labels: tuple[TrainingLabel, TrainingLabel] = ("confirmed", "false_positive")
     training_samples: int = Field(ge=2)
@@ -136,6 +182,7 @@ class ModelArtifact(BaseModel):
     feature_schema: FeatureSchema
     class_log_priors: dict[TrainingLabel, float]
     feature_log_probabilities: dict[TrainingLabel, tuple[float, ...]]
+    feature_log_complements: dict[TrainingLabel, tuple[float, ...]] = Field(default_factory=dict)
     evaluation: EvaluationMetrics
 
     source_samples: int = Field(default=0, ge=0)
@@ -154,6 +201,7 @@ class ModelArtifact(BaseModel):
     benchmark_run_id: str | None = None
     benchmark_catalog_version: int | None = Field(default=None, ge=1)
     benchmark_manifest_sha256: str | None = Field(default=None, min_length=64, max_length=64)
+    tuning: TuningSummary | None = None
 
     @model_validator(mode="after")
     def validate_artifact(self) -> ModelArtifact:
@@ -188,6 +236,17 @@ class ModelArtifact(BaseModel):
         ):
             raise ValueError("Model feature dimensions are inconsistent.")
 
+        if self.model_type == "bernoulli_naive_bayes":
+            if set(self.feature_log_complements) != expected_label_set:
+                raise ValueError("Bernoulli models require complement probabilities.")
+            if any(
+                len(self.feature_log_complements[label]) != feature_count
+                for label in expected_labels
+            ):
+                raise ValueError("Bernoulli complement dimensions are inconsistent.")
+        elif self.feature_log_complements:
+            raise ValueError("Multinomial models must not store Bernoulli complements.")
+
         if self.evaluation.test_samples != self.holdout_samples:
             raise ValueError("Holdout sample counts are inconsistent.")
 
@@ -207,10 +266,10 @@ class ModelArtifact(BaseModel):
                 raise ValueError("Deduplicated sample counts are inconsistent.")
 
             if self.split_strategy != "scan_group_stratified":
-                raise ValueError("Version 2 artifacts require a scan-group split.")
+                raise ValueError("Version 2+ artifacts require a scan-group split.")
 
             if not self.training_scan_ids or not self.holdout_scan_ids:
-                raise ValueError("Version 2 artifacts require train and holdout scans.")
+                raise ValueError("Version 2+ artifacts require train and holdout scans.")
 
             if set(self.training_scan_ids) & set(self.holdout_scan_ids):
                 raise ValueError("Training and holdout scan IDs must be disjoint.")
@@ -226,19 +285,39 @@ class ModelArtifact(BaseModel):
             self.benchmark_catalog_version,
             self.benchmark_manifest_sha256,
         )
-        if self.artifact_version == 3:
-            if self.training_context != "controlled_benchmark":
-                raise ValueError("Version 3 artifacts require controlled benchmark context.")
+        if self.training_context == "controlled_benchmark":
+            if self.artifact_version < 3:
+                raise ValueError("Controlled benchmark artifacts require version 3 or newer.")
             if any(value is None for value in benchmark_fields):
-                raise ValueError("Version 3 artifacts require complete benchmark provenance.")
+                raise ValueError("Controlled benchmark artifacts require complete provenance.")
             try:
                 int(self.benchmark_manifest_sha256 or "", 16)
             except ValueError as exc:
                 raise ValueError("benchmark_manifest_sha256 must be hexadecimal.") from exc
-        else:
-            if self.training_context != "reviewed_observations":
-                raise ValueError("Non-benchmark artifacts require reviewed observation context.")
-            if any(value is not None for value in benchmark_fields):
-                raise ValueError("Benchmark provenance is only valid on version 3 artifacts.")
+        elif any(value is not None for value in benchmark_fields):
+            raise ValueError("Benchmark provenance requires controlled benchmark context.")
+
+        if self.artifact_version == 3:
+            if self.model_type != "multinomial_naive_bayes":
+                raise ValueError("Version 3 artifacts are Multinomial Naive Bayes baselines.")
+            if self.tuning is not None:
+                raise ValueError("Version 3 artifacts must not contain tuning provenance.")
+
+        if self.artifact_version == 4:
+            if self.feature_schema.schema_version != 2:
+                raise ValueError("Version 4 artifacts require feature schema version 2.")
+            if self.tuning is None:
+                raise ValueError("Version 4 artifacts require tuning provenance.")
+            if self.tuning.selected_model_type != self.model_type:
+                raise ValueError("Tuning model type does not match the fitted model.")
+            if self.tuning.selected_alpha != self.alpha:
+                raise ValueError("Tuning alpha does not match the fitted model.")
+            if self.tuning.selected_threshold != self.decision_threshold:
+                raise ValueError("Tuning threshold does not match the fitted model.")
+        elif self.tuning is not None:
+            raise ValueError("Tuning provenance is only valid on version 4 artifacts.")
+
+        if self.model_type == "bernoulli_naive_bayes" and self.artifact_version < 4:
+            raise ValueError("Bernoulli models require artifact version 4.")
 
         return self

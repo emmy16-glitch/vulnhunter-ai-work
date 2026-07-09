@@ -42,8 +42,9 @@ observations
   |
   +--> passive analyzers
   +--> redacted persistence
-  +--> review queue
-  +--> explicit human labels
+  +--> first-review and second-review queues
+  +--> two-reviewer consensus or independent adjudication
+  +--> effective human label
   |
   v
 ml.dataset / quality / splitting
@@ -68,6 +69,7 @@ ml.training / tuning / diagnostics
 - Revalidate every derived network destination.
 - Redact at the earliest persistence or display boundary.
 - Keep passive evidence separate from human conclusions.
+- Preserve immutable reviewer decisions separately from the effective compatibility label.
 - Keep scans intact across dataset splits.
 - Store enough provenance to reproduce every model artifact.
 - Prefer explicit failure to silent fallback.

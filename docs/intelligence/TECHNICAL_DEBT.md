@@ -3,7 +3,7 @@
 | Item | Risk | Priority | Exit condition |
 |---|---|---:|---|
 | Socket-level DNS pinning | Connection may resolve after validation | High | Transport binds an approved address while preserving TLS hostname checks |
-| Single-reviewer labels | Reviewer bias | High | Second-review and adjudication workflow |
+| Pseudonymous local reviewer IDs | IDs are not authenticated identities | High | Account-backed roles or cryptographically signed review decisions |
 | Synthetic benchmark dependence | Misleading generalisation | High | Diverse authorised application dataset and external grouped holdout |
 | SQLite-only local storage | Limited concurrent/multi-user operation | Medium | Documented storage interface and migration plan |
 | Local unsigned artifacts | Integrity depends on local filesystem | Medium | Artifact signing and verification |

@@ -13,6 +13,7 @@ Training must fail safely when any configured requirement is unmet:
 - minimum independent scans;
 - minimum scans per class;
 - no unresolved label conflicts;
+- no pending second reviews or unresolved adjudication cases in the eligible sample set;
 - viable scan-group split.
 
 ## Leakage prevention
@@ -81,7 +82,7 @@ It is not evidence of performance on unknown real applications.
 A model should not be promoted beyond research status without:
 
 - diverse authorised applications;
-- independent reviewers or adjudication;
+- governed consensus/adjudication labels from diverse reviewers;
 - external holdout data;
 - category-level error analysis;
 - calibration analysis;

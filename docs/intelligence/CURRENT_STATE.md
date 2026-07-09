@@ -16,7 +16,8 @@ VulnHunter currently includes:
 - passive HTML mapping;
 - passive security observations;
 - SQLite scan, page, observation, and review persistence;
-- human review queue and explicit labels;
+- first-review and reviewer-specific second-review queues;
+- immutable two-reviewer consensus and independent adjudication;
 - duplicate and conflicting-label quality gates;
 - reviewed dataset export;
 - scan-group-isolated training and holdout evaluation;
@@ -35,7 +36,7 @@ Controlled benchmark results validate software plumbing and reproducibility only
 Before any real-world performance claim, the project still requires:
 
 - diverse authorised applications;
-- independently reviewed observations;
+- diverse observations reviewed through consensus or adjudication;
 - broader category coverage;
 - external validation;
 - calibration analysis;

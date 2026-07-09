@@ -53,8 +53,8 @@ from vulnhunter.ml import (
     train_baseline,
     train_tuned,
 )
-from vulnhunter.observations.models import ReviewOutcome
 from vulnhunter.observations.storage import ScanRepository
+from vulnhunter.review import IndependentReviewOutcome, ReviewCaseSummary
 from vulnhunter.scanner import HttpClientPolicy, SafeHttpClient
 from vulnhunter.scope import ApprovedTarget, validate_target
 
@@ -73,7 +73,7 @@ scan_app = typer.Typer(
     no_args_is_help=True,
 )
 findings_app = typer.Typer(
-    help="List and apply human-review labels to observations.",
+    help="Inspect findings and run independent human review workflows.",
     no_args_is_help=True,
 )
 ml_app = typer.Typer(
@@ -393,16 +393,19 @@ def findings_show(
 ) -> None:
     """Display complete redacted evidence for one observation."""
     try:
-        observation = _repository(database).get_observation(observation_id)
+        review_case = _repository(database).get_review_case(observation_id)
     except ValueError as exc:
         typer.secho(f"Unable to load observation: {exc}", fg=typer.colors.RED, err=True)
         raise typer.Exit(code=2) from exc
 
+    observation = review_case.observation
     typer.echo(f"Observation: {observation.id}")
     typer.echo(f"Scan: {observation.scan_id}")
     typer.echo(f"Category: {observation.category}")
     typer.echo(f"Severity: {observation.severity}")
     typer.echo(f"Review label: {observation.review_label}")
+    typer.echo(f"Review state: {review_case.state}")
+    typer.echo(f"Primary decisions: {len(review_case.decisions)}")
     typer.echo(f"Title: {observation.title}")
     typer.echo(f"URL: {observation.url}")
     typer.echo(f"Description: {observation.description}")
@@ -415,27 +418,202 @@ def findings_show(
 @findings_app.command("label")
 def findings_label(
     observation_id: int,
-    label: ReviewOutcome,
+    label: str,
     database: DatabaseOption = Path("vulnhunter.db"),
     note: Annotated[str | None, typer.Option("--note")] = None,
 ) -> None:
-    """Apply a human review outcome to one persisted observation."""
-    repository = _repository(database)
+    """Reject legacy single-review labelling for manual findings."""
+    del observation_id, label, database, note
+    typer.secho(
+        "Direct single-review labelling is disabled for manual findings. "
+        "Use 'vulnhunter findings review' with two distinct reviewers, and "
+        "'vulnhunter findings adjudicate' when they disagree.",
+        fg=typer.colors.RED,
+        err=True,
+    )
+    raise typer.Exit(code=2)
 
+
+def _display_review_case(case: ReviewCaseSummary) -> None:
+    """Render one review case without exposing unredacted source data."""
+    typer.echo(f"Observation: {case.observation.id}")
+    typer.echo(f"State: {case.state}")
+    typer.echo(f"Effective label: {case.effective_label}")
+    typer.echo(f"Primary decisions: {len(case.decisions)}")
+    for decision in case.decisions:
+        typer.echo(
+            f"  #{decision.id} reviewer={decision.reviewer_id} "
+            f"outcome={decision.outcome} at={decision.created_at.isoformat()}"
+        )
+        if decision.note:
+            typer.echo(f"    Note: {decision.note}")
+    if case.adjudication is not None:
+        typer.echo(
+            f"Adjudication: adjudicator={case.adjudication.adjudicator_id} "
+            f"outcome={case.adjudication.outcome} "
+            f"at={case.adjudication.created_at.isoformat()}"
+        )
+        typer.echo(f"  Rationale: {case.adjudication.rationale}")
+
+
+@findings_app.command("review")
+def findings_review(
+    observation_id: Annotated[int, typer.Argument(min=1)],
+    reviewer: Annotated[
+        str,
+        typer.Option(
+            "--reviewer",
+            help="Stable pseudonymous reviewer ID; do not use an email address.",
+        ),
+    ],
+    label: Annotated[
+        IndependentReviewOutcome,
+        typer.Option("--label", help="Independent primary-review outcome."),
+    ],
+    database: DatabaseOption = Path("vulnhunter.db"),
+    note: Annotated[str | None, typer.Option("--note")] = None,
+) -> None:
+    """Submit one immutable primary decision by an independent reviewer."""
     try:
-        observation = repository.label_observation(
+        case = _repository(database).submit_review_decision(
             observation_id,
+            reviewer,
             label,
             note=note,
         )
     except (ValidationError, ValueError) as exc:
-        typer.secho(f"Unable to label observation: {exc}", fg=typer.colors.RED, err=True)
+        typer.secho(
+            f"Review decision rejected safely: {exc}",
+            fg=typer.colors.RED,
+            err=True,
+        )
         raise typer.Exit(code=2) from exc
 
-    typer.secho(
-        f"Observation {observation.id} labelled {observation.review_label}.",
-        fg=typer.colors.GREEN,
-    )
+    typer.secho("Review decision recorded", fg=typer.colors.GREEN)
+    _display_review_case(case)
+    if case.state == "pending_second_review":
+        typer.echo("A distinct second reviewer is required before training eligibility.")
+    elif case.state == "disputed":
+        typer.echo("The disagreement requires an independent adjudicator.")
+
+
+@findings_app.command("review-status")
+def findings_review_status(
+    observation_id: Annotated[int, typer.Argument(min=1)],
+    database: DatabaseOption = Path("vulnhunter.db"),
+) -> None:
+    """Display all redacted decisions and the effective review state."""
+    try:
+        case = _repository(database).get_review_case(observation_id)
+    except ValueError as exc:
+        typer.secho(
+            f"Unable to load review case: {exc}",
+            fg=typer.colors.RED,
+            err=True,
+        )
+        raise typer.Exit(code=2) from exc
+
+    _display_review_case(case)
+
+
+@findings_app.command("second-review-queue")
+def findings_second_review_queue(
+    reviewer: Annotated[
+        str,
+        typer.Option(
+            "--reviewer",
+            help="Reviewer requesting cases they have not already decided.",
+        ),
+    ],
+    database: DatabaseOption = Path("vulnhunter.db"),
+    limit: Annotated[int, typer.Option("--limit", min=1, max=500)] = 50,
+) -> None:
+    """List cases awaiting a distinct second primary reviewer."""
+    try:
+        cases = _repository(database).list_second_review_queue(
+            reviewer,
+            limit=limit,
+        )
+    except ValueError as exc:
+        typer.secho(
+            f"Unable to load second-review queue: {exc}",
+            fg=typer.colors.RED,
+            err=True,
+        )
+        raise typer.Exit(code=2) from exc
+
+    if not cases:
+        typer.echo("Second-review queue is empty for this reviewer.")
+        return
+
+    for case in cases:
+        observation = case.observation
+        first = case.decisions[0]
+        typer.echo(
+            f"#{observation.id} [{observation.severity.upper()}] "
+            f"first_reviewer={first.reviewer_id} "
+            f"first_outcome={first.outcome} — {observation.title}"
+        )
+        typer.echo(f"  URL: {observation.url}")
+
+
+@findings_app.command("disputes")
+def findings_disputes(
+    database: DatabaseOption = Path("vulnhunter.db"),
+    limit: Annotated[int, typer.Option("--limit", min=1, max=500)] = 50,
+) -> None:
+    """List unresolved disagreements requiring adjudication."""
+    cases = _repository(database).list_disputed_review_cases(limit=limit)
+    if not cases:
+        typer.echo("No unresolved review disputes.")
+        return
+
+    for case in cases:
+        decisions = ", ".join(f"{item.reviewer_id}={item.outcome}" for item in case.decisions)
+        typer.echo(
+            f"#{case.observation.id} [{case.observation.severity.upper()}] "
+            f"{decisions} — {case.observation.title}"
+        )
+
+
+@findings_app.command("adjudicate")
+def findings_adjudicate(
+    observation_id: Annotated[int, typer.Argument(min=1)],
+    adjudicator: Annotated[
+        str,
+        typer.Option(
+            "--adjudicator",
+            help="Pseudonymous ID distinct from both primary reviewers.",
+        ),
+    ],
+    label: Annotated[
+        IndependentReviewOutcome,
+        typer.Option("--label", help="Final adjudicated outcome."),
+    ],
+    rationale: Annotated[
+        str,
+        typer.Option("--rationale", help="Required redacted adjudication rationale."),
+    ],
+    database: DatabaseOption = Path("vulnhunter.db"),
+) -> None:
+    """Resolve one primary-review disagreement with a third person."""
+    try:
+        case = _repository(database).adjudicate_review(
+            observation_id,
+            adjudicator,
+            label,
+            rationale=rationale,
+        )
+    except (ValidationError, ValueError) as exc:
+        typer.secho(
+            f"Adjudication rejected safely: {exc}",
+            fg=typer.colors.RED,
+            err=True,
+        )
+        raise typer.Exit(code=2) from exc
+
+    typer.secho("Review dispute adjudicated", fg=typer.colors.GREEN)
+    _display_review_case(case)
 
 
 @ml_app.command("readiness")

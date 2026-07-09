@@ -61,7 +61,8 @@ Primary packages:
 - `vulnhunter/security/`: redaction and sensitive-data handling.
 - `vulnhunter/scanner/`: request policy, cancellation, budgets, rate limits, and HTTP transport.
 - `vulnhunter/mapping/`: bounded passive crawling and link discovery.
-- `vulnhunter/observations/`: passive checks, persistence, review labels, and review queue.
+- `vulnhunter/observations/`: passive checks, persistence, effective labels, and review queues.
+- `vulnhunter/review/`: independent reviewer identities, consensus, disputes, and adjudication contracts.
 - `vulnhunter/ml/`: dataset preparation, features, grouped splitting, training, tuning, provenance, and diagnostics.
 - `vulnhunter/benchmark/`: controlled loopback benchmark workflow.
 - `vulnhunter/cli.py`: Typer command-line interface.
@@ -153,9 +154,13 @@ Raw response bodies may exist only as bounded, short-lived in-memory values. The
 - Observations are passive evidence, not proof of exploitation.
 - Observation severity does not equal exploitability.
 - Human review is authoritative.
-- Allowed review states must remain explicit and validated.
+- New manual observations require two distinct primary reviewers.
+- Matching decisions establish consensus; disagreement requires a third, independent adjudicator.
+- Pending and disputed cases must remain labelled `needs_review` and excluded from training.
+- Reviewer IDs are stable pseudonyms, not emails, secrets, or proof of legal identity.
+- Primary decisions and adjudications are immutable audit records.
 - Predictions must never change review labels.
-- Bulk labelling requires an explicit confirmed workflow.
+- Legacy single-review storage exists only for controlled benchmark and historical compatibility and must not overwrite governed cases.
 - Evidence displayed to reviewers must be redacted.
 - Duplicate and conflicting-label checks must run before training.
 
@@ -189,6 +194,7 @@ Additional expectations:
 - transport changes: cancellation, budgets, redirect limits, body limits, protected headers, and audit redaction;
 - storage changes: temporary database, transaction rollback, missing-record behaviour, and redaction;
 - ML changes: duplicate conflicts, grouped isolation, insufficient-data failure, provenance integrity, and deterministic seeds;
+- review changes: reviewer separation, consensus, disagreement, adjudicator independence, immutability, and training exclusion;
 - CLI changes: exit code and user-facing output tests.
 
 ## 10. Coding conventions

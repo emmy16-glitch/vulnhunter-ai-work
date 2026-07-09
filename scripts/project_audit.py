@@ -21,6 +21,7 @@ REQUIRED_INTELLIGENCE_FILES = (
     "docs/intelligence/SECURITY_BOUNDARIES.md",
     "docs/intelligence/TARGET_AUTHORIZATION.md",
     "docs/intelligence/DATA_AND_REVIEW.md",
+    "docs/intelligence/INDEPENDENT_REVIEW.md",
     "docs/intelligence/ML_GOVERNANCE.md",
     "docs/intelligence/TESTING_STRATEGY.md",
     "docs/intelligence/KNOWN_FAILURES.md",
@@ -37,6 +38,7 @@ EXPECTED_PACKAGES = (
     "scanner",
     "mapping",
     "observations",
+    "review",
     "ml",
     "benchmark",
 )

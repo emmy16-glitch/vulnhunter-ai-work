@@ -30,9 +30,9 @@ Missing headers, debug indicators, directory-style pages, and technology disclos
 
 Current benchmark data does not represent the diversity of frameworks, deployment stacks, authentication states, custom errors, proxies, and content found in real applications.
 
-## 6. Single-reviewer bias
+## 6. Historical single-review labels
 
-Labels created by one reviewer can encode consistent personal bias. A future real dataset should support second review and adjudication.
+The project now supports two-reviewer consensus and third-person adjudication for new manual observations. Historical and controlled-benchmark labels remain single-review records for reproducibility and must not be mistaken for independently reviewed real-world ground truth.
 
 ## 7. Local artifact lifecycle
 

@@ -14,11 +14,19 @@
 - expiry, revocation, passive-scan ceilings, integrity hash, and audit events;
 - mandatory authorization for manual scans.
 
+## Completed — Independent review and adjudication
+
+- immutable primary decisions by two distinct pseudonymous reviewers;
+- automatic consensus and dispute states;
+- third-person adjudication with required rationale;
+- unresolved cases excluded from training;
+- legacy benchmark labels preserved for reproducibility.
+
 ## Next — Real authorised data collection
 
 - collect observations from multiple intentionally diverse local applications;
 - document application family and deployment context;
-- introduce second-review/adjudication support;
+- use consensus/adjudication for new real labels;
 - build a balanced reviewed dataset without benchmark leakage.
 
 ## Next — Transport hardening

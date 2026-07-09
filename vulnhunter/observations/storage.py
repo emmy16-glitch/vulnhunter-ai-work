@@ -30,10 +30,18 @@ from vulnhunter.observations.models import (
     ReviewOutcome,
     ScanSummary,
 )
+from vulnhunter.review import (
+    IndependentReviewOutcome,
+    ReviewAdjudicationSummary,
+    ReviewCaseSummary,
+    ReviewDecisionSummary,
+    normalize_reviewer_id,
+)
 from vulnhunter.security import redact_mapping, redact_text, redact_url
 
 _REVIEW_LABEL_ADAPTER = TypeAdapter(ReviewLabel)
 _REVIEW_OUTCOME_ADAPTER = TypeAdapter(ReviewOutcome)
+_INDEPENDENT_REVIEW_OUTCOME_ADAPTER = TypeAdapter(IndependentReviewOutcome)
 
 
 class Base(DeclarativeBase):
@@ -88,6 +96,47 @@ class ObservationRow(Base):
     review_label: Mapped[str] = mapped_column(String(30), nullable=False, default="unreviewed")
     review_note: Mapped[str | None] = mapped_column(Text)
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class ReviewDecisionRow(Base):
+    __tablename__ = "review_decisions"
+    __table_args__ = (
+        UniqueConstraint(
+            "observation_id",
+            "reviewer_id",
+            name="uq_review_decision_observation_reviewer",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    observation_id: Mapped[int] = mapped_column(
+        ForeignKey("observations.id", ondelete="CASCADE"),
+        index=True,
+    )
+    reviewer_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    outcome: Mapped[str] = mapped_column(String(30), nullable=False)
+    note: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class ReviewAdjudicationRow(Base):
+    __tablename__ = "review_adjudications"
+    __table_args__ = (
+        UniqueConstraint(
+            "observation_id",
+            name="uq_review_adjudication_observation",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    observation_id: Mapped[int] = mapped_column(
+        ForeignKey("observations.id", ondelete="CASCADE"),
+        index=True,
+    )
+    adjudicator_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    outcome: Mapped[str] = mapped_column(String(30), nullable=False)
+    rationale: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
 class ScanRepository:
@@ -318,6 +367,17 @@ class ScanRepository:
             if row is None:
                 raise ValueError(f"Observation {observation_id} does not exist.")
 
+            governed_decision = session.scalar(
+                select(ReviewDecisionRow.id)
+                .where(ReviewDecisionRow.observation_id == observation_id)
+                .limit(1)
+            )
+            if governed_decision is not None:
+                raise ValueError(
+                    "This observation is governed by independent review and cannot "
+                    "be overwritten by legacy single-review labelling."
+                )
+
             row.review_label = validated_label
             row.review_note = redact_text(note.strip())[:2_000] if note and note.strip() else None
             row.reviewed_at = datetime.now(UTC)
@@ -365,6 +425,19 @@ class ScanRepository:
                 ]
                 raise ValueError("Observations do not exist: " + ", ".join(map(str, missing_ids)))
 
+            governed_ids = set(
+                session.scalars(
+                    select(ReviewDecisionRow.observation_id).where(
+                        ReviewDecisionRow.observation_id.in_(unique_ids)
+                    )
+                )
+            )
+            if governed_ids:
+                raise ValueError(
+                    "Independent-review cases cannot be overwritten by legacy "
+                    "bulk labelling: " + ", ".join(map(str, sorted(governed_ids)))
+                )
+
             for row in rows:
                 row.review_label = validated_label
                 row.review_note = safe_note
@@ -372,6 +445,263 @@ class ScanRepository:
 
             session.flush()
             return tuple(self._to_observation_summary(row) for row in rows)
+
+    def submit_review_decision(
+        self,
+        observation_id: int,
+        reviewer_id: str,
+        outcome: str,
+        *,
+        note: str | None = None,
+    ) -> ReviewCaseSummary:
+        """Record one immutable primary decision and update effective state."""
+        if observation_id < 1:
+            raise ValueError("observation_id must be at least 1.")
+
+        normalized_reviewer = normalize_reviewer_id(reviewer_id)
+        validated_outcome = _INDEPENDENT_REVIEW_OUTCOME_ADAPTER.validate_python(outcome)
+        safe_note = redact_text(note.strip())[:2_000] if note is not None and note.strip() else None
+        now = datetime.now(UTC)
+
+        with self._session_factory.begin() as session:
+            observation = session.get(ObservationRow, observation_id)
+            if observation is None:
+                raise ValueError(f"Observation {observation_id} does not exist.")
+
+            adjudication = session.scalar(
+                select(ReviewAdjudicationRow).where(
+                    ReviewAdjudicationRow.observation_id == observation_id
+                )
+            )
+            if adjudication is not None:
+                raise ValueError("This review case has already been adjudicated.")
+
+            decisions = tuple(
+                session.scalars(
+                    select(ReviewDecisionRow)
+                    .where(ReviewDecisionRow.observation_id == observation_id)
+                    .order_by(ReviewDecisionRow.id.asc())
+                )
+            )
+
+            if not decisions and observation.review_label in {
+                "confirmed",
+                "false_positive",
+            }:
+                raise ValueError(
+                    "This observation already has a legacy final label and cannot "
+                    "enter the independent-review workflow."
+                )
+
+            if any(item.reviewer_id == normalized_reviewer for item in decisions):
+                raise ValueError(
+                    "A reviewer may submit only one immutable primary decision per observation."
+                )
+            if len(decisions) >= 2:
+                raise ValueError(
+                    "Two primary decisions already exist; use adjudication when they disagree."
+                )
+
+            session.add(
+                ReviewDecisionRow(
+                    observation_id=observation_id,
+                    reviewer_id=normalized_reviewer,
+                    outcome=validated_outcome,
+                    note=safe_note,
+                    created_at=now,
+                )
+            )
+            session.flush()
+
+            decisions = tuple(
+                session.scalars(
+                    select(ReviewDecisionRow)
+                    .where(ReviewDecisionRow.observation_id == observation_id)
+                    .order_by(ReviewDecisionRow.id.asc())
+                )
+            )
+
+            if len(decisions) == 1:
+                observation.review_label = "needs_review"
+                observation.review_note = (
+                    "One independent decision recorded; a distinct second reviewer is required."
+                )
+            elif decisions[0].outcome == decisions[1].outcome:
+                observation.review_label = decisions[0].outcome
+                observation.review_note = "Final label established by two-reviewer consensus."
+            else:
+                observation.review_label = "needs_review"
+                observation.review_note = (
+                    "Primary reviewers disagreed; independent adjudication is required."
+                )
+
+            observation.reviewed_at = now
+            session.flush()
+            return self._review_case_from_session(session, observation)
+
+    def adjudicate_review(
+        self,
+        observation_id: int,
+        adjudicator_id: str,
+        outcome: str,
+        *,
+        rationale: str,
+    ) -> ReviewCaseSummary:
+        """Resolve a two-reviewer disagreement with a distinct adjudicator."""
+        if observation_id < 1:
+            raise ValueError("observation_id must be at least 1.")
+
+        normalized_adjudicator = normalize_reviewer_id(adjudicator_id)
+        validated_outcome = _INDEPENDENT_REVIEW_OUTCOME_ADAPTER.validate_python(outcome)
+        if not rationale.strip():
+            raise ValueError("An adjudication rationale is required.")
+        safe_rationale = redact_text(rationale.strip())[:2_000]
+        now = datetime.now(UTC)
+
+        with self._session_factory.begin() as session:
+            observation = session.get(ObservationRow, observation_id)
+            if observation is None:
+                raise ValueError(f"Observation {observation_id} does not exist.")
+
+            existing = session.scalar(
+                select(ReviewAdjudicationRow).where(
+                    ReviewAdjudicationRow.observation_id == observation_id
+                )
+            )
+            if existing is not None:
+                raise ValueError("This review case has already been adjudicated.")
+
+            decisions = tuple(
+                session.scalars(
+                    select(ReviewDecisionRow)
+                    .where(ReviewDecisionRow.observation_id == observation_id)
+                    .order_by(ReviewDecisionRow.id.asc())
+                )
+            )
+            if len(decisions) != 2:
+                raise ValueError("Adjudication requires exactly two primary review decisions.")
+            if decisions[0].outcome == decisions[1].outcome:
+                raise ValueError(
+                    "Matching primary decisions already establish consensus and "
+                    "must not be adjudicated."
+                )
+            reviewer_ids = {item.reviewer_id for item in decisions}
+            if normalized_adjudicator in reviewer_ids:
+                raise ValueError("The adjudicator must be distinct from both primary reviewers.")
+
+            session.add(
+                ReviewAdjudicationRow(
+                    observation_id=observation_id,
+                    adjudicator_id=normalized_adjudicator,
+                    outcome=validated_outcome,
+                    rationale=safe_rationale,
+                    created_at=now,
+                )
+            )
+            observation.review_label = validated_outcome
+            observation.review_note = "Final label established by independent adjudication."
+            observation.reviewed_at = now
+            session.flush()
+            return self._review_case_from_session(session, observation)
+
+    def get_review_case(self, observation_id: int) -> ReviewCaseSummary:
+        """Return one observation's review decisions and final resolution."""
+        if observation_id < 1:
+            raise ValueError("observation_id must be at least 1.")
+
+        with Session(self._engine) as session:
+            observation = session.get(ObservationRow, observation_id)
+            if observation is None:
+                raise ValueError(f"Observation {observation_id} does not exist.")
+            return self._review_case_from_session(session, observation)
+
+    def list_second_review_queue(
+        self,
+        reviewer_id: str,
+        *,
+        limit: int = 50,
+    ) -> tuple[ReviewCaseSummary, ...]:
+        """Return cases awaiting a distinct second primary reviewer."""
+        if limit < 1 or limit > 500:
+            raise ValueError("limit must be between 1 and 500.")
+        normalized_reviewer = normalize_reviewer_id(reviewer_id)
+
+        with Session(self._engine) as session:
+            decision_rows = tuple(
+                session.scalars(select(ReviewDecisionRow).order_by(ReviewDecisionRow.id.asc()))
+            )
+            by_observation: dict[int, list[ReviewDecisionRow]] = {}
+            for decision in decision_rows:
+                by_observation.setdefault(decision.observation_id, []).append(decision)
+
+            candidate_ids = [
+                observation_id
+                for observation_id, decisions in by_observation.items()
+                if len(decisions) == 1 and decisions[0].reviewer_id != normalized_reviewer
+            ]
+            if not candidate_ids:
+                return ()
+
+            severity_rank = case(
+                (ObservationRow.severity == "high", 0),
+                (ObservationRow.severity == "medium", 1),
+                (ObservationRow.severity == "low", 2),
+                else_=3,
+            )
+            observations = tuple(
+                session.scalars(
+                    select(ObservationRow)
+                    .where(
+                        ObservationRow.id.in_(candidate_ids),
+                        ObservationRow.review_label == "needs_review",
+                    )
+                    .order_by(severity_rank, ObservationRow.id.asc())
+                    .limit(limit)
+                )
+            )
+            return tuple(
+                self._review_case_from_session(session, observation) for observation in observations
+            )
+
+    def list_disputed_review_cases(
+        self,
+        *,
+        limit: int = 50,
+    ) -> tuple[ReviewCaseSummary, ...]:
+        """Return unresolved two-reviewer disagreements."""
+        if limit < 1 or limit > 500:
+            raise ValueError("limit must be between 1 and 500.")
+
+        with Session(self._engine) as session:
+            decision_rows = tuple(
+                session.scalars(select(ReviewDecisionRow).order_by(ReviewDecisionRow.id.asc()))
+            )
+            by_observation: dict[int, list[ReviewDecisionRow]] = {}
+            for decision in decision_rows:
+                by_observation.setdefault(decision.observation_id, []).append(decision)
+
+            adjudicated_ids = set(session.scalars(select(ReviewAdjudicationRow.observation_id)))
+            candidate_ids = [
+                observation_id
+                for observation_id, decisions in by_observation.items()
+                if len(decisions) == 2
+                and decisions[0].outcome != decisions[1].outcome
+                and observation_id not in adjudicated_ids
+            ]
+            if not candidate_ids:
+                return ()
+
+            observations = tuple(
+                session.scalars(
+                    select(ObservationRow)
+                    .where(ObservationRow.id.in_(candidate_ids))
+                    .order_by(ObservationRow.id.asc())
+                    .limit(limit)
+                )
+            )
+            return tuple(
+                self._review_case_from_session(session, observation) for observation in observations
+            )
 
     def get_observation(self, observation_id: int) -> ObservationSummary:
         """Return one observation by ID or raise a clear error."""
@@ -397,6 +727,68 @@ class ScanRepository:
         with Session(self._engine) as session:
             rows = session.scalars(statement)
             return tuple(self._to_observation_summary(row) for row in rows)
+
+    def _review_case_from_session(
+        self,
+        session: Session,
+        observation: ObservationRow,
+    ) -> ReviewCaseSummary:
+        decisions = tuple(
+            session.scalars(
+                select(ReviewDecisionRow)
+                .where(ReviewDecisionRow.observation_id == observation.id)
+                .order_by(ReviewDecisionRow.id.asc())
+            )
+        )
+        adjudication = session.scalar(
+            select(ReviewAdjudicationRow).where(
+                ReviewAdjudicationRow.observation_id == observation.id
+            )
+        )
+
+        if adjudication is not None:
+            state = "adjudicated"
+        elif len(decisions) == 2 and decisions[0].outcome == decisions[1].outcome:
+            state = "consensus"
+        elif len(decisions) == 2:
+            state = "disputed"
+        elif len(decisions) == 1:
+            state = "pending_second_review"
+        elif observation.review_label in {"confirmed", "false_positive"}:
+            state = "legacy_final"
+        elif observation.review_label == "needs_review":
+            state = "legacy_needs_review"
+        else:
+            state = "unreviewed"
+
+        return ReviewCaseSummary(
+            observation=self._to_observation_summary(observation),
+            state=state,
+            effective_label=observation.review_label,
+            decisions=tuple(
+                ReviewDecisionSummary(
+                    id=decision.id,
+                    observation_id=decision.observation_id,
+                    reviewer_id=decision.reviewer_id,
+                    outcome=decision.outcome,
+                    note=decision.note,
+                    created_at=decision.created_at,
+                )
+                for decision in decisions
+            ),
+            adjudication=(
+                ReviewAdjudicationSummary(
+                    id=adjudication.id,
+                    observation_id=adjudication.observation_id,
+                    adjudicator_id=adjudication.adjudicator_id,
+                    outcome=adjudication.outcome,
+                    rationale=adjudication.rationale,
+                    created_at=adjudication.created_at,
+                )
+                if adjudication is not None
+                else None
+            ),
+        )
 
     @staticmethod
     def _to_observation_summary(row: ObservationRow) -> ObservationSummary:

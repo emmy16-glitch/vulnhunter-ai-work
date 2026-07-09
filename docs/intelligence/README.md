@@ -10,13 +10,14 @@ This directory is the permanent, model-agnostic second brain for VulnHunter AI. 
 4. [Security boundaries](SECURITY_BOUNDARIES.md)
 5. [Explicit target authorization](TARGET_AUTHORIZATION.md)
 6. [Data and human review](DATA_AND_REVIEW.md)
-7. [ML governance](ML_GOVERNANCE.md)
-8. [Testing strategy](TESTING_STRATEGY.md)
-9. [Known failures and limitations](KNOWN_FAILURES.md)
-10. [Experiment log](EXPERIMENT_LOG.md)
-11. [Roadmap](ROADMAP.md)
-12. [Technical debt](TECHNICAL_DEBT.md)
-13. [Architecture decisions](../adr/README.md)
+7. [Independent review and adjudication](INDEPENDENT_REVIEW.md)
+8. [ML governance](ML_GOVERNANCE.md)
+9. [Testing strategy](TESTING_STRATEGY.md)
+10. [Known failures and limitations](KNOWN_FAILURES.md)
+11. [Experiment log](EXPERIMENT_LOG.md)
+12. [Roadmap](ROADMAP.md)
+13. [Technical debt](TECHNICAL_DEBT.md)
+14. [Architecture decisions](../adr/README.md)
 
 ## Maintenance rule
 

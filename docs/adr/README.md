@@ -8,6 +8,7 @@ ADRs preserve decisions that future contributors must not casually reverse.
 - [ADR-0004: Synthetic benchmarks are pipeline evidence only](0004-synthetic-benchmark-limits.md)
 - [ADR-0005: Controlled source ingestion](0005-controlled-source-ingestion.md)
 - [ADR-0006: Explicit target authorization](0006-explicit-target-authorization.md)
+- [ADR-0007: Independent review and adjudication](0007-independent-review-and-adjudication.md)
 
 ## ADR states
 

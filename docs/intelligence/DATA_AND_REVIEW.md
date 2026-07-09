@@ -23,14 +23,19 @@ The system uses explicit review labels such as:
 
 Unreviewed observations must not enter the training dataset.
 
-## Review workflow
+## Governed review workflow
 
 1. Display prioritised redacted evidence.
-2. Let the reviewer inspect one observation.
-3. Record an explicit decision.
-4. Preserve the decision and note.
-5. Detect repeated fingerprints and conflicting labels.
-6. Block training when unresolved conflicts remain.
+2. Record one immutable decision from the first pseudonymous reviewer.
+3. Keep the effective label as `needs_review`.
+4. Present the case only to a distinct second reviewer.
+5. Matching decisions establish consensus.
+6. Conflicting decisions create a dispute and remain `needs_review`.
+7. A third person, distinct from both primary reviewers, records an adjudication and rationale.
+8. Preserve every decision, timestamp, note, and final resolution.
+9. Block unresolved cases from training.
+
+Historical and controlled-benchmark labels remain available as legacy review state for reproducibility. New manual labels must use the governed workflow.
 
 ## Duplicate policy
 
@@ -59,6 +64,7 @@ Before training:
 - Are enough independent scans represented?
 - Does each class span multiple scans?
 - Are duplicate samples excluded?
-- Are conflicts resolved?
+- Are all new manual labels supported by consensus or adjudication?
+- Are review disputes resolved?
 - Is the split scan-group isolated?
 - Is the dataset hash recorded?

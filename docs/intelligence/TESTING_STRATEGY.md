@@ -108,3 +108,19 @@ Cover:
 - connection audit evidence;
 - safe-client default integration and caller-supplied test transports;
 - an operating-system loopback socket integration path with no external DNS.
+
+## Governance campaign tests
+
+Required coverage includes:
+
+- scrypt secret hashing and constant-time verification;
+- bootstrap-only-first-account behavior and role enforcement;
+- disabled and revoked identity lifecycle;
+- creator/approver separation and frozen campaign manifests;
+- authorization limit, validity, and record-digest checks;
+- completed-scan correlation with authorization events;
+- reviewer self-review and conflict rejection;
+- unattested legacy-decision rejection;
+- consensus and disputed-case adjudication;
+- release blocking until all observations are finally governed-reviewed;
+- record tampering and global event-chain tampering detection.

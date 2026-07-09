@@ -315,3 +315,20 @@ def test_manual_escalation_stops_non_terminal_loop(tmp_path) -> None:
 
     assert escalated.state == LoopState.ESCALATED
     assert store.verify_event_chain(manifest.loop_id)[-1].event_type == "human_escalation_required"
+
+
+def test_audit_redaction_preserves_valid_sha256_metadata(tmp_path) -> None:
+    _, store, manifest = create_test_loop(tmp_path)
+    digest = "1ec54df086c4b507d2db4678001fbee49f1429f00550275102817cb4ff019315"
+
+    event = store.append_event(
+        manifest.loop_id,
+        "digest_regression",
+        "test.runner",
+        {
+            "evidence_file": "evidence/example.json",
+            "evidence_sha256": digest,
+        },
+    )
+
+    assert event.payload["evidence_sha256"] == digest

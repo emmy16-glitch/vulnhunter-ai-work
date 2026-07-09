@@ -1,62 +1,54 @@
 # Roadmap
 
-## Completed — Governance, review, and bounded automation
+## Completed — Security and execution boundaries
 
-- permanent project intelligence and architecture decision records;
-- controlled source ingestion;
-- explicit time-limited target authorization;
-- independent finding review and adjudication;
-- bounded orchestration with deterministic proof, hard stops, role separation, human approval, and learning records;
-- immutable evaluator boundaries and protected-resource snapshots;
-- isolated one-commit transactional experiments with keep-or-revert decisions;
-- bounded meta-search guidance with human policy approval;
-- GitHub Actions quality gates.
-- runtime-enforced unattended permission manifests and independent approval;
-- scheduling decision matrix for interactive, session, local, CI, and remote work;
-- fixed shell-free command runner with evidence and blocker isolation;
-- connection-time DNS revalidation and approved-address TCP pinning;
-- connected-peer verification with original Host and TLS hostname preservation;
-- independent pinning for every request and redirect hop.
+- laboratory-only target validation and explicit time-limited authorization;
+- redirect containment, request budgets, cancellation, redaction, and bounded passive transport;
+- connection-time DNS revalidation, approved-address TCP pinning, peer verification, and original-host TLS preservation;
+- bounded orchestration, immutable evaluator boundaries, transactional experiments, and proof-based promotion;
+- runtime-enforced unattended permissions, fixed commands, blocker isolation, and critical-workflow halting.
 
-## Now — Governed authorised data collection
+## Completed — Review and data governance
 
-- collect observations from multiple intentionally diverse local applications;
-- document application family and deployment context;
-- use consensus or adjudication for every new real label;
-- preserve authorization evidence for every target;
-- build a balanced reviewed dataset without benchmark leakage.
+- two independent primary reviews and third-person adjudication;
+- controlled source ingestion, dataset quality gates, grouped splitting, provenance, and synthetic benchmark limits;
+- authenticated local campaign administrators, reviewers, and adjudicators;
+- governed campaign manifests bound to exact authorization snapshots and narrower limits;
+- distinct campaign creation and approval;
+- completed-scan correlation with authorization evidence;
+- assignment-based review, conflict checks, and identity-bound attestations;
+- fail-closed campaign completion and immutable dataset-release manifests.
 
-## Next — Authenticity and runner isolation
+## Now — Real dataset acquisition and external validation
 
-- build a production scheduler only after OS-level isolation and authenticated identities;
+1. Select several intentionally diverse local applications that are owned or explicitly authorised for the research lab.
+2. Issue narrow authorization records and create governed campaigns with application-family and deployment metadata.
+3. Run bounded passive collection only through the existing authorized scan path.
+4. Assign two independent authenticated reviewers to every retained observation and adjudicate every dispute.
+5. Freeze a reviewed release manifest only after diversity, integrity, and completeness gates pass.
+6. Partition by application group so one application cannot appear across development and holdout data.
+7. Lock an external holdout before model-selection decisions and evaluate it once at the declared checkpoint.
+8. Publish honest calibration, category, family-generalisation, and error-analysis results without converting synthetic evidence into production claims.
 
-- cryptographically sign model, authorization, review, and experiment evidence;
-- authenticate reviewer, evaluator, decider, and promoter identities;
-- run candidate worktrees under a dedicated low-privilege sandbox;
-- define artifact retention, backup, and release procedures.
+## Next — Artifact authenticity and stronger execution isolation
 
-## Later — Model validation
-
-- external grouped holdout;
-- repeated grouped cross-validation;
-- calibration and threshold analysis;
-- category-specific performance;
-- application-family generalisation;
-- model-card documentation.
+- cryptographically sign campaign releases, authorization snapshots, review attestations, model artifacts, experiment evidence, and release manifests;
+- introduce protected key storage, rotation, revocation, and verification policy;
+- execute repository verifiers and candidate worktrees under a dedicated low-privilege container, VM, or operating-system sandbox;
+- add formal schema migration, backup, restore, retention, and disaster-recovery procedures;
+- produce reproducible versioned package and release artifacts.
 
 ## Later — Product workflow
 
-- resumable scans;
-- controlled exports;
-- richer reviewer productivity;
-- safe report generation;
-- optional graphical review interface.
+- resumable campaign-aware collection;
+- controlled signed exports and report generation;
+- reviewer productivity features that preserve assignment and identity boundaries;
+- optional graphical campaign and review interface after the CLI process is stable.
 
 ## Explicitly deferred
 
-- exploitation;
-- credential attacks;
-- arbitrary Internet scanning;
-- autonomous approval or rejection;
+- exploitation or credential attacks;
+- arbitrary public-Internet scanning;
+- autonomous campaign approval, review, adjudication, or dataset release;
 - outer-loop executable code injection;
-- production performance claims from synthetic data.
+- production performance claims from synthetic or insufficiently diverse data.

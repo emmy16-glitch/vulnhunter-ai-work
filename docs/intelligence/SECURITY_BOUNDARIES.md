@@ -102,3 +102,23 @@ The current controls are application-level integrity and transaction controls, n
 ## Unattended execution boundary
 
 Unattended work requires an active manifest whose exact bytes were approved by a distinct human. Runtime adapters enforce tool, path, fixed-command, network, connector, named-secret, push, delete, and deployment permissions. Remote routines use stricter limits and exclude sensitive data by default. Revocation, expiry, or a critical blocker stops further actions.
+
+## Governed collection boundary
+
+A campaign is not permission to scan. It narrows existing authorization records
+and accepts only scans whose authorization event sequence and persisted scan
+summary agree. Campaign approval is bound to the SHA-256 digest of the exact
+campaign intent and registered applications.
+
+## Authenticated review boundary
+
+Governed review requires an active local identity, successful secret
+verification, the required role, an explicit assignment, no application
+conflict, and separation from the campaign creator and owner. Existing direct
+review commands remain available for synthetic and historical workflows, but
+those decisions cannot qualify for governed dataset release without a matching
+identity-bound attestation.
+
+The local secret registry is not a federated identity provider, hardware-backed
+credential store, or proof that two accounts are controlled by different human
+beings. Those limitations must remain explicit.

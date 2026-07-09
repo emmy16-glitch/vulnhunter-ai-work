@@ -4,45 +4,32 @@
 
 VulnHunter currently includes:
 
-- strict laboratory target validation;
-- explicit time-limited target authorization with revocation and audit events;
-- loopback/private-address enforcement;
-- immutable `ApprovedTarget` and `ScopedUrl` trust-boundary models;
+- strict laboratory target validation and explicit time-limited target authorization;
+- loopback/private-address enforcement with immutable `ApprovedTarget` and `ScopedUrl` trust-boundary models;
 - derived-link and redirect containment;
+- connection-time DNS revalidation, approved-address TCP pinning, connected-peer verification, and original-host TLS preservation;
 - central sensitive-data redaction;
-- GET/HEAD-only HTTP policy;
-- cancellation, request budgets, rate limiting, timeout controls, and body-size limits;
-- manual redirect validation;
-- passive HTML mapping;
-- passive security observations;
-- SQLite scan, page, observation, and review persistence;
-- first-review and reviewer-specific second-review queues;
-- immutable two-reviewer consensus and independent adjudication;
+- GET/HEAD-only HTTP policy with cancellation, request budgets, rate limiting, timeouts, and response-size limits;
+- passive HTML mapping and passive security observations;
+- SQLite persistence for scans, pages, observations, review decisions, authorization records, and audit events;
+- immutable two-reviewer consensus, independent adjudication, and reviewer-specific queues;
 - duplicate and conflicting-label quality gates;
-- reviewed dataset export;
-- scan-group-isolated training and holdout evaluation;
-- model artifact provenance and integrity metadata;
-- controlled synthetic benchmark workflow;
-- training-only model selection and holdout diagnostics;
-- bounded engineering orchestration with deterministic proof, role separation, hard stops, human approval, and learning records.
-- immutable evaluator resource classes and protected baseline snapshots;
-- isolated one-commit transactional experiments with deterministic keep-or-revert decisions;
-- human-confirmed promotion of accepted candidates;
-- bounded outer-loop search-diversity analysis with no executable code injection;
-- GitHub Actions quality gates for supported Python versions.
-- runtime-enforced unattended permission manifests with independent approval;
-- scheduling guidance for interactive, session, local scheduled, CI, and remote modes;
-- shell-free fixed command execution with integrity-linked evidence;
-- two-failure blocker isolation and critical-workflow halting;
-- connection-time DNS revalidation inside the transport;
-- TCP connections bound to approved IPv4/IPv6 addresses;
-- connected-peer verification and approved-address-only retries;
-- preservation of the original HTTP Host and TLS SNI/certificate hostname;
-- immutable connection audit evidence exposed by the safe client.
+- reviewed dataset export, scan-group-isolated splitting, model provenance, controlled benchmarks, and training-only model selection;
+- bounded engineering orchestration with deterministic proof, role separation, hard stops, human approval, and learning records;
+- immutable evaluator boundaries, isolated one-commit experiments, deterministic keep-or-revert decisions, and human-confirmed promotion;
+- bounded non-executable meta-search guidance and GitHub Actions quality gates;
+- runtime-enforced unattended permission manifests, fixed shell-free commands, blocker isolation, and critical-workflow halting;
+- authenticated local governance identities with explicit administrator, reviewer, and adjudicator roles;
+- governed collection campaigns bound to exact authorization snapshots, narrower collection limits, application metadata, and distinct approval;
+- completed-scan correlation with authorization validation/start/completion evidence;
+- explicit reviewer assignments, identity-bound review attestations, conflict checks, and creator/owner separation;
+- fail-closed campaign completion and immutable dataset-release manifests.
 
 ## Current interpretation
 
 The platform is a secure research pipeline and decision-support prototype. It is not an autonomous vulnerability scanner, exploit framework, or production-grade vulnerability classifier.
+
+The governed collection and authenticated-review control plane is implemented. That implementation proves workflow enforcement; it does not mean a diverse real dataset has already been collected.
 
 ## Current model status
 
@@ -50,17 +37,16 @@ Controlled benchmark results validate software plumbing and reproducibility only
 
 Before any real-world performance claim, the project still requires:
 
-- diverse authorised applications;
-- diverse observations reviewed through consensus or adjudication;
-- broader category coverage;
-- external validation;
-- calibration analysis;
-- repeated experiments across application families;
-- documented error analysis.
+- collection across multiple intentionally diverse authorised local applications;
+- independent governed review of every retained real observation;
+- application-family metadata and group-isolated development/holdout partitions;
+- a locked external holdout evaluated only after development decisions are frozen;
+- calibration, category-specific, and repeated-run analysis;
+- documented false-positive and false-negative error analysis.
 
 ## Current operational commands
 
-Use the CLI help as the exact current interface:
+Use CLI help as the exact current interface:
 
 ```bash
 vulnhunter --help
@@ -68,6 +54,9 @@ vulnhunter scope --help
 vulnhunter authorize --help
 vulnhunter scan --help
 vulnhunter findings --help
+vulnhunter governance --help
+vulnhunter governance identity --help
+vulnhunter governance campaign --help
 vulnhunter ml --help
 vulnhunter benchmark --help
 vulnhunter loop --help

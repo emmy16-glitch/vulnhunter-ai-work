@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime
@@ -31,6 +32,23 @@ except ImportError:  # pragma: no cover - VulnHunter currently targets Linux.
     fcntl = None
 
 _ZERO_HASH = "0" * 64
+
+
+_SHA256_PATTERN = re.compile(r"^[0-9a-fA-F]{64}$")
+
+
+def _redact_audit_payload(payload: dict[str, object]) -> dict[str, object]:
+    """Redact content without corrupting validated SHA-256 metadata."""
+    safe_payload = redact_mapping(payload)
+
+    for key, value in payload.items():
+        if key != "sha256" and not key.endswith("_sha256"):
+            continue
+        if not isinstance(value, str) or _SHA256_PATTERN.fullmatch(value) is None:
+            raise LoopIntegrityError(f"Invalid SHA-256 audit metadata: {key}")
+        safe_payload[key] = value.lower()
+
+    return safe_payload
 
 
 def _canonical_json(value: object) -> str:
@@ -126,7 +144,7 @@ class LoopStore:
         if not event_path.is_file():
             raise LoopNotFoundError(f"Loop {loop_id} does not exist.")
 
-        safe_payload = redact_mapping(payload)
+        safe_payload = _redact_audit_payload(payload)
         with self._locked(directory):
             events = self._read_events_unlocked(loop_id)
             previous_hash = events[-1].event_hash if events else _ZERO_HASH

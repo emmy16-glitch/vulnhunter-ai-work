@@ -12,9 +12,9 @@ ADRs preserve decisions that future contributors must not casually reverse.
 - [ADR-0008: Bounded orchestration and proof-based completion](0008-bounded-orchestration-and-proof-based-completion.md)
 - [ADR-0009: Immutable evaluator and transactional experiments](0009-immutable-evaluator-and-transactional-experiments.md)
 - [ADR-0010: Bounded meta-search without code injection](0010-bounded-meta-search-without-code-injection.md)
-
 - [ADR-0011: Runtime-enforced unattended permissions](0011-runtime-enforced-unattended-permissions.md)
 - [ADR-0012: Connection-bound DNS scope enforcement](0012-connection-bound-dns-scope-enforcement.md)
+- [ADR-0013: Governed collection campaigns and authenticated review identities](0013-governed-collection-and-authenticated-review.md)
 
 ## ADR states
 

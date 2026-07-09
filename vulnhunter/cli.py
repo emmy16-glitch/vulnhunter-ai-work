@@ -39,6 +39,7 @@ from vulnhunter.exceptions import (
     ScopeValidationError,
     VulnHunterError,
 )
+from vulnhunter.governance.cli import app as governance_app
 from vulnhunter.mapping import MapperPolicy, SiteMapper
 from vulnhunter.ml import (
     BenchmarkProvenance,
@@ -89,6 +90,7 @@ benchmark_app = typer.Typer(
 )
 
 app.add_typer(authorization_app, name="authorize")
+app.add_typer(governance_app, name="governance")
 app.add_typer(scope_app, name="scope")
 app.add_typer(scan_app, name="scan")
 app.add_typer(findings_app, name="findings")

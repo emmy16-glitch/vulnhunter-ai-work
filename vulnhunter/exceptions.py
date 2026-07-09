@@ -159,3 +159,27 @@ class UnattendedStateError(UnattendedError):
 
 class UnattendedExecutionError(UnattendedError):
     """Raised when a fixed command cannot execute safely."""
+
+
+class GovernanceError(VulnHunterError):
+    """Base exception for governed collection and review workflows."""
+
+
+class GovernanceNotFoundError(GovernanceError):
+    """Requested governance record does not exist."""
+
+
+class GovernanceIntegrityError(GovernanceError):
+    """Governance record or event failed integrity verification."""
+
+
+class GovernancePolicyError(GovernanceError):
+    """Governance policy rejected an attempted action."""
+
+
+class GovernanceAuthenticationError(GovernanceError):
+    """Local reviewer authentication failed."""
+
+
+class GovernanceStateError(GovernanceError):
+    """Governance state transition is invalid."""

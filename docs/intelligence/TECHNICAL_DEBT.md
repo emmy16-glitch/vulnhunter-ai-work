@@ -26,3 +26,15 @@ Do not silently work around technical debt. Link significant implementation chan
 | Item | Resolution |
 |---|---|
 | Socket-level DNS pinning | Connection-time address subset validation, direct approved-IP TCP connections, peer verification, original-host TLS validation, and per-request connection isolation |
+
+## Governed collection follow-up
+
+- Replace local shared-secret authentication with optional MFA or an external
+  identity provider when deployment requirements justify the added trust and
+  operational complexity.
+- Add cryptographic signing and protected key rotation for campaign releases and
+  other durable artifacts.
+- Add a migration framework before the governance SQLite schema changes in a
+  backward-incompatible way.
+- Add a campaign dashboard only after the CLI workflow and real-data operating
+  process are stable.

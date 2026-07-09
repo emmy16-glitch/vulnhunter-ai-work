@@ -251,6 +251,26 @@ class ScanRepository:
             scan.completed_at = datetime.now(UTC)
             scan.error_message = redact_text(message)[:2_000]
 
+    def get_scan(self, scan_id: int) -> ScanSummary:
+        """Return one persisted scan by ID."""
+        if scan_id < 1:
+            raise ValueError("scan_id must be at least 1.")
+
+        with Session(self._engine) as session:
+            row = session.get(ScanRow, scan_id)
+            if row is None:
+                raise ValueError(f"Scan {scan_id} does not exist.")
+            return ScanSummary(
+                id=row.id,
+                target_url=row.target_url,
+                status=row.status,
+                started_at=row.started_at,
+                completed_at=row.completed_at,
+                pages_visited=row.pages_visited,
+                observations_count=row.observations_count,
+                error_message=row.error_message,
+            )
+
     def list_scans(self, *, limit: int = 50) -> tuple[ScanSummary, ...]:
         """Return newest scans first."""
         if limit < 1 or limit > 500:

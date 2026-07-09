@@ -52,6 +52,15 @@ observations
   +--> effective human label
   |
   v
+governance
+  |
+  +--> authenticated campaign administrators, reviewers, and adjudicators
+  +--> exact authorization and completed-scan bindings
+  +--> application-family metadata and conflict checks
+  +--> identity-bound review attestations
+  +--> fail-closed campaign completion and release manifest
+  |
+  v
 ml.dataset / quality / splitting
   |
   +--> reviewed-only records
@@ -155,3 +164,27 @@ ScopedUrl
 ```
 
 The connection pool disables keep-alive reuse. This intentionally trades some throughput for a fresh, auditable binding decision on every request and redirect.
+
+## Governed collection and review flow
+
+```text
+Target authorization registry
+        ↓ exact immutable authorization snapshot
+Draft campaign + application diversity metadata
+        ↓ distinct administrator approval of manifest SHA-256
+Active campaign
+        ↓ authorization validation/start/completion event correlation
+Completed passive scan links
+        ↓ observation-specific assignments
+Authenticated reviewer A + authenticated reviewer B
+        ↓ consensus or assigned adjudicator
+Identity-bound repository decision attestations
+        ↓ campaign completion gate
+Immutable dataset release manifest
+```
+
+The governance database stores identity records, campaign records, application
+bindings, scan links, assignments, attestations, releases, and a global
+hash-chained event history. The observation database remains authoritative for
+finding evidence and effective labels; the governance layer proves which
+approved identity and campaign workflow produced those labels.

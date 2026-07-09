@@ -107,3 +107,31 @@ class LoopBudgetError(LoopError):
 
 class LoopEvaluationError(LoopError):
     """Raised when deterministic proof collection cannot be completed."""
+
+
+class ResearchError(VulnHunterError):
+    """Base exception for transactional autoresearch failures."""
+
+
+class ResearchNotFoundError(ResearchError):
+    """Raised when an experiment record cannot be found."""
+
+
+class ResearchIntegrityError(ResearchError):
+    """Raised when experiment state, evidence, or provenance was altered."""
+
+
+class ResearchBoundaryError(ResearchError):
+    """Raised when a candidate attempts to cross an immutable resource boundary."""
+
+
+class ResearchStateError(ResearchError):
+    """Raised when an experiment action is invalid for its current state."""
+
+
+class ResearchEvaluationError(ResearchError):
+    """Raised when trusted experiment evaluation cannot be completed."""
+
+
+class ResearchGitError(ResearchError):
+    """Raised when transactional Git worktree operations fail safely."""

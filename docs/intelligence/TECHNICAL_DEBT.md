@@ -7,6 +7,7 @@
 | Local pseudonymous orchestration roles | Role separation is recorded but identities are not authenticated | High | Account-backed identities or signed role attestations |
 | Synthetic benchmark dependence | Misleading generalisation | High | Diverse authorised application dataset and external grouped holdout |
 | SQLite-only local storage | Limited concurrent/multi-user operation | Medium | Documented storage interface and migration plan |
+| Application-level experiment isolation | A fully privileged local account is not OS-sandboxed | High | Dedicated low-privilege runner, container, VM, or sandbox profile |
 | Local unsigned artifacts | Integrity depends on local filesystem | Medium | Artifact signing and verification |
 | CLI-only review | Lower reviewer productivity | Medium | Stable review contracts plus optional UI |
 | Limited performance profiling | Unknown scaling limits | Medium | Repeatable mapper/storage/feature benchmarks |

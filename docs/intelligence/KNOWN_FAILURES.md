@@ -47,3 +47,11 @@ The project currently prioritises a CLI workflow. A graphical review interface i
 The evaluation harness executes only fixed verifier command templates with `shell=False`, bounded output, timeouts, and an offline-oriented environment. The repository tests and build tools themselves are still local code and are not isolated by a kernel sandbox or container. A verifier pass therefore proves the configured checks ran successfully; it does not prove hostile repository code could not affect the host.
 
 Loop roles are pseudonymous local identifiers. Their separation is mechanically recorded but not backed by authenticated accounts or digital signatures.
+
+## 10. Local experiment isolation is not a kernel sandbox
+
+Git worktrees, protected hashes, fixed verifiers, role separation, and deterministic rejection make evaluator gaming visible and prevent promotion. Experiment creation also refuses tracked paths classified as inaccessible. These controls do not provide operating-system isolation from a fully privileged local account, and they cannot erase secrets already reachable through Git history. Stronger isolation would require a separate low-privilege user, container, VM, or sandbox profile plus repository-history hygiene.
+
+## 11. Outer-loop guidance is intentionally non-executable
+
+The meta-search layer proposes strategy changes rather than injecting Python. This limits autonomy but prevents the outer loop from mutating its own evaluator or security boundaries.

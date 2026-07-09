@@ -193,7 +193,25 @@ Substantial AI-assisted changes must use the orchestration contract where practi
 7. never execute arbitrary shell commands from a loop specification;
 8. never treat orchestration approval as target authorization or vulnerability confirmation.
 
-## 10. Testing requirements
+
+## 10. Transactional autoresearch rules
+
+Research experiments must:
+
+1. start from a clean recorded Git baseline;
+2. use exactly one hypothesis and one candidate commit;
+3. run in a dedicated branch/worktree outside the primary working tree;
+4. classify candidate resources as editable, read-only, or inaccessible;
+5. keep tests, labels, holdouts, authorization, scope, redaction, evaluator, orchestration, and research-engine resources outside candidate write authority;
+6. record trusted baseline and candidate metric reports with hashes and independent evaluator identity;
+7. require objective improvement plus every regression, safety, integrity, and verifier gate;
+8. remove rejected or inconclusive worktrees while preserving evidence and patch provenance;
+9. require a distinct human promoter and exact confirmation before cherry-picking an accepted candidate;
+10. permit meta-search to propose non-executable strategy guidance only; it may never alter evaluator policy or inject code.
+
+A better score never compensates for a failed safety or integrity gate.
+
+## 11. Testing requirements
 
 Every security-sensitive change requires:
 
@@ -212,7 +230,7 @@ Additional expectations:
 - review changes: reviewer separation, consensus, disagreement, adjudicator independence, immutability, and training exclusion;
 - CLI changes: exit code and user-facing output tests.
 
-## 11. Coding conventions
+## 12. Coding conventions
 
 - Python 3.11+ syntax only, despite development currently using a newer interpreter.
 - Type public functions and trust-boundary models.
@@ -228,7 +246,7 @@ Additional expectations:
 - Use UTC timestamps.
 - Keep user-facing text precise and free of unsupported claims.
 
-## 12. Common AI-agent mistakes to avoid
+## 13. Common AI-agent mistakes to avoid
 
 - replacing a complete file without inspecting its current exports and callers;
 - weakening a test instead of fixing the contract;
@@ -244,7 +262,7 @@ Additional expectations:
 - claiming implementation success before running tests;
 - leaving installers, databases, models, or temporary files accidentally tracked.
 
-## 13. Mandatory stop and escalation conditions
+## 14. Mandatory stop and escalation conditions
 
 Stop the change and report clearly when:
 
@@ -261,7 +279,7 @@ Stop the change and report clearly when:
 - destructive behaviour is requested;
 - a dependency or design choice cannot be justified.
 
-## 14. Definition of done
+## 15. Definition of done
 
 A milestone is done only when:
 

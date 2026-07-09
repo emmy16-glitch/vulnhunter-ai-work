@@ -101,3 +101,18 @@ LoopSpec
 ```
 
 The orchestration subsystem governs project changes; it is separate from target scanning and cannot grant scan authorization or alter human finding labels.
+
+## Transactional research plane
+
+```text
+clean Git baseline
+  -> immutable evaluator policy and protected snapshot
+  -> isolated experiment worktree
+  -> exactly one candidate commit
+  -> trusted baseline/candidate metric reports
+  -> fixed verifiers plus safety/regression gates
+  -> accept, reject, or inconclusive
+  -> rejected worktree removed; accepted candidate awaits human promotion
+```
+
+The optional meta-search layer reads experiment metadata only. It can propose strategy-weight changes after detecting repetition or stagnation, but it cannot edit code, evaluator resources, labels, holdouts, or safety policy.

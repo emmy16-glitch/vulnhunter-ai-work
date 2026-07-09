@@ -10,6 +10,8 @@ ADRs preserve decisions that future contributors must not casually reverse.
 - [ADR-0006: Explicit target authorization](0006-explicit-target-authorization.md)
 - [ADR-0007: Independent review and adjudication](0007-independent-review-and-adjudication.md)
 - [ADR-0008: Bounded orchestration and proof-based completion](0008-bounded-orchestration-and-proof-based-completion.md)
+- [ADR-0009: Immutable evaluator and transactional experiments](0009-immutable-evaluator-and-transactional-experiments.md)
+- [ADR-0010: Bounded meta-search without code injection](0010-bounded-meta-search-without-code-injection.md)
 
 ## ADR states
 

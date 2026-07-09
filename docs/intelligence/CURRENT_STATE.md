@@ -25,6 +25,11 @@ VulnHunter currently includes:
 - controlled synthetic benchmark workflow;
 - training-only model selection and holdout diagnostics;
 - bounded engineering orchestration with deterministic proof, role separation, hard stops, human approval, and learning records.
+- immutable evaluator resource classes and protected baseline snapshots;
+- isolated one-commit transactional experiments with deterministic keep-or-revert decisions;
+- human-confirmed promotion of accepted candidates;
+- bounded outer-loop search-diversity analysis with no executable code injection;
+- GitHub Actions quality gates for supported Python versions.
 
 ## Current interpretation
 
@@ -57,6 +62,7 @@ vulnhunter findings --help
 vulnhunter ml --help
 vulnhunter benchmark --help
 vulnhunter loop --help
+vulnhunter research --help
 ```
 
 ## Repository health

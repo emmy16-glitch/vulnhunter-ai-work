@@ -29,6 +29,8 @@ REQUIRED_INTELLIGENCE_FILES = (
     "docs/intelligence/ROADMAP.md",
     "docs/intelligence/TECHNICAL_DEBT.md",
     "docs/intelligence/ORCHESTRATION_LOOP.md",
+    "docs/intelligence/AUTORESEARCH_ENGINE.md",
+    ".github/workflows/quality.yml",
     "docs/adr/README.md",
 )
 
@@ -41,6 +43,7 @@ EXPECTED_PACKAGES = (
     "observations",
     "review",
     "orchestration",
+    "research",
     "ml",
     "benchmark",
 )

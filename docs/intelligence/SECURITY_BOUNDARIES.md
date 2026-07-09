@@ -79,3 +79,11 @@ Do not:
 ## Engineering-orchestration boundary
 
 Loop approval governs a repository change only. It cannot authorize a target, confirm a vulnerability, alter a finding label, or promote a model. The verifier registry executes fixed command templates without a shell, but it is not a kernel-level sandbox. All evidence remains local and must be treated according to the project artifact-retention policy.
+
+## Autoresearch evaluator boundary
+
+Research candidates operate in isolated Git worktrees and may change only paths that are both listed by the experiment and classified as editable. Tests, accepted ADRs, scope, redaction, authorization, orchestration, research-engine code, benchmark evaluator logic, and CI policy are read-only. Local artifacts, secrets, private keys, production/customer data, and private-target inventories are classified as inaccessible and must not be tracked in the experiment baseline.
+
+Protected resources are hashed from the clean primary baseline. Any protected-file change, missing resource, out-of-scope path, safety failure, regression, or verifier failure prevents acceptance regardless of objective score. Rejected candidates are removed from their isolated worktrees without rewriting the primary branch.
+
+The current controls are application-level integrity and transaction controls, not a kernel sandbox. Local actor identities are recorded but not cryptographically authenticated.

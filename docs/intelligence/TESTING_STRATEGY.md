@@ -74,3 +74,17 @@ Current tests focus on correctness. Future performance tests should measure:
 - benchmark reproducibility.
 
 - orchestration changes: specification validation, path boundaries, role separation, verifier timeouts, repeated-error/no-progress stops, diff binding, evidence integrity, review/approval gates, and guarded rollback;
+
+### Transactional research tests
+
+Cover:
+
+- editable, read-only, and inaccessible path classification;
+- protected-snapshot tampering;
+- exactly-one-commit worktree rules;
+- trusted metric schema and finite values;
+- objective, regression, and safety gates;
+- reject cleanup and accepted-candidate promotion;
+- event/evidence integrity;
+- meta-search repetition and stagnation detection;
+- no arbitrary shell execution or evaluator-policy mutation.

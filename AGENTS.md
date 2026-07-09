@@ -1,0 +1,246 @@
+# VulnHunter AI — Permanent Agent Operating Manual
+
+## 1. Purpose
+
+VulnHunter AI is an authorised, laboratory-only security-research platform. It maps approved local/private web targets, creates passive security observations, preserves human review authority, and supports reproducible machine-learning experiments.
+
+This file is the binding operating manual for humans and AI coding agents working in this repository.
+
+## 2. Non-negotiable product boundary
+
+VulnHunter may assist with:
+
+- validating authorised laboratory targets;
+- bounded GET/HEAD HTTP collection;
+- passive mapping and passive security observations;
+- sanitised persistence and audit events;
+- human review and labelling;
+- reproducible dataset construction;
+- model training, diagnostics, and decision support.
+
+VulnHunter must not:
+
+- scan arbitrary public Internet targets;
+- exploit vulnerabilities;
+- brute-force credentials;
+- submit destructive forms;
+- upload payloads;
+- bypass authentication or access controls;
+- alter human labels automatically;
+- represent synthetic benchmark metrics as production performance;
+- log or persist raw secrets, authentication values, cookies, or unredacted sensitive data.
+
+Stop immediately when a requested change weakens any of these boundaries.
+
+## 3. Current architecture
+
+Core flow:
+
+```text
+Raw target URL
+    -> initial scope validation
+    -> ApprovedTarget
+    -> derived URL / redirect validation
+    -> ScopedUrl
+    -> SafeHttpClient
+    -> bounded response
+    -> passive mapper
+    -> passive observations
+    -> redacted SQLite persistence
+    -> human review labels
+    -> deduplicated reviewed dataset
+    -> scan-group-isolated model selection/evaluation
+    -> decision-support prediction
+```
+
+Primary packages:
+
+- `vulnhunter/scope/`: target approval and derived-URL containment.
+- `vulnhunter/security/`: redaction and sensitive-data handling.
+- `vulnhunter/scanner/`: request policy, cancellation, budgets, rate limits, and HTTP transport.
+- `vulnhunter/mapping/`: bounded passive crawling and link discovery.
+- `vulnhunter/observations/`: passive checks, persistence, review labels, and review queue.
+- `vulnhunter/ml/`: dataset preparation, features, grouped splitting, training, tuning, provenance, and diagnostics.
+- `vulnhunter/benchmark/`: controlled loopback benchmark workflow.
+- `vulnhunter/cli.py`: Typer command-line interface.
+
+## 4. Required engineering workflow
+
+Before changing code:
+
+1. Read the relevant implementation, tests, public exports, and CLI wiring.
+2. Identify the security boundary and data-flow impact.
+3. Check whether a similar abstraction already exists.
+4. Define failure behaviour before happy-path behaviour.
+5. Decide how the change will be verified.
+6. Keep the Git working tree clean or explain why it is not.
+
+During implementation:
+
+1. Make one coherent architectural change.
+2. Preserve backward compatibility unless an intentional migration is documented.
+3. Use typed immutable models at trust boundaries.
+4. Redact before logging, persistence, exports, or exceptions cross a boundary.
+5. Prefer deterministic tests with fake resolvers, mock transports, temporary databases, and loopback servers.
+6. Never add hidden network calls to unit tests.
+7. Keep external dependencies minimal and justified.
+
+After implementation, run:
+
+```bash
+python -m ruff format .
+python -m ruff check .
+python -m compileall -q vulnhunter
+python -m pytest -q
+python -m ruff format --check .
+git diff --check
+git status --short
+```
+
+Do not claim completion unless these checks pass.
+
+## 5. Scope and network rules
+
+- Initial targets must remain restricted to loopback and explicitly approved private laboratory address space.
+- A raw URL string must not reach the HTTP transport.
+- Every request destination must be represented by `ScopedUrl`.
+- Every redirect must be followed manually and revalidated.
+- Scheme, hostname, port, and segment-aware path boundaries must remain fixed.
+- `/app` must not authorise `/application`.
+- Embedded URL credentials are forbidden.
+- Public, unspecified, multicast, link-local, reserved, documentation, and mixed private/public resolutions remain rejected.
+- `trust_env=False` must remain enabled unless a documented safe proxy design replaces it.
+- Automatic redirects remain disabled.
+- Only configured read-only methods are permitted.
+- Every request consumes a budget slot.
+- Response bodies must remain bounded and streamed.
+- Cancellation must be checked before scheduling work and while streaming.
+
+Known limitation: hostname validation before a request does not fully eliminate the socket-level DNS time-of-check/time-of-use race. Do not claim complete DNS-rebinding resistance until connection-level address pinning is implemented and tested.
+
+## 6. Sensitive-data rules
+
+Redact before:
+
+- audit event creation;
+- database persistence;
+- exported datasets;
+- CLI error display;
+- model features derived from text;
+- diagnostic output.
+
+Protected examples include:
+
+- authorisation values;
+- cookies and session identifiers;
+- passwords and secrets;
+- API keys and access tokens;
+- embedded URL credentials;
+- emails;
+- payment-card-like sequences.
+
+Raw response bodies may exist only as bounded, short-lived in-memory values. They must not be written to logs or training datasets.
+
+## 7. Observation and human-review rules
+
+- Observations are passive evidence, not proof of exploitation.
+- Observation severity does not equal exploitability.
+- Human review is authoritative.
+- Allowed review states must remain explicit and validated.
+- Predictions must never change review labels.
+- Bulk labelling requires an explicit confirmed workflow.
+- Evidence displayed to reviewers must be redacted.
+- Duplicate and conflicting-label checks must run before training.
+
+## 8. Machine-learning rules
+
+- Do not train on unreviewed observations.
+- Do not train when class, sample, or scan-diversity gates fail.
+- Deduplicate before splitting.
+- Keep all observations from one scan in exactly one split.
+- Perform model selection using training scans only.
+- Treat the holdout as locked after the split.
+- Store dataset hash, feature schema, split strategy, scan IDs, configuration, metrics, and application version in the artifact.
+- Model artifacts are decision-support records, not authority.
+- Synthetic benchmark metrics must be labelled synthetic.
+- Never describe a perfect controlled-benchmark score as real-world accuracy.
+- A low honest score is preferable to a contaminated impressive score.
+
+## 9. Testing requirements
+
+Every security-sensitive change requires:
+
+- at least one expected-success test;
+- at least one blocked/failure test;
+- a regression test for the motivating defect;
+- no external Internet dependency;
+- deterministic inputs and assertions.
+
+Additional expectations:
+
+- scope changes: hostname, port, scheme, traversal, credentials, redirects, IPv4/IPv6, and DNS-change tests;
+- transport changes: cancellation, budgets, redirect limits, body limits, protected headers, and audit redaction;
+- storage changes: temporary database, transaction rollback, missing-record behaviour, and redaction;
+- ML changes: duplicate conflicts, grouped isolation, insufficient-data failure, provenance integrity, and deterministic seeds;
+- CLI changes: exit code and user-facing output tests.
+
+## 10. Coding conventions
+
+- Python 3.11+ syntax only, despite development currently using a newer interpreter.
+- Type public functions and trust-boundary models.
+- Prefer small modules with one responsibility.
+- Use immutable Pydantic models for validated records.
+- Use standard-library functionality when it is adequate.
+- Avoid global mutable state.
+- Never catch `Exception` merely to hide a defect.
+- Convert expected operational failures into project-specific exceptions.
+- Preserve exception chaining with `raise ... from exc`.
+- Keep CLI functions thin; move business rules into packages.
+- Use transactions for multi-record state changes.
+- Use UTC timestamps.
+- Keep user-facing text precise and free of unsupported claims.
+
+## 11. Common AI-agent mistakes to avoid
+
+- replacing a complete file without inspecting its current exports and callers;
+- weakening a test instead of fixing the contract;
+- adding a feature that bypasses `ApprovedTarget` or `ScopedUrl`;
+- using raw string prefixes for path containment;
+- enabling automatic redirects;
+- logging raw HTTP headers or URLs;
+- placing observations from one scan in both training and holdout;
+- tuning against the holdout;
+- treating synthetic labels as real-world ground truth;
+- adding a heavy dependency for functionality already available locally;
+- generating one giant project report instead of maintaining atomised knowledge;
+- claiming implementation success before running tests;
+- leaving installers, databases, models, or temporary files accidentally tracked.
+
+## 12. Mandatory stop and escalation conditions
+
+Stop the change and report clearly when:
+
+- the requested target is public or authorisation is unclear;
+- a change requires weakening scope restrictions;
+- secrets appear in tracked files or output;
+- database migration safety is uncertain;
+- an existing model artifact would be overwritten without explicit intent;
+- the working tree contains unrelated changes;
+- the current code differs from the assumed baseline;
+- tests fail for reasons not understood;
+- a requested metric would require data leakage;
+- a model result cannot be reproduced;
+- destructive behaviour is requested;
+- a dependency or design choice cannot be justified.
+
+## 13. Definition of done
+
+A milestone is done only when:
+
+- architecture and boundaries remain coherent;
+- implementation and tests pass;
+- documentation reflects the change;
+- known limitations are recorded;
+- Git contains one focused commit;
+- no temporary or sensitive artifacts are tracked;
+- claims are supported by evidence.

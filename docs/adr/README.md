@@ -13,6 +13,8 @@ ADRs preserve decisions that future contributors must not casually reverse.
 - [ADR-0009: Immutable evaluator and transactional experiments](0009-immutable-evaluator-and-transactional-experiments.md)
 - [ADR-0010: Bounded meta-search without code injection](0010-bounded-meta-search-without-code-injection.md)
 
+- [ADR-0011: Runtime-enforced unattended permissions](0011-runtime-enforced-unattended-permissions.md)
+
 ## ADR states
 
 - Proposed

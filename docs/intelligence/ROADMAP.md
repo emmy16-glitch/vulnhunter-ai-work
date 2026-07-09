@@ -11,6 +11,9 @@
 - isolated one-commit transactional experiments with keep-or-revert decisions;
 - bounded meta-search guidance with human policy approval;
 - GitHub Actions quality gates.
+- runtime-enforced unattended permission manifests and independent approval;
+- scheduling decision matrix for interactive, session, local, CI, and remote work;
+- fixed shell-free command runner with evidence and blocker isolation.
 
 ## Now — Real authorised data collection
 
@@ -28,6 +31,8 @@
 - add more transport-level integration tests.
 
 ## Next — Authenticity and runner isolation
+
+- build a production scheduler only after OS-level isolation and authenticated identities;
 
 - cryptographically sign model, authorization, review, and experiment evidence;
 - authenticate reviewer, evaluator, decider, and promoter identities;

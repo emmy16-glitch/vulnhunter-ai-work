@@ -116,3 +116,19 @@ clean Git baseline
 ```
 
 The optional meta-search layer reads experiment metadata only. It can propose strategy-weight changes after detecting repetition or stagnation, but it cannot edit code, evaluator resources, labels, holdouts, or safety policy.
+
+## Unattended control-plane flow
+
+```text
+Task profile
+  -> scheduling recommendation
+  -> immutable permission manifest
+  -> distinct human approval bound to SHA-256
+  -> run record bound to repository commit
+  -> runtime permission checks
+  -> fixed shell-free command evidence
+  -> blocker isolation or critical halt
+  -> required-verifier completion gate
+```
+
+The control plane composes with orchestration and autoresearch; it does not replace their objective, evaluator, review, or promotion gates.

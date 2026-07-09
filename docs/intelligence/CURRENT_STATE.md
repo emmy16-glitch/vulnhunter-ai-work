@@ -30,6 +30,10 @@ VulnHunter currently includes:
 - human-confirmed promotion of accepted candidates;
 - bounded outer-loop search-diversity analysis with no executable code injection;
 - GitHub Actions quality gates for supported Python versions.
+- runtime-enforced unattended permission manifests with independent approval;
+- scheduling guidance for interactive, session, local scheduled, CI, and remote modes;
+- shell-free fixed command execution with integrity-linked evidence;
+- two-failure blocker isolation and critical-workflow halting.
 
 ## Current interpretation
 
@@ -63,6 +67,7 @@ vulnhunter ml --help
 vulnhunter benchmark --help
 vulnhunter loop --help
 vulnhunter research --help
+vulnhunter unattended --help
 ```
 
 ## Repository health

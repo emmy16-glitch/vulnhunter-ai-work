@@ -17,3 +17,7 @@
 ## Debt-handling rule
 
 Do not silently work around technical debt. Link significant implementation changes to an item here or add a new entry.
+
+| No OS-level unattended runner isolation | A permitted process still shares the host security boundary | High | Dedicated low-privilege sandbox with filesystem and network confinement |
+| Pseudonymous rather than authenticated control-plane actors | Actor strings do not prove real identity | High | Signed identities and external key verification |
+| No production scheduler integration | Control plane must currently be invoked explicitly | Medium | Scheduler adapter that cannot bypass manifest checks |

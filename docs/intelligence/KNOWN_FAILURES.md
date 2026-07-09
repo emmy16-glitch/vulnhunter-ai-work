@@ -55,3 +55,7 @@ Git worktrees, protected hashes, fixed verifiers, role separation, and determini
 ## 11. Outer-loop guidance is intentionally non-executable
 
 The meta-search layer proposes strategy changes rather than injecting Python. This limits autonomy but prevents the outer loop from mutating its own evaluator or security boundaries.
+
+## 9. Prompt-only unattended restrictions are insufficient
+
+Natural-language instructions cannot prove that tools, paths, network, connectors, secrets, deletion, deployment, or retries were bounded. The unattended control plane therefore enforces an approved manifest in code and records every decision. OS-level isolation remains future work.

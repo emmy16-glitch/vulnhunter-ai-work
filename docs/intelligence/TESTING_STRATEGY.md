@@ -88,3 +88,7 @@ Cover:
 - event/evidence integrity;
 - meta-search repetition and stagnation detection;
 - no arbitrary shell execution or evaluator-policy mutation.
+
+## Unattended control-plane tests
+
+Cover manifest validation, independent approval, hash binding, revocation, expiry, path escape, command allowlists, connector/secret/network allowlists, remote-sensitive-data restrictions, fixed command execution, evidence tampering, two-failure isolation, independent-task continuation, critical blocker halting, and required-verifier completion.

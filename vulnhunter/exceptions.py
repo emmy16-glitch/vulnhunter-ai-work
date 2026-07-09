@@ -135,3 +135,27 @@ class ResearchEvaluationError(ResearchError):
 
 class ResearchGitError(ResearchError):
     """Raised when transactional Git worktree operations fail safely."""
+
+
+class UnattendedError(VulnHunterError):
+    """Base exception for unattended-operations control-plane failures."""
+
+
+class UnattendedNotFoundError(UnattendedError):
+    """Raised when a permission manifest or run cannot be found."""
+
+
+class UnattendedIntegrityError(UnattendedError):
+    """Raised when unattended state, evidence, or event history was altered."""
+
+
+class UnattendedPolicyError(UnattendedError):
+    """Raised when a requested unattended action exceeds its permission manifest."""
+
+
+class UnattendedStateError(UnattendedError):
+    """Raised when an unattended action is invalid for the current lifecycle state."""
+
+
+class UnattendedExecutionError(UnattendedError):
+    """Raised when a fixed command cannot execute safely."""

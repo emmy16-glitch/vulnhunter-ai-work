@@ -59,6 +59,7 @@ from vulnhunter.research.cli import app as research_app
 from vulnhunter.review import IndependentReviewOutcome, ReviewCaseSummary
 from vulnhunter.scanner import HttpClientPolicy, SafeHttpClient
 from vulnhunter.scope import ApprovedTarget, validate_target
+from vulnhunter.unattended.cli import app as unattended_app
 
 app = typer.Typer(
     name="vulnhunter",
@@ -95,6 +96,7 @@ app.add_typer(ml_app, name="ml")
 app.add_typer(benchmark_app, name="benchmark")
 app.add_typer(orchestration_app, name="loop")
 app.add_typer(research_app, name="research")
+app.add_typer(unattended_app, name="unattended")
 
 DatabaseOption = Annotated[
     Path,

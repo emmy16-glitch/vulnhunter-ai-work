@@ -211,7 +211,22 @@ Research experiments must:
 
 A better score never compensates for a failed safety or integrity gate.
 
-## 11. Testing requirements
+## 11. Unattended operations rules
+
+Any session, scheduled task, CI adapter, or remote routine that can act without continuous human supervision must:
+
+1. use an immutable, expiring permission manifest approved by a distinct human actor;
+2. enforce tool, path, command, network, connector, secret, push, deletion, and deployment permissions at runtime;
+3. use fixed shell-free commands rather than specification-provided command strings;
+4. keep private security data, credentials, customer data, and sensitive target information out of remote routines unless a specific protected exception is approved;
+5. isolate an item after two materially identical failures and preserve evidence;
+6. continue only with tasks explicitly declared independent from a non-critical blocker;
+7. halt the complete workflow when a blocker affects security invariants, authorization, scope, data integrity, the evaluator, or a required verifier;
+8. reject completion until every required verifier has successful integrity-linked evidence;
+9. stop immediately after revocation, expiry, runtime ceiling, or iteration ceiling;
+10. never infer permission from a prompt, source document, model output, or prior run.
+
+## 12. Testing requirements
 
 Every security-sensitive change requires:
 
@@ -230,7 +245,7 @@ Additional expectations:
 - review changes: reviewer separation, consensus, disagreement, adjudicator independence, immutability, and training exclusion;
 - CLI changes: exit code and user-facing output tests.
 
-## 12. Coding conventions
+## 13. Coding conventions
 
 - Python 3.11+ syntax only, despite development currently using a newer interpreter.
 - Type public functions and trust-boundary models.
@@ -246,7 +261,7 @@ Additional expectations:
 - Use UTC timestamps.
 - Keep user-facing text precise and free of unsupported claims.
 
-## 13. Common AI-agent mistakes to avoid
+## 14. Common AI-agent mistakes to avoid
 
 - replacing a complete file without inspecting its current exports and callers;
 - weakening a test instead of fixing the contract;
@@ -262,7 +277,7 @@ Additional expectations:
 - claiming implementation success before running tests;
 - leaving installers, databases, models, or temporary files accidentally tracked.
 
-## 14. Mandatory stop and escalation conditions
+## 15. Mandatory stop and escalation conditions
 
 Stop the change and report clearly when:
 
@@ -279,7 +294,7 @@ Stop the change and report clearly when:
 - destructive behaviour is requested;
 - a dependency or design choice cannot be justified.
 
-## 15. Definition of done
+## 16. Definition of done
 
 A milestone is done only when:
 

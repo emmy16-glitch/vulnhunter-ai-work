@@ -87,3 +87,7 @@ Research candidates operate in isolated Git worktrees and may change only paths 
 Protected resources are hashed from the clean primary baseline. Any protected-file change, missing resource, out-of-scope path, safety failure, regression, or verifier failure prevents acceptance regardless of objective score. Rejected candidates are removed from their isolated worktrees without rewriting the primary branch.
 
 The current controls are application-level integrity and transaction controls, not a kernel sandbox. Local actor identities are recorded but not cryptographically authenticated.
+
+## Unattended execution boundary
+
+Unattended work requires an active manifest whose exact bytes were approved by a distinct human. Runtime adapters enforce tool, path, fixed-command, network, connector, named-secret, push, delete, and deployment permissions. Remote routines use stricter limits and exclude sensitive data by default. Revocation, expiry, or a critical blocker stops further actions.

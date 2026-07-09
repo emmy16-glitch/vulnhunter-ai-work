@@ -44,3 +44,7 @@ dist/
 *.bak
 *.backup
 *~
+# VulnHunter generated local artifacts
+artifacts/
+*.db-shm
+*.db-wal

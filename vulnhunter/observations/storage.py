@@ -272,6 +272,31 @@ class ScanRepository:
             session.flush()
             return self._to_observation_summary(row)
 
+    def get_observation(self, observation_id: int) -> ObservationSummary:
+        """Return one observation by ID or raise a clear error."""
+        if observation_id < 1:
+            raise ValueError("observation_id must be at least 1.")
+
+        with Session(self._engine) as session:
+            row = session.get(ObservationRow, observation_id)
+
+            if row is None:
+                raise ValueError(f"Observation {observation_id} does not exist.")
+
+            return self._to_observation_summary(row)
+
+    def list_training_observations(self) -> tuple[ObservationSummary, ...]:
+        """Return all human-reviewed binary labels in stable ID order."""
+        statement = (
+            select(ObservationRow)
+            .where(ObservationRow.review_label.in_(("confirmed", "false_positive")))
+            .order_by(ObservationRow.id.asc())
+        )
+
+        with Session(self._engine) as session:
+            rows = session.scalars(statement)
+            return tuple(self._to_observation_summary(row) for row in rows)
+
     @staticmethod
     def _to_observation_summary(row: ObservationRow) -> ObservationSummary:
         return ObservationSummary(

@@ -13,8 +13,21 @@ import typer
 from pydantic import ValidationError
 
 from vulnhunter import __version__
-from vulnhunter.exceptions import ScopeValidationError, VulnHunterError
+from vulnhunter.exceptions import (
+    MachineLearningError,
+    ScopeValidationError,
+    VulnHunterError,
+)
 from vulnhunter.mapping import MapperPolicy, SiteMapper
+from vulnhunter.ml import (
+    build_dataset,
+    export_jsonl,
+    load_model,
+    predict,
+    save_model,
+    to_model_input,
+    train_baseline,
+)
 from vulnhunter.observations.models import ReviewOutcome
 from vulnhunter.observations.storage import ScanRepository
 from vulnhunter.scanner import HttpClientPolicy, SafeHttpClient
@@ -38,10 +51,15 @@ findings_app = typer.Typer(
     help="List and apply human-review labels to observations.",
     no_args_is_help=True,
 )
+ml_app = typer.Typer(
+    help="Export reviewed data and run the local baseline ML pipeline.",
+    no_args_is_help=True,
+)
 
 app.add_typer(scope_app, name="scope")
 app.add_typer(scan_app, name="scan")
 app.add_typer(findings_app, name="findings")
+app.add_typer(ml_app, name="ml")
 
 DatabaseOption = Annotated[
     Path,
@@ -268,6 +286,152 @@ def findings_label(
         f"Observation {observation.id} labelled {observation.review_label}.",
         fg=typer.colors.GREEN,
     )
+
+
+@ml_app.command("export")
+def ml_export(
+    database: DatabaseOption = Path("vulnhunter.db"),
+    output: Annotated[
+        Path,
+        typer.Option("--output", "-o", help="Destination JSONL dataset file."),
+    ] = Path("artifacts/training-data.jsonl"),
+) -> None:
+    """Export confirmed and false-positive human labels as JSON Lines."""
+    repository = _repository(database)
+    dataset = build_dataset(repository.list_training_observations())
+
+    if not dataset:
+        typer.secho(
+            "No confirmed or false-positive observations are available for export.",
+            fg=typer.colors.YELLOW,
+            err=True,
+        )
+        raise typer.Exit(code=2)
+
+    try:
+        count = export_jsonl(dataset, output)
+    except OSError as exc:
+        typer.secho(f"Dataset export failed safely: {exc}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=2) from exc
+
+    typer.secho(f"Exported {count} reviewed observations.", fg=typer.colors.GREEN)
+    typer.echo(f"Dataset: {output.expanduser().resolve()}")
+
+
+@ml_app.command("train")
+def ml_train(
+    database: DatabaseOption = Path("vulnhunter.db"),
+    model_path: Annotated[
+        Path,
+        typer.Option("--model", "-m", help="Destination model JSON artifact."),
+    ] = Path("artifacts/vulnhunter-baseline.json"),
+    minimum_samples: Annotated[
+        int,
+        typer.Option("--minimum-samples", min=4, max=100_000),
+    ] = 20,
+    minimum_per_class: Annotated[
+        int,
+        typer.Option("--minimum-per-class", min=2, max=50_000),
+    ] = 5,
+    test_fraction: Annotated[
+        float,
+        typer.Option("--test-fraction", min=0.05, max=0.45),
+    ] = 0.2,
+    random_seed: Annotated[int, typer.Option("--seed")] = 42,
+    maximum_tokens: Annotated[
+        int,
+        typer.Option("--maximum-tokens", min=0, max=2_000),
+    ] = 128,
+) -> None:
+    """Train a reviewed-data baseline without changing any human labels."""
+    repository = _repository(database)
+    dataset = build_dataset(repository.list_training_observations())
+
+    try:
+        artifact = train_baseline(
+            dataset,
+            minimum_samples=minimum_samples,
+            minimum_per_class=minimum_per_class,
+            test_fraction=test_fraction,
+            random_seed=random_seed,
+            maximum_tokens=maximum_tokens,
+        )
+        save_model(artifact, model_path)
+    except (MachineLearningError, ValidationError, ValueError, OSError) as exc:
+        typer.secho(f"Training stopped safely: {exc}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=2) from exc
+
+    metrics = artifact.evaluation
+    typer.secho("Baseline model trained", fg=typer.colors.GREEN)
+    typer.echo(f"Training samples: {artifact.training_samples}")
+    typer.echo(f"Holdout samples: {artifact.holdout_samples}")
+    typer.echo(f"Accuracy: {metrics.accuracy:.3f}")
+    typer.echo(f"Precision: {metrics.precision:.3f}")
+    typer.echo(f"Recall: {metrics.recall:.3f}")
+    typer.echo(f"F1 score: {metrics.f1_score:.3f}")
+    typer.echo(f"Model: {model_path.expanduser().resolve()}")
+    typer.echo("Human review remains authoritative; predictions never change labels.")
+
+
+@ml_app.command("info")
+def ml_info(
+    model_path: Annotated[
+        Path,
+        typer.Option("--model", "-m", help="Model JSON artifact to inspect."),
+    ] = Path("artifacts/vulnhunter-baseline.json"),
+) -> None:
+    """Display model provenance and holdout evaluation metrics."""
+    try:
+        artifact = load_model(model_path)
+    except MachineLearningError as exc:
+        typer.secho(f"Unable to load model: {exc}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=2) from exc
+
+    metrics = artifact.evaluation
+    typer.echo(f"Model type: {artifact.model_type}")
+    typer.echo(f"Artifact version: {artifact.artifact_version}")
+    typer.echo(f"Created: {artifact.created_at.isoformat()}")
+    typer.echo(f"Application version: {artifact.application_version}")
+    typer.echo(f"Dataset SHA-256: {artifact.dataset_sha256}")
+    typer.echo(f"Training samples: {artifact.training_samples}")
+    typer.echo(f"Holdout samples: {artifact.holdout_samples}")
+    typer.echo(f"Features: {len(artifact.feature_schema.feature_names)}")
+    typer.echo(f"Accuracy: {metrics.accuracy:.3f}")
+    typer.echo(f"Precision: {metrics.precision:.3f}")
+    typer.echo(f"Recall: {metrics.recall:.3f}")
+    typer.echo(f"F1 score: {metrics.f1_score:.3f}")
+
+
+@ml_app.command("predict")
+def ml_predict(
+    observation_id: Annotated[int, typer.Argument(min=1)],
+    database: DatabaseOption = Path("vulnhunter.db"),
+    model_path: Annotated[
+        Path,
+        typer.Option("--model", "-m", help="Model JSON artifact to use."),
+    ] = Path("artifacts/vulnhunter-baseline.json"),
+) -> None:
+    """Predict one stored observation without altering its review label."""
+    repository = _repository(database)
+
+    try:
+        observation = repository.get_observation(observation_id)
+        artifact = load_model(model_path)
+        result = predict(to_model_input(observation), artifact)
+    except (MachineLearningError, ValidationError, ValueError) as exc:
+        typer.secho(f"Prediction stopped safely: {exc}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=2) from exc
+
+    typer.echo(f"Observation: {observation.id}")
+    typer.echo(f"Current human label: {observation.review_label}")
+    typer.echo(f"Model prediction: {result.label}")
+    typer.echo(f"Confidence: {result.confidence:.3f}")
+    typer.echo(
+        "Class probabilities: "
+        f"confirmed={result.probabilities['confirmed']:.3f}, "
+        f"false_positive={result.probabilities['false_positive']:.3f}"
+    )
+    typer.echo("Decision support only; the stored human label was not changed.")
 
 
 if __name__ == "__main__":

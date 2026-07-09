@@ -43,3 +43,15 @@ class UnsafeRequestHeaderError(TransportPolicyError):
 
 class TransportRequestError(TransportPolicyError):
     """Raised when an HTTP request fails in a controlled manner."""
+
+
+class MachineLearningError(VulnHunterError):
+    """Base exception for reviewed-dataset and model operations."""
+
+
+class InsufficientTrainingDataError(MachineLearningError):
+    """Raised when reviewed labels cannot support a defensible model."""
+
+
+class ModelArtifactError(MachineLearningError):
+    """Raised when a model artifact is malformed, unsafe, or incompatible."""

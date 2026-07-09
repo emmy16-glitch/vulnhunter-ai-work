@@ -18,9 +18,9 @@ Response:
 
 The controlled benchmark has known scenarios and deliberately structured signals. Strong performance can validate the experiment pipeline but cannot establish generalisation to real applications.
 
-## 3. DNS connection pinning is incomplete
+## 3. Historical DNS time-of-check/time-of-use gap — resolved
 
-Scope validation rechecks resolution, but the eventual network connection may still resolve separately. Full socket-level pinning remains unresolved.
+Earlier releases revalidated DNS before a request but allowed the HTTP stack to resolve the hostname again while opening the socket. The transport now resolves at connection time, passes the selected approved IP directly to the TCP backend, verifies the peer address, preserves the original hostname for Host/TLS, and disables keep-alive reuse between independently pinned requests.
 
 ## 4. Passive observations do not prove exploitability
 

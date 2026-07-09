@@ -9,7 +9,8 @@ description = "Authorised laboratory-only AI-assisted vulnerability testing rese
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "httpx>=0.27,<1",
+    "httpx>=0.28.1,<0.29",
+    "httpcore>=1.0.9,<1.1",
     "pydantic>=2.8,<3",
     "typer>=0.12,<1",
     "SQLAlchemy>=2.0,<3",

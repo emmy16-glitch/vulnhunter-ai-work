@@ -23,6 +23,10 @@ from vulnhunter.scanner.models import (
     RedirectHop,
     SafeHttpResponse,
 )
+from vulnhunter.scanner.pinning import (
+    ConnectionAuditEvent,
+    PinnedAsyncTransport,
+)
 from vulnhunter.scanner.policy import HttpClientPolicy, HttpMethod
 from vulnhunter.scanner.rate_limiter import MinimumDelayLimiter
 from vulnhunter.scope.guard import validate_scoped_url
@@ -83,6 +87,14 @@ class SafeHttpClient:
 
         self._audit_sink = audit_sink
         self._audit_events: list[HttpAuditEvent] = []
+
+        if transport is None:
+            transport = PinnedAsyncTransport(
+                target,
+                resolver=resolver,
+                verify_tls=self._policy.verify_tls,
+            )
+        self._pinned_transport = transport if isinstance(transport, PinnedAsyncTransport) else None
 
         self._client = httpx.AsyncClient(
             transport=transport,
@@ -342,3 +354,15 @@ class SafeHttpClient:
                 redirects=tuple(redirects),
                 audit_events=tuple(request_events),
             )
+
+    @property
+    def connection_pinning_enabled(self) -> bool:
+        """Return whether the live client uses connection-bound DNS pinning."""
+        return self._pinned_transport is not None
+
+    @property
+    def connection_audit_events(self) -> tuple[ConnectionAuditEvent, ...]:
+        """Return immutable transport-level connection evidence."""
+        if self._pinned_transport is None:
+            return ()
+        return self._pinned_transport.audit_events

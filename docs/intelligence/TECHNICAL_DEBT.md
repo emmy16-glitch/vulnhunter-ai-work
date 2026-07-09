@@ -2,7 +2,6 @@
 
 | Item | Risk | Priority | Exit condition |
 |---|---|---:|---|
-| Socket-level DNS pinning | Connection may resolve after validation | High | Transport binds an approved address while preserving TLS hostname checks |
 | Pseudonymous local reviewer IDs | IDs are not authenticated identities | High | Account-backed roles or cryptographically signed review decisions |
 | Local pseudonymous orchestration roles | Role separation is recorded but identities are not authenticated | High | Account-backed identities or signed role attestations |
 | Synthetic benchmark dependence | Misleading generalisation | High | Diverse authorised application dataset and external grouped holdout |
@@ -21,3 +20,9 @@ Do not silently work around technical debt. Link significant implementation chan
 | No OS-level unattended runner isolation | A permitted process still shares the host security boundary | High | Dedicated low-privilege sandbox with filesystem and network confinement |
 | Pseudonymous rather than authenticated control-plane actors | Actor strings do not prove real identity | High | Signed identities and external key verification |
 | No production scheduler integration | Control plane must currently be invoked explicitly | Medium | Scheduler adapter that cannot bypass manifest checks |
+
+## Resolved debt
+
+| Item | Resolution |
+|---|---|
+| Socket-level DNS pinning | Connection-time address subset validation, direct approved-IP TCP connections, peer verification, original-host TLS validation, and per-request connection isolation |

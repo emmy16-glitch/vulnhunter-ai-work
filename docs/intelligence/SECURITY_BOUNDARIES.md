@@ -35,7 +35,18 @@ The transport enforces:
 - timeouts;
 - bounded response bodies;
 - cooperative cancellation;
-- redacted audit events.
+- redacted audit events;
+- connection-time DNS revalidation;
+- approved-address-only TCP connection attempts;
+- connected-peer verification;
+- original-host preservation for HTTP routing and TLS validation;
+- no keep-alive reuse across independently pinned requests.
+
+## Connection binding boundary
+
+`ApprovedTarget.resolved_addresses` remains the immutable outer address set. Each request, including every redirect hop, receives a fresh connection-time resolution. The result must be a non-empty subset of the approved set. The TCP backend receives the selected IP address directly, verifies the connected peer, and never falls back to an unapproved result.
+
+The request URL hostname remains unchanged. This preserves virtual-host routing, TLS SNI, and certificate hostname verification while removing the second hostname lookup from the socket connection path.
 
 ## Data boundary
 
@@ -58,9 +69,9 @@ Predictions are advisory. They cannot:
 - override human review;
 - establish exploitability.
 
-## Known security limitation
+## Residual transport limitations
 
-Pre-request DNS revalidation reduces risk but does not fully bind the eventual socket connection to the validated address. Connection-level address pinning remains open technical debt.
+Connection pinning is implemented for VulnHunter's direct HTTP/HTTPS transport. Proxy support remains intentionally disabled because a proxy creates a separate DNS and routing trust boundary. Operating-system compromise, malicious local certificate stores, or privileged socket interception remain outside the application's protection boundary.
 
 ## Prohibited boundary changes
 

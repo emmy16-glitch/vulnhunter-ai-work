@@ -31,6 +31,8 @@ REQUIRED_INTELLIGENCE_FILES = (
     "docs/intelligence/ORCHESTRATION_LOOP.md",
     "docs/intelligence/AUTORESEARCH_ENGINE.md",
     "docs/intelligence/UNATTENDED_OPERATIONS.md",
+    "docs/intelligence/CONNECTION_PINNING.md",
+    "docs/adr/0012-connection-bound-dns-scope-enforcement.md",
     ".github/workflows/quality.yml",
     "docs/adr/README.md",
 )

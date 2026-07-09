@@ -22,7 +22,8 @@ Cover component boundaries using local resources:
 - loopback HTTP server;
 - temporary SQLite database;
 - CLI runner;
-- benchmark manifest and review workflow.
+- benchmark manifest and review workflow;
+- scripted HTTPcore streams and real loopback sockets for address pinning.
 
 ### End-to-end smoke tests
 
@@ -92,3 +93,18 @@ Cover:
 ## Unattended control-plane tests
 
 Cover manifest validation, independent approval, hash binding, revocation, expiry, path escape, command allowlists, connector/secret/network allowlists, remote-sensitive-data restrictions, fixed command execution, evidence tampering, two-failure isolation, independent-task continuation, critical blocker halting, and required-verifier completion.
+
+## Connection-pinning tests
+
+Cover:
+
+- original hostname preservation in the HTTP `Host` header;
+- original hostname preservation for TLS SNI;
+- connection-time DNS changes before any TCP attempt;
+- approved-address-only retries;
+- peer-address mismatch rejection;
+- direct IPv4 and IPv6 targets;
+- independent connections with keep-alive disabled;
+- connection audit evidence;
+- safe-client default integration and caller-supplied test transports;
+- an operating-system loopback socket integration path with no external DNS.

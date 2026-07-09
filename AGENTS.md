@@ -44,6 +44,8 @@ Raw target URL
     -> derived URL / redirect validation
     -> ScopedUrl
     -> SafeHttpClient
+    -> connection-time DNS revalidation
+    -> pinned approved TCP address
     -> bounded response
     -> passive mapper
     -> passive observations
@@ -125,7 +127,16 @@ Do not claim completion unless these checks pass.
 - Response bodies must remain bounded and streamed.
 - Cancellation must be checked before scheduling work and while streaming.
 
-Known limitation: hostname validation before a request does not fully eliminate the socket-level DNS time-of-check/time-of-use race. Do not claim complete DNS-rebinding resistance until connection-level address pinning is implemented and tested.
+Connection-bound transport rules:
+
+- every default HTTP connection must use `PinnedAsyncTransport`;
+- the transport must re-resolve immediately before each connection and reject addresses outside the immutable target set;
+- the TCP backend must connect to the selected IP rather than resolving the hostname again;
+- the connected peer address must match the pinned address;
+- the original hostname must remain in the request URL, HTTP `Host`, TLS SNI, and certificate validation;
+- keep-alive reuse is disabled so each request and redirect receives an independent connection-time check;
+- retries may rotate only through the approved current address set;
+- a caller-supplied test transport is permitted only for deterministic local tests and is explicitly visible through `connection_pinning_enabled`.
 
 ## 6. Sensitive-data rules
 
@@ -239,7 +250,7 @@ Every security-sensitive change requires:
 Additional expectations:
 
 - scope changes: hostname, port, scheme, traversal, credentials, redirects, IPv4/IPv6, and DNS-change tests;
-- transport changes: cancellation, budgets, redirect limits, body limits, protected headers, and audit redaction;
+- transport changes: cancellation, budgets, redirect limits, body limits, protected headers, audit redaction, address pinning, peer verification, Host preservation, TLS SNI, IPv4/IPv6, and connection-time DNS changes;
 - storage changes: temporary database, transaction rollback, missing-record behaviour, and redaction;
 - ML changes: duplicate conflicts, grouped isolation, insufficient-data failure, provenance integrity, and deterministic seeds;
 - review changes: reviewer separation, consensus, disagreement, adjudicator independence, immutability, and training exclusion;

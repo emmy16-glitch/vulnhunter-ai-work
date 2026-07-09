@@ -33,7 +33,12 @@ VulnHunter currently includes:
 - runtime-enforced unattended permission manifests with independent approval;
 - scheduling guidance for interactive, session, local scheduled, CI, and remote modes;
 - shell-free fixed command execution with integrity-linked evidence;
-- two-failure blocker isolation and critical-workflow halting.
+- two-failure blocker isolation and critical-workflow halting;
+- connection-time DNS revalidation inside the transport;
+- TCP connections bound to approved IPv4/IPv6 addresses;
+- connected-peer verification and approved-address-only retries;
+- preservation of the original HTTP Host and TLS SNI/certificate hostname;
+- immutable connection audit evidence exposed by the safe client.
 
 ## Current interpretation
 

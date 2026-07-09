@@ -27,8 +27,13 @@ scanner.SafeHttpClient
   |
   +--> policy / cancellation / request budget / rate limiter
   +--> manual redirect validation
+  +--> PinnedAsyncTransport
+  |      +--> connection-time DNS subset validation
+  |      +--> approved-address-only TCP attempts
+  |      +--> connected-peer verification
+  |      +--> original Host and TLS hostname preservation
   +--> bounded body streaming
-  +--> redacted audit events
+  +--> redacted HTTP and connection audit events
   |
   v
 mapping
@@ -67,6 +72,7 @@ ml.training / tuning / diagnostics
 - Validate explicit human authorization before manual network activity.
 - Represent trusted values with dedicated types.
 - Revalidate every derived network destination.
+- Bind each socket connection to an approved connection-time address.
 - Redact at the earliest persistence or display boundary.
 - Keep passive evidence separate from human conclusions.
 - Preserve immutable reviewer decisions separately from the effective compatibility label.
@@ -79,6 +85,7 @@ ml.training / tuning / diagnostics
 The project intentionally uses a small dependency set:
 
 - HTTPX for asynchronous HTTP;
+- HTTPcore for the explicit connection-pinning backend used beneath HTTPX;
 - Pydantic for validated immutable models;
 - Typer for CLI commands;
 - SQLAlchemy for persistence;
@@ -132,3 +139,19 @@ Task profile
 ```
 
 The control plane composes with orchestration and autoresearch; it does not replace their objective, evaluator, review, or promotion gates.
+
+## Connection-bound transport flow
+
+```text
+ScopedUrl
+  -> connection-time resolver
+  -> canonical current address set
+  -> subset check against ApprovedTarget
+  -> deterministic approved-address attempts
+  -> TCP peer-address verification
+  -> HTTP using original hostname
+  -> TLS SNI and certificate validation using original hostname
+  -> immutable ConnectionAuditEvent
+```
+
+The connection pool disables keep-alive reuse. This intentionally trades some throughput for a fresh, auditable binding decision on every request and redirect.

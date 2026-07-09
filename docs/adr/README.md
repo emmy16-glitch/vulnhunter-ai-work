@@ -14,6 +14,7 @@ ADRs preserve decisions that future contributors must not casually reverse.
 - [ADR-0010: Bounded meta-search without code injection](0010-bounded-meta-search-without-code-injection.md)
 
 - [ADR-0011: Runtime-enforced unattended permissions](0011-runtime-enforced-unattended-permissions.md)
+- [ADR-0012: Connection-bound DNS scope enforcement](0012-connection-bound-dns-scope-enforcement.md)
 
 ## ADR states
 

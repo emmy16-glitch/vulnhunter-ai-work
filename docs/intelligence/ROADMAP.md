@@ -13,22 +13,18 @@
 - GitHub Actions quality gates.
 - runtime-enforced unattended permission manifests and independent approval;
 - scheduling decision matrix for interactive, session, local, CI, and remote work;
-- fixed shell-free command runner with evidence and blocker isolation.
+- fixed shell-free command runner with evidence and blocker isolation;
+- connection-time DNS revalidation and approved-address TCP pinning;
+- connected-peer verification with original Host and TLS hostname preservation;
+- independent pinning for every request and redirect hop.
 
-## Now — Real authorised data collection
+## Now — Governed authorised data collection
 
 - collect observations from multiple intentionally diverse local applications;
 - document application family and deployment context;
 - use consensus or adjudication for every new real label;
 - preserve authorization evidence for every target;
 - build a balanced reviewed dataset without benchmark leakage.
-
-## Next — Transport hardening
-
-- research connection-level address pinning;
-- preserve TLS hostname verification while binding approved addresses;
-- add explicit proxy architecture only if required;
-- add more transport-level integration tests.
 
 ## Next — Authenticity and runner isolation
 

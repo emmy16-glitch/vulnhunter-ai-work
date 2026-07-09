@@ -19,8 +19,9 @@ This directory is the permanent, model-agnostic second brain for VulnHunter AI. 
 13. [Bounded orchestration loop](ORCHESTRATION_LOOP.md)
 14. [Transactional autoresearch engine](AUTORESEARCH_ENGINE.md)
 15. [Unattended operations control plane](UNATTENDED_OPERATIONS.md)
-16. [Technical debt](TECHNICAL_DEBT.md)
-17. [Architecture decisions](../adr/README.md)
+16. [Connection-bound DNS enforcement](CONNECTION_PINNING.md)
+17. [Technical debt](TECHNICAL_DEBT.md)
+18. [Architecture decisions](../adr/README.md)
 
 ## Maintenance rule
 

@@ -1,4 +1,4 @@
-"""Reviewed-dataset and lightweight baseline machine-learning pipeline."""
+"""Reviewed-dataset and leakage-resistant baseline ML pipeline."""
 
 from vulnhunter.ml.dataset import (
     build_dataset,
@@ -16,16 +16,25 @@ from vulnhunter.ml.models import (
     TrainingExample,
     TrainingLabel,
 )
+from vulnhunter.ml.quality import (
+    DatasetQualityReport,
+    PreparedTrainingDataset,
+    assess_dataset_quality,
+)
+from vulnhunter.ml.splitting import split_by_scan_groups
 from vulnhunter.ml.training import load_model, predict, save_model, train_baseline
 
 __all__ = [
+    "DatasetQualityReport",
     "EvaluationMetrics",
     "FeatureSchema",
     "ModelArtifact",
     "ObservationInput",
     "Prediction",
+    "PreparedTrainingDataset",
     "TrainingExample",
     "TrainingLabel",
+    "assess_dataset_quality",
     "build_dataset",
     "build_feature_schema",
     "dataset_sha256",
@@ -33,6 +42,7 @@ __all__ = [
     "load_model",
     "predict",
     "save_model",
+    "split_by_scan_groups",
     "to_model_input",
     "train_baseline",
     "vectorize",

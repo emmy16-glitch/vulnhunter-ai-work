@@ -25,6 +25,7 @@ def to_model_input(observation: ObservationSummary) -> ObservationInput:
         description=observation.description,
         url=observation.url,
         evidence=observation.evidence,
+        fingerprint=observation.fingerprint,
     )
 
 

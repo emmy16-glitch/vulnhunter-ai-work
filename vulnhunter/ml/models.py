@@ -23,6 +23,7 @@ class ObservationInput(BaseModel):
     description: str = Field(min_length=1, max_length=2_000)
     url: str = Field(min_length=1, max_length=2_000)
     evidence: dict[str, object] = Field(default_factory=dict)
+    fingerprint: str = Field(min_length=64, max_length=64)
 
 
 class TrainingExample(ObservationInput):
@@ -102,7 +103,7 @@ class ModelArtifact(BaseModel):
 
     model_config = ConfigDict(frozen=True, allow_inf_nan=False)
 
-    artifact_version: Literal[1] = 1
+    artifact_version: Literal[1, 2] = 2
     model_type: Literal["multinomial_naive_bayes"] = "multinomial_naive_bayes"
     created_at: datetime
     application_version: str
@@ -119,9 +120,18 @@ class ModelArtifact(BaseModel):
     feature_log_probabilities: dict[TrainingLabel, tuple[float, ...]]
     evaluation: EvaluationMetrics
 
+    source_samples: int = Field(default=0, ge=0)
+    deduplicated_samples: int = Field(default=0, ge=0)
+    duplicate_samples_removed: int = Field(default=0, ge=0)
+    split_strategy: Literal["observation_stratified", "scan_group_stratified"] = (
+        "observation_stratified"
+    )
+    training_scan_ids: tuple[int, ...] = ()
+    holdout_scan_ids: tuple[int, ...] = ()
+
     @model_validator(mode="after")
     def validate_artifact(self) -> ModelArtifact:
-        """Validate internal dimensions and provenance invariants."""
+        """Validate internal dimensions, split isolation, and provenance."""
         expected_labels = ("confirmed", "false_positive")
         expected_label_set = set(expected_labels)
 
@@ -159,5 +169,30 @@ class ModelArtifact(BaseModel):
             int(self.dataset_sha256, 16)
         except ValueError as exc:
             raise ValueError("dataset_sha256 must be hexadecimal.") from exc
+
+        if self.artifact_version == 2:
+            if self.source_samples < self.deduplicated_samples:
+                raise ValueError("source_samples cannot be below deduplicated_samples.")
+
+            if self.source_samples - self.deduplicated_samples != self.duplicate_samples_removed:
+                raise ValueError("Duplicate provenance counts are inconsistent.")
+
+            if self.deduplicated_samples != self.training_samples + self.holdout_samples:
+                raise ValueError("Deduplicated sample counts are inconsistent.")
+
+            if self.split_strategy != "scan_group_stratified":
+                raise ValueError("Version 2 artifacts require a scan-group split.")
+
+            if not self.training_scan_ids or not self.holdout_scan_ids:
+                raise ValueError("Version 2 artifacts require train and holdout scans.")
+
+            if set(self.training_scan_ids) & set(self.holdout_scan_ids):
+                raise ValueError("Training and holdout scan IDs must be disjoint.")
+
+            if tuple(sorted(set(self.training_scan_ids))) != self.training_scan_ids:
+                raise ValueError("training_scan_ids must be sorted and unique.")
+
+            if tuple(sorted(set(self.holdout_scan_ids))) != self.holdout_scan_ids:
+                raise ValueError("holdout_scan_ids must be sorted and unique.")
 
         return self

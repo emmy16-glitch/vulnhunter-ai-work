@@ -14,8 +14,10 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    case,
     create_engine,
     event,
+    func,
     select,
 )
 from sqlalchemy.engine import Engine
@@ -249,6 +251,56 @@ class ScanRepository:
         with Session(self._engine) as session:
             rows = session.scalars(statement)
             return tuple(self._to_observation_summary(row) for row in rows)
+
+    def list_review_queue(
+        self,
+        *,
+        limit: int = 50,
+    ) -> tuple[ObservationSummary, ...]:
+        """Return high-priority unreviewed findings in deterministic order."""
+        if limit < 1 or limit > 500:
+            raise ValueError("limit must be between 1 and 500.")
+
+        severity_rank = case(
+            (ObservationRow.severity == "high", 0),
+            (ObservationRow.severity == "medium", 1),
+            (ObservationRow.severity == "low", 2),
+            else_=3,
+        )
+        review_rank = case(
+            (ObservationRow.review_label == "needs_review", 0),
+            else_=1,
+        )
+        statement = (
+            select(ObservationRow)
+            .where(ObservationRow.review_label.in_(("unreviewed", "needs_review")))
+            .order_by(severity_rank, review_rank, ObservationRow.id.asc())
+            .limit(limit)
+        )
+
+        with Session(self._engine) as session:
+            rows = session.scalars(statement)
+            return tuple(self._to_observation_summary(row) for row in rows)
+
+    def fingerprint_occurrence_counts(
+        self,
+        fingerprints: tuple[str, ...],
+    ) -> dict[str, int]:
+        """Count repeated fingerprints across scans for review context."""
+        unique_fingerprints = tuple(sorted(set(fingerprints)))
+        if not unique_fingerprints:
+            return {}
+        if len(unique_fingerprints) > 1_000:
+            raise ValueError("At most 1000 fingerprints may be counted at once.")
+
+        statement = (
+            select(ObservationRow.fingerprint, func.count(ObservationRow.id))
+            .where(ObservationRow.fingerprint.in_(unique_fingerprints))
+            .group_by(ObservationRow.fingerprint)
+        )
+
+        with Session(self._engine) as session:
+            return {fingerprint: count for fingerprint, count in session.execute(statement)}
 
     def label_observation(
         self,

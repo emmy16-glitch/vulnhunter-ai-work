@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import math
 import os
-import random
 from collections import Counter
 from datetime import UTC, datetime
 from pathlib import Path
@@ -24,72 +23,10 @@ from vulnhunter.ml.models import (
     TrainingExample,
     TrainingLabel,
 )
+from vulnhunter.ml.quality import assess_dataset_quality
+from vulnhunter.ml.splitting import split_by_scan_groups
 
 _MAXIMUM_MODEL_BYTES = 10 * 1024 * 1024
-
-
-def _validate_training_dataset(
-    examples: tuple[TrainingExample, ...],
-    *,
-    minimum_samples: int,
-    minimum_per_class: int,
-) -> Counter[TrainingLabel]:
-    if minimum_samples < 4:
-        raise ValueError("minimum_samples must be at least 4.")
-
-    if minimum_per_class < 2:
-        raise ValueError("minimum_per_class must be at least 2.")
-
-    counts: Counter[TrainingLabel] = Counter(example.label for example in examples)
-
-    if len(examples) < minimum_samples:
-        raise InsufficientTrainingDataError(
-            f"At least {minimum_samples} confirmed/false-positive labels are required; "
-            f"found {len(examples)}."
-        )
-
-    for label in ("confirmed", "false_positive"):
-        if counts[label] < minimum_per_class:
-            raise InsufficientTrainingDataError(
-                f"At least {minimum_per_class} examples of {label!r} are required; "
-                f"found {counts[label]}."
-            )
-
-    return counts
-
-
-def _stratified_split(
-    examples: tuple[TrainingExample, ...],
-    *,
-    test_fraction: float,
-    random_seed: int,
-) -> tuple[tuple[TrainingExample, ...], tuple[TrainingExample, ...]]:
-    if test_fraction <= 0 or test_fraction >= 0.5:
-        raise ValueError("test_fraction must be greater than 0 and less than 0.5.")
-
-    grouped: dict[TrainingLabel, list[TrainingExample]] = {
-        "confirmed": [],
-        "false_positive": [],
-    }
-
-    for example in examples:
-        grouped[example.label].append(example)
-
-    train: list[TrainingExample] = []
-    holdout: list[TrainingExample] = []
-
-    for offset, label in enumerate(("confirmed", "false_positive")):
-        group = sorted(grouped[label], key=lambda item: item.observation_id)
-        random.Random(random_seed + offset).shuffle(group)
-        holdout_count = max(1, int(round(len(group) * test_fraction)))
-        holdout_count = min(holdout_count, len(group) - 1)
-        holdout.extend(group[:holdout_count])
-        train.extend(group[holdout_count:])
-
-    return (
-        tuple(sorted(train, key=lambda item: item.observation_id)),
-        tuple(sorted(holdout, key=lambda item: item.observation_id)),
-    )
 
 
 def _fit_probabilities(
@@ -204,19 +141,32 @@ def train_baseline(
     *,
     minimum_samples: int = 20,
     minimum_per_class: int = 5,
+    minimum_scans: int = 4,
+    minimum_scans_per_class: int = 2,
     test_fraction: float = 0.2,
     random_seed: int = 42,
     alpha: float = 1.0,
     maximum_tokens: int = 128,
 ) -> ModelArtifact:
-    """Train and evaluate a deterministic lightweight baseline classifier."""
-    _validate_training_dataset(
+    """Train a deduplicated baseline with scan-isolated holdout evaluation."""
+    prepared = assess_dataset_quality(
         examples,
         minimum_samples=minimum_samples,
         minimum_per_class=minimum_per_class,
+        minimum_scans=minimum_scans,
+        minimum_scans_per_class=minimum_scans_per_class,
+        test_fraction=test_fraction,
+        random_seed=random_seed,
     )
-    train_examples, holdout_examples = _stratified_split(
-        examples,
+
+    if not prepared.report.ready:
+        raise InsufficientTrainingDataError(
+            "Training data failed quality gates: " + " ".join(prepared.report.blocking_reasons)
+        )
+
+    canonical_examples = prepared.examples
+    train_examples, holdout_examples = split_by_scan_groups(
+        canonical_examples,
         test_fraction=test_fraction,
         random_seed=random_seed,
     )
@@ -241,6 +191,9 @@ def train_baseline(
     )
     evaluation = _evaluate(holdout_examples, holdout_predictions)
 
+    training_scan_ids = tuple(sorted({example.scan_id for example in train_examples}))
+    holdout_scan_ids = tuple(sorted({example.scan_id for example in holdout_examples}))
+
     return ModelArtifact(
         created_at=datetime.now(UTC),
         application_version=__version__,
@@ -249,11 +202,17 @@ def train_baseline(
         training_samples=len(train_examples),
         holdout_samples=len(holdout_examples),
         class_counts=class_counts,
-        dataset_sha256=dataset_sha256(examples),
+        dataset_sha256=dataset_sha256(canonical_examples),
         feature_schema=schema,
         class_log_priors=class_log_priors,
         feature_log_probabilities=feature_log_probabilities,
         evaluation=evaluation,
+        source_samples=prepared.report.source_samples,
+        deduplicated_samples=prepared.report.unique_samples,
+        duplicate_samples_removed=prepared.report.duplicate_samples,
+        split_strategy="scan_group_stratified",
+        training_scan_ids=training_scan_ids,
+        holdout_scan_ids=holdout_scan_ids,
     )
 
 

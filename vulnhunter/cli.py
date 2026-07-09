@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 import platform
 import sys
@@ -20,6 +21,7 @@ from vulnhunter.exceptions import (
 )
 from vulnhunter.mapping import MapperPolicy, SiteMapper
 from vulnhunter.ml import (
+    assess_dataset_quality,
     build_dataset,
     export_jsonl,
     load_model,
@@ -262,6 +264,62 @@ def findings_list(
         typer.echo(f"  URL: {observation.url}")
 
 
+@findings_app.command("queue")
+def findings_queue(
+    database: DatabaseOption = Path("vulnhunter.db"),
+    limit: Annotated[int, typer.Option("--limit", min=1, max=500)] = 50,
+) -> None:
+    """Show the highest-priority observations awaiting human review."""
+    repository = _repository(database)
+    observations = repository.list_review_queue(limit=limit)
+
+    if not observations:
+        typer.echo("Review queue is empty.")
+        return
+
+    counts = repository.fingerprint_occurrence_counts(
+        tuple(observation.fingerprint for observation in observations)
+    )
+
+    for observation in observations:
+        occurrences = counts.get(observation.fingerprint, 1)
+        typer.echo(
+            f"#{observation.id} [{observation.severity.upper()}] "
+            f"{observation.review_label} — {observation.title}"
+        )
+        typer.echo(
+            f"  scan={observation.scan_id} repeated_across_scans={occurrences} "
+            f"category={observation.category}"
+        )
+        typer.echo(f"  URL: {observation.url}")
+
+
+@findings_app.command("show")
+def findings_show(
+    observation_id: Annotated[int, typer.Argument(min=1)],
+    database: DatabaseOption = Path("vulnhunter.db"),
+) -> None:
+    """Display complete redacted evidence for one observation."""
+    try:
+        observation = _repository(database).get_observation(observation_id)
+    except ValueError as exc:
+        typer.secho(f"Unable to load observation: {exc}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=2) from exc
+
+    typer.echo(f"Observation: {observation.id}")
+    typer.echo(f"Scan: {observation.scan_id}")
+    typer.echo(f"Category: {observation.category}")
+    typer.echo(f"Severity: {observation.severity}")
+    typer.echo(f"Review label: {observation.review_label}")
+    typer.echo(f"Title: {observation.title}")
+    typer.echo(f"URL: {observation.url}")
+    typer.echo(f"Description: {observation.description}")
+    typer.echo("Evidence:")
+    typer.echo(json.dumps(observation.evidence, indent=2, sort_keys=True, default=str))
+    if observation.review_note:
+        typer.echo(f"Review note: {observation.review_note}")
+
+
 @findings_app.command("label")
 def findings_label(
     observation_id: int,
@@ -286,6 +344,71 @@ def findings_label(
         f"Observation {observation.id} labelled {observation.review_label}.",
         fg=typer.colors.GREEN,
     )
+
+
+@ml_app.command("readiness")
+def ml_readiness(
+    database: DatabaseOption = Path("vulnhunter.db"),
+    minimum_samples: Annotated[
+        int,
+        typer.Option("--minimum-samples", min=4, max=100_000),
+    ] = 20,
+    minimum_per_class: Annotated[
+        int,
+        typer.Option("--minimum-per-class", min=2, max=50_000),
+    ] = 5,
+    minimum_scans: Annotated[
+        int,
+        typer.Option("--minimum-scans", min=2, max=10_000),
+    ] = 4,
+    minimum_scans_per_class: Annotated[
+        int,
+        typer.Option("--minimum-scans-per-class", min=2, max=10_000),
+    ] = 2,
+    test_fraction: Annotated[
+        float,
+        typer.Option("--test-fraction", min=0.05, max=0.45),
+    ] = 0.2,
+    random_seed: Annotated[int, typer.Option("--seed")] = 42,
+) -> None:
+    """Report duplicate, conflict, class, and scan-split readiness."""
+    repository = _repository(database)
+    dataset = build_dataset(repository.list_training_observations())
+    prepared = assess_dataset_quality(
+        dataset,
+        minimum_samples=minimum_samples,
+        minimum_per_class=minimum_per_class,
+        minimum_scans=minimum_scans,
+        minimum_scans_per_class=minimum_scans_per_class,
+        test_fraction=test_fraction,
+        random_seed=random_seed,
+    )
+    report = prepared.report
+
+    typer.echo(f"Reviewed source samples: {report.source_samples}")
+    typer.echo(f"Unique usable samples: {report.unique_samples}")
+    typer.echo(f"Repeated samples excluded: {report.duplicate_samples}")
+    typer.echo(f"Distinct scans: {report.distinct_scans}")
+    typer.echo(
+        "Class counts: "
+        f"confirmed={report.class_counts['confirmed']}, "
+        f"false_positive={report.class_counts['false_positive']}"
+    )
+    typer.echo(
+        "Scans per class: "
+        f"confirmed={report.scans_per_class['confirmed']}, "
+        f"false_positive={report.scans_per_class['false_positive']}"
+    )
+
+    for warning in report.warnings:
+        typer.secho(f"Warning: {warning}", fg=typer.colors.YELLOW)
+
+    if report.ready:
+        typer.secho("Training readiness: READY", fg=typer.colors.GREEN)
+    else:
+        typer.secho("Training readiness: NOT READY", fg=typer.colors.YELLOW)
+        for reason in report.blocking_reasons:
+            typer.echo(f"  - {reason}")
 
 
 @ml_app.command("export")
@@ -333,6 +456,14 @@ def ml_train(
         int,
         typer.Option("--minimum-per-class", min=2, max=50_000),
     ] = 5,
+    minimum_scans: Annotated[
+        int,
+        typer.Option("--minimum-scans", min=2, max=10_000),
+    ] = 4,
+    minimum_scans_per_class: Annotated[
+        int,
+        typer.Option("--minimum-scans-per-class", min=2, max=10_000),
+    ] = 2,
     test_fraction: Annotated[
         float,
         typer.Option("--test-fraction", min=0.05, max=0.45),
@@ -352,6 +483,8 @@ def ml_train(
             dataset,
             minimum_samples=minimum_samples,
             minimum_per_class=minimum_per_class,
+            minimum_scans=minimum_scans,
+            minimum_scans_per_class=minimum_scans_per_class,
             test_fraction=test_fraction,
             random_seed=random_seed,
             maximum_tokens=maximum_tokens,
@@ -365,6 +498,10 @@ def ml_train(
     typer.secho("Baseline model trained", fg=typer.colors.GREEN)
     typer.echo(f"Training samples: {artifact.training_samples}")
     typer.echo(f"Holdout samples: {artifact.holdout_samples}")
+    typer.echo(f"Split strategy: {artifact.split_strategy}")
+    typer.echo(f"Training scans: {len(artifact.training_scan_ids)}")
+    typer.echo(f"Holdout scans: {len(artifact.holdout_scan_ids)}")
+    typer.echo(f"Repeated samples excluded: {artifact.duplicate_samples_removed}")
     typer.echo(f"Accuracy: {metrics.accuracy:.3f}")
     typer.echo(f"Precision: {metrics.precision:.3f}")
     typer.echo(f"Recall: {metrics.recall:.3f}")
@@ -395,6 +532,12 @@ def ml_info(
     typer.echo(f"Dataset SHA-256: {artifact.dataset_sha256}")
     typer.echo(f"Training samples: {artifact.training_samples}")
     typer.echo(f"Holdout samples: {artifact.holdout_samples}")
+    typer.echo(f"Source samples: {artifact.source_samples}")
+    typer.echo(f"Deduplicated samples: {artifact.deduplicated_samples}")
+    typer.echo(f"Repeated samples excluded: {artifact.duplicate_samples_removed}")
+    typer.echo(f"Split strategy: {artifact.split_strategy}")
+    typer.echo(f"Training scan IDs: {', '.join(map(str, artifact.training_scan_ids))}")
+    typer.echo(f"Holdout scan IDs: {', '.join(map(str, artifact.holdout_scan_ids))}")
     typer.echo(f"Features: {len(artifact.feature_schema.feature_names)}")
     typer.echo(f"Accuracy: {metrics.accuracy:.3f}")
     typer.echo(f"Precision: {metrics.precision:.3f}")

@@ -7,9 +7,15 @@
 - generate repository audits;
 - keep experiment history and ADRs current.
 
+## Completed — Explicit target authorization
+
+- time-limited authorization records;
+- owner, approver, purpose, evidence reference, and target boundary;
+- expiry, revocation, passive-scan ceilings, integrity hash, and audit events;
+- mandatory authorization for manual scans.
+
 ## Next — Real authorised data collection
 
-- define an authorisation record for each target;
 - collect observations from multiple intentionally diverse local applications;
 - document application family and deployment context;
 - introduce second-review/adjudication support;

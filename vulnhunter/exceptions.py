@@ -63,3 +63,19 @@ class BenchmarkError(VulnHunterError):
 
 class BenchmarkManifestError(BenchmarkError):
     """Raised when benchmark provenance is missing, inconsistent, or tampered."""
+
+
+class AuthorizationError(VulnHunterError):
+    """Base exception for explicit target-authorization failures."""
+
+
+class AuthorizationNotFoundError(AuthorizationError):
+    """Raised when an authorization record cannot be found."""
+
+
+class AuthorizationIntegrityError(AuthorizationError):
+    """Raised when a stored authorization record fails integrity checks."""
+
+
+class AuthorizationPolicyError(AuthorizationError):
+    """Raised when a requested scan exceeds an authorization boundary."""

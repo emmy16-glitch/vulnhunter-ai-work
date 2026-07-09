@@ -10,7 +10,7 @@
 | CLI-only review | Lower reviewer productivity | Medium | Stable review contracts plus optional UI |
 | Limited performance profiling | Unknown scaling limits | Medium | Repeatable mapper/storage/feature benchmarks |
 | Manual intelligence-note updates | Documentation drift | Medium | CI check for required files and audit freshness |
-| No formal authorisation record model | Permission exists outside project data | High | Explicit target authorisation metadata and retention policy |
+| Unsigned authorization evidence | Registry records reference permission evidence but do not verify an external signature | Medium | Signed approval evidence and documented retention policy |
 
 ## Debt-handling rule
 

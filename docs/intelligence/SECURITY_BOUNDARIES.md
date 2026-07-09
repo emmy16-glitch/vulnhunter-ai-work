@@ -4,7 +4,11 @@
 
 Testing is restricted to explicitly authorised laboratory targets. Current target validation permits loopback and approved private laboratory address ranges while rejecting public and ambiguous destinations.
 
-Authorisation is a human responsibility. Passing technical scope validation does not independently prove permission.
+Authorisation is a human responsibility. Passing technical scope validation does not independently prove permission. Manual scans therefore require a separate active authorization record with owner, approver, purpose, expiry, target boundary, and passive-scan ceilings.
+
+## Authorization-record boundary
+
+Before manual scanning, VulnHunter verifies record integrity, time window, revocation state, target origin/path, address snapshot, and requested limits. Failed authorization creates no scan row and performs no network request.
 
 ## URL boundary
 

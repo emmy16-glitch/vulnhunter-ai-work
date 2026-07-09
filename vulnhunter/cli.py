@@ -15,6 +15,13 @@ import typer
 from pydantic import ValidationError
 
 from vulnhunter import __version__
+from vulnhunter.authorization.cli import (
+    app as authorization_app,
+)
+from vulnhunter.authorization.cli import (
+    open_authorization_store,
+)
+from vulnhunter.authorization.service import validate_scan_authorization
 from vulnhunter.benchmark import (
     apply_scenario_review,
     benchmark_status,
@@ -25,6 +32,7 @@ from vulnhunter.benchmark import (
     validate_manifest_database,
 )
 from vulnhunter.exceptions import (
+    AuthorizationError,
     BenchmarkError,
     BenchmarkManifestError,
     MachineLearningError,
@@ -77,6 +85,7 @@ benchmark_app = typer.Typer(
     no_args_is_help=True,
 )
 
+app.add_typer(authorization_app, name="authorize")
 app.add_typer(scope_app, name="scope")
 app.add_typer(scan_app, name="scan")
 app.add_typer(findings_app, name="findings")
@@ -173,6 +182,20 @@ async def _execute_scan(
 @scan_app.command("run")
 def scan_run(
     url: str,
+    authorization_id: Annotated[
+        str,
+        typer.Option(
+            "--authorization",
+            help="Active authorization ID required before any network request.",
+        ),
+    ],
+    authorization_database: Annotated[
+        Path,
+        typer.Option(
+            "--authorization-database",
+            help="SQLite authorization registry used to validate this scan.",
+        ),
+    ] = Path("authorizations.db"),
     database: DatabaseOption = Path("vulnhunter.db"),
     maximum_pages: Annotated[
         int,
@@ -194,12 +217,37 @@ def scan_run(
     """Map one approved target and persist passive observations."""
     try:
         target = validate_target(url)
-    except ScopeValidationError as exc:
-        typer.secho(f"Rejected: {exc}", fg=typer.colors.RED, err=True)
+        authorization_store = open_authorization_store(authorization_database)
+        validate_scan_authorization(
+            authorization_store,
+            authorization_id,
+            target,
+            maximum_pages=maximum_pages,
+            maximum_depth=maximum_depth,
+            maximum_requests=maximum_requests,
+            request_delay_seconds=request_delay_seconds,
+        )
+    except (
+        AuthorizationError,
+        ScopeValidationError,
+        ValidationError,
+        ValueError,
+    ) as exc:
+        typer.secho(f"Scan authorization rejected: {exc}", fg=typer.colors.RED, err=True)
         raise typer.Exit(code=2) from exc
 
     repository = _repository(database)
     scan_id = repository.create_scan(target.normalized_url)
+    authorization_store.append_event(
+        authorization_id,
+        "scan_started",
+        {
+            "scan_id": scan_id,
+            "scan_database": str(database.expanduser().resolve()),
+            "target_url": target.normalized_url,
+        },
+    )
+    typer.echo(f"Authorization accepted: {authorization_id}")
     typer.echo(f"Started scan {scan_id}: {target.normalized_url}")
 
     try:
@@ -213,16 +261,40 @@ def scan_run(
             )
         )
         repository.complete_scan(scan_id, result)
+        authorization_store.append_event(
+            authorization_id,
+            "scan_completed",
+            {
+                "scan_id": scan_id,
+                "pages_visited": len(result.pages),
+                "observations": len(result.observations),
+            },
+        )
     except KeyboardInterrupt as exc:
         repository.fail_scan(scan_id, "Cancelled by operator.")
+        authorization_store.append_event(
+            authorization_id,
+            "scan_failed",
+            {"scan_id": scan_id, "reason": "Cancelled by operator."},
+        )
         typer.secho("Scan cancelled by operator.", fg=typer.colors.YELLOW, err=True)
         raise typer.Exit(code=130) from exc
     except (VulnHunterError, ValidationError, ValueError) as exc:
         repository.fail_scan(scan_id, str(exc))
+        authorization_store.append_event(
+            authorization_id,
+            "scan_failed",
+            {"scan_id": scan_id, "reason": str(exc)},
+        )
         typer.secho(f"Scan failed safely: {exc}", fg=typer.colors.RED, err=True)
         raise typer.Exit(code=1) from exc
     except Exception as exc:
         repository.fail_scan(scan_id, str(exc))
+        authorization_store.append_event(
+            authorization_id,
+            "scan_failed",
+            {"scan_id": scan_id, "reason": "Unexpected internal failure."},
+        )
         raise
 
     typer.secho("Scan completed", fg=typer.colors.GREEN)
@@ -625,7 +697,13 @@ def benchmark_run(
     """Run the fixed benchmark catalog as isolated loopback-only scans."""
     try:
         manifest = asyncio.run(run_benchmark_suite(database, manifest_path))
-    except (BenchmarkError, VulnHunterError, ValidationError, ValueError, OSError) as exc:
+    except (
+        BenchmarkError,
+        VulnHunterError,
+        ValidationError,
+        ValueError,
+        OSError,
+    ) as exc:
         typer.secho(f"Benchmark stopped safely: {exc}", fg=typer.colors.RED, err=True)
         raise typer.Exit(code=2) from exc
 
@@ -693,7 +771,11 @@ def benchmark_review(
 
     if scenario_id is not None:
         if scenario_id not in {item.scenario_id for item in manifest.scenarios}:
-            typer.secho(f"Unknown benchmark scenario: {scenario_id}", fg=typer.colors.RED, err=True)
+            typer.secho(
+                f"Unknown benchmark scenario: {scenario_id}",
+                fg=typer.colors.RED,
+                err=True,
+            )
             raise typer.Exit(code=2)
         grouped = {scenario_id: grouped.get(scenario_id, ())}
 

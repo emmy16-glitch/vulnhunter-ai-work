@@ -11,6 +11,12 @@ scope.validator.validate_target
   v
 ApprovedTarget
   |
+  v
+authorization.validate_scan_authorization
+  |
+  v
+Authorized scan decision
+  |
   +--> scope.guard.validate_scoped_url
   |        |
   |        v
@@ -56,7 +62,8 @@ ml.training / tuning / diagnostics
 
 ## Architectural principles
 
-- Validate before use.
+- Validate technical scope before use.
+- Validate explicit human authorization before manual network activity.
 - Represent trusted values with dedicated types.
 - Revalidate every derived network destination.
 - Redact at the earliest persistence or display boundary.

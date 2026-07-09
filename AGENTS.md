@@ -11,6 +11,7 @@ This file is the binding operating manual for humans and AI coding agents workin
 VulnHunter may assist with:
 
 - validating authorised laboratory targets;
+- recording explicit time-limited human authorization before manual scans;
 - bounded GET/HEAD HTTP collection;
 - passive mapping and passive security observations;
 - sanitised persistence and audit events;
@@ -55,7 +56,8 @@ Raw target URL
 
 Primary packages:
 
-- `vulnhunter/scope/`: target approval and derived-URL containment.
+- `vulnhunter/scope/`: technical target approval and derived-URL containment.
+- `vulnhunter/authorization/`: explicit permission records, limits, revocation, and audit events.
 - `vulnhunter/security/`: redaction and sensitive-data handling.
 - `vulnhunter/scanner/`: request policy, cancellation, budgets, rate limits, and HTTP transport.
 - `vulnhunter/mapping/`: bounded passive crawling and link discovery.
@@ -99,8 +101,13 @@ git status --short
 
 Do not claim completion unless these checks pass.
 
-## 5. Scope and network rules
+## 5. Scope, authorization, and network rules
 
+- Technical scope validation does not prove permission.
+- Every manual `scan run` must present an active authorization ID.
+- Authorization must be checked before a scan row or network request is created.
+- Expired, revoked, mismatched, tampered, or over-limit authorization must fail closed.
+- Authorization events must be append-only and redacted.
 - Initial targets must remain restricted to loopback and explicitly approved private laboratory address space.
 - A raw URL string must not reach the HTTP transport.
 - Every request destination must be represented by `ScopedUrl`.
@@ -221,7 +228,7 @@ Additional expectations:
 Stop the change and report clearly when:
 
 - the requested target is public or authorisation is unclear;
-- a change requires weakening scope restrictions;
+- a change requires weakening scope or explicit authorization restrictions;
 - secrets appear in tracked files or output;
 - database migration safety is uncertain;
 - an existing model artifact would be overwritten without explicit intent;

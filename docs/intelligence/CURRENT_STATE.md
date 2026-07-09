@@ -5,6 +5,7 @@
 VulnHunter currently includes:
 
 - strict laboratory target validation;
+- explicit time-limited target authorization with revocation and audit events;
 - loopback/private-address enforcement;
 - immutable `ApprovedTarget` and `ScopedUrl` trust-boundary models;
 - derived-link and redirect containment;
@@ -48,6 +49,7 @@ Use the CLI help as the exact current interface:
 ```bash
 vulnhunter --help
 vulnhunter scope --help
+vulnhunter authorize --help
 vulnhunter scan --help
 vulnhunter findings --help
 vulnhunter ml --help

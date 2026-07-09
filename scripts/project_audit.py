@@ -19,6 +19,7 @@ REQUIRED_INTELLIGENCE_FILES = (
     "docs/intelligence/PRODUCT_DEFINITION.md",
     "docs/intelligence/SYSTEM_ARCHITECTURE.md",
     "docs/intelligence/SECURITY_BOUNDARIES.md",
+    "docs/intelligence/TARGET_AUTHORIZATION.md",
     "docs/intelligence/DATA_AND_REVIEW.md",
     "docs/intelligence/ML_GOVERNANCE.md",
     "docs/intelligence/TESTING_STRATEGY.md",
@@ -31,6 +32,7 @@ REQUIRED_INTELLIGENCE_FILES = (
 
 EXPECTED_PACKAGES = (
     "scope",
+    "authorization",
     "security",
     "scanner",
     "mapping",

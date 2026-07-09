@@ -7,6 +7,7 @@ import json
 import os
 import platform
 import sys
+from collections import Counter
 from pathlib import Path
 from typing import Annotated
 
@@ -14,13 +15,25 @@ import typer
 from pydantic import ValidationError
 
 from vulnhunter import __version__
+from vulnhunter.benchmark import (
+    apply_scenario_review,
+    benchmark_status,
+    load_manifest,
+    manifest_sha256,
+    pending_by_scenario,
+    run_benchmark_suite,
+    validate_manifest_database,
+)
 from vulnhunter.exceptions import (
+    BenchmarkError,
+    BenchmarkManifestError,
     MachineLearningError,
     ScopeValidationError,
     VulnHunterError,
 )
 from vulnhunter.mapping import MapperPolicy, SiteMapper
 from vulnhunter.ml import (
+    BenchmarkProvenance,
     assess_dataset_quality,
     build_dataset,
     export_jsonl,
@@ -57,11 +70,16 @@ ml_app = typer.Typer(
     help="Export reviewed data and run the local baseline ML pipeline.",
     no_args_is_help=True,
 )
+benchmark_app = typer.Typer(
+    help="Generate and review controlled loopback benchmark observations.",
+    no_args_is_help=True,
+)
 
 app.add_typer(scope_app, name="scope")
 app.add_typer(scan_app, name="scan")
 app.add_typer(findings_app, name="findings")
 app.add_typer(ml_app, name="ml")
+app.add_typer(benchmark_app, name="benchmark")
 
 DatabaseOption = Annotated[
     Path,
@@ -527,6 +545,7 @@ def ml_info(
     metrics = artifact.evaluation
     typer.echo(f"Model type: {artifact.model_type}")
     typer.echo(f"Artifact version: {artifact.artifact_version}")
+    typer.echo(f"Training context: {artifact.training_context}")
     typer.echo(f"Created: {artifact.created_at.isoformat()}")
     typer.echo(f"Application version: {artifact.application_version}")
     typer.echo(f"Dataset SHA-256: {artifact.dataset_sha256}")
@@ -538,6 +557,10 @@ def ml_info(
     typer.echo(f"Split strategy: {artifact.split_strategy}")
     typer.echo(f"Training scan IDs: {', '.join(map(str, artifact.training_scan_ids))}")
     typer.echo(f"Holdout scan IDs: {', '.join(map(str, artifact.holdout_scan_ids))}")
+    if artifact.training_context == "controlled_benchmark":
+        typer.echo(f"Benchmark run ID: {artifact.benchmark_run_id}")
+        typer.echo(f"Benchmark catalog version: {artifact.benchmark_catalog_version}")
+        typer.echo(f"Benchmark manifest SHA-256: {artifact.benchmark_manifest_sha256}")
     typer.echo(f"Features: {len(artifact.feature_schema.feature_names)}")
     typer.echo(f"Accuracy: {metrics.accuracy:.3f}")
     typer.echo(f"Precision: {metrics.precision:.3f}")
@@ -575,6 +598,241 @@ def ml_predict(
         f"false_positive={result.probabilities['false_positive']:.3f}"
     )
     typer.echo("Decision support only; the stored human label was not changed.")
+
+
+@benchmark_app.command("run")
+def benchmark_run(
+    database: DatabaseOption = Path("artifacts/benchmark.db"),
+    manifest_path: Annotated[
+        Path,
+        typer.Option(
+            "--manifest",
+            help="Destination integrity-protected benchmark manifest.",
+        ),
+    ] = Path("artifacts/benchmark-manifest.json"),
+) -> None:
+    """Run the fixed benchmark catalog as isolated loopback-only scans."""
+    try:
+        manifest = asyncio.run(run_benchmark_suite(database, manifest_path))
+    except (BenchmarkError, VulnHunterError, ValidationError, ValueError, OSError) as exc:
+        typer.secho(f"Benchmark stopped safely: {exc}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=2) from exc
+
+    typer.secho("Controlled benchmark completed", fg=typer.colors.GREEN)
+    typer.echo(f"Run ID: {manifest.run_id}")
+    typer.echo(f"Independent scans: {len(manifest.scenarios)}")
+    typer.echo(f"Review expectations: {len(manifest.expectations)}")
+    typer.echo(f"Database: {database.expanduser().resolve()}")
+    typer.echo(f"Manifest: {manifest_path.expanduser().resolve()}")
+    typer.secho(
+        "Benchmark observations are synthetic and remain unlabelled until explicit human review.",
+        fg=typer.colors.YELLOW,
+    )
+
+
+@benchmark_app.command("status")
+def benchmark_status_command(
+    database: DatabaseOption = Path("artifacts/benchmark.db"),
+    manifest_path: Annotated[
+        Path,
+        typer.Option("--manifest", help="Benchmark manifest to inspect."),
+    ] = Path("artifacts/benchmark-manifest.json"),
+) -> None:
+    """Show benchmark review progress and manifest consistency."""
+    repository = _repository(database)
+    try:
+        manifest = load_manifest(manifest_path)
+        status = benchmark_status(manifest, database, repository)
+    except (BenchmarkManifestError, ValidationError, ValueError, OSError) as exc:
+        typer.secho(f"Benchmark status failed safely: {exc}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=2) from exc
+
+    typer.echo(f"Run ID: {manifest.run_id}")
+    typer.echo(f"Catalog version: {manifest.catalog_version}")
+    typer.echo(f"Scenarios: {len(manifest.scenarios)}")
+    typer.echo(f"Total expectations: {status.total_expectations}")
+    typer.echo(f"Pending review: {status.pending}")
+    typer.echo(f"Confirmed: {status.confirmed}")
+    typer.echo(f"False positive: {status.false_positive}")
+    typer.echo(f"Needs review: {status.needs_review}")
+    typer.echo(f"Human decisions differing from suggestion: {status.mismatched}")
+    typer.echo(f"Review complete: {'yes' if status.complete else 'no'}")
+
+
+@benchmark_app.command("review")
+def benchmark_review(
+    database: DatabaseOption = Path("artifacts/benchmark.db"),
+    manifest_path: Annotated[
+        Path,
+        typer.Option("--manifest", help="Benchmark manifest to review."),
+    ] = Path("artifacts/benchmark-manifest.json"),
+    scenario_id: Annotated[
+        str | None,
+        typer.Option("--scenario", help="Review only one scenario ID."),
+    ] = None,
+) -> None:
+    """Guide explicit human confirmation one scenario at a time."""
+    repository = _repository(database)
+    try:
+        manifest = load_manifest(manifest_path)
+        grouped = pending_by_scenario(manifest, database, repository)
+    except (BenchmarkManifestError, ValidationError, ValueError, OSError) as exc:
+        typer.secho(f"Benchmark review failed safely: {exc}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=2) from exc
+
+    if scenario_id is not None:
+        if scenario_id not in {item.scenario_id for item in manifest.scenarios}:
+            typer.secho(f"Unknown benchmark scenario: {scenario_id}", fg=typer.colors.RED, err=True)
+            raise typer.Exit(code=2)
+        grouped = {scenario_id: grouped.get(scenario_id, ())}
+
+    grouped = {key: value for key, value in grouped.items() if value}
+    if not grouped:
+        typer.echo("No pending benchmark scenarios remain.")
+        return
+
+    scenario_lookup = {item.scenario_id: item for item in manifest.scenarios}
+
+    for current_scenario_id, expectations in grouped.items():
+        scenario = scenario_lookup[current_scenario_id]
+        suggested_label = expectations[0].suggested_label
+        category_counts = Counter(item.category for item in expectations)
+
+        typer.echo("")
+        typer.secho(
+            f"Scenario: {scenario.title} ({current_scenario_id})",
+            fg=typer.colors.CYAN,
+        )
+        typer.echo(f"Scan ID: {scenario.scan_id}")
+        typer.echo(f"Suggested label: {suggested_label}")
+        typer.echo(f"Rationale: {expectations[0].rationale}")
+        typer.echo(
+            "Categories: "
+            + ", ".join(
+                f"{category}={count}" for category, count in sorted(category_counts.items())
+            )
+        )
+        for expectation in expectations:
+            typer.echo(
+                f"  #{expectation.observation_id} [{expectation.severity.upper()}] "
+                f"{expectation.category} — {expectation.title}"
+            )
+            typer.echo(f"    {expectation.url}")
+
+        while True:
+            decision = (
+                typer.prompt(
+                    "Decision: accept / confirmed / false_positive / skip / quit",
+                    default="skip",
+                )
+                .strip()
+                .lower()
+            )
+            if decision in {
+                "accept",
+                "confirmed",
+                "false_positive",
+                "skip",
+                "quit",
+            }:
+                break
+            typer.secho("Enter one of the displayed decisions.", fg=typer.colors.YELLOW)
+
+        if decision == "quit":
+            typer.echo("Benchmark review stopped by operator.")
+            return
+        if decision == "skip":
+            typer.echo("Scenario skipped without changing labels.")
+            continue
+
+        try:
+            labelled = apply_scenario_review(
+                manifest,
+                database,
+                repository,
+                current_scenario_id,
+                decision,
+            )
+        except (BenchmarkManifestError, ValidationError, ValueError) as exc:
+            typer.secho(f"Review decision failed safely: {exc}", fg=typer.colors.RED, err=True)
+            raise typer.Exit(code=2) from exc
+
+        typer.secho(
+            f"Applied human decision to {len(labelled)} findings.",
+            fg=typer.colors.GREEN,
+        )
+
+
+@benchmark_app.command("train")
+def benchmark_train(
+    database: DatabaseOption = Path("artifacts/benchmark.db"),
+    manifest_path: Annotated[
+        Path,
+        typer.Option("--manifest", help="Completed benchmark manifest."),
+    ] = Path("artifacts/benchmark-manifest.json"),
+    model_path: Annotated[
+        Path,
+        typer.Option("--model", "-m", help="Benchmark-only model artifact."),
+    ] = Path("artifacts/vulnhunter-benchmark-baseline.json"),
+    test_fraction: Annotated[
+        float,
+        typer.Option("--test-fraction", min=0.05, max=0.45),
+    ] = 0.2,
+    random_seed: Annotated[int, typer.Option("--seed")] = 42,
+) -> None:
+    """Train a provenance-marked model after all benchmark reviews are complete."""
+    repository = _repository(database)
+
+    try:
+        manifest = load_manifest(manifest_path)
+        validate_manifest_database(manifest, database, repository)
+        status = benchmark_status(manifest, database, repository)
+        if not status.complete:
+            raise BenchmarkError(
+                f"Benchmark review is incomplete; {status.pending} finding(s) remain pending."
+            )
+
+        dataset = build_dataset(repository.list_training_observations())
+        artifact = train_baseline(
+            dataset,
+            minimum_samples=20,
+            minimum_per_class=5,
+            minimum_scans=4,
+            minimum_scans_per_class=2,
+            test_fraction=test_fraction,
+            random_seed=random_seed,
+            benchmark_provenance=BenchmarkProvenance(
+                run_id=manifest.run_id,
+                catalog_version=manifest.catalog_version,
+                manifest_sha256=manifest_sha256(manifest),
+            ),
+        )
+        save_model(artifact, model_path)
+    except (
+        BenchmarkError,
+        BenchmarkManifestError,
+        MachineLearningError,
+        ValidationError,
+        ValueError,
+        OSError,
+    ) as exc:
+        typer.secho(f"Benchmark training stopped safely: {exc}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=2) from exc
+
+    metrics = artifact.evaluation
+    typer.secho("Controlled benchmark model trained", fg=typer.colors.GREEN)
+    typer.echo(f"Training samples: {artifact.training_samples}")
+    typer.echo(f"Holdout samples: {artifact.holdout_samples}")
+    typer.echo(f"Accuracy: {metrics.accuracy:.3f}")
+    typer.echo(f"Precision: {metrics.precision:.3f}")
+    typer.echo(f"Recall: {metrics.recall:.3f}")
+    typer.echo(f"F1 score: {metrics.f1_score:.3f}")
+    typer.echo(f"Model: {model_path.expanduser().resolve()}")
+    typer.secho(
+        "These metrics validate the pipeline on synthetic benchmark data; they do not "
+        "represent real-world vulnerability-detection performance.",
+        fg=typer.colors.YELLOW,
+    )
 
 
 if __name__ == "__main__":

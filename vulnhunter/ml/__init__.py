@@ -8,6 +8,7 @@ from vulnhunter.ml.dataset import (
 )
 from vulnhunter.ml.features import build_feature_schema, vectorize
 from vulnhunter.ml.models import (
+    BenchmarkProvenance,
     EvaluationMetrics,
     FeatureSchema,
     ModelArtifact,
@@ -25,6 +26,7 @@ from vulnhunter.ml.splitting import split_by_scan_groups
 from vulnhunter.ml.training import load_model, predict, save_model, train_baseline
 
 __all__ = [
+    "BenchmarkProvenance",
     "DatasetQualityReport",
     "EvaluationMetrics",
     "FeatureSchema",

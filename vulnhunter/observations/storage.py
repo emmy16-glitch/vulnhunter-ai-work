@@ -324,6 +324,55 @@ class ScanRepository:
             session.flush()
             return self._to_observation_summary(row)
 
+    def label_observations(
+        self,
+        observation_ids: tuple[int, ...],
+        label: str,
+        *,
+        note: str | None = None,
+    ) -> tuple[ObservationSummary, ...]:
+        """Apply one human decision to several observations transactionally."""
+        validated_label = _REVIEW_OUTCOME_ADAPTER.validate_python(label)
+        unique_ids = tuple(sorted(set(observation_ids)))
+
+        if not unique_ids:
+            raise ValueError("At least one observation ID is required.")
+        if len(unique_ids) != len(observation_ids):
+            raise ValueError("Observation IDs must not contain duplicates.")
+        if len(unique_ids) > 1_000:
+            raise ValueError("At most 1000 observations may be labelled at once.")
+        if any(observation_id < 1 for observation_id in unique_ids):
+            raise ValueError("Observation IDs must be positive integers.")
+
+        safe_note = redact_text(note.strip())[:2_000] if note and note.strip() else None
+        reviewed_at = datetime.now(UTC)
+
+        with self._session_factory.begin() as session:
+            rows = tuple(
+                session.scalars(
+                    select(ObservationRow)
+                    .where(ObservationRow.id.in_(unique_ids))
+                    .order_by(ObservationRow.id.asc())
+                )
+            )
+
+            if len(rows) != len(unique_ids):
+                found_ids = {row.id for row in rows}
+                missing_ids = [
+                    observation_id
+                    for observation_id in unique_ids
+                    if observation_id not in found_ids
+                ]
+                raise ValueError("Observations do not exist: " + ", ".join(map(str, missing_ids)))
+
+            for row in rows:
+                row.review_label = validated_label
+                row.review_note = safe_note
+                row.reviewed_at = reviewed_at
+
+            session.flush()
+            return tuple(self._to_observation_summary(row) for row in rows)
+
     def get_observation(self, observation_id: int) -> ObservationSummary:
         """Return one observation by ID or raise a clear error."""
         if observation_id < 1:

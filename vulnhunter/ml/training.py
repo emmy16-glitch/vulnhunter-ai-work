@@ -16,6 +16,7 @@ from vulnhunter.exceptions import InsufficientTrainingDataError, ModelArtifactEr
 from vulnhunter.ml.dataset import dataset_sha256
 from vulnhunter.ml.features import build_feature_schema, vectorize, vectorize_many
 from vulnhunter.ml.models import (
+    BenchmarkProvenance,
     EvaluationMetrics,
     ModelArtifact,
     ObservationInput,
@@ -147,6 +148,7 @@ def train_baseline(
     random_seed: int = 42,
     alpha: float = 1.0,
     maximum_tokens: int = 128,
+    benchmark_provenance: BenchmarkProvenance | None = None,
 ) -> ModelArtifact:
     """Train a deduplicated baseline with scan-isolated holdout evaluation."""
     prepared = assess_dataset_quality(
@@ -213,6 +215,19 @@ def train_baseline(
         split_strategy="scan_group_stratified",
         training_scan_ids=training_scan_ids,
         holdout_scan_ids=holdout_scan_ids,
+        artifact_version=3 if benchmark_provenance is not None else 2,
+        training_context=(
+            "controlled_benchmark" if benchmark_provenance is not None else "reviewed_observations"
+        ),
+        benchmark_run_id=(
+            benchmark_provenance.run_id if benchmark_provenance is not None else None
+        ),
+        benchmark_catalog_version=(
+            benchmark_provenance.catalog_version if benchmark_provenance is not None else None
+        ),
+        benchmark_manifest_sha256=(
+            benchmark_provenance.manifest_sha256 if benchmark_provenance is not None else None
+        ),
     )
 
 

@@ -55,3 +55,11 @@ class InsufficientTrainingDataError(MachineLearningError):
 
 class ModelArtifactError(MachineLearningError):
     """Raised when a model artifact is malformed, unsafe, or incompatible."""
+
+
+class BenchmarkError(VulnHunterError):
+    """Base exception for controlled local benchmark operations."""
+
+
+class BenchmarkManifestError(BenchmarkError):
+    """Raised when benchmark provenance is missing, inconsistent, or tampered."""

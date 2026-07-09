@@ -98,12 +98,30 @@ class EvaluationMetrics(BaseModel):
     f1_score: float = Field(ge=0, le=1)
 
 
+class BenchmarkProvenance(BaseModel):
+    """Integrity metadata identifying a controlled benchmark training run."""
+
+    model_config = ConfigDict(frozen=True)
+
+    run_id: str = Field(min_length=36, max_length=36)
+    catalog_version: int = Field(ge=1)
+    manifest_sha256: str = Field(min_length=64, max_length=64)
+
+    @model_validator(mode="after")
+    def validate_digest(self) -> BenchmarkProvenance:
+        try:
+            int(self.manifest_sha256, 16)
+        except ValueError as exc:
+            raise ValueError("manifest_sha256 must be hexadecimal.") from exc
+        return self
+
+
 class ModelArtifact(BaseModel):
     """Portable, versioned Multinomial Naive Bayes model artifact."""
 
     model_config = ConfigDict(frozen=True, allow_inf_nan=False)
 
-    artifact_version: Literal[1, 2] = 2
+    artifact_version: Literal[1, 2, 3] = 2
     model_type: Literal["multinomial_naive_bayes"] = "multinomial_naive_bayes"
     created_at: datetime
     application_version: str
@@ -128,6 +146,14 @@ class ModelArtifact(BaseModel):
     )
     training_scan_ids: tuple[int, ...] = ()
     holdout_scan_ids: tuple[int, ...] = ()
+
+    training_context: Literal[
+        "reviewed_observations",
+        "controlled_benchmark",
+    ] = "reviewed_observations"
+    benchmark_run_id: str | None = None
+    benchmark_catalog_version: int | None = Field(default=None, ge=1)
+    benchmark_manifest_sha256: str | None = Field(default=None, min_length=64, max_length=64)
 
     @model_validator(mode="after")
     def validate_artifact(self) -> ModelArtifact:
@@ -170,7 +196,7 @@ class ModelArtifact(BaseModel):
         except ValueError as exc:
             raise ValueError("dataset_sha256 must be hexadecimal.") from exc
 
-        if self.artifact_version == 2:
+        if self.artifact_version >= 2:
             if self.source_samples < self.deduplicated_samples:
                 raise ValueError("source_samples cannot be below deduplicated_samples.")
 
@@ -194,5 +220,25 @@ class ModelArtifact(BaseModel):
 
             if tuple(sorted(set(self.holdout_scan_ids))) != self.holdout_scan_ids:
                 raise ValueError("holdout_scan_ids must be sorted and unique.")
+
+        benchmark_fields = (
+            self.benchmark_run_id,
+            self.benchmark_catalog_version,
+            self.benchmark_manifest_sha256,
+        )
+        if self.artifact_version == 3:
+            if self.training_context != "controlled_benchmark":
+                raise ValueError("Version 3 artifacts require controlled benchmark context.")
+            if any(value is None for value in benchmark_fields):
+                raise ValueError("Version 3 artifacts require complete benchmark provenance.")
+            try:
+                int(self.benchmark_manifest_sha256 or "", 16)
+            except ValueError as exc:
+                raise ValueError("benchmark_manifest_sha256 must be hexadecimal.") from exc
+        else:
+            if self.training_context != "reviewed_observations":
+                raise ValueError("Non-benchmark artifacts require reviewed observation context.")
+            if any(value is not None for value in benchmark_fields):
+                raise ValueError("Benchmark provenance is only valid on version 3 artifacts.")
 
         return self

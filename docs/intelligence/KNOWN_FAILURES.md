@@ -41,3 +41,9 @@ Databases and model artifacts are local operational files. Backup, retention, si
 ## 8. CLI-first operation
 
 The project currently prioritises a CLI workflow. A graphical review interface is out of scope until the data contracts and review process are stable.
+
+## 9. Orchestration is not an operating-system sandbox
+
+The evaluation harness executes only fixed verifier command templates with `shell=False`, bounded output, timeouts, and an offline-oriented environment. The repository tests and build tools themselves are still local code and are not isolated by a kernel sandbox or container. A verifier pass therefore proves the configured checks ran successfully; it does not prove hostile repository code could not affect the host.
+
+Loop roles are pseudonymous local identifiers. Their separation is mechanically recorded but not backed by authenticated accounts or digital signatures.

@@ -63,6 +63,7 @@ Primary packages:
 - `vulnhunter/mapping/`: bounded passive crawling and link discovery.
 - `vulnhunter/observations/`: passive checks, persistence, effective labels, and review queues.
 - `vulnhunter/review/`: independent reviewer identities, consensus, disputes, and adjudication contracts.
+- `vulnhunter/orchestration/`: bounded change specifications, deterministic evaluation, role gates, audit events, and guarded recovery.
 - `vulnhunter/ml/`: dataset preparation, features, grouped splitting, training, tuning, provenance, and diagnostics.
 - `vulnhunter/benchmark/`: controlled loopback benchmark workflow.
 - `vulnhunter/cli.py`: Typer command-line interface.
@@ -178,7 +179,21 @@ Raw response bodies may exist only as bounded, short-lived in-memory values. The
 - Never describe a perfect controlled-benchmark score as real-world accuracy.
 - A low honest score is preferable to a contaminated impressive score.
 
-## 9. Testing requirements
+
+## 9. Bounded agent-loop rules
+
+Substantial AI-assisted changes must use the orchestration contract where practical:
+
+1. define the objective, context, allowed actions and paths, verifiers/evidence, stop/recovery conditions, and audit trail;
+2. keep builder, test runner, security verifier, reviewer, and human approver identities separate;
+3. use fixed deterministic verifiers rather than agent claims;
+4. stop on iteration, time, token, cost, repeated-error, no-progress, changed-file, or diff-size ceilings;
+5. escalate uncertainty instead of weakening a gate;
+6. record changed files, commands, hashes, findings, decisions, limitations, and learning;
+7. never execute arbitrary shell commands from a loop specification;
+8. never treat orchestration approval as target authorization or vulnerability confirmation.
+
+## 10. Testing requirements
 
 Every security-sensitive change requires:
 
@@ -197,7 +212,7 @@ Additional expectations:
 - review changes: reviewer separation, consensus, disagreement, adjudicator independence, immutability, and training exclusion;
 - CLI changes: exit code and user-facing output tests.
 
-## 10. Coding conventions
+## 11. Coding conventions
 
 - Python 3.11+ syntax only, despite development currently using a newer interpreter.
 - Type public functions and trust-boundary models.
@@ -213,7 +228,7 @@ Additional expectations:
 - Use UTC timestamps.
 - Keep user-facing text precise and free of unsupported claims.
 
-## 11. Common AI-agent mistakes to avoid
+## 12. Common AI-agent mistakes to avoid
 
 - replacing a complete file without inspecting its current exports and callers;
 - weakening a test instead of fixing the contract;
@@ -229,7 +244,7 @@ Additional expectations:
 - claiming implementation success before running tests;
 - leaving installers, databases, models, or temporary files accidentally tracked.
 
-## 12. Mandatory stop and escalation conditions
+## 13. Mandatory stop and escalation conditions
 
 Stop the change and report clearly when:
 
@@ -246,7 +261,7 @@ Stop the change and report clearly when:
 - destructive behaviour is requested;
 - a dependency or design choice cannot be justified.
 
-## 13. Definition of done
+## 14. Definition of done
 
 A milestone is done only when:
 

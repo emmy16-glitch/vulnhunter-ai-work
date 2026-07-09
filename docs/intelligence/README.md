@@ -16,8 +16,9 @@ This directory is the permanent, model-agnostic second brain for VulnHunter AI. 
 10. [Known failures and limitations](KNOWN_FAILURES.md)
 11. [Experiment log](EXPERIMENT_LOG.md)
 12. [Roadmap](ROADMAP.md)
-13. [Technical debt](TECHNICAL_DEBT.md)
-14. [Architecture decisions](../adr/README.md)
+13. [Bounded orchestration loop](ORCHESTRATION_LOOP.md)
+14. [Technical debt](TECHNICAL_DEBT.md)
+15. [Architecture decisions](../adr/README.md)
 
 ## Maintenance rule
 

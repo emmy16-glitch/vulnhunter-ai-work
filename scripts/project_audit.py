@@ -28,6 +28,7 @@ REQUIRED_INTELLIGENCE_FILES = (
     "docs/intelligence/EXPERIMENT_LOG.md",
     "docs/intelligence/ROADMAP.md",
     "docs/intelligence/TECHNICAL_DEBT.md",
+    "docs/intelligence/ORCHESTRATION_LOOP.md",
     "docs/adr/README.md",
 )
 
@@ -39,6 +40,7 @@ EXPECTED_PACKAGES = (
     "mapping",
     "observations",
     "review",
+    "orchestration",
     "ml",
     "benchmark",
 )

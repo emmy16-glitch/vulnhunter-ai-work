@@ -86,3 +86,18 @@ The project intentionally uses a small dependency set:
 - pytest and Ruff for development verification.
 
 New dependencies require a written justification covering security, maintenance cost, disk impact, and why existing dependencies are insufficient.
+
+
+## Engineering orchestration boundary
+
+```text
+LoopSpec
+  -> bounded builder changes
+  -> deterministic evaluation evidence
+  -> security-policy evidence
+  -> independent review
+  -> human approval
+  -> documentation and learning record
+```
+
+The orchestration subsystem governs project changes; it is separate from target scanning and cannot grant scan authorization or alter human finding labels.

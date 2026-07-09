@@ -1,32 +1,19 @@
 # Roadmap
 
-## Now — Project intelligence and reproducibility
+## Completed — Governance and bounded development
 
-- maintain `AGENTS.md`;
-- keep atomised architecture and governance notes;
-- generate repository audits;
-- keep experiment history and ADRs current.
+- permanent project intelligence and architecture decision records;
+- controlled source ingestion;
+- explicit time-limited target authorization;
+- independent finding review and adjudication;
+- bounded orchestration with deterministic proof, hard stops, role separation, human approval, and learning records.
 
-## Completed — Explicit target authorization
-
-- time-limited authorization records;
-- owner, approver, purpose, evidence reference, and target boundary;
-- expiry, revocation, passive-scan ceilings, integrity hash, and audit events;
-- mandatory authorization for manual scans.
-
-## Completed — Independent review and adjudication
-
-- immutable primary decisions by two distinct pseudonymous reviewers;
-- automatic consensus and dispute states;
-- third-person adjudication with required rationale;
-- unresolved cases excluded from training;
-- legacy benchmark labels preserved for reproducibility.
-
-## Next — Real authorised data collection
+## Now — Real authorised data collection
 
 - collect observations from multiple intentionally diverse local applications;
 - document application family and deployment context;
-- use consensus/adjudication for new real labels;
+- use consensus or adjudication for every new real label;
+- preserve authorization evidence for every target;
 - build a balanced reviewed dataset without benchmark leakage.
 
 ## Next — Transport hardening
@@ -51,14 +38,14 @@
 - resumable scans;
 - controlled exports;
 - richer reviewer productivity;
-- structured authorisation records;
 - safe report generation;
-- optional graphical review interface.
+- optional graphical review interface;
+- authenticated identities for authorization, review, and orchestration roles.
 
 ## Explicitly deferred
 
 - exploitation;
 - credential attacks;
 - arbitrary Internet scanning;
-- autonomous approval/rejection;
+- autonomous approval or rejection;
 - production performance claims from synthetic data.

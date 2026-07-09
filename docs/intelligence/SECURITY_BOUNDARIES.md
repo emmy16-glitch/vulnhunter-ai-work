@@ -75,3 +75,7 @@ Do not:
 - weaken redaction for convenience;
 - merge train and holdout scan groups;
 - make model decisions authoritative.
+
+## Engineering-orchestration boundary
+
+Loop approval governs a repository change only. It cannot authorize a target, confirm a vulnerability, alter a finding label, or promote a model. The verifier registry executes fixed command templates without a shell, but it is not a kernel-level sandbox. All evidence remains local and must be treated according to the project artifact-retention policy.

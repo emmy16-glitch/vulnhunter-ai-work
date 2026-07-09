@@ -79,3 +79,31 @@ class AuthorizationIntegrityError(AuthorizationError):
 
 class AuthorizationPolicyError(AuthorizationError):
     """Raised when a requested scan exceeds an authorization boundary."""
+
+
+class LoopError(VulnHunterError):
+    """Base exception for bounded engineering-loop failures."""
+
+
+class LoopNotFoundError(LoopError):
+    """Raised when an orchestration loop cannot be found."""
+
+
+class LoopIntegrityError(LoopError):
+    """Raised when loop manifests, evidence, or audit events are invalid."""
+
+
+class LoopPolicyError(LoopError):
+    """Raised when a loop action violates an explicit boundary."""
+
+
+class LoopStateError(LoopError):
+    """Raised when an action is invalid for the current loop state."""
+
+
+class LoopBudgetError(LoopError):
+    """Raised when an iteration, time, token, or cost ceiling is exceeded."""
+
+
+class LoopEvaluationError(LoopError):
+    """Raised when deterministic proof collection cannot be completed."""

@@ -72,3 +72,5 @@ Current tests focus on correctness. Future performance tests should measure:
 - feature extraction latency;
 - model prediction latency;
 - benchmark reproducibility.
+
+- orchestration changes: specification validation, path boundaries, role separation, verifier timeouts, repeated-error/no-progress stops, diff binding, evidence integrity, review/approval gates, and guarded rollback;

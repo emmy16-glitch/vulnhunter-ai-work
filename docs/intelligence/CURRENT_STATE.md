@@ -23,7 +23,8 @@ VulnHunter currently includes:
 - scan-group-isolated training and holdout evaluation;
 - model artifact provenance and integrity metadata;
 - controlled synthetic benchmark workflow;
-- training-only model selection and holdout diagnostics.
+- training-only model selection and holdout diagnostics;
+- bounded engineering orchestration with deterministic proof, role separation, hard stops, human approval, and learning records.
 
 ## Current interpretation
 
@@ -55,6 +56,7 @@ vulnhunter scan --help
 vulnhunter findings --help
 vulnhunter ml --help
 vulnhunter benchmark --help
+vulnhunter loop --help
 ```
 
 ## Repository health

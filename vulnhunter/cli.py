@@ -54,6 +54,7 @@ from vulnhunter.ml import (
     train_tuned,
 )
 from vulnhunter.observations.storage import ScanRepository
+from vulnhunter.orchestration.cli import app as orchestration_app
 from vulnhunter.review import IndependentReviewOutcome, ReviewCaseSummary
 from vulnhunter.scanner import HttpClientPolicy, SafeHttpClient
 from vulnhunter.scope import ApprovedTarget, validate_target
@@ -91,6 +92,7 @@ app.add_typer(scan_app, name="scan")
 app.add_typer(findings_app, name="findings")
 app.add_typer(ml_app, name="ml")
 app.add_typer(benchmark_app, name="benchmark")
+app.add_typer(orchestration_app, name="loop")
 
 DatabaseOption = Annotated[
     Path,

@@ -4,23 +4,26 @@
   "display_name": "Dataset Quality Audit",
   "owner": "Emmanuel Okunlola",
   "version": "1.0.0",
-  "purpose": "Evaluate released dataset provenance, balance, duplication, leakage, and review completeness.",
+  "purpose": "Evaluate governed pilot readiness, released dataset provenance, balance, duplication, leakage, and review completeness.",
   "risk_level": "critical",
   "status": "planned",
   "trust_assumption": "untrusted",
   "allowed_inputs": [
     "release manifests",
     "dataset metadata",
-    "review attestations"
+    "review attestations",
+    "governed pilot readiness evidence"
   ],
   "allowed_outputs": [
     "quality assessment",
+    "pilot readiness report",
     "blocking reasons",
     "provenance report"
   ],
   "allowed_actions": [
     "dataset.audit",
     "leakage.check",
+    "pilot.readiness.assess",
     "provenance.verify"
   ],
   "denied_actions": [
@@ -39,7 +42,8 @@
     "test.runner"
   ],
   "verification_requirements": [
-    "Verify inputs against committed repository evidence.",
+    "Verify inputs against release manifest, authorization, scan, review, and repository evidence.",
+    "Separate hard release blockers from model-training blockers.",
     "Record limitations and fail closed on missing evidence."
   ],
   "required_tests": [

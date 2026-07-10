@@ -75,6 +75,29 @@ A release is allowed only when:
 The release output is a provenance manifest. It is not yet a cryptographic
 signature and does not by itself establish real-world model performance.
 
+## Pilot readiness evidence
+
+`vulnhunter governance campaign readiness` is a read-only assessment over an
+existing governed release. It does not approve campaigns, submit reviews,
+adjudicate disputes, create releases, run scans, or train a model.
+
+The report separates:
+
+- hard release blockers, such as missing or tampered release manifests,
+  unavailable authorization provenance, scan snapshot changes, unresolved
+  reviews, and revoked or disabled reviewer evidence;
+- model-training blockers, such as insufficient samples, missing classes,
+  insufficient scan diversity, and duplicate evidence requiring deduplication;
+- warnings, including duplicate fingerprints and duplicate evidence payloads;
+- informational metrics, including application-family diversity, review
+  agreement and disagreement rates, adjudication count, class balance,
+  dataset SHA-256, release-manifest SHA-256, and report SHA-256.
+
+This evidence is suitable for controlled local pilot operations only. Human
+operators still must create authorizations, approve campaigns, run bounded
+local scans, review observations, adjudicate disputes, and release eligible
+campaigns through the existing role-separated workflow.
+
 ## Operational limitations
 
 The local identity registry is not SSO, MFA, a hardware token, or proof that two

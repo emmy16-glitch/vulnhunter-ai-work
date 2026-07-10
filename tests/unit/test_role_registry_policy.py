@@ -115,3 +115,17 @@ def test_registry_wide_denied_action_remains_denied(tmp_path: Path) -> None:
     decision = registry.evaluate_action("backend-specialist", "git.push")
 
     assert decision.status == DecisionStatus.DENIED
+
+
+def test_dataset_quality_auditor_declares_pilot_readiness_without_activation() -> None:
+    registry = RoleRegistry.from_path(REGISTRY_ROOT)
+    role = registry.get_role("dataset-quality-auditor")
+    skill = registry.get_skill("dataset-quality-audit")
+
+    assert "pilot.readiness.assess" in role.allowed_actions
+    assert "pilot.readiness.assess" in skill.allowed_actions
+    assert role.connector_policy.default == "disabled"
+    assert role.status == "planned"
+    decision = registry.evaluate_action("dataset-quality-auditor", "pilot.readiness.assess")
+    assert decision.status == DecisionStatus.DENIED
+    assert "only active roles" in decision.reason

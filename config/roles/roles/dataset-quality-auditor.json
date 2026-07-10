@@ -4,7 +4,7 @@
   "display_name": "Dataset Quality Auditor",
   "owner": "Emmanuel Okunlola",
   "version": "1.0.0",
-  "purpose": "Independently evaluate released dataset provenance, leakage, duplication, balance, and review completeness.",
+  "purpose": "Independently evaluate governed pilot readiness, released dataset provenance, leakage, duplication, balance, and review completeness.",
   "risk_level": "critical",
   "status": "planned",
   "trust_assumption": "untrusted",
@@ -16,6 +16,7 @@
   "allowed_actions": [
     "dataset.audit",
     "leakage.check",
+    "pilot.readiness.assess",
     "provenance.verify"
   ],
   "denied_actions": [
@@ -83,6 +84,8 @@
       "role_id",
       "verdict",
       "evidence",
+      "hard_release_blockers",
+      "model_training_blockers",
       "limitations"
     ],
     "properties": {
@@ -93,6 +96,18 @@
         "type": "string"
       },
       "evidence": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "hard_release_blockers": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "model_training_blockers": {
         "type": "array",
         "items": {
           "type": "string"
@@ -109,7 +124,8 @@
   },
   "verification_requirements": [
     "Verify the clean Git baseline before work.",
-    "Map conclusions to source and test evidence.",
+    "Map conclusions to release manifest, authorization, scan, review, and test evidence.",
+    "Separate hard release blockers from model-training blockers.",
     "Record limitations and stop on boundary violations."
   ],
   "human_approval_points": [],

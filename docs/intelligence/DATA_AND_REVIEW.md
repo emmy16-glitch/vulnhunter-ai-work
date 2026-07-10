@@ -68,3 +68,10 @@ Before training:
 - Are review disputes resolved?
 - Is the split scan-group isolated?
 - Is the dataset hash recorded?
+
+For governed pilot releases, run the campaign readiness assessment before any
+model experiment. The assessment records release-manifest integrity,
+authorization and scan provenance, final-review completeness, duplicate
+fingerprint and evidence indicators, reviewer status, application-family
+diversity, class balance, leakage warnings, and deterministic dataset/report
+fingerprints. It does not train, tune, select, or promote a model.

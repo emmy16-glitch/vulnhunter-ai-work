@@ -12,6 +12,7 @@ from pydantic import ValidationError
 from vulnhunter.authorization import AuthorizationStore
 from vulnhunter.exceptions import GovernanceError
 from vulnhunter.governance.models import CampaignLimits, IdentityStatus, ReviewOutcome
+from vulnhunter.governance.readiness import assess_pilot_readiness
 from vulnhunter.governance.service import (
     activate_campaign,
     adjudicate_governed_review,
@@ -512,6 +513,62 @@ def campaign_release_check(
     )
     typer.echo(json.dumps(assessment.model_dump(mode="json"), indent=2, sort_keys=True))
     if not assessment.ready:
+        raise typer.Exit(code=1)
+
+
+@campaign_app.command("readiness")
+def campaign_readiness(
+    campaign_id: Annotated[str, typer.Argument()],
+    scan_databases: Annotated[list[Path], typer.Option("--scan-database")],
+    governance_database: GovernanceDatabase = Path("governance.db"),
+    authorization_database: AuthorizationDatabase = Path("authorizations.db"),
+    output: Annotated[Path | None, typer.Option("--output")] = None,
+    format_: Annotated[str, typer.Option("--format")] = "text",
+) -> None:
+    """Export deterministic governed pilot and dataset-readiness evidence."""
+    report = _run(
+        lambda: assess_pilot_readiness(
+            open_governance_store(governance_database),
+            open_authorization_store(authorization_database),
+            repository_map(scan_databases),
+            campaign_id=campaign_id,
+        )
+    )
+    payload = json.dumps(report.model_dump(mode="json"), indent=2, sort_keys=True) + "\n"
+    if output is not None:
+        resolved = output.expanduser().resolve()
+        resolved.parent.mkdir(parents=True, exist_ok=True)
+        resolved.write_text(payload, encoding="utf-8")
+    if format_ == "json":
+        typer.echo(payload, nl=False)
+    elif format_ == "text":
+        metrics = report.informational_metrics
+        typer.echo(f"Campaign: {report.campaign_id}")
+        typer.echo(f"Pilot ready: {report.pilot_ready}")
+        typer.echo(f"Model-training ready: {report.model_training_ready}")
+        typer.echo(f"Applications: {metrics['application_count']}")
+        typer.echo(f"Application families: {metrics['application_family_count']}")
+        typer.echo(f"Linked scans: {metrics['scan_count']}")
+        typer.echo(f"Observations: {metrics['observation_count']}")
+        typer.echo(f"Final labels: {metrics['class_counts']}")
+        typer.echo(f"Release manifest SHA-256: {report.release_manifest_sha256 or '-'}")
+        typer.echo(f"Dataset SHA-256: {report.dataset_sha256}")
+        typer.echo(f"Report SHA-256: {report.report_sha256}")
+        if report.hard_release_blockers:
+            typer.echo("Hard release blockers:")
+            for reason in report.hard_release_blockers:
+                typer.echo(f"- {reason}")
+        if report.model_training_blockers:
+            typer.echo("Model-training blockers:")
+            for reason in report.model_training_blockers:
+                typer.echo(f"- {reason}")
+        if report.warnings:
+            typer.echo("Warnings:")
+            for reason in report.warnings:
+                typer.echo(f"- {reason}")
+    else:
+        raise typer.BadParameter("--format must be 'text' or 'json'.")
+    if not report.pilot_ready:
         raise typer.Exit(code=1)
 
 

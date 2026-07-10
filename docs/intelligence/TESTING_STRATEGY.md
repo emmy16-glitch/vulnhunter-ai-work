@@ -125,3 +125,8 @@ Required coverage includes:
 - consensus and disputed-case adjudication;
 - release blocking until all observations are finally governed-reviewed;
 - record tampering and global event-chain tampering detection.
+- pilot readiness reporting for complete releases, missing authorization,
+  scan-provenance mismatch, incomplete review, unresolved disagreement,
+  revoked reviewer evidence, missing or tampered release manifests, duplicate
+  leakage warnings, application-family metrics, deterministic fingerprints, and
+  role-registry declaration validation.

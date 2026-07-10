@@ -23,7 +23,10 @@ VulnHunter currently includes:
 - governed collection campaigns bound to exact authorization snapshots, narrower collection limits, application metadata, and distinct approval;
 - completed-scan correlation with authorization validation/start/completion evidence;
 - explicit reviewer assignments, identity-bound review attestations, conflict checks, and creator/owner separation;
-- fail-closed campaign completion and immutable dataset-release manifests.
+- fail-closed campaign completion and immutable dataset-release manifests;
+- read-only governed pilot readiness reporting over release manifests,
+  authorization provenance, exact scan links, review attestations, duplicate
+  evidence indicators, class balance, and dataset fingerprints.
 
 ## Current interpretation
 
@@ -57,6 +60,7 @@ vulnhunter findings --help
 vulnhunter governance --help
 vulnhunter governance identity --help
 vulnhunter governance campaign --help
+vulnhunter governance campaign readiness --help
 vulnhunter ml --help
 vulnhunter benchmark --help
 vulnhunter loop --help

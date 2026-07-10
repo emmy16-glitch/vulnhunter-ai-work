@@ -134,3 +134,18 @@ Milestone 19.5B must use pilot evidence before activating roles. It will decide:
 - whether any connector exception is justified.
 
 No role should become active merely because Milestone 19.5A passes its tests.
+
+## Pilot-informed refinement
+
+The controlled governed pilot readiness workflow adds one declarative
+capability to the planned Dataset Quality Auditor role and Dataset Quality
+Audit skill: `pilot.readiness.assess`. This capability is limited to read-only
+assessment of existing release manifests, authorization evidence, scan links,
+review attestations, duplicate/leakage indicators, class balance, and
+deterministic report fingerprints.
+
+The refinement does not activate any role, grant connector access, allow model
+training, approve campaigns, submit or adjudicate reviews, release datasets, or
+read secrets. Runtime authority remains deferred until a separate milestone
+binds authenticated identities, permission manifests, human approvals,
+verification obligations, and recovery procedures.

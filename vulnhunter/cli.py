@@ -40,6 +40,7 @@ from vulnhunter.exceptions import (
     VulnHunterError,
 )
 from vulnhunter.governance.cli import app as governance_app
+from vulnhunter.governance.service import scan_snapshot_sha256
 from vulnhunter.mapping import MapperPolicy, SiteMapper
 from vulnhunter.ml import (
     BenchmarkProvenance,
@@ -269,11 +270,15 @@ def scan_run(
             )
         )
         repository.complete_scan(scan_id, result)
+        completed_scan = repository.get_scan(scan_id)
         authorization_store.append_event(
             authorization_id,
             "scan_completed",
             {
                 "scan_id": scan_id,
+                "scan_database": str(database.expanduser().resolve()),
+                "target_url": target.normalized_url,
+                "scan_snapshot_sha256": scan_snapshot_sha256(completed_scan),
                 "pages_visited": len(result.pages),
                 "observations": len(result.observations),
             },

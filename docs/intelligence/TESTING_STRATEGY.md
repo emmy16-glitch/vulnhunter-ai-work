@@ -118,7 +118,8 @@ Required coverage includes:
 - disabled and revoked identity lifecycle;
 - creator/approver separation and frozen campaign manifests;
 - authorization limit, validity, and record-digest checks;
-- completed-scan correlation with authorization events;
+- completed-scan correlation with exact authorization ID, normalized scan
+  database, scan ID, target URL, and scan snapshot authorization-event metadata;
 - reviewer self-review and conflict rejection;
 - unattested legacy-decision rejection;
 - consensus and disputed-case adjudication;

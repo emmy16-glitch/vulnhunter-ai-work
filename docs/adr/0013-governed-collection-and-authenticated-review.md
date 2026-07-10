@@ -20,7 +20,9 @@ Campaigns bind exact authorization-record digests, narrower collection limits,
 application-family metadata, and minimum diversity requirements. A distinct
 administrator approves the digest of the complete draft and application set.
 Only completed scans with matching authorization validation/start/completion
-events can be linked.
+events can be linked. The completion event must bind the authorization ID,
+normalized scan database path, scan ID, normalized target URL, and persisted scan
+snapshot hash.
 
 Review identities are local accounts with scrypt-protected secrets and explicit
 administrator, reviewer, or adjudicator roles. Assignments enforce distinct

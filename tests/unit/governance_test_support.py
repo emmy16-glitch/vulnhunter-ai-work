@@ -17,6 +17,7 @@ from vulnhunter.governance.service import (
     create_campaign,
     create_identity,
     register_application,
+    scan_snapshot_sha256,
 )
 from vulnhunter.governance.store import GovernanceStore
 from vulnhunter.mapping.models import MappedPage, MappingResult
@@ -170,6 +171,9 @@ def create_completed_scan(
     authorization_id: str,
     *,
     outcome_name: str = "traceback",
+    completion_detail_overrides: dict[str, object] | None = None,
+    include_completion_event: bool = True,
+    start_event_before_completion: bool = True,
 ) -> tuple[ScanRepository, int, int]:
     repository = ScanRepository.from_path(database)
     repository.initialize()
@@ -186,15 +190,17 @@ def create_completed_scan(
         },
     )
     scan_id = repository.create_scan(target_url)
-    authorization_store.append_event(
-        authorization_id,
-        "scan_started",
-        {
-            "scan_id": scan_id,
-            "scan_database": str(database.expanduser().resolve()),
-            "target_url": target_url,
-        },
-    )
+    start_detail = {
+        "scan_id": scan_id,
+        "scan_database": str(database.expanduser().resolve()),
+        "target_url": target_url,
+    }
+    if start_event_before_completion:
+        authorization_store.append_event(
+            authorization_id,
+            "scan_started",
+            start_detail,
+        )
     observation = Observation.create(
         category="debug_error_exposure",
         severity="high",
@@ -223,10 +229,32 @@ def create_completed_scan(
             rejected_links=0,
         ),
     )
-    authorization_store.append_event(
-        authorization_id,
-        "scan_completed",
-        {"scan_id": scan_id, "pages_visited": 1, "observations": 1},
-    )
+    completed_scan = repository.get_scan(scan_id)
+    completion_detail: dict[str, object] = {
+        "scan_id": scan_id,
+        "scan_database": str(database.expanduser().resolve()),
+        "target_url": target_url,
+        "scan_snapshot_sha256": scan_snapshot_sha256(completed_scan),
+        "pages_visited": 1,
+        "observations": 1,
+    }
+    if completion_detail_overrides:
+        for key, value in completion_detail_overrides.items():
+            if value is None:
+                completion_detail.pop(key, None)
+            else:
+                completion_detail[key] = value
+    if include_completion_event:
+        authorization_store.append_event(
+            authorization_id,
+            "scan_completed",
+            completion_detail,
+        )
+    if not start_event_before_completion:
+        authorization_store.append_event(
+            authorization_id,
+            "scan_started",
+            start_detail,
+        )
     observation_id = repository.list_observations(scan_id=scan_id)[0].id
     return repository, scan_id, observation_id

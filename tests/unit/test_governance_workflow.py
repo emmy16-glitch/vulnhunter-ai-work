@@ -6,6 +6,7 @@ import pytest
 from governance_test_support import (
     ADJUDICATOR_SECRET,
     ADMIN_SECRET,
+    APPROVER_SECRET,
     NOW,
     REVIEWER_ONE_SECRET,
     REVIEWER_TWO_SECRET,
@@ -22,6 +23,7 @@ from vulnhunter.governance.service import (
     adjudicate_governed_review,
     assess_release,
     assign_reviewers,
+    change_identity_status,
     complete_campaign,
     link_scan,
     release_dataset,
@@ -69,6 +71,42 @@ def prepare_world(governance_store, tmp_path: Path, *, conflict_tags=()):
     }
 
 
+def prepare_unlinked_world(
+    governance_store,
+    tmp_path: Path,
+    *,
+    completion_detail_overrides: dict[str, object] | None = None,
+    include_completion_event: bool = True,
+    start_event_before_completion: bool = True,
+):
+    prepare_identities(governance_store)
+    authorization_store, authorization = create_authorization(tmp_path / "auth.db")
+    campaign, application = create_active_campaign(
+        governance_store,
+        authorization_store,
+        authorization.authorization_id,
+    )
+    scan_database = tmp_path / "scans.db"
+    repository, scan_id, observation_id = create_completed_scan(
+        scan_database,
+        authorization_store,
+        authorization.authorization_id,
+        completion_detail_overrides=completion_detail_overrides,
+        include_completion_event=include_completion_event,
+        start_event_before_completion=start_event_before_completion,
+    )
+    return {
+        "authorization_store": authorization_store,
+        "authorization": authorization,
+        "campaign": campaign,
+        "application": application,
+        "scan_database": scan_database,
+        "repository": repository,
+        "scan_id": scan_id,
+        "observation_id": observation_id,
+    }
+
+
 def assign_default(governance_store, world):
     return assign_reviewers(
         governance_store,
@@ -112,6 +150,190 @@ def test_scan_link_requires_authorization_audit_evidence(tmp_path: Path) -> None
             application_id=application.application_id,
             scan_database=tmp_path / "other.db",
             scan_id=scan_id,
+            now=NOW,
+        )
+
+
+def test_scan_link_rejects_completion_for_different_database(tmp_path: Path) -> None:
+    governance_store = make_governance_store(tmp_path)
+    world = prepare_unlinked_world(
+        governance_store,
+        tmp_path,
+        completion_detail_overrides={
+            "scan_database": str((tmp_path / "other.db").expanduser().resolve())
+        },
+    )
+
+    with pytest.raises(GovernancePolicyError, match="scan_completed metadata"):
+        link_scan(
+            governance_store,
+            world["authorization_store"],
+            world["repository"],
+            actor_id="admin-a",
+            actor_secret=ADMIN_SECRET,
+            campaign_id=world["campaign"].campaign_id,
+            application_id=world["application"].application_id,
+            scan_database=world["scan_database"],
+            scan_id=world["scan_id"],
+            now=NOW,
+        )
+
+
+def test_scan_link_rejects_completion_target_mismatch(tmp_path: Path) -> None:
+    governance_store = make_governance_store(tmp_path)
+    world = prepare_unlinked_world(
+        governance_store,
+        tmp_path,
+        completion_detail_overrides={"target_url": "http://127.0.0.1:8000/other/"},
+    )
+
+    with pytest.raises(GovernancePolicyError, match="scan_completed metadata"):
+        link_scan(
+            governance_store,
+            world["authorization_store"],
+            world["repository"],
+            actor_id="admin-a",
+            actor_secret=ADMIN_SECRET,
+            campaign_id=world["campaign"].campaign_id,
+            application_id=world["application"].application_id,
+            scan_database=world["scan_database"],
+            scan_id=world["scan_id"],
+            now=NOW,
+        )
+
+
+def test_scan_link_rejects_authorization_mismatch(tmp_path: Path) -> None:
+    governance_store = make_governance_store(tmp_path)
+    prepare_identities(governance_store)
+    authorization_store, scan_authorization = create_authorization(tmp_path / "auth.db")
+    _, campaign_authorization = create_authorization(
+        tmp_path / "auth.db",
+        family_suffix="campaign",
+    )
+    campaign, application = create_active_campaign(
+        governance_store,
+        authorization_store,
+        campaign_authorization.authorization_id,
+    )
+    scan_database = tmp_path / "scans.db"
+    repository, scan_id, _ = create_completed_scan(
+        scan_database,
+        authorization_store,
+        scan_authorization.authorization_id,
+    )
+    authorization_store.append_event(
+        campaign_authorization.authorization_id,
+        "scan_started",
+        {
+            "scan_id": scan_id,
+            "scan_database": str(scan_database.expanduser().resolve()),
+            "target_url": campaign_authorization.target_url,
+        },
+    )
+
+    with pytest.raises(GovernancePolicyError, match="scan_completed"):
+        link_scan(
+            governance_store,
+            authorization_store,
+            repository,
+            actor_id="admin-a",
+            actor_secret=ADMIN_SECRET,
+            campaign_id=campaign.campaign_id,
+            application_id=application.application_id,
+            scan_database=scan_database,
+            scan_id=scan_id,
+            now=NOW,
+        )
+
+
+def test_scan_link_rejects_completion_before_start(tmp_path: Path) -> None:
+    governance_store = make_governance_store(tmp_path)
+    world = prepare_unlinked_world(
+        governance_store,
+        tmp_path,
+        start_event_before_completion=False,
+    )
+
+    with pytest.raises(GovernancePolicyError, match="scan_completed"):
+        link_scan(
+            governance_store,
+            world["authorization_store"],
+            world["repository"],
+            actor_id="admin-a",
+            actor_secret=ADMIN_SECRET,
+            campaign_id=world["campaign"].campaign_id,
+            application_id=world["application"].application_id,
+            scan_database=world["scan_database"],
+            scan_id=world["scan_id"],
+            now=NOW,
+        )
+
+
+def test_scan_link_rejects_tampered_completion_snapshot(tmp_path: Path) -> None:
+    governance_store = make_governance_store(tmp_path)
+    world = prepare_unlinked_world(
+        governance_store,
+        tmp_path,
+        completion_detail_overrides={"scan_snapshot_sha256": "f" * 64},
+    )
+
+    with pytest.raises(GovernancePolicyError, match="scan_completed metadata"):
+        link_scan(
+            governance_store,
+            world["authorization_store"],
+            world["repository"],
+            actor_id="admin-a",
+            actor_secret=ADMIN_SECRET,
+            campaign_id=world["campaign"].campaign_id,
+            application_id=world["application"].application_id,
+            scan_database=world["scan_database"],
+            scan_id=world["scan_id"],
+            now=NOW,
+        )
+
+
+def test_scan_link_rejects_missing_completion_metadata(tmp_path: Path) -> None:
+    governance_store = make_governance_store(tmp_path)
+    world = prepare_unlinked_world(
+        governance_store,
+        tmp_path,
+        completion_detail_overrides={"scan_snapshot_sha256": None},
+    )
+
+    with pytest.raises(GovernancePolicyError, match="scan_completed metadata"):
+        link_scan(
+            governance_store,
+            world["authorization_store"],
+            world["repository"],
+            actor_id="admin-a",
+            actor_secret=ADMIN_SECRET,
+            campaign_id=world["campaign"].campaign_id,
+            application_id=world["application"].application_id,
+            scan_database=world["scan_database"],
+            scan_id=world["scan_id"],
+            now=NOW,
+        )
+
+
+def test_scan_link_rejects_malformed_completion_metadata(tmp_path: Path) -> None:
+    governance_store = make_governance_store(tmp_path)
+    world = prepare_unlinked_world(
+        governance_store,
+        tmp_path,
+        completion_detail_overrides={"scan_id": "not-an-integer"},
+    )
+
+    with pytest.raises(GovernancePolicyError, match="malformed scan_completed"):
+        link_scan(
+            governance_store,
+            world["authorization_store"],
+            world["repository"],
+            actor_id="admin-a",
+            actor_secret=ADMIN_SECRET,
+            campaign_id=world["campaign"].campaign_id,
+            application_id=world["application"].application_id,
+            scan_database=world["scan_database"],
+            scan_id=world["scan_id"],
             now=NOW,
         )
 
@@ -345,3 +567,55 @@ def test_complete_and_release_create_integrity_manifest(tmp_path: Path) -> None:
     assert manifest.effective_labels[manifest.observation_references[0]] == "confirmed"
     assert governance_store.get_release(completed.campaign_id) == manifest
     governance_store.verify_integrity()
+
+
+def test_release_assessment_fails_when_reviewer_is_revoked(tmp_path: Path) -> None:
+    governance_store = make_governance_store(tmp_path)
+    world = prepare_world(governance_store, tmp_path)
+    assign_default(governance_store, world)
+    for reviewer, secret in (
+        ("reviewer-a", REVIEWER_ONE_SECRET),
+        ("reviewer-b", REVIEWER_TWO_SECRET),
+    ):
+        submit_governed_review(
+            governance_store,
+            world["repository"],
+            actor_id=reviewer,
+            actor_secret=secret,
+            campaign_id=world["campaign"].campaign_id,
+            scan_database=world["scan_database"],
+            observation_id=world["observation_id"],
+            outcome="confirmed",
+            now=NOW,
+        )
+    repositories = {str(world["scan_database"].resolve()): world["repository"]}
+    completed = complete_campaign(
+        governance_store,
+        world["authorization_store"],
+        repositories,
+        actor_id="admin-b",
+        actor_secret=APPROVER_SECRET,
+        campaign_id=world["campaign"].campaign_id,
+        now=NOW,
+    )
+
+    change_identity_status(
+        governance_store,
+        actor_id="admin-a",
+        actor_secret=ADMIN_SECRET,
+        reviewer_id="reviewer-a",
+        status="revoked",
+        reason="Credential compromise before release",
+        now=NOW,
+    )
+    assessment = assess_release(
+        governance_store,
+        world["authorization_store"],
+        repositories,
+        campaign_id=completed.campaign_id,
+        now=NOW,
+        require_completed=True,
+    )
+
+    assert not assessment.ready
+    assert "reviewer reviewer-a was revoked" in assessment.reasons

@@ -519,7 +519,8 @@ def activate_campaign(
     )
 
 
-def _scan_snapshot_sha256(scan) -> str:
+def scan_snapshot_sha256(scan) -> str:
+    """Hash the persisted scan summary used for campaign provenance checks."""
     return canonical_sha256(scan.model_dump(mode="json"), exclude=set())
 
 
@@ -531,6 +532,7 @@ def _matching_authorization_events(
     scan_database: Path,
     campaign: CampaignRecord,
     target_url: str,
+    scan_snapshot_sha256: str,
 ) -> tuple[int, int, int]:
     events = tuple(reversed(authorization_store.list_events(authorization_id, limit=2_000)))
     resolved_database = str(scan_database.expanduser().resolve())
@@ -546,13 +548,43 @@ def _matching_authorization_events(
             "The authorization log does not contain exactly one matching scan_started event."
         )
     started = starts[0]
-    completed = [
-        event
-        for event in events
-        if event.event_type == "scan_completed"
-        and int(event.detail.get("scan_id", -1)) == scan_id
-        and event.event_id > started.event_id
-    ]
+    completed: list[object] = []
+    for event in events:
+        if event.event_type != "scan_completed":
+            continue
+        detail = event.detail
+        try:
+            event_scan_id = int(detail["scan_id"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise GovernancePolicyError(
+                "The authorization log contains malformed scan_completed metadata."
+            ) from exc
+        if event_scan_id != scan_id:
+            continue
+        if event.event_id <= started.event_id:
+            continue
+        if event.authorization_id != authorization_id:
+            raise GovernancePolicyError(
+                "The authorization log scan_completed event belongs to a different authorization."
+            )
+        required_detail = {
+            "scan_database": resolved_database,
+            "target_url": target_url,
+            "scan_snapshot_sha256": scan_snapshot_sha256,
+        }
+        missing = [key for key in required_detail if key not in detail]
+        if missing:
+            raise GovernancePolicyError(
+                "The authorization log contains incomplete scan_completed metadata."
+            )
+        mismatched = [
+            key for key, value in required_detail.items() if str(detail.get(key, "")) != value
+        ]
+        if mismatched:
+            raise GovernancePolicyError(
+                "The authorization log scan_completed metadata does not match the linked scan."
+            )
+        completed.append(event)
     if len(completed) != 1:
         raise GovernancePolicyError(
             "The authorization log does not contain exactly one matching scan_completed event."
@@ -626,6 +658,7 @@ def link_scan(
         raise GovernancePolicyError("Scan target does not match campaign application.")
     if scan.pages_visited > campaign.limits.maximum_pages:
         raise GovernancePolicyError("Completed scan exceeded the campaign page ceiling.")
+    scan_snapshot = scan_snapshot_sha256(scan)
     validation_id, started_id, completed_id = _matching_authorization_events(
         authorization_store,
         authorization_id=application.authorization_id,
@@ -633,6 +666,7 @@ def link_scan(
         scan_database=scan_database,
         campaign=campaign,
         target_url=application.target_url,
+        scan_snapshot_sha256=scan_snapshot,
     )
     data: dict[str, object] = {
         "campaign_id": campaign.campaign_id,
@@ -645,7 +679,7 @@ def link_scan(
         "validation_event_id": validation_id,
         "scan_started_event_id": started_id,
         "scan_completed_event_id": completed_id,
-        "scan_snapshot_sha256": _scan_snapshot_sha256(scan),
+        "scan_snapshot_sha256": scan_snapshot,
         "linked_by": actor.reviewer_id,
         "linked_at": current_time,
         "record_sha256": "0" * 64,
@@ -969,7 +1003,7 @@ def assess_release(
         except ValueError as exc:
             reasons.append(str(exc))
             continue
-        if _scan_snapshot_sha256(current_scan) != scan.scan_snapshot_sha256:
+        if scan_snapshot_sha256(current_scan) != scan.scan_snapshot_sha256:
             reasons.append(f"scan {scan.scan_database}#{scan.scan_id} changed after linking")
         observations = repository.list_observations(
             scan_id=scan.scan_id,

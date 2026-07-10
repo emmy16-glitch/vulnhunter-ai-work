@@ -173,7 +173,7 @@ Target authorization registry
 Draft campaign + application diversity metadata
         ↓ distinct administrator approval of manifest SHA-256
 Active campaign
-        ↓ authorization validation/start/completion event correlation
+        ↓ authorization validation/start/completion tuple correlation
 Completed passive scan links
         ↓ observation-specific assignments
 Authenticated reviewer A + authenticated reviewer B
@@ -185,6 +185,9 @@ Immutable dataset release manifest
 
 The governance database stores identity records, campaign records, application
 bindings, scan links, assignments, attestations, releases, and a global
-hash-chained event history. The observation database remains authoritative for
+hash-chained event history. Scan links require the authorization ID, normalized
+scan database, scan ID, normalized target URL, and persisted scan snapshot hash
+from the completion event to match the repository scan row. The observation
+database remains authoritative for
 finding evidence and effective labels; the governance layer proves which
 approved identity and campaign workflow produced those labels.

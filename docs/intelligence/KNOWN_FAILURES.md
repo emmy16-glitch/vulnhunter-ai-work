@@ -59,6 +59,15 @@ Reviewer secrets use scrypt and actions are identity-bound, but the local regist
 
 Campaign records, attestations, releases, and events detect local database tampering through deterministic hashes and a hash chain. They are not yet signed by a protected external key, so portable authenticity and non-repudiation are not established.
 
-## 14. Real-world model evidence is still absent
+## 14. Historical scan-completion correlation gap — resolved
+
+Earlier governed scan linking matched scan completion primarily by scan ID and
+event order after a matching start event. The authorization completion event now
+binds the authorization ID, normalized scan database, scan ID, normalized target
+URL, and persisted scan snapshot hash, and campaign linking fails closed when
+that tuple is missing, malformed, mismatched, or ordered before the matching
+start event.
+
+## 15. Real-world model evidence is still absent
 
 The governed collection workflow is implemented, but meaningful performance claims require actual collection across diverse authorised applications, independent review, application-group-isolated development and holdout sets, and an untouched external evaluation.

@@ -107,8 +107,10 @@ Unattended work requires an active manifest whose exact bytes were approved by a
 
 A campaign is not permission to scan. It narrows existing authorization records
 and accepts only scans whose authorization event sequence and persisted scan
-summary agree. Campaign approval is bound to the SHA-256 digest of the exact
-campaign intent and registered applications.
+summary agree. The scan-completion authorization event must match the exact
+authorization ID, normalized scan database path, scan ID, normalized target URL,
+and persisted scan snapshot hash. Campaign approval is bound to the SHA-256
+digest of the exact campaign intent and registered applications.
 
 ## Authenticated review boundary
 

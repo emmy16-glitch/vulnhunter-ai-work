@@ -16,7 +16,9 @@ It does not grant scan permission and does not automatically collect data.
 4. Activation revalidates every authorization and verifies that the approved
    manifest has not changed.
 5. Completed scans may be linked only when the authorization log contains the
-   matching validation, scan-start, and scan-completion evidence.
+   matching validation, scan-start, and scan-completion evidence. Completion
+   evidence must bind the authorization ID, normalized scan database, scan ID,
+   normalized target URL, and persisted scan snapshot hash.
 6. Every linked observation receives two distinct assigned reviewers and,
    where required, a distinct adjudicator.
 7. Completion and release require every linked observation to reach consensus

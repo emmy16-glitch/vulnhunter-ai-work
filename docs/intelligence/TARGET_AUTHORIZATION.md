@@ -54,6 +54,11 @@ The authorization registry preserves append-only events for:
 
 Event details are redacted before persistence.
 
+`scan_completed` events include the authorization ID, normalized scan database
+path, scan ID, normalized target URL, and the deterministic persisted scan
+snapshot hash. Governed campaign linking requires that exact completion tuple to
+match the scan-start evidence and the current scan repository row.
+
 ## Boundaries
 
 An authorization does not:

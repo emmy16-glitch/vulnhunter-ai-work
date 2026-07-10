@@ -1,0 +1,57 @@
+{
+  "schema_version": "1.0",
+  "skill_id": "model-experiment-analysis",
+  "display_name": "Model Experiment Analysis",
+  "owner": "Emmanuel Okunlola",
+  "version": "1.0.0",
+  "purpose": "Run and compare approved reproducible model experiments after dataset release and quality gates.",
+  "risk_level": "critical",
+  "status": "planned",
+  "trust_assumption": "untrusted",
+  "allowed_inputs": [
+    "released dataset manifest",
+    "experiment specification",
+    "baseline metrics"
+  ],
+  "allowed_outputs": [
+    "experiment evidence",
+    "metric comparison",
+    "acceptance recommendation"
+  ],
+  "allowed_actions": [
+    "model.train.controlled",
+    "model.evaluate",
+    "experiment.record"
+  ],
+  "denied_actions": [
+    "authorization.override",
+    "connector.enable",
+    "data.delete",
+    "dataset.bypass",
+    "deployment.execute",
+    "git.push",
+    "metric.fabricate",
+    "model.deploy",
+    "review.self_approve",
+    "secrets.read"
+  ],
+  "required_tools": [
+    "repository.read",
+    "test.runner"
+  ],
+  "verification_requirements": [
+    "Verify inputs against committed repository evidence.",
+    "Record limitations and fail closed on missing evidence."
+  ],
+  "required_tests": [
+    "Schema validation test.",
+    "Negative permission-boundary test."
+  ],
+  "last_reviewed_on": "2026-07-10",
+  "rollback_procedure": [
+    "Disable the skill definition.",
+    "Revert the registry commit.",
+    "Re-run registry and project verification."
+  ],
+  "external_dependencies": []
+}

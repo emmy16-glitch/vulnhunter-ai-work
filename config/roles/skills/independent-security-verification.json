@@ -1,0 +1,56 @@
+{
+  "schema_version": "1.0",
+  "skill_id": "independent-security-verification",
+  "display_name": "Independent Security Verification",
+  "owner": "Emmanuel Okunlola",
+  "version": "1.0.0",
+  "purpose": "Verify security invariants independently from the implementer and fail closed on unsupported claims.",
+  "risk_level": "critical",
+  "status": "planned",
+  "trust_assumption": "untrusted",
+  "allowed_inputs": [
+    "bounded diff",
+    "security requirements",
+    "test evidence"
+  ],
+  "allowed_outputs": [
+    "security verdict",
+    "blocking findings",
+    "limitations"
+  ],
+  "allowed_actions": [
+    "security.verify",
+    "tampering.test",
+    "finding.record"
+  ],
+  "denied_actions": [
+    "authorization.override",
+    "code.modify",
+    "connector.enable",
+    "data.delete",
+    "deployment.execute",
+    "git.push",
+    "review.self_approve",
+    "secrets.read",
+    "security.self_approve"
+  ],
+  "required_tools": [
+    "repository.read",
+    "test.runner"
+  ],
+  "verification_requirements": [
+    "Verify inputs against committed repository evidence.",
+    "Record limitations and fail closed on missing evidence."
+  ],
+  "required_tests": [
+    "Schema validation test.",
+    "Negative permission-boundary test."
+  ],
+  "last_reviewed_on": "2026-07-10",
+  "rollback_procedure": [
+    "Disable the skill definition.",
+    "Revert the registry commit.",
+    "Re-run registry and project verification."
+  ],
+  "external_dependencies": []
+}

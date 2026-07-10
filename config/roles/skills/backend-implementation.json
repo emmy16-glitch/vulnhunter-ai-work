@@ -1,0 +1,55 @@
+{
+  "schema_version": "1.0",
+  "skill_id": "backend-implementation",
+  "display_name": "Backend Implementation",
+  "owner": "Emmanuel Okunlola",
+  "version": "1.0.0",
+  "purpose": "Implement one approved backend task within explicit files, interfaces, tests, and rollback boundaries.",
+  "risk_level": "high",
+  "status": "planned",
+  "trust_assumption": "untrusted",
+  "allowed_inputs": [
+    "bounded implementation specification",
+    "approved source files",
+    "test contracts"
+  ],
+  "allowed_outputs": [
+    "source patch",
+    "focused tests",
+    "implementation report"
+  ],
+  "allowed_actions": [
+    "code.modify.backend",
+    "test.add",
+    "documentation.update"
+  ],
+  "denied_actions": [
+    "authorization.override",
+    "connector.enable",
+    "data.delete",
+    "deployment.execute",
+    "git.push",
+    "review.self_approve",
+    "secrets.read"
+  ],
+  "required_tools": [
+    "repository.read",
+    "repository.write",
+    "test.runner"
+  ],
+  "verification_requirements": [
+    "Verify inputs against committed repository evidence.",
+    "Record limitations and fail closed on missing evidence."
+  ],
+  "required_tests": [
+    "Schema validation test.",
+    "Negative permission-boundary test."
+  ],
+  "last_reviewed_on": "2026-07-10",
+  "rollback_procedure": [
+    "Disable the skill definition.",
+    "Revert the registry commit.",
+    "Re-run registry and project verification."
+  ],
+  "external_dependencies": []
+}

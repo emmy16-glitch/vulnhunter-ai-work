@@ -1,0 +1,56 @@
+{
+  "schema_version": "1.0",
+  "skill_id": "knowledge-curation",
+  "display_name": "Knowledge Curation",
+  "owner": "Emmanuel Okunlola",
+  "version": "1.0.0",
+  "purpose": "Maintain project intelligence, decisions, lessons, and source precedence from verified repository evidence.",
+  "risk_level": "medium",
+  "status": "planned",
+  "trust_assumption": "untrusted",
+  "allowed_inputs": [
+    "verified decisions",
+    "committed changes",
+    "audit reports"
+  ],
+  "allowed_outputs": [
+    "intelligence update",
+    "decision record",
+    "learning entry"
+  ],
+  "allowed_actions": [
+    "knowledge.update",
+    "decision.record",
+    "source-precedence.check"
+  ],
+  "denied_actions": [
+    "authorization.override",
+    "code.approve",
+    "connector.enable",
+    "data.delete",
+    "deployment.execute",
+    "git.push",
+    "history.rewrite",
+    "review.self_approve",
+    "secrets.read"
+  ],
+  "required_tools": [
+    "repository.read",
+    "repository.write"
+  ],
+  "verification_requirements": [
+    "Verify inputs against committed repository evidence.",
+    "Record limitations and fail closed on missing evidence."
+  ],
+  "required_tests": [
+    "Schema validation test.",
+    "Negative permission-boundary test."
+  ],
+  "last_reviewed_on": "2026-07-10",
+  "rollback_procedure": [
+    "Disable the skill definition.",
+    "Revert the registry commit.",
+    "Re-run registry and project verification."
+  ],
+  "external_dependencies": []
+}

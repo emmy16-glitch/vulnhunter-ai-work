@@ -1,0 +1,54 @@
+{
+  "schema_version": "1.0",
+  "skill_id": "finding-triage",
+  "display_name": "Finding Triage",
+  "owner": "Emmanuel Okunlola",
+  "version": "1.0.0",
+  "purpose": "Classify and prioritize stored findings while preserving independent review and adjudication boundaries.",
+  "risk_level": "high",
+  "status": "planned",
+  "trust_assumption": "untrusted",
+  "allowed_inputs": [
+    "redacted observations",
+    "review queue",
+    "category policy"
+  ],
+  "allowed_outputs": [
+    "triage recommendation",
+    "duplicate grouping"
+  ],
+  "allowed_actions": [
+    "finding.triage",
+    "finding.group",
+    "review.recommend"
+  ],
+  "denied_actions": [
+    "adjudication.execute",
+    "authorization.override",
+    "connector.enable",
+    "data.delete",
+    "deployment.execute",
+    "git.push",
+    "review.approve",
+    "review.self_approve",
+    "secrets.read"
+  ],
+  "required_tools": [
+    "repository.read"
+  ],
+  "verification_requirements": [
+    "Verify inputs against committed repository evidence.",
+    "Record limitations and fail closed on missing evidence."
+  ],
+  "required_tests": [
+    "Schema validation test.",
+    "Negative permission-boundary test."
+  ],
+  "last_reviewed_on": "2026-07-10",
+  "rollback_procedure": [
+    "Disable the skill definition.",
+    "Revert the registry commit.",
+    "Re-run registry and project verification."
+  ],
+  "external_dependencies": []
+}

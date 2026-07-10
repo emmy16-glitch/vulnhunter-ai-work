@@ -1,0 +1,114 @@
+{
+  "schema_version": "1.0",
+  "role_id": "report-writer",
+  "display_name": "Report Writer",
+  "owner": "Emmanuel Okunlola",
+  "version": "1.0.0",
+  "purpose": "Prepare accurate evidence-backed reports while preserving limitations and source integrity.",
+  "risk_level": "medium",
+  "status": "planned",
+  "trust_assumption": "untrusted",
+  "allowed_inputs": [
+    "approved task specification",
+    "committed project intelligence",
+    "verified evidence"
+  ],
+  "allowed_actions": [
+    "report.draft",
+    "evidence.summarize"
+  ],
+  "denied_actions": [
+    "authorization.override",
+    "connector.enable",
+    "data.delete",
+    "deployment.execute",
+    "git.push",
+    "review.self_approve",
+    "secrets.read"
+  ],
+  "skill_ids": [
+    "report-generation"
+  ],
+  "tools": [
+    {
+      "tool_id": "repository.read",
+      "purpose": "Read committed repository content.",
+      "allowed_operations": [
+        "read",
+        "search"
+      ],
+      "denied_operations": [
+        "git-push",
+        "deploy",
+        "delete"
+      ],
+      "write_access": false,
+      "network_access": false,
+      "connector_access": false,
+      "secrets_access": false
+    }
+  ],
+  "data_permissions": [
+    {
+      "resource": "repository",
+      "classification": "internal",
+      "operations": [
+        "read"
+      ],
+      "purpose": "Perform the declared role using approved repository evidence.",
+      "retention": "No independent copy by default."
+    }
+  ],
+  "output_schema": {
+    "type": "object",
+    "required": [
+      "role_id",
+      "verdict",
+      "evidence",
+      "limitations"
+    ],
+    "properties": {
+      "role_id": {
+        "type": "string"
+      },
+      "verdict": {
+        "type": "string"
+      },
+      "evidence": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "limitations": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "additionalProperties": false
+  },
+  "verification_requirements": [
+    "Verify the clean Git baseline before work.",
+    "Map conclusions to source and test evidence.",
+    "Record limitations and stop on boundary violations."
+  ],
+  "human_approval_points": [],
+  "required_tests": [
+    "Role schema validation.",
+    "Denied-action decision test.",
+    "Tool least-privilege decision test."
+  ],
+  "last_reviewed_on": "2026-07-10",
+  "rollback_procedure": [
+    "Disable the role definition.",
+    "Revert the registry commit.",
+    "Re-run registry validation and full project verification."
+  ],
+  "connector_policy": {
+    "default": "disabled",
+    "grants": []
+  },
+  "external_dependencies": []
+}

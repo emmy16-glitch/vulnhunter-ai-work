@@ -1,0 +1,54 @@
+{
+  "schema_version": "1.0",
+  "skill_id": "bounded-task-routing",
+  "display_name": "Bounded Task Routing",
+  "owner": "Emmanuel Okunlola",
+  "version": "1.0.0",
+  "purpose": "Coordinate approved work into narrow tasks without executing privileged actions.",
+  "risk_level": "critical",
+  "status": "planned",
+  "trust_assumption": "untrusted",
+  "allowed_inputs": [
+    "approved objectives",
+    "permission manifests",
+    "repository status"
+  ],
+  "allowed_outputs": [
+    "bounded task specification",
+    "stop decision",
+    "routing evidence"
+  ],
+  "allowed_actions": [
+    "task.plan",
+    "task.route",
+    "task.halt"
+  ],
+  "denied_actions": [
+    "authorization.override",
+    "connector.enable",
+    "data.delete",
+    "deployment.execute",
+    "git.push",
+    "review.self_approve",
+    "secrets.read",
+    "task.execute"
+  ],
+  "required_tools": [
+    "repository.read"
+  ],
+  "verification_requirements": [
+    "Verify inputs against committed repository evidence.",
+    "Record limitations and fail closed on missing evidence."
+  ],
+  "required_tests": [
+    "Schema validation test.",
+    "Negative permission-boundary test."
+  ],
+  "last_reviewed_on": "2026-07-10",
+  "rollback_procedure": [
+    "Disable the skill definition.",
+    "Revert the registry commit.",
+    "Re-run registry and project verification."
+  ],
+  "external_dependencies": []
+}

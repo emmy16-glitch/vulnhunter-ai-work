@@ -1,0 +1,53 @@
+{
+  "schema_version": "1.0",
+  "skill_id": "report-generation",
+  "display_name": "Report Generation",
+  "owner": "Emmanuel Okunlola",
+  "version": "1.0.0",
+  "purpose": "Create accurate reports from verified evidence without changing source records or overstating conclusions.",
+  "risk_level": "medium",
+  "status": "planned",
+  "trust_assumption": "untrusted",
+  "allowed_inputs": [
+    "verified findings",
+    "audit evidence",
+    "approved templates"
+  ],
+  "allowed_outputs": [
+    "report draft",
+    "limitations statement"
+  ],
+  "allowed_actions": [
+    "report.draft",
+    "evidence.summarize"
+  ],
+  "denied_actions": [
+    "authorization.override",
+    "connector.enable",
+    "data.delete",
+    "deployment.execute",
+    "evidence.modify",
+    "finding.approve",
+    "git.push",
+    "review.self_approve",
+    "secrets.read"
+  ],
+  "required_tools": [
+    "repository.read"
+  ],
+  "verification_requirements": [
+    "Verify inputs against committed repository evidence.",
+    "Record limitations and fail closed on missing evidence."
+  ],
+  "required_tests": [
+    "Schema validation test.",
+    "Negative permission-boundary test."
+  ],
+  "last_reviewed_on": "2026-07-10",
+  "rollback_procedure": [
+    "Disable the skill definition.",
+    "Revert the registry commit.",
+    "Re-run registry and project verification."
+  ],
+  "external_dependencies": []
+}

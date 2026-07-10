@@ -1,0 +1,55 @@
+{
+  "schema_version": "1.0",
+  "skill_id": "test-verification",
+  "display_name": "Test and Verification",
+  "owner": "Emmanuel Okunlola",
+  "version": "1.0.0",
+  "purpose": "Design and run focused and regression verification against explicit requirements and failure cases.",
+  "risk_level": "high",
+  "status": "planned",
+  "trust_assumption": "untrusted",
+  "allowed_inputs": [
+    "requirements",
+    "source diff",
+    "test suite"
+  ],
+  "allowed_outputs": [
+    "test evidence",
+    "coverage gaps",
+    "verification verdict"
+  ],
+  "allowed_actions": [
+    "test.design",
+    "test.execute",
+    "coverage.map"
+  ],
+  "denied_actions": [
+    "authorization.override",
+    "connector.enable",
+    "data.delete",
+    "deployment.execute",
+    "git.push",
+    "production-data.modify",
+    "review.self_approve",
+    "secrets.read"
+  ],
+  "required_tools": [
+    "repository.read",
+    "test.runner"
+  ],
+  "verification_requirements": [
+    "Verify inputs against committed repository evidence.",
+    "Record limitations and fail closed on missing evidence."
+  ],
+  "required_tests": [
+    "Schema validation test.",
+    "Negative permission-boundary test."
+  ],
+  "last_reviewed_on": "2026-07-10",
+  "rollback_procedure": [
+    "Disable the skill definition.",
+    "Revert the registry commit.",
+    "Re-run registry and project verification."
+  ],
+  "external_dependencies": []
+}

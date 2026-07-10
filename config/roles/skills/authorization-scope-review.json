@@ -1,0 +1,55 @@
+{
+  "schema_version": "1.0",
+  "skill_id": "authorization-scope-review",
+  "display_name": "Authorization and Scope Review",
+  "owner": "Emmanuel Okunlola",
+  "version": "1.0.0",
+  "purpose": "Verify target authorization, scope, DNS, request, and redirect boundaries without granting new authority.",
+  "risk_level": "critical",
+  "status": "planned",
+  "trust_assumption": "untrusted",
+  "allowed_inputs": [
+    "authorization records",
+    "scope models",
+    "connection evidence"
+  ],
+  "allowed_outputs": [
+    "scope assurance report",
+    "blocking finding"
+  ],
+  "allowed_actions": [
+    "authorization.verify",
+    "scope.verify",
+    "connection-evidence.verify"
+  ],
+  "denied_actions": [
+    "authorization.create",
+    "authorization.override",
+    "connector.enable",
+    "data.delete",
+    "deployment.execute",
+    "git.push",
+    "review.self_approve",
+    "scan.execute",
+    "secrets.read"
+  ],
+  "required_tools": [
+    "repository.read",
+    "test.runner"
+  ],
+  "verification_requirements": [
+    "Verify inputs against committed repository evidence.",
+    "Record limitations and fail closed on missing evidence."
+  ],
+  "required_tests": [
+    "Schema validation test.",
+    "Negative permission-boundary test."
+  ],
+  "last_reviewed_on": "2026-07-10",
+  "rollback_procedure": [
+    "Disable the skill definition.",
+    "Revert the registry commit.",
+    "Re-run registry and project verification."
+  ],
+  "external_dependencies": []
+}

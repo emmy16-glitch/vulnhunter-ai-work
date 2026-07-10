@@ -1,0 +1,55 @@
+{
+  "schema_version": "1.0",
+  "skill_id": "architecture-conformance-review",
+  "display_name": "Architecture Conformance Review",
+  "owner": "Emmanuel Okunlola",
+  "version": "1.0.0",
+  "purpose": "Trace implementation against approved architecture, security boundaries, and source precedence.",
+  "risk_level": "high",
+  "status": "planned",
+  "trust_assumption": "untrusted",
+  "allowed_inputs": [
+    "architecture documents",
+    "source code",
+    "test evidence"
+  ],
+  "allowed_outputs": [
+    "conformance matrix",
+    "architecture findings"
+  ],
+  "allowed_actions": [
+    "architecture.trace",
+    "architecture.review",
+    "finding.record"
+  ],
+  "denied_actions": [
+    "architecture.approve",
+    "authorization.override",
+    "code.modify",
+    "connector.enable",
+    "data.delete",
+    "deployment.execute",
+    "git.push",
+    "review.self_approve",
+    "secrets.read"
+  ],
+  "required_tools": [
+    "repository.read",
+    "test.runner"
+  ],
+  "verification_requirements": [
+    "Verify inputs against committed repository evidence.",
+    "Record limitations and fail closed on missing evidence."
+  ],
+  "required_tests": [
+    "Schema validation test.",
+    "Negative permission-boundary test."
+  ],
+  "last_reviewed_on": "2026-07-10",
+  "rollback_procedure": [
+    "Disable the skill definition.",
+    "Revert the registry commit.",
+    "Re-run registry and project verification."
+  ],
+  "external_dependencies": []
+}

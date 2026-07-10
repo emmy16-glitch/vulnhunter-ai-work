@@ -1,0 +1,586 @@
+{
+  "pages": [
+    {
+      "actions": [],
+      "allowed_roles": [
+        "system-administrator",
+        "campaign-operator",
+        "campaign-approver",
+        "reviewer",
+        "adjudicator",
+        "security-auditor",
+        "model-analyst",
+        "read-only-observer"
+      ],
+      "nav_section": "overview",
+      "page_id": "dashboard",
+      "primary_metric_ids": [
+        "authorized_targets",
+        "active_scans",
+        "open_findings",
+        "release_blockers"
+      ],
+      "required_api_resources": [
+        "dashboard"
+      ],
+      "responsive_priority": "critical",
+      "route": "/",
+      "shows_blockers": true,
+      "title": "Security Operations Dashboard"
+    },
+    {
+      "actions": [
+        {
+          "action_id": "authorization.create",
+          "allowed_roles": [
+            "campaign-operator"
+          ],
+          "api_resource_id": "authorizations",
+          "confirmation_required": false,
+          "dangerous": false
+        }
+      ],
+      "allowed_roles": [
+        "system-administrator",
+        "campaign-operator",
+        "campaign-approver",
+        "security-auditor"
+      ],
+      "nav_section": "collection",
+      "page_id": "authorizations",
+      "required_api_resources": [
+        "authorizations"
+      ],
+      "responsive_priority": "high",
+      "route": "/authorizations",
+      "shows_blockers": true,
+      "title": "Authorizations"
+    },
+    {
+      "actions": [
+        {
+          "action_id": "authorization.revoke",
+          "allowed_roles": [
+            "system-administrator"
+          ],
+          "api_resource_id": "authorizations",
+          "confirmation_required": true,
+          "dangerous": true
+        }
+      ],
+      "allowed_roles": [
+        "system-administrator",
+        "campaign-operator",
+        "campaign-approver",
+        "security-auditor"
+      ],
+      "nav_section": null,
+      "page_id": "authorization-detail",
+      "required_api_resources": [
+        "authorizations"
+      ],
+      "responsive_priority": "high",
+      "route": "/authorizations/:authorizationId",
+      "shows_blockers": true,
+      "title": "Authorization Detail"
+    },
+    {
+      "actions": [
+        {
+          "action_id": "scan.create",
+          "allowed_roles": [
+            "campaign-operator"
+          ],
+          "api_resource_id": "scans",
+          "confirmation_required": true,
+          "dangerous": true
+        }
+      ],
+      "allowed_roles": [
+        "campaign-operator"
+      ],
+      "nav_section": "collection",
+      "page_id": "new-scan",
+      "required_api_resources": [
+        "authorizations",
+        "scans"
+      ],
+      "requires_authorization_reference": true,
+      "responsive_priority": "critical",
+      "route": "/scans/new",
+      "shows_blockers": true,
+      "title": "New Bounded Scan"
+    },
+    {
+      "actions": [],
+      "allowed_roles": [
+        "system-administrator",
+        "campaign-operator",
+        "campaign-approver",
+        "security-auditor",
+        "read-only-observer"
+      ],
+      "nav_section": "collection",
+      "page_id": "scan-runs",
+      "required_api_resources": [
+        "scans"
+      ],
+      "responsive_priority": "high",
+      "route": "/scans",
+      "shows_blockers": true,
+      "title": "Scan Runs"
+    },
+    {
+      "actions": [
+        {
+          "action_id": "scan.cancel",
+          "allowed_roles": [
+            "campaign-operator"
+          ],
+          "api_resource_id": "scans",
+          "confirmation_required": true,
+          "dangerous": true
+        }
+      ],
+      "allowed_roles": [
+        "system-administrator",
+        "campaign-operator",
+        "campaign-approver",
+        "security-auditor"
+      ],
+      "nav_section": null,
+      "page_id": "scan-detail",
+      "required_api_resources": [
+        "scans",
+        "authorizations"
+      ],
+      "responsive_priority": "critical",
+      "route": "/scans/:scanId",
+      "shows_blockers": true,
+      "title": "Scan Run Detail"
+    },
+    {
+      "actions": [],
+      "allowed_roles": [
+        "system-administrator",
+        "campaign-operator",
+        "campaign-approver",
+        "reviewer",
+        "adjudicator",
+        "security-auditor"
+      ],
+      "nav_section": "analysis",
+      "page_id": "findings",
+      "required_api_resources": [
+        "findings"
+      ],
+      "responsive_priority": "high",
+      "route": "/findings",
+      "shows_blockers": true,
+      "title": "Findings"
+    },
+    {
+      "actions": [],
+      "allowed_roles": [
+        "system-administrator",
+        "campaign-operator",
+        "campaign-approver",
+        "reviewer",
+        "adjudicator",
+        "security-auditor"
+      ],
+      "nav_section": null,
+      "page_id": "finding-detail",
+      "required_api_resources": [
+        "findings"
+      ],
+      "responsive_priority": "critical",
+      "route": "/findings/:findingId",
+      "shows_blockers": true,
+      "title": "Finding Evidence"
+    },
+    {
+      "actions": [
+        {
+          "action_id": "campaign.create",
+          "allowed_roles": [
+            "campaign-operator"
+          ],
+          "api_resource_id": "campaigns",
+          "confirmation_required": false,
+          "dangerous": false
+        }
+      ],
+      "allowed_roles": [
+        "system-administrator",
+        "campaign-operator",
+        "campaign-approver",
+        "security-auditor",
+        "read-only-observer"
+      ],
+      "nav_section": "governance",
+      "page_id": "campaigns",
+      "required_api_resources": [
+        "campaigns"
+      ],
+      "responsive_priority": "high",
+      "route": "/campaigns",
+      "shows_blockers": true,
+      "title": "Governed Campaigns"
+    },
+    {
+      "actions": [
+        {
+          "action_id": "campaign.approve",
+          "allowed_roles": [
+            "campaign-approver"
+          ],
+          "api_resource_id": "campaigns",
+          "confirmation_required": true,
+          "dangerous": true
+        },
+        {
+          "action_id": "campaign.register_application",
+          "allowed_roles": [
+            "campaign-operator"
+          ],
+          "api_resource_id": "campaigns",
+          "confirmation_required": false,
+          "dangerous": false
+        },
+        {
+          "action_id": "campaign.link_scan",
+          "allowed_roles": [
+            "campaign-operator"
+          ],
+          "api_resource_id": "campaigns",
+          "confirmation_required": true,
+          "dangerous": true
+        },
+        {
+          "action_id": "campaign.complete",
+          "allowed_roles": [
+            "campaign-operator"
+          ],
+          "api_resource_id": "campaigns",
+          "confirmation_required": true,
+          "dangerous": true
+        }
+      ],
+      "allowed_roles": [
+        "system-administrator",
+        "campaign-operator",
+        "campaign-approver",
+        "security-auditor"
+      ],
+      "nav_section": null,
+      "page_id": "campaign-detail",
+      "required_api_resources": [
+        "campaigns",
+        "scans",
+        "reviews",
+        "adjudications",
+        "releases"
+      ],
+      "responsive_priority": "critical",
+      "route": "/campaigns/:campaignId",
+      "shows_blockers": true,
+      "title": "Campaign Control Room"
+    },
+    {
+      "actions": [],
+      "allowed_roles": [
+        "reviewer"
+      ],
+      "nav_section": "review",
+      "page_id": "review-queue",
+      "required_api_resources": [
+        "reviews"
+      ],
+      "responsive_priority": "high",
+      "route": "/reviews",
+      "shows_blockers": true,
+      "title": "My Review Queue"
+    },
+    {
+      "actions": [
+        {
+          "action_id": "review.submit",
+          "allowed_roles": [
+            "reviewer"
+          ],
+          "api_resource_id": "reviews",
+          "confirmation_required": true,
+          "dangerous": true
+        }
+      ],
+      "allowed_roles": [
+        "reviewer"
+      ],
+      "nav_section": null,
+      "page_id": "review-workspace",
+      "required_api_resources": [
+        "reviews",
+        "findings"
+      ],
+      "responsive_priority": "critical",
+      "route": "/reviews/:assignmentId",
+      "shows_blockers": true,
+      "title": "Independent Review Workspace"
+    },
+    {
+      "actions": [],
+      "allowed_roles": [
+        "adjudicator"
+      ],
+      "nav_section": "review",
+      "page_id": "adjudication-queue",
+      "required_api_resources": [
+        "adjudications"
+      ],
+      "responsive_priority": "high",
+      "route": "/adjudications",
+      "shows_blockers": true,
+      "title": "Adjudication Queue"
+    },
+    {
+      "actions": [
+        {
+          "action_id": "adjudication.submit",
+          "allowed_roles": [
+            "adjudicator"
+          ],
+          "api_resource_id": "adjudications",
+          "confirmation_required": true,
+          "dangerous": true
+        }
+      ],
+      "allowed_roles": [
+        "adjudicator"
+      ],
+      "nav_section": null,
+      "page_id": "adjudication-workspace",
+      "required_api_resources": [
+        "adjudications",
+        "findings"
+      ],
+      "responsive_priority": "critical",
+      "route": "/adjudications/:assignmentId",
+      "shows_blockers": true,
+      "title": "Disagreement Adjudication"
+    },
+    {
+      "actions": [],
+      "allowed_roles": [
+        "system-administrator",
+        "campaign-approver",
+        "security-auditor",
+        "model-analyst"
+      ],
+      "allows_bypass": false,
+      "nav_section": "governance",
+      "page_id": "releases",
+      "required_api_resources": [
+        "releases"
+      ],
+      "responsive_priority": "high",
+      "route": "/releases",
+      "shows_blockers": true,
+      "title": "Dataset Releases"
+    },
+    {
+      "actions": [
+        {
+          "action_id": "release.assess",
+          "allowed_roles": [
+            "campaign-approver"
+          ],
+          "api_resource_id": "releases",
+          "confirmation_required": false,
+          "dangerous": false
+        },
+        {
+          "action_id": "release.publish",
+          "allowed_roles": [
+            "campaign-approver"
+          ],
+          "api_resource_id": "releases",
+          "confirmation_required": true,
+          "dangerous": true
+        }
+      ],
+      "allowed_roles": [
+        "system-administrator",
+        "campaign-approver",
+        "security-auditor",
+        "model-analyst"
+      ],
+      "allows_bypass": false,
+      "nav_section": null,
+      "page_id": "release-detail",
+      "required_api_resources": [
+        "releases",
+        "campaigns"
+      ],
+      "responsive_priority": "critical",
+      "route": "/releases/:releaseId",
+      "shows_blockers": true,
+      "title": "Release Assessment"
+    },
+    {
+      "actions": [],
+      "allowed_roles": [
+        "system-administrator",
+        "security-auditor",
+        "model-analyst"
+      ],
+      "nav_section": "intelligence",
+      "page_id": "datasets",
+      "required_api_resources": [
+        "datasets"
+      ],
+      "responsive_priority": "high",
+      "route": "/datasets",
+      "shows_blockers": true,
+      "title": "Dataset Readiness"
+    },
+    {
+      "actions": [],
+      "allowed_roles": [
+        "system-administrator",
+        "security-auditor",
+        "model-analyst"
+      ],
+      "nav_section": null,
+      "page_id": "dataset-detail",
+      "required_api_resources": [
+        "datasets",
+        "releases"
+      ],
+      "responsive_priority": "critical",
+      "route": "/datasets/:datasetId",
+      "shows_blockers": true,
+      "title": "Dataset Quality Report"
+    },
+    {
+      "actions": [],
+      "allowed_roles": [
+        "system-administrator",
+        "security-auditor",
+        "model-analyst"
+      ],
+      "nav_section": "intelligence",
+      "page_id": "models",
+      "required_api_resources": [
+        "models"
+      ],
+      "responsive_priority": "high",
+      "route": "/models",
+      "shows_blockers": true,
+      "title": "Model Evaluations"
+    },
+    {
+      "actions": [],
+      "allowed_roles": [
+        "system-administrator",
+        "security-auditor",
+        "model-analyst"
+      ],
+      "nav_section": null,
+      "page_id": "model-detail",
+      "required_api_resources": [
+        "models",
+        "datasets"
+      ],
+      "responsive_priority": "critical",
+      "route": "/models/:modelId",
+      "shows_blockers": true,
+      "title": "Experiment Evidence"
+    },
+    {
+      "actions": [
+        {
+          "action_id": "audit.verify",
+          "allowed_roles": [
+            "system-administrator",
+            "security-auditor"
+          ],
+          "api_resource_id": "audit",
+          "confirmation_required": false,
+          "dangerous": false
+        }
+      ],
+      "allowed_roles": [
+        "system-administrator",
+        "campaign-approver",
+        "security-auditor"
+      ],
+      "nav_section": "assurance",
+      "page_id": "audit",
+      "required_api_resources": [
+        "audit"
+      ],
+      "responsive_priority": "high",
+      "route": "/audit",
+      "shows_blockers": true,
+      "title": "Audit and Provenance"
+    },
+    {
+      "actions": [
+        {
+          "action_id": "report.export",
+          "allowed_roles": [
+            "system-administrator",
+            "security-auditor",
+            "model-analyst"
+          ],
+          "api_resource_id": "reports",
+          "confirmation_required": false,
+          "dangerous": false
+        }
+      ],
+      "allowed_roles": [
+        "system-administrator",
+        "campaign-operator",
+        "campaign-approver",
+        "security-auditor",
+        "model-analyst",
+        "read-only-observer"
+      ],
+      "nav_section": "assurance",
+      "page_id": "reports",
+      "required_api_resources": [
+        "reports"
+      ],
+      "responsive_priority": "medium",
+      "route": "/reports",
+      "shows_blockers": false,
+      "title": "Reports"
+    },
+    {
+      "actions": [
+        {
+          "action_id": "settings.update",
+          "allowed_roles": [
+            "system-administrator"
+          ],
+          "api_resource_id": "settings",
+          "confirmation_required": true,
+          "dangerous": true
+        }
+      ],
+      "allowed_roles": [
+        "system-administrator"
+      ],
+      "nav_section": "system",
+      "page_id": "settings",
+      "required_api_resources": [
+        "settings"
+      ],
+      "responsive_priority": "medium",
+      "route": "/settings",
+      "shows_blockers": true,
+      "title": "Local Settings"
+    }
+  ]
+}

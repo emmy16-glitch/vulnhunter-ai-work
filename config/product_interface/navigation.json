@@ -1,0 +1,130 @@
+{
+  "sections": [
+    {
+      "items": [
+        {
+          "icon": "layout-dashboard",
+          "label": "Dashboard",
+          "page_id": "dashboard"
+        }
+      ],
+      "label": "Overview",
+      "order": 10,
+      "section_id": "overview"
+    },
+    {
+      "items": [
+        {
+          "icon": "shield-check",
+          "label": "Authorizations",
+          "page_id": "authorizations"
+        },
+        {
+          "icon": "radar",
+          "label": "New Scan",
+          "page_id": "new-scan"
+        },
+        {
+          "icon": "activity",
+          "label": "Scan Runs",
+          "page_id": "scan-runs"
+        }
+      ],
+      "label": "Collection",
+      "order": 20,
+      "section_id": "collection"
+    },
+    {
+      "items": [
+        {
+          "icon": "bug",
+          "label": "Findings",
+          "page_id": "findings"
+        }
+      ],
+      "label": "Analysis",
+      "order": 30,
+      "section_id": "analysis"
+    },
+    {
+      "items": [
+        {
+          "icon": "clipboard-check",
+          "label": "Review Queue",
+          "page_id": "review-queue"
+        },
+        {
+          "icon": "scale",
+          "label": "Adjudications",
+          "page_id": "adjudication-queue"
+        }
+      ],
+      "label": "Independent Review",
+      "order": 40,
+      "section_id": "review"
+    },
+    {
+      "items": [
+        {
+          "icon": "layers",
+          "label": "Campaigns",
+          "page_id": "campaigns"
+        },
+        {
+          "icon": "package-check",
+          "label": "Releases",
+          "page_id": "releases"
+        }
+      ],
+      "label": "Governance",
+      "order": 50,
+      "section_id": "governance"
+    },
+    {
+      "items": [
+        {
+          "icon": "database",
+          "label": "Datasets",
+          "page_id": "datasets"
+        },
+        {
+          "icon": "brain-circuit",
+          "label": "Models",
+          "page_id": "models"
+        }
+      ],
+      "label": "Intelligence",
+      "order": 60,
+      "section_id": "intelligence"
+    },
+    {
+      "items": [
+        {
+          "icon": "fingerprint",
+          "label": "Audit",
+          "page_id": "audit"
+        },
+        {
+          "icon": "file-chart-column",
+          "label": "Reports",
+          "page_id": "reports"
+        }
+      ],
+      "label": "Assurance",
+      "order": 70,
+      "section_id": "assurance"
+    },
+    {
+      "items": [
+        {
+          "icon": "settings",
+          "label": "Settings",
+          "page_id": "settings"
+        }
+      ],
+      "label": "System",
+      "order": 80,
+      "section_id": "system"
+    }
+  ]
+}

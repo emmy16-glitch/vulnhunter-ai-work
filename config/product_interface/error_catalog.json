@@ -1,0 +1,124 @@
+{
+  "errors": [
+    {
+      "code": "AUTHENTICATION_REQUIRED",
+      "exposes_internal_detail": false,
+      "recovery_action": "Return to the sign-in screen and authenticate.",
+      "safe_message": "Sign in to continue."
+    },
+    {
+      "code": "ROLE_FORBIDDEN",
+      "exposes_internal_detail": false,
+      "recovery_action": "Open the permission details or contact an administrator.",
+      "safe_message": "Your role cannot perform this action."
+    },
+    {
+      "code": "AUTHORIZATION_REQUIRED",
+      "exposes_internal_detail": false,
+      "recovery_action": "Choose an active authorization that covers the target.",
+      "safe_message": "Select a valid authorization before starting a scan."
+    },
+    {
+      "code": "AUTHORIZATION_EXPIRED",
+      "exposes_internal_detail": false,
+      "recovery_action": "Create a new authorization or select another active record.",
+      "safe_message": "This authorization has expired."
+    },
+    {
+      "code": "AUTHORIZATION_REVOKED",
+      "exposes_internal_detail": false,
+      "recovery_action": "Stop the operation and review the revocation evidence.",
+      "safe_message": "This authorization has been revoked."
+    },
+    {
+      "code": "TARGET_OUT_OF_SCOPE",
+      "exposes_internal_detail": false,
+      "recovery_action": "Correct the target or update the authorization through the approved process.",
+      "safe_message": "The target is outside the approved scope."
+    },
+    {
+      "code": "DNS_SCOPE_CHANGED",
+      "exposes_internal_detail": false,
+      "recovery_action": "Stop the scan and review DNS and authorization evidence.",
+      "safe_message": "The resolved address changed outside the approved scope."
+    },
+    {
+      "code": "CONNECTION_PINNING_FAILED",
+      "exposes_internal_detail": false,
+      "recovery_action": "Review the target resolution and retry only after the scope is valid.",
+      "safe_message": "The connection could not be bound to an approved address."
+    },
+    {
+      "code": "REQUEST_BUDGET_EXCEEDED",
+      "exposes_internal_detail": false,
+      "recovery_action": "Review collected evidence or create a separately approved scan plan.",
+      "safe_message": "The scan reached its approved request limit."
+    },
+    {
+      "code": "SCAN_CANCELLED",
+      "exposes_internal_detail": false,
+      "recovery_action": "Review partial evidence and start a new authorized scan when needed.",
+      "safe_message": "The scan was cancelled."
+    },
+    {
+      "code": "SCAN_FAILED",
+      "exposes_internal_detail": false,
+      "recovery_action": "Open the failure timeline and follow the recorded recovery step.",
+      "safe_message": "The scan stopped before completion."
+    },
+    {
+      "code": "EVIDENCE_REDACTED",
+      "exposes_internal_detail": false,
+      "recovery_action": "Use the approved redacted view; do not request unrestricted evidence in the UI.",
+      "safe_message": "Sensitive evidence is hidden."
+    },
+    {
+      "code": "REVIEW_CONFLICT",
+      "exposes_internal_detail": false,
+      "recovery_action": "Return the assignment for independent reassignment.",
+      "safe_message": "This review assignment conflicts with your role or prior action."
+    },
+    {
+      "code": "REVIEW_INCOMPLETE",
+      "exposes_internal_detail": false,
+      "recovery_action": "Wait for all assigned reviewers to submit decisions.",
+      "safe_message": "Required independent reviews are not complete."
+    },
+    {
+      "code": "ADJUDICATION_REQUIRED",
+      "exposes_internal_detail": false,
+      "recovery_action": "Assign an independent adjudicator and resolve the dispute.",
+      "safe_message": "Reviewer decisions disagree."
+    },
+    {
+      "code": "RELEASE_BLOCKED",
+      "exposes_internal_detail": false,
+      "recovery_action": "Open the blocker list and resolve every hard blocker.",
+      "safe_message": "This release does not meet governance requirements."
+    },
+    {
+      "code": "MANIFEST_TAMPERED",
+      "exposes_internal_detail": false,
+      "recovery_action": "Stop release activity and investigate the immutable evidence chain.",
+      "safe_message": "Release evidence failed integrity verification."
+    },
+    {
+      "code": "DATASET_NOT_READY",
+      "exposes_internal_detail": false,
+      "recovery_action": "Resolve provenance, label, diversity, duplication, or leakage blockers.",
+      "safe_message": "The dataset is not ready for model evaluation."
+    },
+    {
+      "code": "CONNECTOR_DISABLED",
+      "exposes_internal_detail": false,
+      "recovery_action": "Keep the connector disabled unless a separately approved policy enables it.",
+      "safe_message": "External connectors are disabled."
+    },
+    {
+      "code": "NETWORK_FORBIDDEN",
+      "exposes_internal_detail": false,
+      "recovery_action": "Use local fixtures or obtain explicit authorization through governance.",
+      "safe_message": "This operation is not allowed to use external network access."
+    }
+  ]
+}

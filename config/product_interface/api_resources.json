@@ -1,0 +1,574 @@
+{
+  "resources": [
+    {
+      "base_path": "/api/v1/session",
+      "operations": [
+        {
+          "allowed_roles": [
+            "system-administrator",
+            "campaign-operator",
+            "campaign-approver",
+            "reviewer",
+            "adjudicator",
+            "security-auditor",
+            "model-analyst",
+            "read-only-observer"
+          ],
+          "method": "GET",
+          "operation_id": "session.current",
+          "path": ""
+        },
+        {
+          "allowed_roles": [
+            "system-administrator",
+            "campaign-operator",
+            "campaign-approver",
+            "reviewer",
+            "adjudicator",
+            "security-auditor",
+            "model-analyst",
+            "read-only-observer"
+          ],
+          "method": "POST",
+          "operation_id": "session.logout",
+          "path": "/logout"
+        }
+      ],
+      "resource_id": "session",
+      "sensitivity": "internal"
+    },
+    {
+      "base_path": "/api/v1/dashboard",
+      "operations": [
+        {
+          "allowed_roles": [
+            "system-administrator",
+            "campaign-operator",
+            "campaign-approver",
+            "reviewer",
+            "adjudicator",
+            "security-auditor",
+            "model-analyst",
+            "read-only-observer"
+          ],
+          "method": "GET",
+          "operation_id": "dashboard.summary",
+          "path": ""
+        }
+      ],
+      "resource_id": "dashboard",
+      "sensitivity": "internal"
+    },
+    {
+      "base_path": "/api/v1/authorizations",
+      "operations": [
+        {
+          "allowed_roles": [
+            "system-administrator",
+            "campaign-operator",
+            "campaign-approver",
+            "security-auditor"
+          ],
+          "method": "GET",
+          "operation_id": "authorization.list",
+          "path": ""
+        },
+        {
+          "allowed_roles": [
+            "campaign-operator"
+          ],
+          "method": "POST",
+          "operation_id": "authorization.create",
+          "path": ""
+        },
+        {
+          "allowed_roles": [
+            "system-administrator",
+            "campaign-operator",
+            "campaign-approver",
+            "security-auditor"
+          ],
+          "method": "GET",
+          "operation_id": "authorization.detail",
+          "path": "/{authorization_id}"
+        },
+        {
+          "allowed_roles": [
+            "system-administrator"
+          ],
+          "method": "POST",
+          "operation_id": "authorization.revoke",
+          "path": "/{authorization_id}/revoke"
+        }
+      ],
+      "resource_id": "authorizations",
+      "sensitivity": "restricted"
+    },
+    {
+      "base_path": "/api/v1/scans",
+      "operations": [
+        {
+          "allowed_roles": [
+            "system-administrator",
+            "campaign-operator",
+            "campaign-approver",
+            "security-auditor",
+            "read-only-observer"
+          ],
+          "method": "GET",
+          "operation_id": "scan.list",
+          "path": ""
+        },
+        {
+          "allowed_roles": [
+            "campaign-operator"
+          ],
+          "method": "POST",
+          "operation_id": "scan.create",
+          "path": ""
+        },
+        {
+          "allowed_roles": [
+            "system-administrator",
+            "campaign-operator",
+            "campaign-approver",
+            "security-auditor"
+          ],
+          "method": "GET",
+          "operation_id": "scan.detail",
+          "path": "/{scan_id}"
+        },
+        {
+          "allowed_roles": [
+            "campaign-operator"
+          ],
+          "method": "POST",
+          "operation_id": "scan.cancel",
+          "path": "/{scan_id}/cancel"
+        },
+        {
+          "allowed_roles": [
+            "system-administrator",
+            "campaign-operator",
+            "campaign-approver",
+            "security-auditor"
+          ],
+          "method": "GET",
+          "operation_id": "scan.events",
+          "path": "/{scan_id}/events"
+        }
+      ],
+      "resource_id": "scans",
+      "sensitivity": "restricted"
+    },
+    {
+      "base_path": "/api/v1/findings",
+      "operations": [
+        {
+          "allowed_roles": [
+            "system-administrator",
+            "campaign-operator",
+            "campaign-approver",
+            "reviewer",
+            "adjudicator",
+            "security-auditor"
+          ],
+          "method": "GET",
+          "operation_id": "finding.list",
+          "path": ""
+        },
+        {
+          "allowed_roles": [
+            "system-administrator",
+            "campaign-operator",
+            "campaign-approver",
+            "reviewer",
+            "adjudicator",
+            "security-auditor"
+          ],
+          "method": "GET",
+          "operation_id": "finding.detail",
+          "path": "/{finding_id}"
+        },
+        {
+          "allowed_roles": [
+            "reviewer",
+            "adjudicator",
+            "security-auditor"
+          ],
+          "method": "GET",
+          "operation_id": "finding.evidence",
+          "path": "/{finding_id}/evidence"
+        }
+      ],
+      "resource_id": "findings",
+      "sensitivity": "restricted"
+    },
+    {
+      "base_path": "/api/v1/campaigns",
+      "operations": [
+        {
+          "allowed_roles": [
+            "system-administrator",
+            "campaign-operator",
+            "campaign-approver",
+            "security-auditor",
+            "read-only-observer"
+          ],
+          "method": "GET",
+          "operation_id": "campaign.list",
+          "path": ""
+        },
+        {
+          "allowed_roles": [
+            "campaign-operator"
+          ],
+          "method": "POST",
+          "operation_id": "campaign.create",
+          "path": ""
+        },
+        {
+          "allowed_roles": [
+            "system-administrator",
+            "campaign-operator",
+            "campaign-approver",
+            "security-auditor"
+          ],
+          "method": "GET",
+          "operation_id": "campaign.detail",
+          "path": "/{campaign_id}"
+        },
+        {
+          "allowed_roles": [
+            "campaign-approver"
+          ],
+          "method": "POST",
+          "operation_id": "campaign.approve",
+          "path": "/{campaign_id}/approve"
+        },
+        {
+          "allowed_roles": [
+            "campaign-operator"
+          ],
+          "method": "POST",
+          "operation_id": "campaign.register_application",
+          "path": "/{campaign_id}/applications"
+        },
+        {
+          "allowed_roles": [
+            "campaign-operator"
+          ],
+          "method": "POST",
+          "operation_id": "campaign.link_scan",
+          "path": "/{campaign_id}/scans"
+        },
+        {
+          "allowed_roles": [
+            "campaign-operator"
+          ],
+          "method": "POST",
+          "operation_id": "campaign.complete",
+          "path": "/{campaign_id}/complete"
+        },
+        {
+          "allowed_roles": [
+            "system-administrator",
+            "campaign-operator",
+            "campaign-approver",
+            "security-auditor"
+          ],
+          "method": "GET",
+          "operation_id": "campaign.evidence_summary",
+          "path": "/{campaign_id}/evidence-summary"
+        }
+      ],
+      "resource_id": "campaigns",
+      "sensitivity": "restricted"
+    },
+    {
+      "base_path": "/api/v1/reviews",
+      "operations": [
+        {
+          "allowed_roles": [
+            "reviewer"
+          ],
+          "method": "GET",
+          "operation_id": "review.queue",
+          "path": "/queue"
+        },
+        {
+          "allowed_roles": [
+            "reviewer",
+            "security-auditor"
+          ],
+          "method": "GET",
+          "operation_id": "review.detail",
+          "path": "/{assignment_id}"
+        },
+        {
+          "allowed_roles": [
+            "reviewer"
+          ],
+          "method": "POST",
+          "operation_id": "review.submit",
+          "path": "/{assignment_id}/decisions"
+        }
+      ],
+      "resource_id": "reviews",
+      "sensitivity": "restricted"
+    },
+    {
+      "base_path": "/api/v1/adjudications",
+      "operations": [
+        {
+          "allowed_roles": [
+            "adjudicator"
+          ],
+          "method": "GET",
+          "operation_id": "adjudication.queue",
+          "path": "/queue"
+        },
+        {
+          "allowed_roles": [
+            "adjudicator",
+            "security-auditor"
+          ],
+          "method": "GET",
+          "operation_id": "adjudication.detail",
+          "path": "/{assignment_id}"
+        },
+        {
+          "allowed_roles": [
+            "adjudicator"
+          ],
+          "method": "POST",
+          "operation_id": "adjudication.submit",
+          "path": "/{assignment_id}/decision"
+        }
+      ],
+      "resource_id": "adjudications",
+      "sensitivity": "restricted"
+    },
+    {
+      "base_path": "/api/v1/releases",
+      "operations": [
+        {
+          "allowed_roles": [
+            "system-administrator",
+            "campaign-approver",
+            "security-auditor",
+            "model-analyst"
+          ],
+          "method": "GET",
+          "operation_id": "release.list",
+          "path": ""
+        },
+        {
+          "allowed_roles": [
+            "campaign-approver"
+          ],
+          "method": "POST",
+          "operation_id": "release.assess",
+          "path": "/assess"
+        },
+        {
+          "allowed_roles": [
+            "campaign-approver"
+          ],
+          "method": "POST",
+          "operation_id": "release.publish",
+          "path": ""
+        },
+        {
+          "allowed_roles": [
+            "system-administrator",
+            "campaign-approver",
+            "security-auditor",
+            "model-analyst"
+          ],
+          "method": "GET",
+          "operation_id": "release.detail",
+          "path": "/{release_id}"
+        },
+        {
+          "allowed_roles": [
+            "system-administrator",
+            "campaign-approver",
+            "security-auditor",
+            "model-analyst"
+          ],
+          "method": "GET",
+          "operation_id": "release.manifest",
+          "path": "/{release_id}/manifest"
+        }
+      ],
+      "resource_id": "releases",
+      "sensitivity": "restricted"
+    },
+    {
+      "base_path": "/api/v1/datasets",
+      "operations": [
+        {
+          "allowed_roles": [
+            "system-administrator",
+            "security-auditor",
+            "model-analyst"
+          ],
+          "method": "GET",
+          "operation_id": "dataset.list",
+          "path": ""
+        },
+        {
+          "allowed_roles": [
+            "system-administrator",
+            "security-auditor",
+            "model-analyst"
+          ],
+          "method": "GET",
+          "operation_id": "dataset.detail",
+          "path": "/{dataset_id}"
+        },
+        {
+          "allowed_roles": [
+            "system-administrator",
+            "security-auditor",
+            "model-analyst"
+          ],
+          "method": "GET",
+          "operation_id": "dataset.quality",
+          "path": "/{dataset_id}/quality"
+        }
+      ],
+      "resource_id": "datasets",
+      "sensitivity": "restricted"
+    },
+    {
+      "base_path": "/api/v1/models",
+      "operations": [
+        {
+          "allowed_roles": [
+            "system-administrator",
+            "security-auditor",
+            "model-analyst"
+          ],
+          "method": "GET",
+          "operation_id": "model.list",
+          "path": ""
+        },
+        {
+          "allowed_roles": [
+            "system-administrator",
+            "security-auditor",
+            "model-analyst"
+          ],
+          "method": "GET",
+          "operation_id": "model.detail",
+          "path": "/{model_id}"
+        },
+        {
+          "allowed_roles": [
+            "system-administrator",
+            "security-auditor",
+            "model-analyst"
+          ],
+          "method": "GET",
+          "operation_id": "model.experiments",
+          "path": "/{model_id}/experiments"
+        }
+      ],
+      "resource_id": "models",
+      "sensitivity": "restricted"
+    },
+    {
+      "base_path": "/api/v1/audit",
+      "operations": [
+        {
+          "allowed_roles": [
+            "system-administrator",
+            "campaign-approver",
+            "security-auditor"
+          ],
+          "method": "GET",
+          "operation_id": "audit.events",
+          "path": "/events"
+        },
+        {
+          "allowed_roles": [
+            "system-administrator",
+            "security-auditor"
+          ],
+          "method": "POST",
+          "operation_id": "audit.verify",
+          "path": "/verify"
+        }
+      ],
+      "resource_id": "audit",
+      "sensitivity": "restricted"
+    },
+    {
+      "base_path": "/api/v1/reports",
+      "operations": [
+        {
+          "allowed_roles": [
+            "system-administrator",
+            "campaign-operator",
+            "campaign-approver",
+            "security-auditor",
+            "model-analyst",
+            "read-only-observer"
+          ],
+          "method": "GET",
+          "operation_id": "report.list",
+          "path": ""
+        },
+        {
+          "allowed_roles": [
+            "system-administrator",
+            "campaign-operator",
+            "campaign-approver",
+            "security-auditor",
+            "model-analyst"
+          ],
+          "method": "GET",
+          "operation_id": "report.detail",
+          "path": "/{report_id}"
+        },
+        {
+          "allowed_roles": [
+            "system-administrator",
+            "security-auditor",
+            "model-analyst"
+          ],
+          "method": "POST",
+          "operation_id": "report.export",
+          "path": "/{report_id}/export"
+        }
+      ],
+      "resource_id": "reports",
+      "sensitivity": "internal"
+    },
+    {
+      "base_path": "/api/v1/settings",
+      "operations": [
+        {
+          "allowed_roles": [
+            "system-administrator"
+          ],
+          "method": "GET",
+          "operation_id": "settings.read",
+          "path": ""
+        },
+        {
+          "allowed_roles": [
+            "system-administrator"
+          ],
+          "method": "PATCH",
+          "operation_id": "settings.update",
+          "path": ""
+        }
+      ],
+      "resource_id": "settings",
+      "sensitivity": "restricted"
+    }
+  ]
+}

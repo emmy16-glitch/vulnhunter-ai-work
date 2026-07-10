@@ -1,0 +1,25 @@
+{
+  "backend_is_authoritative": true,
+  "blueprint_id": "vulnhunter-product-interface",
+  "connectors_enabled": false,
+  "created_on": "2026-07-10",
+  "implementation_phase": "Milestone 22A + 23A blueprint only",
+  "model_training_enabled": false,
+  "owner": "Emmanuel Okunlola",
+  "required_documents": [
+    "navigation.json",
+    "pages.json",
+    "role_permissions.json",
+    "api_resources.json",
+    "error_catalog.json",
+    "workflow_states.json",
+    "responsive_breakpoints.json",
+    "design_tokens.json",
+    "figma_handoff.json"
+  ],
+  "schema_version": "1.0",
+  "source_of_truth": "config/product_interface",
+  "status": "planned",
+  "ui_may_not_bypass_policy": true,
+  "version": "1.0.0"
+}

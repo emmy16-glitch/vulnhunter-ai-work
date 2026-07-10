@@ -1,0 +1,99 @@
+{
+  "workflows": [
+    {
+      "required_gates": [
+        "authorization-valid",
+        "target-in-scope",
+        "dns-in-scope",
+        "connection-pinned",
+        "budgets-enforced"
+      ],
+      "states": [
+        "draft",
+        "validating",
+        "authorized",
+        "queued",
+        "running",
+        "completed",
+        "failed",
+        "cancelled",
+        "blocked"
+      ],
+      "terminal_states": [
+        "completed",
+        "failed",
+        "cancelled",
+        "blocked"
+      ],
+      "workflow_id": "authorization-to-scan"
+    },
+    {
+      "required_gates": [
+        "creator-approver-separated",
+        "applications-frozen",
+        "scan-provenance-valid",
+        "reviews-complete",
+        "disputes-resolved",
+        "release-manifest-valid"
+      ],
+      "states": [
+        "draft",
+        "awaiting-approval",
+        "approved",
+        "active",
+        "reviewing",
+        "adjudicating",
+        "completed",
+        "release-blocked",
+        "released"
+      ],
+      "terminal_states": [
+        "release-blocked",
+        "released"
+      ],
+      "workflow_id": "campaign-governance"
+    },
+    {
+      "required_gates": [
+        "reviewer-assigned",
+        "no-self-review",
+        "two-distinct-reviewers",
+        "adjudicator-independent"
+      ],
+      "states": [
+        "unassigned",
+        "assigned",
+        "in-review",
+        "submitted",
+        "disputed",
+        "adjudicated"
+      ],
+      "terminal_states": [
+        "submitted",
+        "adjudicated"
+      ],
+      "workflow_id": "independent-review"
+    },
+    {
+      "required_gates": [
+        "release-manifest-valid",
+        "labels-complete",
+        "duplicates-assessed",
+        "families-assessed",
+        "leakage-assessed",
+        "sensitive-data-assessed"
+      ],
+      "states": [
+        "unassessed",
+        "assessing",
+        "blocked",
+        "ready-for-evaluation"
+      ],
+      "terminal_states": [
+        "blocked",
+        "ready-for-evaluation"
+      ],
+      "workflow_id": "dataset-readiness"
+    }
+  ]
+}

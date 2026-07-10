@@ -1,0 +1,221 @@
+{
+  "roles": [
+    {
+      "allowed_actions": [
+        "dashboard.read",
+        "identity.manage",
+        "settings.manage",
+        "audit.read",
+        "report.read",
+        "authorization.read",
+        "campaign.read",
+        "scan.read",
+        "finding.read",
+        "release.read",
+        "dataset.read",
+        "model.read"
+      ],
+      "denied_actions": [
+        "campaign.self_approve",
+        "review.self_assign",
+        "review.submit_as_other",
+        "adjudication.for_own_review",
+        "release.bypass",
+        "connector.enable",
+        "model.train"
+      ],
+      "display_name": "System Administrator",
+      "purpose": "Manage local identities, configuration, and operational recovery without bypassing governance gates.",
+      "requires_object_level_separation": true,
+      "role_id": "system-administrator"
+    },
+    {
+      "allowed_actions": [
+        "dashboard.read",
+        "authorization.read",
+        "authorization.create",
+        "scan.read",
+        "scan.create",
+        "scan.cancel",
+        "campaign.read",
+        "campaign.create",
+        "campaign.register_application",
+        "campaign.link_scan",
+        "campaign.complete",
+        "finding.read",
+        "report.read"
+      ],
+      "denied_actions": [
+        "campaign.approve",
+        "review.submit",
+        "adjudication.submit",
+        "release.publish",
+        "release.bypass",
+        "connector.enable",
+        "model.train"
+      ],
+      "display_name": "Campaign Operator",
+      "purpose": "Prepare authorizations, campaigns, applications, and bounded local scans.",
+      "requires_object_level_separation": true,
+      "role_id": "campaign-operator"
+    },
+    {
+      "allowed_actions": [
+        "dashboard.read",
+        "authorization.read",
+        "scan.read",
+        "campaign.read",
+        "campaign.approve",
+        "finding.read",
+        "release.read",
+        "release.assess",
+        "release.publish",
+        "report.read",
+        "audit.read"
+      ],
+      "denied_actions": [
+        "campaign.create",
+        "campaign.self_approve",
+        "scan.create",
+        "review.submit",
+        "adjudication.submit",
+        "release.bypass",
+        "connector.enable",
+        "model.train"
+      ],
+      "display_name": "Campaign Approver",
+      "purpose": "Independently approve campaign intent and assess governed release eligibility.",
+      "requires_object_level_separation": true,
+      "role_id": "campaign-approver"
+    },
+    {
+      "allowed_actions": [
+        "dashboard.read",
+        "finding.read",
+        "evidence.read_redacted",
+        "review.read_assigned",
+        "review.submit",
+        "report.read_own"
+      ],
+      "denied_actions": [
+        "review.self_assign",
+        "review.submit_as_other",
+        "adjudication.submit",
+        "campaign.approve",
+        "release.publish",
+        "release.bypass",
+        "connector.enable",
+        "model.train"
+      ],
+      "display_name": "Reviewer",
+      "purpose": "Independently evaluate assigned findings using redacted evidence.",
+      "requires_object_level_separation": true,
+      "role_id": "reviewer"
+    },
+    {
+      "allowed_actions": [
+        "dashboard.read",
+        "finding.read",
+        "evidence.read_redacted",
+        "review.read",
+        "adjudication.read_assigned",
+        "adjudication.submit",
+        "report.read"
+      ],
+      "denied_actions": [
+        "review.submit",
+        "adjudication.self_assign",
+        "adjudication.for_own_review",
+        "campaign.approve",
+        "release.publish",
+        "release.bypass",
+        "connector.enable",
+        "model.train"
+      ],
+      "display_name": "Adjudicator",
+      "purpose": "Resolve disagreements independently after reviewer decisions are complete.",
+      "requires_object_level_separation": true,
+      "role_id": "adjudicator"
+    },
+    {
+      "allowed_actions": [
+        "dashboard.read",
+        "authorization.read",
+        "scan.read",
+        "finding.read",
+        "campaign.read",
+        "review.read",
+        "adjudication.read",
+        "release.read",
+        "dataset.read",
+        "model.read",
+        "audit.read",
+        "report.read",
+        "report.export"
+      ],
+      "denied_actions": [
+        "authorization.create",
+        "scan.create",
+        "campaign.create",
+        "campaign.approve",
+        "review.submit",
+        "adjudication.submit",
+        "release.publish",
+        "release.bypass",
+        "connector.enable",
+        "model.train"
+      ],
+      "display_name": "Security Auditor",
+      "purpose": "Inspect immutable provenance, security events, and reports without changing workflow state.",
+      "requires_object_level_separation": false,
+      "role_id": "security-auditor"
+    },
+    {
+      "allowed_actions": [
+        "dashboard.read",
+        "release.read",
+        "dataset.read",
+        "model.read",
+        "report.read",
+        "report.export"
+      ],
+      "denied_actions": [
+        "dataset.use_unreleased",
+        "model.train",
+        "model.promote",
+        "release.publish",
+        "release.bypass",
+        "connector.enable"
+      ],
+      "display_name": "Model Analyst",
+      "purpose": "Inspect released dataset quality and model-evaluation evidence; training remains deferred.",
+      "requires_object_level_separation": false,
+      "role_id": "model-analyst"
+    },
+    {
+      "allowed_actions": [
+        "dashboard.read",
+        "scan.read_summary",
+        "campaign.read_summary",
+        "report.read_public"
+      ],
+      "denied_actions": [
+        "evidence.read_redacted",
+        "authorization.create",
+        "scan.create",
+        "campaign.create",
+        "campaign.approve",
+        "review.submit",
+        "adjudication.submit",
+        "release.publish",
+        "release.bypass",
+        "connector.enable",
+        "model.train"
+      ],
+      "display_name": "Read-only Observer",
+      "purpose": "View non-sensitive operational summaries without access to evidence or mutation actions.",
+      "requires_object_level_separation": false,
+      "role_id": "read-only-observer"
+    }
+  ]
+}

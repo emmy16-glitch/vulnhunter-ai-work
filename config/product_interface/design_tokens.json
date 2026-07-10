@@ -1,0 +1,84 @@
+{
+  "colors": {
+    "accent": "#4F8CFF",
+    "accent_hover": "#76A6FF",
+    "background": "#0B0F14",
+    "border": "#253041",
+    "danger": "#EF4444",
+    "focus": "#93C5FD",
+    "info": "#38BDF8",
+    "success": "#22C55E",
+    "surface": "#111827",
+    "surface_elevated": "#151D29",
+    "text_primary": "#F7F9FC",
+    "text_secondary": "#9CA3AF",
+    "warning": "#F59E0B"
+  },
+  "layout": {
+    "collapsed_sidebar_width_px": 80,
+    "content_max_width_px": 1600,
+    "sidebar_width_px": 264,
+    "topbar_height_px": 64
+  },
+  "principles": [
+    "calm-not-gimmicky",
+    "evidence-first",
+    "high-information-clarity",
+    "fail-closed-actions-visible"
+  ],
+  "radii_px": {
+    "card": 12,
+    "control": 8,
+    "modal": 16,
+    "pill": 999
+  },
+  "shadows": {
+    "focus": "0 0 0 3px rgba(147,197,253,0.35)",
+    "panel": "0 12px 32px rgba(0,0,0,0.28)"
+  },
+  "spacing_px": [
+    4,
+    8,
+    12,
+    16,
+    24,
+    32,
+    40,
+    48,
+    64
+  ],
+  "theme": "dark-professional-security",
+  "typography": {
+    "body": {
+      "line_height_px": 22,
+      "size_px": 14,
+      "weight": 400
+    },
+    "display": {
+      "line_height_px": 40,
+      "size_px": 32,
+      "weight": 700
+    },
+    "font_family": "Inter, ui-sans-serif, system-ui, sans-serif",
+    "heading_1": {
+      "line_height_px": 32,
+      "size_px": 24,
+      "weight": 700
+    },
+    "heading_2": {
+      "line_height_px": 28,
+      "size_px": 18,
+      "weight": 650
+    },
+    "label": {
+      "line_height_px": 18,
+      "size_px": 12,
+      "weight": 600
+    },
+    "mono": {
+      "font_family": "ui-monospace, SFMono-Regular, Menlo, monospace",
+      "line_height_px": 18,
+      "size_px": 12
+    }
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "base_grid_px": 8,
+  "breakpoints": [
+    {
+      "breakpoint_id": "mobile",
+      "columns": 4,
+      "frame_width": 390,
+      "max_width": 639,
+      "min_width": 0,
+      "navigation": "drawer",
+      "table_strategy": "priority-columns-and-detail-drawer"
+    },
+    {
+      "breakpoint_id": "tablet",
+      "columns": 8,
+      "frame_width": 768,
+      "max_width": 1023,
+      "min_width": 640,
+      "navigation": "collapsible-sidebar",
+      "table_strategy": "horizontal-scroll-with-sticky-identity-column"
+    },
+    {
+      "breakpoint_id": "desktop",
+      "columns": 12,
+      "frame_width": 1440,
+      "max_width": 1439,
+      "min_width": 1024,
+      "navigation": "persistent-sidebar",
+      "table_strategy": "full-table"
+    },
+    {
+      "breakpoint_id": "wide",
+      "columns": 12,
+      "frame_width": 1728,
+      "max_width": 9999,
+      "min_width": 1440,
+      "navigation": "persistent-sidebar",
+      "table_strategy": "full-table-with-context-panel"
+    }
+  ],
+  "minimum_touch_target_px": 44,
+  "rules": [
+    "Preserve the established desktop hierarchy while adapting layout, not content meaning.",
+    "Never hide authorization, scope, review, adjudication, or release blockers on smaller screens.",
+    "Convert dense secondary metadata into expandable details before removing it.",
+    "Keep primary actions reachable without horizontal page scrolling.",
+    "All dialogs must fit within the viewport and remain keyboard accessible."
+  ]
+}

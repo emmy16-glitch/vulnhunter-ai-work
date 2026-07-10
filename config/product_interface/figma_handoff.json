@@ -1,0 +1,207 @@
+{
+  "auto_layout_rules": [
+    "Use Auto Layout for all reusable components and page sections.",
+    "Use variables for colors, spacing, radius, typography, and status semantics.",
+    "Use component properties for text, icon visibility, state, and density.",
+    "Never detach instances merely to change content.",
+    "Name layers semantically; avoid Frame 123 or Rectangle 42."
+  ],
+  "component_sets": [
+    {
+      "name": "AppShell",
+      "variants": [
+        "desktop",
+        "tablet",
+        "mobile"
+      ]
+    },
+    {
+      "name": "SidebarNavItem",
+      "variants": [
+        "default",
+        "hover",
+        "active",
+        "disabled"
+      ]
+    },
+    {
+      "name": "TopBar",
+      "variants": [
+        "default",
+        "with-alert"
+      ]
+    },
+    {
+      "name": "MetricCard",
+      "variants": [
+        "neutral",
+        "success",
+        "warning",
+        "danger"
+      ]
+    },
+    {
+      "name": "StatusBadge",
+      "variants": [
+        "draft",
+        "active",
+        "complete",
+        "blocked",
+        "failed",
+        "revoked"
+      ]
+    },
+    {
+      "name": "DataTable",
+      "variants": [
+        "default",
+        "loading",
+        "empty",
+        "error"
+      ]
+    },
+    {
+      "name": "FilterBar",
+      "variants": [
+        "inline",
+        "drawer"
+      ]
+    },
+    {
+      "name": "EvidencePanel",
+      "variants": [
+        "summary",
+        "expanded",
+        "redacted"
+      ]
+    },
+    {
+      "name": "HashValue",
+      "variants": [
+        "compact",
+        "full",
+        "mismatch"
+      ]
+    },
+    {
+      "name": "Timeline",
+      "variants": [
+        "default",
+        "with-failure"
+      ]
+    },
+    {
+      "name": "PermissionGate",
+      "variants": [
+        "allowed",
+        "blocked",
+        "approval-required"
+      ]
+    },
+    {
+      "name": "ConfirmationDialog",
+      "variants": [
+        "standard",
+        "danger",
+        "typed-confirmation"
+      ]
+    },
+    {
+      "name": "BlockerList",
+      "variants": [
+        "release",
+        "dataset",
+        "scan"
+      ]
+    },
+    {
+      "name": "ReviewDecisionPanel",
+      "variants": [
+        "unstarted",
+        "draft",
+        "submitted",
+        "locked"
+      ]
+    },
+    {
+      "name": "ScanProgress",
+      "variants": [
+        "queued",
+        "running",
+        "completed",
+        "failed",
+        "cancelled"
+      ]
+    },
+    {
+      "name": "EmptyState",
+      "variants": [
+        "first-use",
+        "filtered",
+        "permission-limited"
+      ]
+    }
+  ],
+  "figma_pages": [
+    {
+      "name": "00 \u2014 Foundations",
+      "order": 0
+    },
+    {
+      "name": "01 \u2014 Components",
+      "order": 1
+    },
+    {
+      "name": "02 \u2014 Dashboard",
+      "order": 2
+    },
+    {
+      "name": "03 \u2014 Authorization & Scan",
+      "order": 3
+    },
+    {
+      "name": "04 \u2014 Findings & Evidence",
+      "order": 4
+    },
+    {
+      "name": "05 \u2014 Review & Adjudication",
+      "order": 5
+    },
+    {
+      "name": "06 \u2014 Campaign & Release",
+      "order": 6
+    },
+    {
+      "name": "07 \u2014 Dataset & Models",
+      "order": 7
+    },
+    {
+      "name": "08 \u2014 Audit & Reports",
+      "order": 8
+    },
+    {
+      "name": "09 \u2014 Responsive States",
+      "order": 9
+    }
+  ],
+  "file_name": "VulnHunter \u2014 Governed Security Operations",
+  "frame_widths": [
+    390,
+    768,
+    1440,
+    1728
+  ],
+  "plugin_usage": {
+    "chatgpt_figma": "Create and refine editable designs from the approved blueprint.",
+    "codex_figma": "Compare implemented screens with approved design components after frontend work begins.",
+    "runtime_connectors_enabled": false
+  },
+  "required_prototype_flows": [
+    "create-authorization-and-run-bounded-scan",
+    "inspect-finding-and-submit-independent-review",
+    "resolve-review-disagreement",
+    "assess-and-publish-governed-release",
+    "inspect-dataset-readiness-blockers"
+  ],
+  "status": "blueprint-ready-not-implemented"
+}

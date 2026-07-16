@@ -84,6 +84,7 @@ _ALLOWED_TASK_TRANSITIONS: dict[TaskStatus, frozenset[TaskStatus]] = {
         {
             TaskStatus.PAUSED_APPROVAL,
             TaskStatus.RUNNING,
+            TaskStatus.BLOCKED,
             TaskStatus.CANCELLED,
             TaskStatus.TIMED_OUT,
         }

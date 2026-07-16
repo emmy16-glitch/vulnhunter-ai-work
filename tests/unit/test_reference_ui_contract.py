@@ -112,7 +112,9 @@ def test_reference_workspace_remains_interactive_and_truthful():
         "vh-attack-path",
     ):
         assert token in listing + detail
-    assert listing.count('role="tab"') >= 8
+    assert 'data-assessment-collection' in listing
+    assert 'data-launch-dialog' in listing
+    assert 'data-authorization-select' in listing
     assert detail.count('role="tab"') >= 8
     assert "querySelector(\":scope > [role='tablist']\")" in script
     for fake_value in (
@@ -151,9 +153,12 @@ def test_new_workflow_surfaces_are_read_only_and_data_backed():
     ):
         assert f"def {function_name}" in views
     assert "def new_scan_view" in operations
-    assert "Web launch not enabled" in _text(
+    new_scan = _text(
         ROOT / "vulnhunter" / "web" / "templates" / "web" / "new_scan.html"
     )
+    assert "Create launch request" in new_scan
+    assert "This form does not start a scanner or enable network execution." in new_scan
+    assert 'data-assessment-form' in new_scan
 
 
 @pytest.mark.django_db

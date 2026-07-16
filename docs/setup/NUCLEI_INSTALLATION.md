@@ -5,21 +5,21 @@ Install and activation remain separate human-controlled steps.
 
 ## Required repository state
 
-Update the repository to the reviewed merged baseline before running the
-Milestone 28 installer:
+Update your existing VulnHunter checkout to the reviewed merged baseline before
+performing a manual installation:
 
 ```bash
-cd /mnt/vulnhunter-data/Projects/vulnhunter-ai
+cd /path/to/your/vulnhunter-checkout
 git switch main
 git pull --ff-only origin main
 git status --short
+git rev-parse HEAD
 ```
 
-The final command must print nothing. The expected baseline commit is:
-
-```text
-5346758fb728a6f9e68f986879b99f3c975c0ec5
-```
+The `git status --short` command must print nothing. Record the commit printed by
+`git rev-parse HEAD` in the installation evidence so the installed engine and
+template set can be traced to the exact reviewed VulnHunter baseline. Do not use
+a hardcoded historical commit from an older milestone.
 
 ## No-sudo binary layout
 

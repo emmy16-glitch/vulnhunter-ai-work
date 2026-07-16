@@ -2,13 +2,20 @@
 
 from __future__ import annotations
 
-import hashlib
 import os
 from pathlib import Path
 
 from pydantic import ValidationError
 
 from vulnhunter.evidence.models import EvidenceRecord, FindingStatus
+from vulnhunter.security import redact_mapping
+from vulnhunter.security_tools.nuclei_activation import (
+    NucleiActivationError,
+    validate_evidence_directory,
+    verify_redacted_evidence,
+)
+
+_MAX_ARTIFACT_BYTES = 2_000_000
 
 
 class EvidenceStoreError(RuntimeError):
@@ -17,8 +24,15 @@ class EvidenceStoreError(RuntimeError):
 
 class EvidenceStore:
     def __init__(self, root: Path) -> None:
-        self.root = root.expanduser().resolve()
-        self.root.mkdir(parents=True, exist_ok=True)
+        lexical_root = root.expanduser().absolute()
+        lexical_root.mkdir(parents=True, exist_ok=True)
+        try:
+            self.root = validate_evidence_directory(
+                lexical_root,
+                approved_root=lexical_root,
+            )
+        except NucleiActivationError as exc:
+            raise EvidenceStoreError("evidence root is not a safe real directory") from exc
         self.ledger = self.root / "evidence.jsonl"
 
     def append(
@@ -42,15 +56,27 @@ class EvidenceStore:
         artifact_reference: str | None = None
         artifact_sha256: str | None = None
         if artifact_path is not None:
-            resolved = artifact_path.expanduser().resolve()
+            if artifact_path.is_symlink():
+                raise EvidenceStoreError("artifact must not be a symbolic link")
+            resolved = artifact_path.expanduser().resolve(strict=True)
             try:
                 resolved.relative_to(self.root)
             except ValueError as exc:
                 raise EvidenceStoreError("artifact must live inside the evidence root") from exc
             if not resolved.is_file():
                 raise EvidenceStoreError("artifact file does not exist")
+            try:
+                validate_evidence_directory(resolved.parent, approved_root=self.root)
+                artifact_sha256 = verify_redacted_evidence(
+                    resolved,
+                    maximum_bytes=_MAX_ARTIFACT_BYTES,
+                )
+            except NucleiActivationError as exc:
+                raise EvidenceStoreError("artifact failed path or redaction validation") from exc
             artifact_reference = str(resolved.relative_to(self.root))
-            artifact_sha256 = hashlib.sha256(resolved.read_bytes()).hexdigest()
+        safe_metadata = metadata or {}
+        if redact_mapping(safe_metadata) != safe_metadata:
+            raise EvidenceStoreError("evidence metadata contains sensitive content")
 
         draft = {
             "evidence_id": evidence_id,
@@ -65,7 +91,7 @@ class EvidenceStore:
             "confidence": confidence,
             "artifact_path": artifact_reference,
             "artifact_sha256": artifact_sha256,
-            "metadata": metadata or {},
+            "metadata": safe_metadata,
             "recorded_by": recorded_by,
             "previous_record_sha256": previous,
             "record_sha256": "0" * 64,
@@ -99,16 +125,30 @@ class EvidenceStore:
             if record.expected_sha256() != record.record_sha256:
                 raise EvidenceStoreError("evidence record digest does not match")
             if record.artifact_path:
-                path = (self.root / record.artifact_path).resolve()
+                lexical_path = self.root / record.artifact_path
+                if lexical_path.is_symlink():
+                    raise EvidenceStoreError("artifact path contains a symbolic link")
+                path = lexical_path.resolve(strict=True)
                 try:
                     path.relative_to(self.root)
                 except ValueError as exc:
                     raise EvidenceStoreError("artifact path escapes evidence root") from exc
                 if not path.is_file():
                     raise EvidenceStoreError("referenced artifact is missing")
-                actual = hashlib.sha256(path.read_bytes()).hexdigest()
+                try:
+                    validate_evidence_directory(path.parent, approved_root=self.root)
+                    actual = verify_redacted_evidence(
+                        path,
+                        maximum_bytes=_MAX_ARTIFACT_BYTES,
+                    )
+                except NucleiActivationError as exc:
+                    raise EvidenceStoreError(
+                        "referenced artifact failed path or redaction validation"
+                    ) from exc
                 if actual != record.artifact_sha256:
                     raise EvidenceStoreError("artifact digest does not match")
+            if redact_mapping(record.metadata) != record.metadata:
+                raise EvidenceStoreError("evidence metadata contains sensitive content")
             previous = record.record_sha256
             records.append(record)
         return tuple(records)

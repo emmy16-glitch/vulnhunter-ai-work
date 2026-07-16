@@ -7,7 +7,7 @@ from pathlib import Path
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.http import Http404, HttpRequest, HttpResponse
+from django.http import Http404, HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.cache import cache_control
@@ -19,13 +19,16 @@ from vulnhunter.approvals.store import (
     ApprovalNotFoundError,
     ApprovalStoreError,
 )
-from vulnhunter.authorization.store import AuthorizationStore
 from vulnhunter.mobile import (
     MobileAnalysisProfile,
     MobileArtifactError,
     MobileArtifactIngestor,
 )
 from vulnhunter.security_tools.catalog import default_catalog
+from vulnhunter.web.assessment_workflow import (
+    AssessmentWorkflowError,
+    AssessmentWorkflowService,
+)
 from vulnhunter.web.forms import MobileApkUploadForm
 from vulnhunter.web.services import (
     WebPermissionDenied,
@@ -143,14 +146,25 @@ def approval_decision_view(request: HttpRequest, request_id: str) -> HttpRespons
         return _approval_redirect(request, request_id)
 
     try:
-        _approval_store().decide(
+        store = _approval_store()
+        pending = store.get(request_id)
+        workflow = AssessmentWorkflowService.from_settings()
+        workflow.validate_approval_binding(
+            request=pending,
+            submitted_plan_digest=request.POST.get("plan_digest", "").strip(),
+        )
+        decided = store.decide(
             request_id=request_id,
             actor_id=actor.governance_identity.reviewer_id,
             decision=decision,
             reason=reason,
             conditions=conditions,
         )
-    except ApprovalStoreError as exc:
+        workflow.record_approval_decision(
+            request=decided,
+            actor_id=actor.governance_identity.reviewer_id,
+        )
+    except (ApprovalStoreError, AssessmentWorkflowError) as exc:
         messages.error(request, str(exc))
     else:
         messages.success(request, f"Decision recorded: {decision.value}.")
@@ -229,10 +243,10 @@ def _assessment_profiles() -> tuple[dict[str, str], ...]:
 
 @cache_control(private=True, no_store=True)
 @login_required
-@require_GET
+@require_http_methods(["GET", "POST"])
 def new_scan_view(request: HttpRequest) -> HttpResponse:
     try:
-        authorized_actor(request.user, required_actions=("scan.create",))
+        actor = authorized_actor(request.user, required_actions=("scan.create",))
     except WebPermissionDenied as exc:
         return _render(
             request,
@@ -241,16 +255,36 @@ def new_scan_view(request: HttpRequest) -> HttpResponse:
             status=403,
         )
 
+    workflow = AssessmentWorkflowService.from_settings()
     error_message = None
     try:
-        authorization_store = AuthorizationStore.from_path(
-            Path(settings.VULNHUNTER_AUTHORIZATION_DATABASE)
+        authorizations = workflow.list_authorizations(
+            identity_id=actor.governance_identity.reviewer_id,
+            username=request.user.get_username(),
         )
-        authorization_store.initialize()
-        authorizations = authorization_store.list(limit=100)
     except (OSError, RuntimeError, ValueError) as exc:
         authorizations = ()
         error_message = str(exc)
+    if request.method == "POST":
+        try:
+            port = int(request.POST.get("port", ""))
+            result = workflow.create_assessment(
+                authorization_id=request.POST.get("authorization_id", "").strip(),
+                target=request.POST.get("target", "").strip(),
+                protocol=request.POST.get("protocol", "").strip(),
+                port=port,
+                profile=request.POST.get("profile", "").strip(),
+                identity_id=actor.governance_identity.reviewer_id,
+                username=request.user.get_username(),
+            )
+        except (AssessmentWorkflowError, OSError, RuntimeError, ValueError) as exc:
+            error_message = str(exc)
+        else:
+            messages.success(
+                request,
+                "The governed assessment was created. Nuclei execution remains disabled.",
+            )
+            return redirect("web-agent-run-detail", run_id=result.task.task_id)
     return _render(
         request,
         "web/new_scan.html",
@@ -261,6 +295,42 @@ def new_scan_view(request: HttpRequest) -> HttpResponse:
             "error_message": error_message,
         },
     )
+
+
+@cache_control(private=True, no_store=True)
+@login_required
+@require_GET
+def active_authorizations_view(request: HttpRequest) -> JsonResponse:
+    """Return only the current actor's active, activation-bound records."""
+
+    try:
+        actor = authorized_actor(request.user, required_actions=("scan.create",))
+        choices = AssessmentWorkflowService.from_settings().list_authorizations(
+            identity_id=actor.governance_identity.reviewer_id,
+            username=request.user.get_username(),
+        )
+    except WebPermissionDenied:
+        return JsonResponse({"detail": "forbidden"}, status=403)
+    except (OSError, RuntimeError, ValueError):
+        return JsonResponse({"detail": "authorization service unavailable"}, status=503)
+    response = JsonResponse(
+        {
+            "authorizations": [
+                {
+                    "authorization_id": item.authorization_id,
+                    "display_label": item.display_label,
+                    "expires_at": item.expires_at.isoformat(),
+                    "approved_targets": item.approved_targets,
+                    "approved_protocols": item.approved_protocols,
+                    "approved_ports": item.approved_ports,
+                    "approved_profiles": item.approved_profiles,
+                }
+                for item in choices
+            ]
+        }
+    )
+    response["Cache-Control"] = "private, no-store, max-age=0"
+    return response
 
 
 @cache_control(private=True, no_store=True)

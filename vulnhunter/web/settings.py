@@ -268,6 +268,22 @@ VULNHUNTER_SECURITY_EVIDENCE_ROOT = os.environ.get(
     "VULNHUNTER_SECURITY_EVIDENCE_ROOT",
     str(BASE_DIR / ".local" / "security-evidence"),
 )
+VULNHUNTER_NUCLEI_PROFILE_CONFIG = os.environ.get(
+    "VULNHUNTER_NUCLEI_PROFILE_CONFIG",
+    str(BASE_DIR / "config" / "security_tools" / "nuclei_profiles.json"),
+)
+VULNHUNTER_NUCLEI_TEMPLATE_MANIFEST = os.environ.get(
+    "VULNHUNTER_NUCLEI_TEMPLATE_MANIFEST",
+    str(BASE_DIR / "config" / "security_tools" / "nuclei_template_manifest.json"),
+)
+VULNHUNTER_NUCLEI_TEMPLATE_ROOT = os.environ.get(
+    "VULNHUNTER_NUCLEI_TEMPLATE_ROOT",
+    str(BASE_DIR / ".local" / "nuclei-templates"),
+)
+VULNHUNTER_NUCLEI_READINESS_REPORT = os.environ.get(
+    "VULNHUNTER_NUCLEI_READINESS_REPORT",
+    str(BASE_DIR / ".local" / "nuclei-readiness" / "readiness.json"),
+)
 VULNHUNTER_TASK_GRAPH_ROOT = os.environ.get(
     "VULNHUNTER_TASK_GRAPH_ROOT",
     str(BASE_DIR / ".local" / "task-graphs"),

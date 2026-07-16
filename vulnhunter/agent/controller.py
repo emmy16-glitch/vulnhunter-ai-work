@@ -683,7 +683,24 @@ class AgentController:
         task = self.runtime.store.get_task(task_id)
         if task.terminal:
             return task
-        cancelled_task = self._save(task, status=TaskStatus.CANCELLED, paused_reason=reason)
+        memory = task.memory
+        workflow = memory.get("assessment_workflow")
+        if isinstance(workflow, dict):
+            memory = {
+                **memory,
+                "assessment_workflow": {
+                    **workflow,
+                    "workflow_state": "cancelled",
+                    "blocking_reason": reason,
+                    "execution_enabled": False,
+                },
+            }
+        cancelled_task = self._save(
+            task,
+            status=TaskStatus.CANCELLED,
+            paused_reason=reason,
+            memory=memory,
+        )
         cancelled = self.runtime.store.append_event(task_id, "task.cancelled", {"reason": reason})
         self._record_activity(
             run_id=task_id,
@@ -823,10 +840,23 @@ class AgentController:
             error_message="The immutable task runtime deadline expired.",
             metadata={"phase": phase},
         )
+        memory = task.memory
+        workflow = memory.get("assessment_workflow")
+        if isinstance(workflow, dict):
+            memory = {
+                **memory,
+                "assessment_workflow": {
+                    **workflow,
+                    "workflow_state": "timed_out",
+                    "blocking_reason": "Immutable task runtime deadline expired.",
+                    "execution_enabled": False,
+                },
+            }
         return self._save(
             task,
             status=TaskStatus.TIMED_OUT,
             paused_reason="Immutable task runtime deadline expired.",
+            memory=memory,
         )
 
     @staticmethod

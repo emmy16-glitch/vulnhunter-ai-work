@@ -18,6 +18,7 @@ AuthorizationEventType = Literal[
     "scan_completed",
     "scan_failed",
     "revoked",
+    "nuclei_activation_bound",
 ]
 
 

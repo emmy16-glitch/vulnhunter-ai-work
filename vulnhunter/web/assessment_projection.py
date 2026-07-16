@@ -50,8 +50,7 @@ def _stage(
         "state": state,
         "marker": "✓" if state == "complete" else "Ⅱ" if state == "warning" else f"{number:02d}",
         "facts": tuple(
-            {"label": label, "value": _text(value, "Waiting")}
-            for label, value in facts
+            {"label": label, "value": _text(value, "Waiting")} for label, value in facts
         ),
     }
 

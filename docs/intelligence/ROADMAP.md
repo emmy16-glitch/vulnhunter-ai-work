@@ -19,6 +19,29 @@
 - assignment-based review, conflict checks, and identity-bound attestations;
 - fail-closed campaign completion and immutable dataset-release manifests.
 
+## Completed foundation — Controlled scanner harness and protocol
+
+- scanner-manager and future worker responsibilities are separated;
+- scanner protocol `1.0` defines shared Nuclei, OpenVAS, and mobile contracts;
+- Nuclei has a controlled lifecycle, bounded evidence, cancellation, timeout,
+  recovery, and disabled production runner;
+- version/feed/checksum compatibility is centrally tracked;
+- a disabled networkless container worker boundary exists;
+- no real scanner execution is enabled.
+
+## Next scanner milestones
+
+1. Authenticate manager-to-worker transport without exposing secrets or raw
+   commands.
+2. Sign and attest worker images and compatibility manifests.
+3. Populate and review the Nuclei template trust registry.
+4. Implement a real unprivileged Nuclei launcher for an authorised disposable
+   local lab only.
+5. Add acceptance tests for DNS, redirects, cancellation, timeout, redaction,
+   process-group cleanup, and recovery.
+6. Implement OpenVAS and mobile adapters against the same protocol only after
+   their versions, feeds, isolation, and approval policies are selected.
+
 ## Now — Real dataset acquisition and external validation
 
 1. Select several intentionally diverse local applications that are owned or explicitly authorised for the research lab.

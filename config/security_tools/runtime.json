@@ -37,6 +37,18 @@
     "maximum_rate_limit": 10,
     "maximum_concurrency": 2,
     "maximum_bulk_size": 2,
-    "isolated_intrusive_runtime_required": true
+    "isolated_intrusive_runtime_required": true,
+    "execution_harness_prepared": true,
+    "real_runner_enabled": false
+  },
+  "scanner_worker": {
+    "protocol_version": "1.0",
+    "execution_harness_prepared": true,
+    "execution_enabled": false,
+    "transport_enabled": false,
+    "deployment_mode": "isolated_container",
+    "maximum_concurrency": 2,
+    "compatibility_manifest": "config/security_tools/scanner_compatibility.json",
+    "network_listener_enabled": false
   }
 }

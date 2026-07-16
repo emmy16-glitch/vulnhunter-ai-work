@@ -31,7 +31,16 @@ VulnHunter currently includes:
   read models for dashboard, campaigns, readiness, role/skill registry, and
   bounded agent runtime inspection;
 - a local product CLI surface backed by the real stores and services:
-  `python -m vulnhunter.product`.
+  `python -m vulnhunter.product`;
+- an authenticated Django operational surface connected to governed assessment,
+  approval, activity, evidence, and candidate-finding state;
+- a versioned scanner-manager protocol shared by a controlled Nuclei harness and
+  planned OpenVAS/mobile adapters;
+- a file-backed Nuclei execution lifecycle with hash-linked audit transitions,
+  bounded redacted capture, fail-closed recovery, and production execution
+  blocked;
+- a central scanner compatibility manifest and a disabled isolated-container
+  worker boundary.
 
 ## Current interpretation
 
@@ -39,10 +48,10 @@ The platform is a secure research pipeline and decision-support prototype. It is
 
 The governed collection and authenticated-review control plane is implemented. That implementation proves workflow enforcement; it does not mean a diverse real dataset has already been collected.
 
-The product blueprint now has an executable application/read-model layer, but
-the browser shell remains intentionally unimplemented because the repository
-does not yet contain an approved web framework, browser session mechanism, or
-CSRF protection layer.
+The product blueprint now includes an authenticated Django browser surface with
+session, CSRF, route authorization, approval, and operational read models. The
+scanner worker remains separate and disabled: no real Nuclei, OpenVAS, or mobile
+scanner process is connected.
 
 ## Current model status
 

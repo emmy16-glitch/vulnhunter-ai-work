@@ -14,6 +14,9 @@ The current repository now includes:
 - Bounded agent runtime and activity timeline foundations
 - Controlled pilot-plan validation
 - A local authenticated Django operational web surface
+- A controlled scanner-manager protocol and disabled Nuclei execution harness
+- Central scanner version/feed compatibility tracking
+- A disabled, networkless isolated scanner-worker container boundary
 
 It does not exploit vulnerabilities, perform public scanning, or train a model
 automatically.
@@ -100,3 +103,19 @@ Production hosting is deliberately external to this repository. Use
 `.env.example` to configure exact hosts/origins, HTTPS/proxy trust, persistent
 state, readiness checks, backups, and rollback without enabling scanners or
 other deferred integrations.
+
+## Milestone 31 controlled scanner harness
+
+Milestone 31 separates scanner management from the future isolated worker, adds
+a shared scanner protocol for Nuclei, planned OpenVAS, and planned mobile
+analysis, and implements a persistent Nuclei lifecycle with bounded redacted
+evidence. Production execution remains blocked and no scanner process or target
+connection is created.
+
+See:
+
+- `docs/intelligence/MILESTONE_31_CONTROLLED_NUCLEI_EXECUTION_HARNESS.md`
+- `docs/product/SCANNER_ARCHITECTURE.md`
+- `docs/product/SCANNER_COMPATIBILITY.md`
+- `config/security_tools/scanner_compatibility.json`
+- `deploy/scanner-worker/`

@@ -1,7 +1,9 @@
 # Manual Nuclei Installation and Activation
 
-This milestone does not install Nuclei, update templates, or enable scanning.
-Install and activation remain separate human-controlled steps.
+The repository now contains a controlled execution harness, but it still does
+not install Nuclei, update templates, or enable scanning. Install and activation
+remain separate human-controlled steps. The production runner is deliberately
+disabled.
 
 ## Required repository state
 
@@ -83,3 +85,10 @@ to run Nuclei. The empty template manifest, disabled runtime flags, missing
 isolated runner, and remaining blockers in
 `docs/intelligence/MILESTONE_29_NUCLEI_ACTIVATION_CONTROLS.md` must all be
 resolved through separately reviewed changes before any local-lab execution.
+
+## Milestone 31 worker boundary
+
+The disabled container files under `deploy/scanner-worker/` demonstrate process
+separation only. They contain no Nuclei binary, use no network, start no
+listener, and exit with `blocked_execution_disabled`. Do not treat the container
+skeleton as an installation or activation method.

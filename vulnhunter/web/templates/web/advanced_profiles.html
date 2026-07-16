@@ -1,18 +1,28 @@
 {% extends "web/base.html" %}
+{% load static %}
 {% block content %}
-<section class="vh-panel">
-  <p class="vh-eyebrow">Deep multi-stage assessment</p>
-  <h3>Advanced assessment profiles</h3>
-  <p class="vh-warning">Profiles create governed plans. They do not bypass authorization, approval, scope, evidence, or stop controls.</p>
-  <div class="vh-grid">
+<link rel="stylesheet" href="{% static 'web/product.css' %}?v=20260716-product1">
+<section class="vh-product-page">
+  <header class="vh-product-heading">
+    <div><p class="vh-eyebrow">Deep multi-stage assessment</p><h1>Advanced assessment profiles</h1><p>Choose a governed planning profile while preserving authorization, scope, policy, approval, evidence and stop controls.</p></div>
+    <div class="vh-product-heading-actions"><a class="vh-button-secondary" href="{% url 'web-security-tool-registry' %}">Tool registry</a><a class="vh-button-primary" href="{% url 'web-new-scan' %}">Create assessment</a></div>
+  </header>
+
+  <section class="vh-product-summary" aria-label="Assessment profile boundary">
+    <div><small>Profile function</small><strong>Governed planning intent</strong><span>A selected profile describes the workflow but never overrides runtime policy.</span></div>
+    <div><small>Execution</small><strong>Not started here</strong><span>Creating a request does not activate scanners or network access.</span></div>
+    <div><small>Available profiles</small><strong>{{ profiles|length }}</strong><span>Fixed choices exposed by the backend registry.</span></div>
+  </section>
+
+  <section class="vh-profile-card-grid" aria-label="Advanced assessment profiles">
     {% for profile in profiles %}
-      <article class="vh-card">
-        <p class="vh-eyebrow">{{ profile.id }}</p>
-        <h3>{{ profile.name }}</h3>
+      <article class="vh-profile-card">
+        <div class="vh-profile-card-number"><span aria-hidden="true"><svg><use href="#vh-i-assessment"></use></svg></span><code>{{ profile.id }}</code></div>
+        <h2>{{ profile.name }}</h2>
         <p>{{ profile.description }}</p>
-        <p><strong>Gate:</strong> {{ profile.gate }}</p>
+        <div class="vh-profile-gate"><svg aria-hidden="true"><use href="#vh-i-authorization"></use></svg><span><strong>Required gate:</strong> {{ profile.gate }}</span></div>
       </article>
     {% endfor %}
-  </div>
+  </section>
 </section>
 {% endblock %}

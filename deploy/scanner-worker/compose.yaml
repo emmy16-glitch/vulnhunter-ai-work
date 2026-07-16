@@ -1,0 +1,19 @@
+services:
+  scanner-worker-disabled:
+    profiles: ["disabled-scanner-worker"]
+    build:
+      context: ../..
+      dockerfile: deploy/scanner-worker/Containerfile
+    network_mode: none
+    read_only: true
+    cap_drop: ["ALL"]
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 64
+    mem_limit: 256m
+    cpus: 0.50
+    tmpfs:
+      - /tmp:size=16m,noexec,nosuid,nodev
+    environment:
+      VULNHUNTER_SCANNER_EXECUTION_ENABLED: "false"
+    restart: "no"

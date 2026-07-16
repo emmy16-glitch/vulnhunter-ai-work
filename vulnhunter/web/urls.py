@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from django.urls import path
 
-from vulnhunter.web import operations_views, views
+from vulnhunter.web import operations_views, stream_views, views
 
 urlpatterns = [
     path("health/", views.health_view, name="web-health"),
@@ -51,6 +51,11 @@ urlpatterns = [
         "agent/runs/<str:run_id>/activity/",
         views.agent_activity_view,
         name="web-agent-run-activity",
+    ),
+    path(
+        "agent/runs/<str:run_id>/activity/stream/",
+        stream_views.agent_activity_stream_view,
+        name="web-agent-run-activity-stream",
     ),
     path("agent/runs/<str:run_id>/stop/", views.stop_run_view, name="web-agent-run-stop"),
     path("approvals/", operations_views.approval_list_view, name="web-approval-list"),

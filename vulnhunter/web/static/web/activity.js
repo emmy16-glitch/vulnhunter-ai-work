@@ -49,7 +49,11 @@
     content.className = "vh-activity-content";
     const time = createTextElement("time", "", event.timestamp);
     time.dateTime = String(event.timestamp);
-    const title = createTextElement("div", "vh-activity-title", String(event.event_type).replaceAll("_", " "));
+    const title = createTextElement(
+      "div",
+      "vh-activity-title",
+      String(event.event_type).replaceAll("_", " ")
+    );
     const summary = createTextElement("p", "", event.summary);
     const meta = document.createElement("div");
     meta.className = "vh-activity-meta";
@@ -68,6 +72,64 @@
     return item;
   }
 
+  function formatDuration(rawSeconds) {
+    const elapsedSeconds = Math.max(0, Number(rawSeconds) || 0);
+    const hours = String(Math.floor(elapsedSeconds / 3600)).padStart(2, "0");
+    const minutes = String(Math.floor((elapsedSeconds % 3600) / 60)).padStart(2, "0");
+    const seconds = String(Math.floor(elapsedSeconds % 60)).padStart(2, "0");
+    return `${hours}:${minutes}:${seconds}`;
+  }
+
+  function progressFor(payload) {
+    if (payload.run_state === "completed") return 100;
+    if (payload.execution_state === "tool_executed") return 78;
+    if (payload.approval_state === "pending") return 52;
+    return 35;
+  }
+
+  function updateAssessmentChrome(payload) {
+    document.querySelectorAll("[data-run-clock]").forEach((clock) => {
+      clock.textContent = formatDuration(payload.elapsed_seconds);
+    });
+
+    const runState = document.querySelector(".vh-context-run .vh-live-text > span");
+    if (runState && payload.run_state) {
+      runState.textContent = String(payload.run_state).replaceAll("_", " ");
+    }
+
+    const progress = progressFor(payload);
+    const progressValue = document.querySelector(".vh-inspector-heading .vh-tabular");
+    const progressBar = document.querySelector(".vh-progress");
+    const progressFill = progressBar?.querySelector("i");
+    if (progressValue) progressValue.textContent = `${progress}%`;
+    if (progressBar) progressBar.setAttribute("aria-valuenow", String(progress));
+    if (progressFill) progressFill.style.width = `${progress}%`;
+
+    const approvalValue = document.querySelector(".vh-inspector-grid section:first-child strong");
+    if (approvalValue && payload.approval_state) {
+      approvalValue.textContent = String(payload.approval_state).replaceAll("_", " ");
+      approvalValue.classList.toggle("vh-text-warning", payload.approval_state === "pending");
+      approvalValue.classList.toggle("vh-text-safe", payload.approval_state !== "pending");
+    }
+
+    const toolStageState = document.querySelector(".vh-stage-tool .vh-stage-state");
+    if (toolStageState && payload.execution_state) {
+      toolStageState.textContent = String(payload.execution_state).replaceAll("_", " ");
+    }
+
+    const oracleState = document.querySelector(".vh-oracle-state strong");
+    if (oracleState) {
+      oracleState.textContent = payload.evaluation_result || "Awaiting evidence";
+    }
+  }
+
+  function streamEndpoint(endpoint, afterSequence) {
+    const normalized = `${endpoint.replace(/\/?$/, "/")}stream/`;
+    const url = new URL(normalized, window.location.href);
+    url.searchParams.set("after_sequence", String(afterSequence));
+    return url;
+  }
+
   function initialize(root) {
     const endpoint = root.dataset.endpoint;
     const eventList = root.querySelector(".vh-activity-events");
@@ -79,7 +141,7 @@
     let afterSequence = Number(root.dataset.afterSequence || 0);
     let autoScroll = true;
     let stopped = root.dataset.terminal === "true";
-    let timer = null;
+    let source = null;
     const seen = new Set(
       [...eventList.querySelectorAll("[data-event-id]")].map((node) => node.dataset.eventId)
     );
@@ -113,37 +175,38 @@
       }
     }
 
-    async function poll() {
-      if (stopped || !endpoint) {
+    function connect() {
+      if (stopped || !endpoint) return;
+      if (!("EventSource" in window)) {
+        setConnection("Live activity requires browser support for server-sent events.");
         return;
       }
-      setConnection("Loading activity…");
-      try {
-        const url = new URL(endpoint, window.location.href);
-        url.searchParams.set("after_sequence", String(afterSequence));
-        const response = await fetch(url, {
-          credentials: "same-origin",
-          headers: { Accept: "application/json" },
-        });
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
+
+      setConnection("Connecting to live activity…");
+      source = new EventSource(streamEndpoint(endpoint, afterSequence), { withCredentials: true });
+      source.addEventListener("activity", (message) => {
+        try {
+          const payload = JSON.parse(message.data);
+          appendEvents(Array.isArray(payload.events) ? payload.events : []);
+          afterSequence = Math.max(afterSequence, Number(payload.last_sequence || 0));
+          stateLabel.textContent = payload.run_state || "No activity";
+          updateAssessmentChrome(payload);
+          stopped = Boolean(payload.terminal) || terminalStates.has(payload.run_state);
+          if (stopped) {
+            source?.close();
+            setConnection(`Run ${String(payload.run_state || "stopped")} and live updates ended.`);
+          } else {
+            setConnection("");
+          }
+        } catch (error) {
+          setConnection("A live activity update could not be read safely.");
         }
-        const payload = await response.json();
-        appendEvents(Array.isArray(payload.events) ? payload.events : []);
-        stateLabel.textContent = payload.run_state || "No activity";
-        stopped = Boolean(payload.terminal) || terminalStates.has(payload.run_state);
-        if (stopped) {
-          setConnection(`Run ${String(payload.run_state || "stopped")} and polling stopped.`);
-        } else {
-          setConnection("");
-        }
-      } catch (error) {
-        setConnection("Disconnected temporarily. Retrying safely.");
-      } finally {
+      });
+      source.onerror = () => {
         if (!stopped) {
-          timer = window.setTimeout(poll, Number(root.dataset.pollIntervalMs || 1500));
+          setConnection("Live activity reconnecting…");
         }
-      }
+      };
     }
 
     autoScrollButton?.addEventListener("click", () => {
@@ -155,12 +218,8 @@
       }
     });
     newEventsButton?.addEventListener("click", revealLatest);
-    window.addEventListener("pagehide", () => {
-      if (timer !== null) {
-        window.clearTimeout(timer);
-      }
-    });
-    poll();
+    window.addEventListener("pagehide", () => source?.close());
+    connect();
   }
 
   document.querySelectorAll(".vh-activity-timeline").forEach((root) => initialize(root));

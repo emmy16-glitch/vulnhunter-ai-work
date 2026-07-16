@@ -88,27 +88,6 @@
     }
   });
 
-
-
-  document.querySelectorAll("[data-run-clock]").forEach((clock) => {
-    const startedAt = Date.parse(clock.getAttribute("datetime") || "");
-    if (Number.isNaN(startedAt)) {
-      clock.textContent = "--:--:--";
-      return;
-    }
-
-    function updateClock() {
-      const elapsedSeconds = Math.max(0, Math.floor((Date.now() - startedAt) / 1000));
-      const hours = String(Math.floor(elapsedSeconds / 3600)).padStart(2, "0");
-      const minutes = String(Math.floor((elapsedSeconds % 3600) / 60)).padStart(2, "0");
-      const seconds = String(elapsedSeconds % 60).padStart(2, "0");
-      clock.textContent = `${hours}:${minutes}:${seconds}`;
-    }
-
-    updateClock();
-    window.setInterval(updateClock, 1000);
-  });
-
   document.querySelectorAll("[data-ui-tabs]").forEach((root) => {
     const tabList = root.querySelector(":scope > [role='tablist']");
     const tabs = tabList ? [...tabList.querySelectorAll(":scope > [role='tab']")] : [];
@@ -181,5 +160,4 @@
   if (approvalDialog?.dataset.autoOpen === "true") {
     window.requestAnimationFrame(openApprovalDialog);
   }
-
 })();

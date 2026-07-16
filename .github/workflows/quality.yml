@@ -7,80 +7,10 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  repair-tests:
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out repair branch
-        uses: actions/checkout@v7
-        with:
-          ref: ${{ github.head_ref }}
-
-      - name: Update stale UI contract assertions
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-
-          path = Path("tests/unit/test_reference_ui_contract.py")
-          lines = path.read_text(encoding="utf-8").splitlines()
-
-          tab_line = "    assert listing.count('role=\"tab\"') >= 8"
-          try:
-              tab_index = lines.index(tab_line)
-          except ValueError as exc:
-              raise SystemExit(f"Expected stale tab assertion not found: {tab_line}") from exc
-          lines[tab_index : tab_index + 1] = [
-              "    assert 'data-assessment-collection' in listing",
-              "    assert 'data-launch-dialog' in listing",
-              "    assert 'data-authorization-select' in listing",
-          ]
-
-          launch_line = '    assert "Web launch not enabled" in _text('
-          try:
-              launch_index = lines.index(launch_line)
-          except ValueError as exc:
-              raise SystemExit(f"Expected stale launch assertion not found: {launch_line}") from exc
-          expected_tail = [
-              '        ROOT / "vulnhunter" / "web" / "templates" / "web" / "new_scan.html"',
-              "    )",
-          ]
-          if lines[launch_index + 1 : launch_index + 3] != expected_tail:
-              raise SystemExit("The stale launch assertion changed unexpectedly.")
-          lines[launch_index : launch_index + 3] = [
-              "    new_scan = _text(",
-              '        ROOT / "vulnhunter" / "web" / "templates" / "web" / "new_scan.html"',
-              "    )",
-              '    assert "Create launch request" in new_scan',
-              '    assert "This form does not start a scanner or enable network execution." in new_scan',
-              "    assert 'data-assessment-form' in new_scan",
-          ]
-
-          path.write_text("\n".join(lines) + "\n", encoding="utf-8")
-          PY
-
-      - name: Verify updated contract test syntax and lint
-        run: |
-          python -m pip install ruff
-          python -m compileall -q tests/unit/test_reference_ui_contract.py
-          python -m ruff check tests/unit/test_reference_ui_contract.py
-
-      - name: Commit updated contract tests
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add tests/unit/test_reference_ui_contract.py
-          if git diff --cached --quiet; then
-            echo "No test repair changes required."
-          else
-            git commit -m "Update assessment UI contract tests"
-            git push origin "HEAD:${{ github.head_ref }}"
-          fi
-
   verify:
-    needs: repair-tests
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false

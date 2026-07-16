@@ -39,6 +39,9 @@ jobs:
       - name: Compile
         run: python -m compileall -q vulnhunter scripts
 
+      - name: Validate scanner compatibility
+        run: python scripts/validate_scanner_compatibility.py
+
       - name: Test
         shell: bash
         run: |

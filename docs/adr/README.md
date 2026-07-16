@@ -27,3 +27,4 @@ When superseding an ADR, create a new record and link both directions. Do not re
 - [0018 — Governed security-tool orchestration before activation](0018-governed-security-tool-orchestration.md)
 - [0019 — Governed Android APK analysis before execution](0019-governed-android-apk-analysis.md)
 - [0020: Machine Oracle and Integrated Intelligence Foundations](0020-machine-oracle-and-integrated-intelligence-foundations.md)
+- [0021: Scanner manager and worker separation](0021-scanner-manager-worker-separation.md)

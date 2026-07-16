@@ -83,6 +83,30 @@ product application layer
   +--> explicit unavailable states for unsupported browser capabilities
 ```
 
+## Governed scanner manager/worker boundary
+
+```text
+Django assessment manager
+  -> exact authorization and target pins
+  -> immutable command plan
+  -> exact human approval
+  -> scanner protocol 1.0
+       +-> Nuclei controlled harness (production blocked)
+       +-> OpenVAS planned adapter
+       +-> mobile-analysis planned adapter
+  -> future isolated worker
+  -> bounded redacted candidate evidence
+```
+
+The manager owns policy and the future worker owns scanner processes. The worker
+cannot expand scope, approve a job, construct arbitrary commands, persist raw
+secrets, or confirm a finding. The current worker skeleton starts no listener or
+scanner and has no network.
+
+Compatibility is centrally pinned in
+`config/security_tools/scanner_compatibility.json`. Adapter presence indicates a
+known contract, not activation permission.
+
 ## Architectural principles
 
 - Validate technical scope before use.
@@ -97,6 +121,10 @@ product application layer
 - Store enough provenance to reproduce every model artifact.
 - Prefer explicit failure to silent fallback.
 - Keep the product presentation boundary above domain and store services.
+- Keep scanner processes outside the Django web process.
+- Require every scanner adapter to use the versioned manager/worker protocol.
+- Track engine, feed, manifest checksum, adapter, and protocol compatibility
+  centrally without `latest` fallbacks.
 - Do not add a browser server without an approved framework plus session and
   CSRF protections.
 

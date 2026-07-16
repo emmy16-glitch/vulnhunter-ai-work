@@ -60,8 +60,31 @@ because a template matched.
 - approved evidence-root validation and secret-leakage verification;
 - cancellation, monotonic timeout and process-group termination interfaces.
 
-These controls end in `APPROVED_EXECUTION_DISABLED`. They are not connected to
-the external-tool executor and cannot launch Nuclei.
+These controls end in `APPROVED_EXECUTION_DISABLED`. Milestone 31 now connects
+them to a controlled execution harness and formal scanner-adapter boundary, but
+the production runner still returns `blocked_execution_disabled` and cannot
+launch Nuclei.
+
+## Milestone 31 controlled harness
+
+- immutable execution request bound to the exact authorization, approval, plan
+  digest, target pins, profile, template hashes, evidence directory, limits,
+  cancellation ID, and compatibility-manifest digest;
+- explicit prepared, validated, blocked, test-only running, cancelled, timed
+  out, failed, and completed lifecycle states;
+- append-only hash-linked transition events and fail-closed restart recovery;
+- bounded, redacted, independently limited stdout and stderr capture;
+- content-addressed execution summaries inside the approved evidence root;
+- a production `DisabledNucleiRunner` that creates no process or network
+  operation;
+- a deterministic fake runner used only by unit tests;
+- scanner protocol `1.0` shared with planned OpenVAS and mobile-analysis
+  adapters;
+- central version, feed, checksum, and compatibility tracking;
+- a disabled networkless container worker boundary separate from Django.
+
+The harness does not add a reachable real scanner launcher. No real scan has
+occurred.
 
 ## Operational pins
 
@@ -84,9 +107,13 @@ script reports a mismatch but never installs or updates anything.
 7. Authenticated scan secret injection without secrets appearing in argv,
    persisted plans, logs, or model-visible state.
 8. Request/response artifact-level redaction verification before export.
-9. Nuclei version and template-version checks at execution time, not only
-   readiness time.
-10. Web UI, queue, cancellation, progress, and finding-verification workflows.
-11. Upgrade regression testing before changing either engine or template pin.
-12. A local lab acceptance suite proving no scope escape, upload, public OAST,
+9. An authenticated manager-to-worker transport and durable multi-worker queue.
+10. A reviewed real Nuclei launcher inside the isolated worker; the production
+    runner remains disabled.
+11. Web UI cancellation and progress only after the worker transport is
+    independently reviewed.
+12. Upgrade regression testing before changing either engine or template pin.
+13. A local lab acceptance suite proving no scope escape, upload, public OAST,
     unsafe template execution, or secret persistence.
+14. OpenVAS and mobile-analysis adapters implemented against scanner protocol
+    `1.0` without duplicating authorization policy.

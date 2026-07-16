@@ -22,7 +22,8 @@ This directory is the permanent, model-agnostic second brain for VulnHunter AI. 
 16. [Unattended operations control plane](UNATTENDED_OPERATIONS.md)
 17. [Connection-bound DNS enforcement](CONNECTION_PINNING.md)
 18. [Technical debt](TECHNICAL_DEBT.md)
-19. [Architecture decisions](../adr/README.md)
+19. [Milestone 31 scanner harness](MILESTONE_31_CONTROLLED_NUCLEI_EXECUTION_HARNESS.md)
+20. [Architecture decisions](../adr/README.md)
 
 ## Maintenance rule
 

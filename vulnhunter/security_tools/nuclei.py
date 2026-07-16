@@ -16,10 +16,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from vulnhunter.actions.models import sha256_json
-from vulnhunter.security_tools.models import (
-    SecurityToolRequest,
-    ToolProfile,
-)
+from vulnhunter.security_tools.models import SecurityToolRequest, ToolProfile
 from vulnhunter.security_tools.parsers import NormalizedFinding
 
 _SAFE_TOKEN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$")
@@ -183,7 +180,9 @@ def build_nuclei_command(
             )
         )
         allowed_types = (
-            _ALLOWED_INTRUSIVE_TYPES if scan_profile == "intrusive" else _ALLOWED_STANDARD_TYPES
+            _ALLOWED_INTRUSIVE_TYPES
+            if scan_profile == "intrusive"
+            else _ALLOWED_STANDARD_TYPES
         )
         if not requested_types or not requested_types <= allowed_types:
             raise NucleiPolicyError("nuclei protocol_types contain an unsupported type")
@@ -216,14 +215,24 @@ def build_nuclei_command(
             "nuclei private-network access requires active, validation, or retest profile"
         )
 
-    rate_limit = _bounded_int(parameters, "rate_limit", default=5, minimum=1, maximum=10)
-    bulk_size = _bounded_int(parameters, "bulk_size", default=2, minimum=1, maximum=2)
-    concurrency = _bounded_int(parameters, "concurrency", default=2, minimum=1, maximum=2)
+    rate_limit = _bounded_int(
+        parameters, "rate_limit", default=5, minimum=1, maximum=10
+    )
+    bulk_size = _bounded_int(
+        parameters, "bulk_size", default=2, minimum=1, maximum=2
+    )
+    concurrency = _bounded_int(
+        parameters, "concurrency", default=2, minimum=1, maximum=2
+    )
     probe_concurrency = _bounded_int(
         parameters, "probe_concurrency", default=2, minimum=1, maximum=2
     )
-    request_timeout = _bounded_int(parameters, "request_timeout", default=10, minimum=1, maximum=30)
-    retries = _bounded_int(parameters, "retries", default=1, minimum=0, maximum=1)
+    request_timeout = _bounded_int(
+        parameters, "request_timeout", default=10, minimum=1, maximum=30
+    )
+    retries = _bounded_int(
+        parameters, "retries", default=1, minimum=0, maximum=1
+    )
 
     argv: list[str] = [
         executable,
@@ -238,6 +247,7 @@ def build_nuclei_command(
         "-disable-update-check",
         "-no-stdin",
         "-omit-template",
+        "-omit-raw",
         "-no-interactsh",
         "-redact",
         ",".join(_REDACT_KEYS),
@@ -299,6 +309,16 @@ def _safe_url_reference(value: object) -> str | None:
     return value[:500]
 
 
+def _safe_classification_value(value: object) -> object:
+    if value is None or isinstance(value, (bool, int, float)):
+        return value
+    if isinstance(value, str):
+        return value[:200]
+    if isinstance(value, (list, tuple)):
+        return tuple(str(item)[:100] for item in value[:20])
+    return None
+
+
 def parse_nuclei_jsonl(
     path: Path,
     *,
@@ -333,17 +353,28 @@ def parse_nuclei_jsonl(
             or item.get("templateID")
             or item.get("template_id")
             or "unknown-template"
-        )
+        )[:200]
         matched_at = _safe_url_reference(
-            item.get("matched-at") or item.get("matched") or item.get("host") or target_reference
+            item.get("matched-at")
+            or item.get("matched")
+            or item.get("host")
+            or target_reference
         )
-        title = str(info.get("name") or item.get("name") or template_id)
-        severity = str(info.get("severity") or item.get("severity") or "unknown").lower()
+        title = str(info.get("name") or item.get("name") or template_id)[:500]
+        severity = str(
+            info.get("severity") or item.get("severity") or "unknown"
+        ).lower()
+        if severity not in _ALLOWED_SEVERITIES:
+            severity = "unknown"
         record_digest = sha256_json(item)
 
         tags = info.get("tags")
         if isinstance(tags, str):
-            safe_tags: object = tuple(part.strip() for part in tags.split(",") if part.strip())
+            safe_tags: object = tuple(
+                part.strip()[:100]
+                for part in tags.split(",")[:50]
+                if part.strip()
+            )
         elif isinstance(tags, list):
             safe_tags = tuple(str(part)[:100] for part in tags[:50])
         else:
@@ -359,14 +390,19 @@ def parse_nuclei_jsonl(
             "host": _safe_url_reference(item.get("host")),
             "ip": str(item.get("ip") or "")[:100] or None,
             "port": str(item.get("port") or "")[:20] or None,
-            "protocol": str(item.get("type") or item.get("protocol") or "")[:50] or None,
+            "protocol": str(
+                item.get("type") or item.get("protocol") or ""
+            )[:50]
+            or None,
             "matcher_name": str(item.get("matcher-name") or "")[:200] or None,
             "extractor_name": str(item.get("extractor-name") or "")[:200] or None,
             "timestamp": str(item.get("timestamp") or "")[:100] or None,
             "tags": safe_tags,
-            "cve_id": classification.get("cve-id"),
-            "cwe_id": classification.get("cwe-id"),
-            "cvss_score": classification.get("cvss-score"),
+            "cve_id": _safe_classification_value(classification.get("cve-id")),
+            "cwe_id": _safe_classification_value(classification.get("cwe-id")),
+            "cvss_score": _safe_classification_value(
+                classification.get("cvss-score")
+            ),
         }
 
         findings.append(

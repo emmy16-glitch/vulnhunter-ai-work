@@ -1,16 +1,36 @@
 {% extends "web/base.html" %}
+{% load static %}
 {% block content %}
-<header class="vh-page-heading">
-  <div><p class="vh-eyebrow">Audit and readiness</p><h1>System status</h1><p>Real store, runtime and evidence states. Missing capabilities fail closed.</p></div>
-  <a class="vh-button-secondary" href="{% url 'web-settings-overview' %}">Open integrations</a>
-</header>
-<section class="vh-status-card-grid" aria-label="System capability status">
-  <article class="vh-status-card state-{{ status_summary.authorization_store.state }}"><div class="vh-status-card-head"><span class="vh-status-card-icon"><svg><use href="#vh-i-shield"></use></svg></span><span><small>Control plane</small><h2>Authorization store</h2></span><strong>{{ status_summary.authorization_store.state }}</strong></div><p>{{ status_summary.authorization_store.detail }}</p></article>
-  <article class="vh-status-card state-{{ status_summary.governance_store.state }}"><div class="vh-status-card-head"><span class="vh-status-card-icon"><svg><use href="#vh-i-govern"></use></svg></span><span><small>Control plane</small><h2>Governance store</h2></span><strong>{{ status_summary.governance_store.state }}</strong></div><p>{{ status_summary.governance_store.detail }}</p></article>
-  <article class="vh-status-card state-{{ status_summary.role_registry.state }}"><div class="vh-status-card-head"><span class="vh-status-card-icon"><svg><use href="#vh-i-team"></use></svg></span><span><small>Identity</small><h2>Role registry</h2></span><strong>{{ status_summary.role_registry.state }}</strong></div><p>{{ status_summary.role_registry.detail }}</p></article>
-  <article class="vh-status-card state-{{ status_summary.agent_runtime.state }}"><div class="vh-status-card-head"><span class="vh-status-card-icon"><svg><use href="#vh-i-assessment"></use></svg></span><span><small>Execution</small><h2>Agent runtime</h2></span><strong>{{ status_summary.agent_runtime.state }}</strong></div><p>{{ status_summary.agent_runtime.detail }}</p></article>
-  <article class="vh-status-card state-{{ status_summary.readiness.state }}"><div class="vh-status-card-head"><span class="vh-status-card-icon"><svg><use href="#vh-i-checkdoc"></use></svg></span><span><small>Assessment</small><h2>Readiness</h2></span><strong>{{ status_summary.readiness.state }}</strong></div><p>{{ status_summary.readiness.detail }}</p></article>
-  <article class="vh-status-card state-{{ status_summary.audit_evidence.state }}"><div class="vh-status-card-head"><span class="vh-status-card-icon"><svg><use href="#vh-i-audit"></use></svg></span><span><small>Integrity</small><h2>Audit evidence</h2></span><strong>{{ status_summary.audit_evidence.state }}</strong></div><p>{{ status_summary.audit_evidence.detail }}</p></article>
+<link rel="stylesheet" href="{% static 'web/product.css' %}?v=20260716-product1">
+<section class="vh-product-page">
+  <header class="vh-product-heading">
+    <div><p class="vh-eyebrow">Audit and readiness</p><h1>System status</h1><p>Inspect real store, runtime and evidence states. Missing or disabled capabilities remain visibly fail-closed.</p></div>
+    <div class="vh-product-heading-actions"><a class="vh-button-secondary" href="{% url 'web-settings-overview' %}">Open integrations</a><a class="vh-button-primary" href="{% url 'web-dashboard' %}">Operations overview</a></div>
+  </header>
+
+  <section class="vh-product-summary" aria-label="Readiness summary">
+    <div><small>Control principle</small><strong>Availability never grants authority</strong><span>Every consequential operation still requires valid scope, policy and approval.</span></div>
+    <div><small>Failure mode</small><strong>Fail closed</strong><span>Unavailable dependencies cannot be silently bypassed.</span></div>
+    <div><small>Evidence standard</small><strong>Persisted and auditable</strong><span>Displayed states come from backend records.</span></div>
+  </section>
+
+  <section class="vh-status-card-grid" aria-label="System capability status">
+    <article class="vh-status-card state-{{ status_summary.authorization_store.state }}"><div class="vh-status-card-head"><span class="vh-status-card-icon"><svg><use href="#vh-i-shield"></use></svg></span><span><small>Control plane</small><h2>Authorization store</h2></span><strong>{{ status_summary.authorization_store.state }}</strong></div><p>{{ status_summary.authorization_store.detail }}</p></article>
+    <article class="vh-status-card state-{{ status_summary.governance_store.state }}"><div class="vh-status-card-head"><span class="vh-status-card-icon"><svg><use href="#vh-i-govern"></use></svg></span><span><small>Control plane</small><h2>Governance store</h2></span><strong>{{ status_summary.governance_store.state }}</strong></div><p>{{ status_summary.governance_store.detail }}</p></article>
+    <article class="vh-status-card state-{{ status_summary.role_registry.state }}"><div class="vh-status-card-head"><span class="vh-status-card-icon"><svg><use href="#vh-i-team"></use></svg></span><span><small>Identity</small><h2>Role registry</h2></span><strong>{{ status_summary.role_registry.state }}</strong></div><p>{{ status_summary.role_registry.detail }}</p></article>
+    <article class="vh-status-card state-{{ status_summary.agent_runtime.state }}"><div class="vh-status-card-head"><span class="vh-status-card-icon"><svg><use href="#vh-i-assessment"></use></svg></span><span><small>Execution</small><h2>Agent runtime</h2></span><strong>{{ status_summary.agent_runtime.state }}</strong></div><p>{{ status_summary.agent_runtime.detail }}</p></article>
+    <article class="vh-status-card state-{{ status_summary.readiness.state }}"><div class="vh-status-card-head"><span class="vh-status-card-icon"><svg><use href="#vh-i-checkdoc"></use></svg></span><span><small>Assessment</small><h2>Readiness</h2></span><strong>{{ status_summary.readiness.state }}</strong></div><p>{{ status_summary.readiness.detail }}</p></article>
+    <article class="vh-status-card state-{{ status_summary.audit_evidence.state }}"><div class="vh-status-card-head"><span class="vh-status-card-icon"><svg><use href="#vh-i-audit"></use></svg></span><span><small>Integrity</small><h2>Audit evidence</h2></span><strong>{{ status_summary.audit_evidence.state }}</strong></div><p>{{ status_summary.audit_evidence.detail }}</p></article>
+  </section>
+
+  <section class="vh-card vh-status-guidance">
+    <div class="vh-card-header"><div><h2>Operational rules</h2><p>Readiness is separate from permission and release authority.</p></div></div>
+    <div class="vh-guidance-grid">
+      <div class="vh-guidance-row"><span>Authorization and scope</span><strong>Required before execution</strong></div>
+      <div class="vh-guidance-row"><span>Consequential actions</span><strong>Human approval required</strong></div>
+      <div class="vh-guidance-row"><span>Model output</span><strong>Advisory and untrusted</strong></div>
+      <div class="vh-guidance-row"><span>Publication</span><strong>Separately gated</strong></div>
+    </div>
+  </section>
 </section>
-<section class="vh-card vh-status-guidance"><div class="vh-card-header"><div><h2>Operational rule</h2><p>Availability does not grant authority.</p></div></div><div class="vh-guidance-row"><span>Authorization and scope</span><strong>Required before execution</strong></div><div class="vh-guidance-row"><span>Consequential actions</span><strong>Human approval required</strong></div><div class="vh-guidance-row"><span>Model output</span><strong>Advisory and untrusted</strong></div><div class="vh-guidance-row"><span>Publication</span><strong>Separately gated</strong></div></section>
 {% endblock %}

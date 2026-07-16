@@ -31,3 +31,47 @@ def test_evidence_store_hashes_artifacts_and_detects_tampering(tmp_path):
     artifact.write_text('{"ok": false}\n', encoding="utf-8")
     with pytest.raises(EvidenceStoreError, match="artifact digest"):
         store.list()
+
+
+def test_evidence_store_rejects_secret_artifacts_and_symlink_escape(tmp_path):
+    root = tmp_path / "evidence"
+    root.mkdir()
+    store = EvidenceStore(root)
+    secret = root / "secret.json"
+    secret.write_text('{"authorization": "Bearer top-secret-value"}\n', encoding="utf-8")
+
+    with pytest.raises(EvidenceStoreError, match="redaction"):
+        store.append(
+            evidence_id="evidence-secret",
+            campaign_id="campaign-one",
+            run_id="run-one",
+            action_manifest_sha256="a" * 64,
+            tool_id="nuclei",
+            target_reference="https://private.lab/app",
+            finding_status=FindingStatus.CANDIDATE,
+            title="Candidate observation",
+            severity="low",
+            confidence="unverified",
+            recorded_by="reviewer-one",
+            artifact_path=secret,
+        )
+
+    outside = tmp_path / "outside.json"
+    outside.write_text('{"safe": true}\n', encoding="utf-8")
+    link = root / "escape.json"
+    link.symlink_to(outside)
+    with pytest.raises(EvidenceStoreError, match="symbolic link"):
+        store.append(
+            evidence_id="evidence-link",
+            campaign_id="campaign-one",
+            run_id="run-one",
+            action_manifest_sha256="a" * 64,
+            tool_id="nuclei",
+            target_reference="https://private.lab/app",
+            finding_status=FindingStatus.CANDIDATE,
+            title="Candidate observation",
+            severity="low",
+            confidence="unverified",
+            recorded_by="reviewer-one",
+            artifact_path=link,
+        )

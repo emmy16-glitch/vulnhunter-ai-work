@@ -24,6 +24,7 @@
     {% if approval.status.value == "pending" or approval.status.value == "information_required" or approval.status.value == "conditions_proposed" %}
       <form method="post" action="{% url 'web-approval-decision' approval.request_id %}">
         {% csrf_token %}
+        <input type="hidden" name="plan_digest" value="{{ approval.action_manifest_sha256 }}">
         <div class="vh-form-field">
           <label for="decision">Decision</label>
           <select id="decision" name="decision" required>

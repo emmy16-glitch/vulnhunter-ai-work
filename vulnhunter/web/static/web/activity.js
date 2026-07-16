@@ -1,7 +1,14 @@
 (() => {
   "use strict";
 
-  const terminalStates = new Set(["completed", "failed", "stopped", "cancelled", "blocked"]);
+  const terminalStates = new Set([
+    "completed",
+    "failed",
+    "stopped",
+    "cancelled",
+    "blocked",
+    "timed_out",
+  ]);
 
   function createTextElement(tagName, className, text) {
     const element = document.createElement(tagName);
@@ -82,6 +89,18 @@
 
   function progressFor(payload) {
     if (payload.run_state === "completed") return 100;
+    const workflowProgress = {
+      authorization_required: 12,
+      scope_validated: 28,
+      readiness_checked: 38,
+      plan_generated: 48,
+      awaiting_approval: 52,
+      approved: 60,
+      execution_blocked: 60,
+      readiness_blocked: 35,
+      denied: 52,
+    };
+    if (payload.workflow_state in workflowProgress) return workflowProgress[payload.workflow_state];
     if (payload.execution_state === "tool_executed") return 78;
     if (payload.approval_state === "pending") return 52;
     return 35;
@@ -113,9 +132,15 @@
     }
 
     const toolStageState = document.querySelector(".vh-stage-tool .vh-stage-state");
-    if (toolStageState && payload.execution_state) {
-      toolStageState.textContent = String(payload.execution_state).replaceAll("_", " ");
+    if (toolStageState && (payload.workflow_state || payload.execution_state)) {
+      toolStageState.textContent = String(
+        payload.workflow_state || payload.execution_state
+      ).replaceAll("_", " ");
     }
+
+    document.querySelectorAll("[data-global-connection-state]").forEach((element) => {
+      element.textContent = "EventSource connected to backend state";
+    });
 
     const oracleState = document.querySelector(".vh-oracle-state strong");
     if (oracleState) {

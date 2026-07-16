@@ -14,6 +14,7 @@
     <section class="vh-card vh-card-flush">
       <div class="vh-section-toolbar">
         <div><h1>Assessment runs</h1><p>Select a run to open its workspace.</p></div>
+        <button class="vh-button-primary" type="button" data-assessment-open>Start Assessment</button>
       </div>
       <div class="vh-table-wrap"><table class="vh-table vh-assessment-table">
         <thead><tr><th>Assessment</th><th>State</th><th>Assignment</th><th>Policy</th><th>Approval</th><th></th></tr></thead>
@@ -28,6 +29,12 @@
       </table></div>
     </section>
   {% else %}
+    <section class="vh-zero-state vh-assessment-zero-state" aria-labelledby="no-assessment-title">
+      <svg aria-hidden="true"><use href="#vh-i-shield"></use></svg>
+      <h2 id="no-assessment-title">No Active Assessment</h2>
+      <p>Start a governed assessment using one of your active, time-limited authorizations.</p>
+      <button class="vh-button-primary" type="button" data-assessment-open>Start Assessment</button>
+    </section>
     <div class="vh-assessment-layout vh-empty-assessment-layout">
       <section class="vh-workstream-panel" aria-label="Assessment workspace" data-ui-tabs>
         <nav class="vh-workspace-tabs" role="tablist" aria-label="Assessment workspace sections">
@@ -174,5 +181,26 @@
       <div id="empty-bottom-path-pane" class="vh-bottom-empty-pane" role="tabpanel" aria-labelledby="empty-bottom-path-tab" hidden>No attack path yet.</div>
     </section>
   {% endif %}
+
+  <dialog class="vh-assessment-dialog" data-assessment-dialog data-authorizations-url="{% url 'web-active-authorizations' %}" aria-labelledby="new-assessment-title">
+    <form method="post" action="{% url 'web-new-scan' %}" data-assessment-form>
+      {% csrf_token %}
+      <header class="vh-approval-modal-header">
+        <div class="vh-approval-modal-icon" aria-hidden="true"><svg><use href="#vh-i-shield"></use></svg></div>
+        <div><span class="vh-risk-label">Governed planning</span><h2 id="new-assessment-title">Start Assessment</h2><p>Targets and profiles come only from the selected authorization.</p></div>
+        <button type="button" class="vh-dialog-close" data-assessment-close aria-label="Close assessment dialog">×</button>
+      </header>
+      <p class="vh-operational-notice" data-assessment-status aria-live="polite">Loading active authorizations…</p>
+      <div class="vh-assessment-form-grid">
+        <label>Authorization<select name="authorization_id" data-authorization-select required><option value="">Select authorization</option></select></label>
+        <label>Target<select name="target" data-target-select required disabled><option value="">Select target</option></select></label>
+        <label>Protocol<select name="protocol" data-protocol-select required disabled><option value="">Select protocol</option></select></label>
+        <label>Port<select name="port" data-port-select required disabled><option value="">Select port</option></select></label>
+        <label>Profile<select name="profile" data-profile-select required disabled><option value="">Select profile</option></select></label>
+      </div>
+      <footer class="vh-assessment-dialog-actions"><button type="button" class="vh-button-secondary" data-assessment-close>Cancel</button><button type="submit" class="vh-button-primary" disabled data-assessment-submit>Create governed plan</button></footer>
+      <small>Nuclei execution remains globally disabled. Creating a plan does not start a scan.</small>
+    </form>
+  </dialog>
 </section>
 {% endblock %}

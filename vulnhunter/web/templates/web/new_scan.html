@@ -1,10 +1,21 @@
 {% extends "web/base.html" %}
 {% block content %}
-<header class="vh-page-heading"><div><p class="vh-eyebrow">Collection</p><h1>New bounded scan</h1><p>Select an active authorization and approved profile.</p></div><span class="vh-status-chip vh-status-warning">Web launch not enabled</span></header>
+<header class="vh-page-heading"><div><p class="vh-eyebrow">Collection</p><h1>New governed assessment</h1><p>Select exact values from an active authorization.</p></div><span class="vh-status-chip vh-status-warning">Execution disabled</span></header>
 {% if error_message %}<section class="vh-operational-notice is-danger"><strong>Authorization store unavailable</strong><p>{{ error_message }}</p></section>{% endif %}
-<section class="vh-setup-grid">
-  <article class="vh-card"><div class="vh-card-header"><div><h2>1 · Authorization</h2><p>Permission and scope.</p></div></div>{% if authorizations %}<ul class="vh-selection-list">{% for item in authorizations %}<li><span><strong>{{ item.hostname }}:{{ item.port }}</strong><small>{{ item.authorization_id }} · {{ item.status }}</small></span><code>{{ item.path_boundary }}</code></li>{% endfor %}</ul>{% else %}<div class="vh-zero-state is-compact"><h3>No active record</h3><p>A valid authorization is required.</p></div>{% endif %}</article>
-  <article class="vh-card"><div class="vh-card-header"><div><h2>2 · Profile</h2><p>Bounded operating mode.</p></div></div><div class="vh-profile-stack">{% for profile in profiles %}<details class="vh-profile-option"><summary><span><strong>{{ profile.name }}</strong><small>{{ profile.description }}</small></span><svg aria-hidden="true"><use href="#vh-i-chevron"></use></svg></summary><p><span>Gate</span>{{ profile.gate }}</p></details>{% endfor %}</div></article>
+<section class="vh-card vh-governed-assessment-form">
+  {% if authorizations %}
+  <form method="post">
+    {% csrf_token %}
+    <div class="vh-assessment-form-grid">
+      <label>Authorization<select name="authorization_id" required>{% for item in authorizations %}<option value="{{ item.authorization_id }}">{{ item.display_label }} · expires {{ item.expires_at }}</option>{% endfor %}</select></label>
+      <label>Exact target<select name="target" required>{% for item in authorizations %}{% for target in item.approved_targets %}<option value="{{ target }}">{{ target }}</option>{% endfor %}{% endfor %}</select></label>
+      <label>Protocol<select name="protocol" required>{% for item in authorizations %}{% for protocol in item.approved_protocols %}<option value="{{ protocol }}">{{ protocol }}</option>{% endfor %}{% endfor %}</select></label>
+      <label>Port<select name="port" required>{% for item in authorizations %}{% for port in item.approved_ports %}<option value="{{ port }}">{{ port }}</option>{% endfor %}{% endfor %}</select></label>
+      <label>Profile<select name="profile" required>{% for item in authorizations %}{% for profile in item.approved_profiles %}<option value="{{ profile }}">{{ profile }}</option>{% endfor %}{% endfor %}</select></label>
+    </div>
+    <button class="vh-button-primary" type="submit">Create governed plan</button>
+  </form>
+  {% else %}<div class="vh-zero-state is-compact"><h3>No active authorization</h3><p>A reviewed Nuclei activation binding is required.</p></div>{% endif %}
 </section>
-<section class="vh-card vh-launch-boundary"><div><p class="vh-eyebrow">Launch boundary</p><h2>Scan submission remains CLI-governed</h2><p>Create scans through the governed CLI. Web submission is not available in this milestone.</p></div><a class="vh-button-secondary" href="{% url 'web-scan-run-list' %}">Open scan runs</a></section>
+<section class="vh-card vh-launch-boundary"><div><p class="vh-eyebrow">Activation boundary</p><h2>Planning only</h2><p>Web launch not enabled for execution. The backend revalidates every value; readiness does not grant execution permission, and execution_enabled remains false.</p></div><a class="vh-button-secondary" href="{% url 'web-scan-run-list' %}">Open assessments</a></section>
 {% endblock %}

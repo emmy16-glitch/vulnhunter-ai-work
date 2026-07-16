@@ -1,5 +1,9 @@
 # Governed Nuclei Integration
 
+The governed assessment UI connection is documented in
+[`MILESTONE_30_ASSESSMENT_INTEGRATION.md`](../intelligence/MILESTONE_30_ASSESSMENT_INTEGRATION.md).
+That connection creates and approves plans only; it does not activate execution.
+
 VulnHunter treats ProjectDiscovery Nuclei as an external scanner, not as an
 authorization authority or final vulnerability judge.
 

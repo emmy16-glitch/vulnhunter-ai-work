@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -25,6 +26,70 @@ from vulnhunter.exceptions import (
 from vulnhunter.security import redact_mapping, redact_text
 
 _SCHEMA_VERSION = "1"
+
+
+_SHA256_AUTHORIZATION_EVENT_FIELDS = frozenset(
+    {
+        "record_sha256",
+        "previous_record_sha256",
+        "source_record_sha256",
+    }
+)
+_SHA256_AUTHORIZATION_EVENT_PATTERN = re.compile(r"^[0-9a-f]{64}$")
+_AUTHORIZATION_ID_PATTERN = re.compile(r"^auth-[0-9a-f]{20}$")
+
+
+def _redact_authorization_event_detail(
+    detail: dict[str, object],
+) -> dict[str, object]:
+    """Redact event data without corrupting valid integrity digests."""
+
+    redacted = redact_mapping(detail)
+
+    def restore(
+        original: object,
+        safe: object,
+        *,
+        field_name: str | None = None,
+    ) -> object:
+        if (
+            field_name == "authorization_id"
+            and isinstance(original, str)
+            and _AUTHORIZATION_ID_PATTERN.fullmatch(original)
+        ):
+            return original
+
+        if (
+            field_name in _SHA256_AUTHORIZATION_EVENT_FIELDS
+            and isinstance(original, str)
+            and _SHA256_AUTHORIZATION_EVENT_PATTERN.fullmatch(original)
+        ):
+            return original
+
+        if isinstance(original, dict) and isinstance(safe, dict):
+            return {
+                str(key): restore(
+                    value,
+                    safe.get(str(key)),
+                    field_name=str(key),
+                )
+                for key, value in original.items()
+            }
+
+        if isinstance(original, (list, tuple)) and isinstance(safe, (list, tuple)):
+            if len(original) != len(safe):
+                return safe
+
+            return [restore(original[index], safe[index]) for index in range(len(original))]
+
+        return safe
+
+    result = restore(detail, redacted)
+
+    if not isinstance(result, dict):
+        raise TypeError("Authorization event detail must remain a dictionary.")
+
+    return result
 
 
 class AuthorizationStore:
@@ -334,7 +399,7 @@ class AuthorizationStore:
         detail: dict[str, object],
     ) -> tuple[int, datetime, dict[str, object]]:
         occurred_at = datetime.now(UTC)
-        safe_detail = redact_mapping(detail)
+        safe_detail = _redact_authorization_event_detail(detail)
         cursor = connection.execute(
             """
             INSERT INTO authorization_events (

@@ -366,3 +366,46 @@ def test_persisted_nuclei_observation_remains_candidate_and_artifact_is_real(tmp
     assert detail.findings[0]["verification"] not in {"human_confirmed", "published"}
     assert detail.artifacts[0]["filename"] == "candidate.json"
     assert detail.artifacts[0]["size"] == artifact.stat().st_size
+
+
+def test_binding_event_preserves_nested_integrity_digests(tmp_path):
+    from vulnhunter.security_tools.nuclei_activation import EngagementAuthorization
+
+    service = _service(tmp_path)
+    record = _record(service.authorization_store)
+    engagement = _bind(service, record)
+
+    events = [
+        event
+        for event in service.authorization_store.list_events(record.authorization_id)
+        if event.event_type == "nuclei_activation_bound"
+    ]
+
+    assert len(events) == 1
+
+    detail = events[0].detail
+    stored_engagement = detail["engagement_record"]
+    stored_audit = stored_engagement["audit"]
+
+    assert detail["source_record_sha256"] == record.record_sha256
+    assert stored_audit["previous_record_sha256"] == record.record_sha256
+    assert stored_audit["record_sha256"] == engagement.audit.record_sha256
+
+    EngagementAuthorization.model_validate(stored_engagement)
+
+
+def test_redaction_preserves_payment_like_authorization_id():
+    from vulnhunter.authorization.store import _redact_authorization_event_detail
+
+    authorization_id = "auth-7028440521694474ae92"
+    original = {
+        "engagement_record": {
+            "authorization_id": authorization_id,
+        },
+        "untrusted_note": "4111111111111111",
+    }
+
+    redacted = _redact_authorization_event_detail(original)
+
+    assert redacted["engagement_record"]["authorization_id"] == authorization_id
+    assert redacted["untrusted_note"] != original["untrusted_note"]

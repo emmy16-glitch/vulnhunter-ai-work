@@ -43,6 +43,7 @@ def test_passive_plan_enforces_signed_cloud_free_low_resource_baseline(tmp_path)
     assert "-no-interactsh" in plan.argv
     assert "-restrict-local-network-access" in plan.argv
     assert "-jsonl-export" in plan.argv
+    assert "-omit-raw" in plan.argv
     assert "-redact" in plan.argv
     assert plan.argv[plan.argv.index("-rate-limit") + 1] == "5"
     assert plan.argv[plan.argv.index("-bulk-size") + 1] == "2"

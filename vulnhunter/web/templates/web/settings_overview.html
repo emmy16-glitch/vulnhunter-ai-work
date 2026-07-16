@@ -1,0 +1,6 @@
+{% extends "web/base.html" %}
+{% block content %}
+<header class="vh-page-heading"><div><p class="vh-eyebrow">Configuration</p><h1>Settings</h1><p>Platform and assessment controls.</p></div></header>
+<section class="vh-hub-grid"><a class="vh-hub-card" href="{% url 'web-status' %}"><strong>System status</strong><span>Storage, runtime and audit</span></a><a class="vh-hub-card" href="{% url 'web-advanced-profiles' %}"><strong>Assessment profiles</strong><span>Profile contracts and limits</span></a></section>
+<section class="vh-card"><div class="vh-card-header"><div><h2>Advisory intelligence</h2><p>Provider status.</p></div></div><ul class="vh-readiness-list">{% for item in intelligence_status %}<li><span><i></i>{{ item.name }}</span><strong>{{ item.state }}</strong><small>{{ item.detail }}</small></li>{% endfor %}</ul></section>
+{% endblock %}

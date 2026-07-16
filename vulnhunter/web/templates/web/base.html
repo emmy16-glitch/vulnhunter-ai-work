@@ -1,0 +1,161 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#020b14">
+  <title>{{ page_title }} | VulnHunter AI</title>
+  <link rel="stylesheet" href="{% static 'web/app.css' %}?v=20260716-blueprint1">
+  <link rel="stylesheet" href="{% static 'web/activity.css' %}?v=20260716-blueprint1">
+  <script src="{% static 'web/app.js' %}?v=20260716-blueprint1" defer></script>
+  <script src="{% static 'web/activity.js' %}?v=20260716-blueprint1" defer></script>
+</head>
+<body>
+  <svg class="vh-icon-sprite" aria-hidden="true">
+    <symbol id="vh-i-shield" viewBox="0 0 24 24"><path d="M12 2.5 20 6v5.7c0 5-3.4 8.4-8 9.8-4.6-1.4-8-4.8-8-9.8V6l8-3.5Z"/><path d="m9.2 12 1.8 1.8 3.9-4.2"/></symbol>
+    <symbol id="vh-i-grid" viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/></symbol>
+    <symbol id="vh-i-assessment" viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><path d="M14 15h6M17 12v6"/></symbol>
+    <symbol id="vh-i-oracle" viewBox="0 0 24 24"><circle cx="7" cy="7" r="2"/><circle cx="17" cy="7" r="2"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/><path d="M9 7h6M7 9v6M17 9v6M9 17h6"/></symbol>
+    <symbol id="vh-i-checkdoc" viewBox="0 0 24 24"><path d="M7 3.5h7l4 4V20H7z"/><path d="M14 3.5v4h4M9.5 13l1.7 1.7 3.5-3.8"/></symbol>
+    <symbol id="vh-i-mobile" viewBox="0 0 24 24"><rect x="6.5" y="2.5" width="11" height="19" rx="2"/><path d="M10 5h4M11 18.5h2"/></symbol>
+    <symbol id="vh-i-report" viewBox="0 0 24 24"><path d="M6 3.5h8l4 4V20H6z"/><path d="M14 3.5v4h4M9 12h6M9 15h6"/></symbol>
+    <symbol id="vh-i-govern" viewBox="0 0 24 24"><path d="M12 3 4 7v3h16V7zM6 10v7M10 10v7M14 10v7M18 10v7M4 20h16"/></symbol>
+    <symbol id="vh-i-policy" viewBox="0 0 24 24"><path d="M7 3.5h10v17H7z"/><path d="M10 8h4M10 12h4M10 16h2"/></symbol>
+    <symbol id="vh-i-link" viewBox="0 0 24 24"><path d="M9.5 14.5 14.5 9"/><path d="M7.8 17.2 5.7 19.3a3.5 3.5 0 0 1-5-5l3.1-3.1a3.5 3.5 0 0 1 5 0" transform="translate(2 -2)"/><path d="m16.2 6.8 2.1-2.1a3.5 3.5 0 1 1 5 5l-3.1 3.1a3.5 3.5 0 0 1-5 0" transform="translate(-2 2)"/></symbol>
+    <symbol id="vh-i-audit" viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><path d="M8 9h8M8 13h5M8 17h7"/></symbol>
+    <symbol id="vh-i-team" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0M14 19a4 4 0 0 1 7 0"/></symbol>
+    <symbol id="vh-i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19 13.5v-3l-2-.7-.7-1.7.9-1.9-2.1-2.1-1.9.9-1.7-.7-.7-2h-3l-.7 2-1.7.7-1.9-.9-2.1 2.1.9 1.9-.7 1.7-2 .7v3l2 .7.7 1.7-.9 1.9 2.1 2.1 1.9-.9 1.7.7.7 2h3l.7-2 1.7-.7 1.9.9 2.1-2.1-.9-1.9.7-1.7z"/></symbol>
+    <symbol id="vh-i-authorization" viewBox="0 0 24 24"><path d="M12 2.8 19 6v5.1c0 4.5-3 7.7-7 9-4-1.3-7-4.5-7-9V6z"/><path d="m9.2 11.8 1.7 1.7 3.9-4.2"/></symbol>
+    <symbol id="vh-i-radar" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><path d="M12 12 18.5 5.5M12 3v2M21 12h-2M12 21v-2M3 12h2"/></symbol>
+    <symbol id="vh-i-activity" viewBox="0 0 24 24"><path d="M3 12h4l2.2-5 4.1 10 2.2-5H21"/></symbol>
+    <symbol id="vh-i-finding" viewBox="0 0 24 24"><path d="M12 3 4.5 6.5v5.2c0 4.6 3.1 7.7 7.5 9.1 4.4-1.4 7.5-4.5 7.5-9.1V6.5z"/><path d="M9 12h6M12 9v6"/></symbol>
+    <symbol id="vh-i-review" viewBox="0 0 24 24"><path d="M7 3.5h10v17H7z"/><path d="M9.5 9.5h5M9.5 13h3M9.2 16.5l1.2 1.2 2.4-2.6"/></symbol>
+    <symbol id="vh-i-scale" viewBox="0 0 24 24"><path d="M12 3v17M6 6h12M4 20h16M6 6l-3 6h6zM18 6l-3 6h6z"/></symbol>
+    <symbol id="vh-i-layers" viewBox="0 0 24 24"><path d="m12 3 9 5-9 5-9-5z"/><path d="m3 12 9 5 9-5M3 16l9 5 9-5"/></symbol>
+    <symbol id="vh-i-release" viewBox="0 0 24 24"><path d="M4 5h16v14H4z"/><path d="M8 9h8M8 13h5M15 16l1.5 1.5L20 14"/></symbol>
+    <symbol id="vh-i-database" viewBox="0 0 24 24"><ellipse cx="12" cy="5.5" rx="7.5" ry="3"/><path d="M4.5 5.5v6c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3v-6M4.5 11.5v6c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3v-6"/></symbol>
+    <symbol id="vh-i-model" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><circle cx="5" cy="6" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="5" cy="18" r="2"/><circle cx="19" cy="18" r="2"/><path d="m6.7 7.1 3 3M17.3 7.1l-3 3M6.7 16.9l3-3M17.3 16.9l-3-3"/></symbol>
+    <symbol id="vh-i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 4 4"/></symbol>
+    <symbol id="vh-i-bell" viewBox="0 0 24 24"><path d="M6 16.5h12l-1.5-2V10a4.5 4.5 0 0 0-9 0v4.5zM10 19h4"/></symbol>
+    <symbol id="vh-i-theme" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+    <symbol id="vh-i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.7 9a2.5 2.5 0 1 1 3.5 2.3c-.8.4-1.2.9-1.2 1.7M12 17h.01"/></symbol>
+    <symbol id="vh-i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+    <symbol id="vh-i-chevron" viewBox="0 0 24 24"><path d="m8 10 4 4 4-4"/></symbol>
+    <symbol id="vh-i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3.5 12h17M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></symbol>
+  </svg>
+  <a class="vh-skip-link" href="#main-content">Skip to content</a>
+  <div class="vh-app">
+    <aside id="vh-sidebar" class="vh-sidebar" data-sidebar aria-label="Application sidebar">
+      <a class="vh-brand" href="{% url 'web-dashboard' %}" aria-label="VulnHunter AI dashboard">
+        <span class="vh-brand-mark" aria-hidden="true"><svg><use href="#vh-i-shield"></use></svg></span>
+        <strong>VulnHunter AI</strong>
+      </a>
+      <nav aria-label="Primary" class="vh-nav">
+        {% if navigation %}
+          <ul class="vh-nav-list">
+            {% for item in navigation %}
+              {% if item.section_start %}<li class="vh-nav-section-label"><span>{{ item.section_label }}</span></li>{% endif %}
+              <li>
+                <a href="{% url item.url_name %}"{% if current_route in item.active_routes %} aria-current="page"{% endif %}>
+                  <svg class="vh-nav-icon" aria-hidden="true"><use href="#vh-i-{{ item.icon }}"></use></svg>
+                  <span>{{ item.label }}</span>
+                  {% if item.badge %}<span class="vh-nav-badge" aria-label="{{ item.badge }} pending">{{ item.badge }}</span>{% endif %}
+                </a>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="vh-empty-state">No authorized navigation is available.</p>
+        {% endif %}
+      </nav>
+      {% if request.user.is_authenticated %}
+        <div class="vh-sidebar-footer">
+          <div class="vh-organisation">
+            <span class="vh-organisation-mark" aria-hidden="true"><svg><use href="#vh-i-shield"></use></svg></span>
+            <span><strong>VulnHunter Lab</strong><small>Controlled workspace</small></span>
+            <svg aria-hidden="true"><use href="#vh-i-chevron"></use></svg>
+          </div>
+        </div>
+      {% endif %}
+    </aside>
+    <button class="vh-sidebar-scrim" type="button" data-nav-close aria-label="Close navigation" hidden></button>
+    <div class="vh-main-shell">
+      <header class="vh-topbar">
+        <button type="button" class="vh-nav-toggle" data-nav-toggle aria-expanded="false" aria-controls="vh-sidebar" aria-label="Open navigation"><svg aria-hidden="true"><use href="#vh-i-menu"></use></svg></button>
+        <div class="vh-context-controls">
+          <details class="vh-context-menu">
+            <summary class="vh-context-card" aria-label="Select assessment target">
+              <svg aria-hidden="true"><use href="#vh-i-globe"></use></svg>
+              <span><small>Target</small><strong>{% if run %}{{ run.objective|truncatechars:28 }}{% else %}Select target{% endif %}</strong></span>
+              <svg class="vh-context-chevron" aria-hidden="true"><use href="#vh-i-chevron"></use></svg>
+            </summary>
+            <div class="vh-context-popover">
+              <strong>Assessment target</strong>
+              {% if run %}
+                <span>{{ run.objective }}</span>
+                <a href="{% url 'web-agent-run-detail' run.run_id %}">Open current run</a>
+              {% elif runs %}
+                {% for available_run in runs|slice:":5" %}<a href="{% url 'web-agent-run-detail' available_run.run_id %}">{{ available_run.objective|truncatechars:34 }}</a>{% endfor %}
+              {% else %}
+                <span>No saved targets</span>
+                <a href="{% url 'web-agent-run-list' %}">Open assessments</a>
+              {% endif %}
+            </div>
+          </details>
+          <details class="vh-context-menu vh-context-profile-menu">
+            <summary class="vh-context-card vh-context-profile" aria-label="Select assessment profile">
+              <svg aria-hidden="true"><use href="#vh-i-oracle"></use></svg>
+              <span><small>Profile</small><strong>{% if run %}{{ run.selected_role|default:"Bounded assessment" }}{% else %}Select profile{% endif %}</strong></span>
+              <svg class="vh-context-chevron" aria-hidden="true"><use href="#vh-i-chevron"></use></svg>
+            </summary>
+            <div class="vh-context-popover">
+              <strong>Assessment profile</strong>
+              {% if run %}<span>{{ run.selected_skill|default:"No skill assigned" }}</span>{% else %}<span>Choose a profile when creating a run</span>{% endif %}
+              <a href="{% url 'web-advanced-profiles' %}">View profiles</a>
+            </div>
+          </details>
+          <div class="vh-context-card vh-context-run" aria-label="Current run status">
+            <span>
+              <small>Run</small>
+              <strong class="vh-live-text">
+                <i></i><span>{% if run %}{{ run.current_state }}{% else %}Idle{% endif %}</span>
+                {% if run %}<time class="vh-run-clock" datetime="{{ run.created_at|date:'c' }}" data-run-clock>00:00:00</time>{% endif %}
+              </strong>
+            </span>
+          </div>
+        </div>
+        <div class="vh-top-actions">
+          <button class="vh-search-trigger" type="button" data-search-toggle aria-haspopup="dialog" aria-controls="vh-command-dialog" aria-expanded="false"><svg aria-hidden="true"><use href="#vh-i-search"></use></svg><span>Search</span><kbd>⌘ K</kbd></button>
+          {% if pending_approval %}
+            <button class="vh-icon-control vh-notification-control" type="button" data-approval-open aria-haspopup="dialog" aria-controls="vh-approval-dialog" aria-label="Review pending approval">
+              <svg aria-hidden="true"><use href="#vh-i-bell"></use></svg>
+              <span class="vh-notification-dot" aria-label="1 pending approval">1</span>
+            </button>
+          {% else %}
+            <a class="vh-icon-control vh-notification-control" href="{% url 'web-approval-list' %}" aria-label="Open Approval Centre"><svg aria-hidden="true"><use href="#vh-i-bell"></use></svg></a>
+          {% endif %}
+          <span class="vh-icon-control" role="img" aria-label="Help"><svg aria-hidden="true"><use href="#vh-i-help"></use></svg></span>
+          <span class="vh-icon-control" role="img" aria-label="Theme preference"><svg aria-hidden="true"><use href="#vh-i-theme"></use></svg></span>
+          {% if request.user.is_authenticated %}
+            <details class="vh-user-menu">
+              <summary aria-label="Open account menu"><span class="vh-avatar" aria-hidden="true">{{ request.user.username|slice:":1"|upper }}</span><svg aria-hidden="true"><use href="#vh-i-chevron"></use></svg></summary>
+              <div class="vh-user-popover"><strong>{{ request.user.username }}</strong><small>Governed operator</small>{% if controls.stop.available and run %}<a class="vh-user-stop-link" href="{% url 'web-agent-run-stop' run.run_id %}">Stop current run</a>{% endif %}<form action="{% url 'web-logout' %}" method="post">{% csrf_token %}<button type="submit">Sign out</button></form></div>
+            </details>
+          {% endif %}
+        </div>
+      </header>
+      <main id="main-content" class="vh-main" tabindex="-1">
+        {% if messages %}<section class="vh-message-stack" aria-label="Notifications" aria-live="polite">{% for message in messages %}<p class="vh-message vh-message-{{ message.tags|default:'info' }}">{{ message }}</p>{% endfor %}</section>{% endif %}
+        {% block content %}{% endblock %}
+      </main>
+    </div>
+  </div>
+  <dialog id="vh-command-dialog" class="vh-command-dialog" aria-labelledby="vh-command-title">
+    <form method="dialog" class="vh-command-header"><label id="vh-command-title" for="vh-command-input">Search workspace</label><button type="submit" aria-label="Close search">Esc</button></form>
+    <div class="vh-command-search"><svg aria-hidden="true"><use href="#vh-i-search"></use></svg><input id="vh-command-input" type="search" autocomplete="off" placeholder="Type a page name…" data-command-input></div>
+    <nav aria-label="Search results"><ul class="vh-command-results" data-command-results>{% for item in navigation %}<li><a href="{% url item.url_name %}">{{ item.label }}</a></li>{% endfor %}</ul></nav>
+  </dialog>
+</body>
+</html>

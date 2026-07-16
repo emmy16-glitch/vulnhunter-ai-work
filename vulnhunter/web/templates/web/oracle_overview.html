@@ -1,0 +1,5 @@
+{% extends "web/base.html" %}
+{% block content %}
+<header class="vh-page-heading"><div><p class="vh-eyebrow">Independent verification</p><h1>Machine Oracle</h1><p>Evidence replay and verifier status.</p></div><span class="vh-status-chip vh-status-warning">Live verifier disabled</span></header>
+<section class="vh-card"><div class="vh-card-header"><div><h2>Oracle readiness</h2><p>Verification controls.</p></div></div><ul class="vh-readiness-list">{% for label, state in oracle_checks %}<li><span><i></i>{{ label }}</span><strong>{{ state }}</strong></li>{% endfor %}</ul></section>
+{% endblock %}

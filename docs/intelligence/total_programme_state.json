@@ -1,0 +1,100 @@
+{
+  "baseline_head": "c0f853275bf0b9598f962e0dd81cc997aa13fc01",
+  "branch": "milestone-27-integrated-intelligence-machine-oracle",
+  "external_actions": {
+    "committed": false,
+    "deployed": false,
+    "dynamically_executed": false,
+    "externally_scanned": false,
+    "merged": false,
+    "published": false,
+    "pushed": false,
+    "silently_activated": false,
+    "silently_installed": false,
+    "trained": false
+  },
+  "rolling_checkpoint": {
+    "bytes": 695786,
+    "path": "/home/okunlola_labs/vulnhunter-total-programme-continuation.patch",
+    "scope": "Stage A, canonical reconciliation, and Wave 1 through sub-wave 1.3",
+    "sha256": "7a00cab30e6d818440191f7f692ced7da4449c787b95a49077458cd2ca85c257"
+  },
+  "schema_version": "1.0",
+  "stage_a": {
+    "complete_checkpoint_sha256": "8883f446f93d669a7f4f2a12e09768c4455fb7024cdfd1e1471252a970f77972",
+    "focused_tests_passed": 79,
+    "security_delta_sha256": "49d88c694f72143789e17c02382414c15e97dc2f34ab49c05f2106dbe1763f07",
+    "status": "technically_complete",
+    "tests_repeated_after_success": false
+  },
+  "stage_b": {
+    "active_wave": "manual_completion_and_activation_readiness",
+    "blocker": null,
+    "canonical_phases_mapped": 25,
+    "canonical_requirements_mapped": 608,
+    "canonical_sections_mapped": 26,
+    "canonical_source_bytes": 27179,
+    "canonical_source_sha256_observed": "3ffac0a5b441c7eb6877e2fa7c3d5a4eeb243808d6f0eb2002f49202d0dcf265",
+    "classification_note": "Code-only missing rows resolved; native graph remains partial until Graphify learning/comparison gate.",
+    "classification_totals": {
+      "activation_required": 19,
+      "complete": 86,
+      "contract_only": 43,
+      "credential_required": 23,
+      "external_prerequisite": 59,
+      "intentionally_excluded": 13,
+      "late_stage_gated": 40,
+      "manual_install_required": 11,
+      "missing": 0,
+      "partial": 272,
+      "prohibited": 0,
+      "resource_deferred": 42,
+      "unmapped": 0
+    },
+    "dependency_inventory_recorded": true,
+    "exact_next_task": "install package, run focused validation, then choose manual activation dependencies",
+    "explicit_prompt_capabilities_catalogued": 50,
+    "explicit_prompt_phases_catalogued": 25,
+    "graphify_activation_status": "manual_install_required",
+    "graphify_installed": false,
+    "manual_completion_capabilities": {
+      "context_broker": "complete",
+      "downloadable_exports": "complete",
+      "findings_lifecycle": "complete",
+      "graphify_adapter_contract": "complete_activation_required",
+      "native_repository_graph": "complete",
+      "privileged_broker_contract": "complete_manual_install_required",
+      "provider_runtime": "complete_activation_required",
+      "skill_import_trust_framework": "complete",
+      "static_binary_analysis": "complete",
+      "unified_product_workspace": "complete_pending_visual_acceptance"
+    },
+    "preparatory_repository_evidence_catalogued": true,
+    "reconciliation_gate": "passed",
+    "reconciliation_tests": {
+      "passed": 2,
+      "process_elapsed_seconds": 40.48,
+      "pytest_seconds": 4.71
+    },
+    "resolved_blocker_history": "canonical source was unavailable for three goal turns before user restoration",
+    "status": "manual_code_completion_package_ready",
+    "unmapped": 0,
+    "wave_1_capability_subtraction": "complete",
+    "wave_1_started": true,
+    "wave_1_subwaves": {
+      "agentic_threat_detection": "complete",
+      "authoritative_approval_binding": "complete",
+      "bounded_worker_leases": "complete",
+      "lifecycle_and_deadline": "complete",
+      "operator_pause_resume_and_cancellation": "complete",
+      "task_graph_cas_and_immutable_bindings": "complete"
+    },
+    "wave_1_tests": {
+      "latest_passed": 20,
+      "latest_process_elapsed_seconds": 64.11,
+      "latest_pytest_seconds": 31.11,
+      "unique_affected_tests": 46
+    }
+  },
+  "updated_at": "2026-07-15T09:00:00Z"
+}

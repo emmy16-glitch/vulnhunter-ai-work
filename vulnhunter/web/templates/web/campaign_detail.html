@@ -1,0 +1,77 @@
+{% extends "web/base.html" %}
+{% block content %}
+<section class="vh-grid">
+  <article class="vh-card">
+    <h3>Campaign summary</h3>
+    <ul class="vh-key-value-list">
+      <li><strong>ID</strong><code>{{ campaign.campaign_id }}</code></li>
+      <li><strong>Status</strong><span>{{ campaign.status }}</span></li>
+      <li><strong>Owner</strong><span>{{ campaign.owner_id }}</span></li>
+      <li><strong>Release manifest</strong><code>{{ campaign.release_manifest_sha256|default:"Unavailable" }}</code></li>
+    </ul>
+    <p>{{ campaign.purpose }}</p>
+  </article>
+  <article class="vh-card">
+    <h3>Authorization and scope</h3>
+    <ul class="vh-rows">
+      {% for item in campaign.authorization_references %}
+        <li><code>{{ item }}</code></li>
+      {% empty %}
+        <li>No authorization references are available.</li>
+      {% endfor %}
+    </ul>
+    <h4>Scope summary</h4>
+    <ul class="vh-rows">
+      {% for item in campaign.scope_summary %}
+        <li><code>{{ item }}</code></li>
+      {% empty %}
+        <li>No scope summary is available.</li>
+      {% endfor %}
+    </ul>
+  </article>
+</section>
+<section class="vh-grid">
+  <article class="vh-card">
+    <h3>Scans and provenance</h3>
+    {% if campaign.scans %}
+      <ul class="vh-rows">
+        {% for scan in campaign.scans %}
+          <li><strong>{{ scan.application_id }}</strong> <span>{{ scan.target_url }}</span> <code>{{ scan.scan_snapshot_sha256 }}</code></li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="vh-empty-state">No governed scan provenance is linked.</p>
+    {% endif %}
+  </article>
+  <article class="vh-card">
+    <h3>Assignments and review state</h3>
+    {% if campaign.assignments %}
+      <ul class="vh-rows">
+        {% for assignment in campaign.assignments %}
+          <li><strong>{{ assignment.observation_id }}</strong> <span>{{ assignment.state }}</span> <span>{{ assignment.effective_label }}</span></li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="vh-empty-state">No reviewer assignments are available.</p>
+    {% endif %}
+  </article>
+</section>
+<section class="vh-card">
+  <div class="vh-card-header">
+    <h3>Readiness</h3>
+    <a href="{% url 'web-readiness-detail' campaign.campaign_id %}">Open readiness report</a>
+  </div>
+  {% if campaign.readiness %}
+    <p>Pilot ready: {{ campaign.readiness.pilot_ready }}</p>
+    <ul class="vh-rows">
+      {% for item in campaign.readiness.hard_release_blockers %}
+        <li>{{ item }}</li>
+      {% empty %}
+        <li>No hard blockers were reported.</li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="vh-empty-state">Readiness data is unavailable for this campaign.</p>
+  {% endif %}
+</section>
+{% endblock %}

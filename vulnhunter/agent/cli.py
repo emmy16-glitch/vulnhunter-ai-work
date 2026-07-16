@@ -20,6 +20,8 @@ from vulnhunter.agent.models import (
 )
 from vulnhunter.agent.planner import SequencePlanner
 from vulnhunter.agent.store import AgentStore
+from vulnhunter.agent_activity.service import AgentActivityService
+from vulnhunter.agent_activity.store import AppendOnlyActivityStore
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -37,6 +39,7 @@ def _parser() -> argparse.ArgumentParser:
     subparsers.add_parser("validate-config")
     demo = subparsers.add_parser("demo")
     demo.add_argument("--database", type=Path, required=True)
+    demo.add_argument("--activity-root", type=Path, default=Path(".local/agent-activity"))
     demo.add_argument("--task-id", default="demo-agent-task")
     demo.add_argument("--value", default="bounded execution verified")
 
@@ -65,7 +68,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         return 0
 
-    store = AgentStore(args.database)
+    store = (
+        AgentStore(args.database)
+        if args.command == "demo"
+        else AgentStore.open_existing(args.database)
+    )
     if args.command == "demo":
         planner = SequencePlanner(
             (
@@ -93,6 +100,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 planner=planner,
                 tools=build_safe_demo_tools(),
                 evaluator=ResultEvaluator(),
+                activity_service=AgentActivityService(AppendOnlyActivityStore(args.activity_root)),
             )
         )
         manifest = PermissionManifest(

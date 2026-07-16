@@ -1,0 +1,38 @@
+{% extends "web/base.html" %}
+{% block content %}
+<section class="vh-grid">
+  <article class="vh-card">
+    <h3>{{ skill.display_name }}</h3>
+    <p>{{ skill.purpose }}</p>
+    <ul class="vh-key-value-list">
+      <li><strong>Identifier</strong><code>{{ skill.skill_id }}</code></li>
+      <li><strong>Version</strong><span>{{ skill.version }}</span></li>
+      <li><strong>Risk</strong><span>{{ skill.risk_level }}</span></li>
+      <li><strong>Status</strong><span>{{ skill.status }}</span></li>
+      <li><strong>Operational state</strong><span>{{ skill.operational_state }}</span></li>
+      <li><strong>Last reviewed</strong><span>{{ skill.last_reviewed_on }}</span></li>
+    </ul>
+  </article>
+  <article class="vh-card">
+    <h3>Actions and tools</h3>
+    <h4>Allowed actions</h4>
+    <ul class="vh-rows">{% for item in skill.allowed_actions %}<li><code>{{ item }}</code></li>{% empty %}<li>None</li>{% endfor %}</ul>
+    <h4>Denied actions</h4>
+    <ul class="vh-rows">{% for item in skill.denied_actions %}<li><code>{{ item }}</code></li>{% empty %}<li>None</li>{% endfor %}</ul>
+    <h4>Required tools</h4>
+    <ul class="vh-rows">{% for item in skill.required_tools %}<li><code>{{ item }}</code></li>{% empty %}<li>None</li>{% endfor %}</ul>
+  </article>
+</section>
+<section class="vh-grid">
+  <article class="vh-card">
+    <h3>Verification requirements</h3>
+    <ul class="vh-rows">{% for item in skill.verification_requirements %}<li>{{ item }}</li>{% empty %}<li>None</li>{% endfor %}</ul>
+    <h4>Required tests</h4>
+    <ul class="vh-rows">{% for item in skill.required_tests %}<li>{{ item }}</li>{% empty %}<li>None</li>{% endfor %}</ul>
+  </article>
+  <article class="vh-card">
+    <h3>Rollback procedure</h3>
+    <ul class="vh-rows">{% for item in skill.rollback_procedure %}<li>{{ item }}</li>{% empty %}<li>None</li>{% endfor %}</ul>
+  </article>
+</section>
+{% endblock %}

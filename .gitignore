@@ -19,7 +19,7 @@ htmlcov/
 # Generated datasets and reports
 data/
 exports/
-reports/
+/reports/
 
 # Logs and temporary scan files
 *.log
@@ -46,5 +46,7 @@ dist/
 *~
 # VulnHunter generated local artifacts
 artifacts/
+graphify-out/
 *.db-shm
 *.db-wal
+.local

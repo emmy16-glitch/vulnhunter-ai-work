@@ -1,0 +1,106 @@
+.vh-activity-timeline {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+  padding: 1rem;
+  border: 1px solid var(--vh-border, #d8dbe2);
+  border-radius: var(--vh-radius, 0.75rem);
+  background: var(--vh-surface, #ffffff);
+}
+
+.vh-activity-header,
+.vh-activity-controls,
+.vh-activity-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.vh-activity-header h2,
+.vh-activity-header p,
+.vh-activity-content p {
+  margin: 0;
+}
+
+.vh-activity-events {
+  display: grid;
+  gap: 0;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.vh-activity-event {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1rem minmax(0, 1fr);
+  gap: 0.75rem;
+  padding: 0 0 1rem;
+  overflow-wrap: anywhere;
+}
+
+.vh-activity-event:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  top: 0.8rem;
+  bottom: 0;
+  left: 0.4375rem;
+  width: 2px;
+  background: var(--vh-border, #d8dbe2);
+}
+
+.vh-activity-marker {
+  z-index: 1;
+  width: 0.875rem;
+  height: 0.875rem;
+  margin-top: 0.25rem;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.vh-activity-content {
+  min-width: 0;
+}
+
+.vh-activity-content time,
+.vh-activity-meta,
+.vh-activity-empty,
+.vh-activity-connection {
+  font-size: 0.875rem;
+}
+
+.vh-activity-title {
+  margin-top: 0.25rem;
+  font-weight: 700;
+}
+
+.vh-activity-controls button,
+.vh-activity-new-events {
+  min-height: 2.75rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid currentColor;
+  border-radius: 0.5rem;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+
+.vh-activity-controls button:focus-visible,
+.vh-activity-new-events:focus-visible {
+  outline: 3px solid currentColor;
+  outline-offset: 3px;
+}
+
+@media (max-width: 40rem) {
+  .vh-activity-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .vh-activity-controls {
+    justify-content: flex-start;
+  }
+}

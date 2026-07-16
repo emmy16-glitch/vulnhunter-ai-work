@@ -5,11 +5,14 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from typing import Any, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+from vulnhunter.actions.models import ActionManifest
+from vulnhunter.approvals.conditions import CanonicalApprovalExecutionPlan
 
 _IDENTIFIER = re.compile(r"^[a-z0-9][a-z0-9._-]{1,127}$")
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
@@ -46,10 +49,68 @@ class TaskStatus(StrEnum):
     RUNNING = "running"
     PAUSED_APPROVAL = "paused_approval"
     PAUSED_BUDGET = "paused_budget"
+    PAUSED_OPERATOR = "paused_operator"
     BLOCKED = "blocked"
     FAILED = "failed"
     COMPLETED = "completed"
     CANCELLED = "cancelled"
+    TIMED_OUT = "timed_out"
+
+
+_ALLOWED_TASK_TRANSITIONS: dict[TaskStatus, frozenset[TaskStatus]] = {
+    TaskStatus.CREATED: frozenset(
+        {
+            TaskStatus.CREATED,
+            TaskStatus.RUNNING,
+            TaskStatus.PAUSED_OPERATOR,
+            TaskStatus.CANCELLED,
+            TaskStatus.TIMED_OUT,
+        }
+    ),
+    TaskStatus.RUNNING: frozenset(
+        {
+            TaskStatus.RUNNING,
+            TaskStatus.PAUSED_APPROVAL,
+            TaskStatus.PAUSED_BUDGET,
+            TaskStatus.PAUSED_OPERATOR,
+            TaskStatus.BLOCKED,
+            TaskStatus.FAILED,
+            TaskStatus.COMPLETED,
+            TaskStatus.CANCELLED,
+            TaskStatus.TIMED_OUT,
+        }
+    ),
+    TaskStatus.PAUSED_APPROVAL: frozenset(
+        {
+            TaskStatus.PAUSED_APPROVAL,
+            TaskStatus.RUNNING,
+            TaskStatus.CANCELLED,
+            TaskStatus.TIMED_OUT,
+        }
+    ),
+    TaskStatus.PAUSED_BUDGET: frozenset(
+        {
+            TaskStatus.PAUSED_BUDGET,
+            TaskStatus.RUNNING,
+            TaskStatus.PAUSED_OPERATOR,
+            TaskStatus.CANCELLED,
+            TaskStatus.TIMED_OUT,
+        }
+    ),
+    TaskStatus.PAUSED_OPERATOR: frozenset(
+        {
+            TaskStatus.PAUSED_OPERATOR,
+            TaskStatus.RUNNING,
+            TaskStatus.CANCELLED,
+            TaskStatus.TIMED_OUT,
+        }
+    ),
+    TaskStatus.BLOCKED: frozenset(),
+    TaskStatus.FAILED: frozenset(),
+    TaskStatus.COMPLETED: frozenset(),
+    TaskStatus.CANCELLED: frozenset(),
+    TaskStatus.TIMED_OUT: frozenset(),
+}
 
 
 class ProposalKind(StrEnum):
@@ -124,6 +185,7 @@ class PermissionManifest(BaseModel):
 
     manifest_id: str
     role_id: str
+    skill_id: str | None = None
     allowed_actions: tuple[str, ...] = Field(min_length=1)
     allowed_tools: tuple[str, ...] = Field(min_length=1)
     allowed_risks: tuple[ToolRisk, ...] = (ToolRisk.READ_ONLY,)
@@ -131,6 +193,7 @@ class PermissionManifest(BaseModel):
     max_steps: int = Field(default=20, ge=1, le=500)
     max_tool_calls: int = Field(default=20, ge=1, le=500)
     max_identical_failures: int = Field(default=2, ge=1, le=10)
+    maximum_runtime_seconds: int = Field(default=3_600, ge=1, le=86_400)
     allow_network: bool = False
     allow_connectors: bool = False
     allow_secrets: bool = False
@@ -138,9 +201,11 @@ class PermissionManifest(BaseModel):
     allow_deployment: bool = False
     expires_at: datetime | None = None
 
-    @field_validator("manifest_id", "role_id")
+    @field_validator("manifest_id", "role_id", "skill_id")
     @classmethod
-    def validate_identifier(cls, value: str) -> str:
+    def validate_identifier(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
         if _IDENTIFIER.fullmatch(value) is None:
             raise ValueError("identifiers must be stable lowercase values")
         return value
@@ -170,6 +235,34 @@ class PermissionManifest(BaseModel):
 
     def fingerprint(self) -> str:
         return sha256_json(self.model_dump(mode="json"))
+
+
+class AgentApprovalBinding(BaseModel):
+    """Canonical Approval Centre inputs bound to one agent execution."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    request_id: str
+    execution_id: str
+    consumer_actor_id: str
+    action_manifest: ActionManifest
+    execution_plan: CanonicalApprovalExecutionPlan
+
+    @field_validator("request_id", "execution_id", "consumer_actor_id")
+    @classmethod
+    def validate_identity(cls, value: str) -> str:
+        if _IDENTIFIER.fullmatch(value) is None:
+            raise ValueError("approval binding identities must be stable lowercase values")
+        return value
+
+    @model_validator(mode="after")
+    def validate_bindings(self) -> Self:
+        manifest_sha256 = self.action_manifest.fingerprint()
+        if self.execution_plan.action_manifest_sha256 != manifest_sha256:
+            raise ValueError("approval execution plan is bound to another manifest")
+        if self.execution_plan.execution_id != self.execution_id:
+            raise ValueError("approval execution plan is bound to another execution")
+        return self
 
 
 class ToolSpec(BaseModel):
@@ -318,6 +411,7 @@ class AgentTask(BaseModel):
     objective: str = Field(min_length=8)
     status: TaskStatus = TaskStatus.CREATED
     permission_manifest: PermissionManifest
+    approval_binding: AgentApprovalBinding | None = None
     step_count: int = Field(default=0, ge=0)
     tool_call_count: int = Field(default=0, ge=0)
     revision: int = Field(default=0, ge=0)
@@ -327,6 +421,7 @@ class AgentTask(BaseModel):
     final_summary: str | None = None
     created_at: datetime = Field(default_factory=utc_now)
     updated_at: datetime = Field(default_factory=utc_now)
+    deadline_at: datetime | None = None
 
     @field_validator("task_id")
     @classmethod
@@ -335,6 +430,28 @@ class AgentTask(BaseModel):
             raise ValueError("task_id must be a stable lowercase identifier")
         return value
 
+    @field_validator("created_at", "updated_at", "deadline_at")
+    @classmethod
+    def validate_timestamp(cls, value: datetime | None) -> datetime | None:
+        if value is None:
+            return None
+        if value.tzinfo is None or value.utcoffset() is None:
+            raise ValueError("task timestamps must be timezone-aware")
+        return value.astimezone(UTC)
+
+    @model_validator(mode="after")
+    def validate_deadline(self) -> Self:
+        expected = self.created_at + timedelta(
+            seconds=self.permission_manifest.maximum_runtime_seconds
+        )
+        if self.deadline_at is None:
+            object.__setattr__(self, "deadline_at", expected)
+        elif self.deadline_at != expected:
+            raise ValueError("deadline_at must match the immutable task runtime budget")
+        if self.updated_at < self.created_at:
+            raise ValueError("updated_at cannot precede created_at")
+        return self
+
     @property
     def terminal(self) -> bool:
         return self.status in {
@@ -342,12 +459,48 @@ class AgentTask(BaseModel):
             TaskStatus.FAILED,
             TaskStatus.COMPLETED,
             TaskStatus.CANCELLED,
+            TaskStatus.TIMED_OUT,
         }
 
     def evolved(self, **changes: Any) -> AgentTask:
         changes.setdefault("updated_at", utc_now())
         changes.setdefault("revision", self.revision + 1)
-        return self.model_copy(update=changes)
+        candidate = AgentTask.model_validate(
+            self.model_copy(update=changes).model_dump(mode="python")
+        )
+        candidate.validate_update_from(self)
+        return candidate
+
+    def validate_update_from(self, previous: AgentTask) -> None:
+        """Validate one persisted state transition against its prior snapshot."""
+
+        immutable_fields = (
+            "task_id",
+            "objective",
+            "permission_manifest",
+            "approval_binding",
+            "created_at",
+            "deadline_at",
+        )
+        changed = [
+            field for field in immutable_fields if getattr(self, field) != getattr(previous, field)
+        ]
+        if changed:
+            raise ValueError(f"immutable task fields changed: {changed}")
+        if previous.terminal:
+            raise ValueError("terminal agent tasks are immutable")
+        if self.status not in _ALLOWED_TASK_TRANSITIONS[previous.status]:
+            raise ValueError(
+                f"invalid agent task transition: {previous.status.value} -> {self.status.value}"
+            )
+        if self.revision != previous.revision + 1:
+            raise ValueError("task revision must increase by exactly one")
+        if self.updated_at < previous.updated_at:
+            raise ValueError("task updated_at cannot move backwards")
+        if self.step_count < previous.step_count:
+            raise ValueError("task step_count cannot decrease")
+        if self.tool_call_count < previous.tool_call_count:
+            raise ValueError("task tool_call_count cannot decrease")
 
 
 class AuditEvent(BaseModel):

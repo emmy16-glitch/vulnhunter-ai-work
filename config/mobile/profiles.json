@@ -1,0 +1,90 @@
+{
+  "schema_version": "1.0",
+  "profiles": {
+    "static": {
+      "tools": [
+        "apksigner",
+        "aapt2",
+        "apkid",
+        "apktool",
+        "jadx",
+        "androguard",
+        "yara"
+      ],
+      "approval_stages": [
+        "artifact_integrity"
+      ],
+      "host_execution": false
+    },
+    "static_and_native": {
+      "tools": [
+        "apksigner",
+        "aapt2",
+        "apkid",
+        "apktool",
+        "jadx",
+        "androguard",
+        "yara",
+        "radare2",
+        "ghidra"
+      ],
+      "approval_stages": [
+        "artifact_integrity",
+        "native_connector"
+      ],
+      "host_execution": false
+    },
+    "dynamic": {
+      "tools": [
+        "mobsf",
+        "adb",
+        "frida"
+      ],
+      "approval_stages": [
+        "artifact_integrity",
+        "isolated_runtime",
+        "exact_action",
+        "dynamic_validation"
+      ],
+      "host_execution": false
+    },
+    "full": {
+      "tools": [
+        "apksigner",
+        "aapt2",
+        "apkid",
+        "apktool",
+        "jadx",
+        "androguard",
+        "yara",
+        "radare2",
+        "ghidra",
+        "mobsf",
+        "adb",
+        "frida"
+      ],
+      "approval_stages": [
+        "artifact_integrity",
+        "native_connector",
+        "isolated_runtime",
+        "exact_action",
+        "dynamic_validation"
+      ],
+      "host_execution": false
+    },
+    "retest": {
+      "tools": [
+        "apksigner",
+        "aapt2",
+        "apktool",
+        "jadx",
+        "mobsf"
+      ],
+      "approval_stages": [
+        "artifact_integrity",
+        "retest_scope"
+      ],
+      "host_execution": false
+    }
+  }
+}

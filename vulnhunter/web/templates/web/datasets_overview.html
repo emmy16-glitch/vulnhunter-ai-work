@@ -1,0 +1,5 @@
+{% extends "web/base.html" %}
+{% block content %}
+<header class="vh-page-heading"><div><p class="vh-eyebrow">Intelligence</p><h1>Datasets</h1><p>Readiness evidence for governed campaign data.</p></div></header>
+<section class="vh-card vh-card-flush">{% if error_message %}<div class="vh-operational-notice is-danger"><strong>Dataset evidence unavailable</strong><p>{{ error_message }}</p></div>{% elif campaigns %}<div class="vh-table-wrap"><table class="vh-table"><thead><tr><th>Campaign</th><th>Applications</th><th>Scans</th><th>Release</th><th>Readiness</th></tr></thead><tbody>{% for item in campaigns %}<tr><td><a href="{% url 'web-campaign-detail' item.campaign_id %}">{{ item.title }}</a><code>{{ item.campaign_id }}</code></td><td>{{ item.application_count }}</td><td>{{ item.scan_count }}</td><td>{{ item.release_manifest_state }}</td><td>{% if item.readiness %}Available{% else %}Not assessed{% endif %}</td></tr>{% endfor %}</tbody></table></div>{% else %}<div class="vh-zero-state"><span>◎</span><h3>No dataset evidence</h3><p>Governed campaign data has not reached readiness assessment.</p></div>{% endif %}</section>
+{% endblock %}

@@ -88,10 +88,34 @@ class AgentPolicyEngine:
                 f"Tool capability {tool_spec.risk.value} is not enabled.",
             )
 
-        if call.action in manifest.approval_required_actions and not call.approval_reference:
-            return decide(
-                PolicyStatus.REQUIRES_APPROVAL,
-                "Action requires a recorded human approval reference.",
-            )
+        if call.action in manifest.approval_required_actions:
+            if not call.approval_reference:
+                return decide(
+                    PolicyStatus.REQUIRES_APPROVAL,
+                    "Action requires authoritative Approval Centre consumption.",
+                )
+            trusted_reference = task.memory.get("consumed_approval_sha256")
+            if call.approval_reference != trusted_reference:
+                return decide(
+                    PolicyStatus.DENIED,
+                    "Approval reference was not produced by this task's "
+                    "Approval Centre consumption.",
+                )
+            binding = task.approval_binding
+            if binding is None:
+                return decide(
+                    PolicyStatus.DENIED,
+                    "Approval execution lacks canonical manifest and plan bindings.",
+                )
+            action_manifest = binding.action_manifest
+            if (
+                call.action != action_manifest.action
+                or call.tool_id != action_manifest.tool_id
+                or call.operation != action_manifest.operation
+            ):
+                return decide(
+                    PolicyStatus.DENIED,
+                    "Approved action manifest does not match the proposed tool call.",
+                )
 
         return decide(PolicyStatus.ALLOWED, "Proposal is within declared runtime limits.")

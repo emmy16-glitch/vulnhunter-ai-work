@@ -1,0 +1,5 @@
+{% extends "web/base.html" %}
+{% block content %}
+<header class="vh-page-heading"><div><p class="vh-eyebrow">Verified outcomes</p><h1>Findings</h1><p>Evidence, review and remediation.</p></div><a class="vh-button-primary" href="{% url 'web-agent-run-list' %}">Open assessments</a></header>
+<section class="vh-card"><div class="vh-card-header"><div><h2>Pipeline readiness</h2><p>Current capability state.</p></div></div><ul class="vh-readiness-list">{% for label, state in capabilities %}<li><span><i></i>{{ label }}</span><strong>{{ state }}</strong></li>{% endfor %}</ul></section>
+{% endblock %}

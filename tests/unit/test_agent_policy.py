@@ -131,14 +131,15 @@ def test_approval_action_pauses_without_reference() -> None:
     assert result.status == PolicyStatus.REQUIRES_APPROVAL
 
 
-def test_approval_action_allows_recorded_reference() -> None:
+def test_approval_action_rejects_caller_supplied_reference() -> None:
     result = decision(
         approval_reference="approval-123",
         manifest_overrides={
             "approval_required_actions": ("evidence.inspect",),
         },
     )
-    assert result.status == PolicyStatus.ALLOWED
+    assert result.status == PolicyStatus.DENIED
+    assert "not produced" in result.reason
 
 
 def test_expired_manifest_is_denied() -> None:

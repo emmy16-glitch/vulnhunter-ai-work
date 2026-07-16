@@ -55,11 +55,25 @@ class GovernanceStore:
     @contextmanager
     def _connect(self) -> Iterator[sqlite3.Connection]:
         """Open one transaction and always release its file descriptor."""
-        connection = sqlite3.connect(self.path)
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            connection = sqlite3.connect(self.path, timeout=30)
+        except sqlite3.OperationalError as exc:
+            msg = f"unable to open governance database at {self.path}"
+            raise sqlite3.OperationalError(msg) from exc
         try:
             connection.row_factory = sqlite3.Row
             connection.execute("PRAGMA foreign_keys=ON")
-            connection.execute("PRAGMA journal_mode=WAL")
+            try:
+                connection.execute("PRAGMA journal_mode=WAL")
+            except sqlite3.OperationalError as exc:
+                if "unable to open database file" not in str(exc):
+                    raise
+                try:
+                    connection.execute("PRAGMA journal_mode=DELETE")
+                except sqlite3.OperationalError as fallback_exc:
+                    msg = f"unable to open governance database at {self.path}"
+                    raise sqlite3.OperationalError(msg) from fallback_exc
             yield connection
         except BaseException:
             connection.rollback()

@@ -1,0 +1,52 @@
+{
+  "schema_version": "1.0",
+  "owner": "Emmanuel Okunlola",
+  "version": "1.0.0",
+  "status": "planned",
+  "trust_assumption": "untrusted",
+  "denied_actions": [
+    "authorization.override",
+    "connector.enable",
+    "data.delete",
+    "deployment.execute",
+    "git.push",
+    "review.self_approve",
+    "secrets.read"
+  ],
+  "verification_requirements": [
+    "Verify exact manifest, role, skill, target, authorization, limits, and approval.",
+    "Stop on malformed, stale, conflicting, missing, or revoked evidence."
+  ],
+  "required_tests": [
+    "Schema validation test.",
+    "Negative permission-boundary test.",
+    "Exact-action approval binding test."
+  ],
+  "last_reviewed_on": "2026-07-11",
+  "rollback_procedure": [
+    "Disable the skill definition.",
+    "Revert the registry commit.",
+    "Re-run registry and project verification."
+  ],
+  "external_dependencies": [],
+  "skill_id": "human-approval-adjudication",
+  "display_name": "Human Approval Adjudication",
+  "purpose": "Review exact action hashes and choose one of the six persistent approval decisions.",
+  "risk_level": "critical",
+  "allowed_inputs": [
+    "approval request",
+    "action manifest digest",
+    "risk and scope summary"
+  ],
+  "allowed_outputs": [
+    "attributable approval decision"
+  ],
+  "allowed_actions": [
+    "approval.read",
+    "approval.decide",
+    "approval.deny"
+  ],
+  "required_tools": [
+    "approval.store"
+  ]
+}

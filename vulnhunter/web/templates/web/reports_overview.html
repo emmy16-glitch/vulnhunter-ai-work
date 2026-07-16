@@ -1,0 +1,5 @@
+{% extends "web/base.html" %}
+{% block content %}
+<header class="vh-page-heading"><div><p class="vh-eyebrow">Deliverables</p><h1>Reports</h1><p>Exported findings and evidence.</p></div><a class="vh-button-secondary" href="{% url 'web-pilot-plan-list' %}">Pilot plans</a></header>
+<section class="vh-card"><div class="vh-card-header"><div><h2>Formats</h2><p>Available report outputs.</p></div></div><div class="vh-format-grid">{% for label, state in report_formats %}<article><strong>{{ label }}</strong><small>{{ state }}</small></article>{% endfor %}</div></section>
+{% endblock %}

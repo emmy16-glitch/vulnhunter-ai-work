@@ -26,13 +26,23 @@ VulnHunter currently includes:
 - fail-closed campaign completion and immutable dataset-release manifests;
 - read-only governed pilot readiness reporting over release manifests,
   authorization provenance, exact scan links, review attestations, duplicate
-  evidence indicators, class balance, and dataset fingerprints.
+  evidence indicators, class balance, and dataset fingerprints;
+- a framework-independent operational product application layer with typed
+  read models for dashboard, campaigns, readiness, role/skill registry, and
+  bounded agent runtime inspection;
+- a local product CLI surface backed by the real stores and services:
+  `python -m vulnhunter.product`.
 
 ## Current interpretation
 
 The platform is a secure research pipeline and decision-support prototype. It is not an autonomous vulnerability scanner, exploit framework, or production-grade vulnerability classifier.
 
 The governed collection and authenticated-review control plane is implemented. That implementation proves workflow enforcement; it does not mean a diverse real dataset has already been collected.
+
+The product blueprint now has an executable application/read-model layer, but
+the browser shell remains intentionally unimplemented because the repository
+does not yet contain an approved web framework, browser session mechanism, or
+CSRF protection layer.
 
 ## Current model status
 
@@ -66,6 +76,7 @@ vulnhunter benchmark --help
 vulnhunter loop --help
 vulnhunter research --help
 vulnhunter unattended --help
+python -m vulnhunter.product --help
 ```
 
 ## Repository health

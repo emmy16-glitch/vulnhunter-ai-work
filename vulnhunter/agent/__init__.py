@@ -8,6 +8,7 @@ from vulnhunter.agent.config import (
 from vulnhunter.agent.controller import AgentController, AgentRuntime
 from vulnhunter.agent.evaluator import ResultEvaluator
 from vulnhunter.agent.models import (
+    AgentApprovalBinding,
     AgentProposal,
     AgentTask,
     AuditEvent,
@@ -49,6 +50,7 @@ from vulnhunter.agent.tools import (
 
 __all__ = [
     "AgentAuditIntegrityError",
+    "AgentApprovalBinding",
     "AgentController",
     "AgentPolicyEngine",
     "AgentProposal",

@@ -1,0 +1,78 @@
+{
+  "schema_version": "1.0",
+  "profiles": {
+    "deep_discovery": {
+      "tools": [
+        "amass",
+        "nmap",
+        "httpx",
+        "testssl"
+      ],
+      "approval_stages": [
+        "campaign_scope",
+        "network_discovery"
+      ]
+    },
+    "active_assessment": {
+      "tools": [
+        "nmap",
+        "httpx",
+        "testssl",
+        "nuclei",
+        "zap"
+      ],
+      "approval_stages": [
+        "campaign_scope",
+        "active_testing"
+      ]
+    },
+    "exploitability_validation": {
+      "tools": [
+        "sqlmap",
+        "metasploit"
+      ],
+      "approval_stages": [
+        "candidate_finding",
+        "exact_action",
+        "validation"
+      ]
+    },
+    "privileged_environment": {
+      "tools": [
+        "nmap",
+        "greenbone"
+      ],
+      "approval_stages": [
+        "exact_action",
+        "owner_reauthentication",
+        "privilege_grant"
+      ]
+    },
+    "attack_path_simulation": {
+      "tools": [
+        "amass",
+        "nmap",
+        "httpx",
+        "nuclei",
+        "greenbone"
+      ],
+      "approval_stages": [
+        "campaign_scope",
+        "active_testing",
+        "path_validation"
+      ]
+    },
+    "remediation_retest": {
+      "tools": [
+        "httpx",
+        "testssl",
+        "nuclei",
+        "trivy",
+        "bearer"
+      ],
+      "approval_stages": [
+        "retest_scope"
+      ]
+    }
+  }
+}

@@ -1,0 +1,27 @@
+{% extends "web/base.html" %}
+{% block content %}
+<section class="vh-card">
+  {% if record.plan %}
+    <h3>{{ record.plan.title }}</h3>
+    <p>{{ record.plan.purpose }}</p>
+    <ul class="vh-key-value-list">
+      <li><strong>Plan ID</strong><code>{{ record.plan.plan_id }}</code></li>
+      <li><strong>Local or lab only</strong><span>{{ record.plan.local_lab_only }}</span></li>
+      <li><strong>Applications</strong><span>{{ record.plan.applications|length }}</span></li>
+      <li><strong>Authorization references</strong><span>{{ record.plan.authorization_references|length }}</span></li>
+      <li><strong>Reviewer count</strong><span>2</span></li>
+      <li><strong>Adjudicator</strong><span>{{ record.plan.assignments.adjudicator_id }}</span></li>
+      <li><strong>Connector disabled</strong><span>{{ record.plan.connector_policy }}</span></li>
+      <li><strong>Automatic actions prohibited</strong><span>{% if not record.plan.automatic_campaign_approval and not record.plan.automatic_vulnerability_confirmation and not record.plan.automatic_adjudication and not record.plan.automatic_release %}true{% else %}false{% endif %}</span></li>
+      <li><strong>Model training prohibited</strong><span>{% if not record.plan.model_training_during_collection %}true{% else %}false{% endif %}</span></li>
+      <li><strong>Emergency stop owner</strong><span>{{ record.plan.assignments.emergency_stop_owner_id }}</span></li>
+      <li><strong>Plan hash</strong><code>{{ record.report.plan_sha256 }}</code></li>
+      <li><strong>Report hash</strong><code>{{ record.report.report_sha256 }}</code></li>
+    </ul>
+    <p><a href="{% url 'web-pilot-plan-validation' record.plan_id %}">Open validation result</a></p>
+  {% else %}
+    <h3>Invalid pilot plan</h3>
+    <p class="vh-empty-state">{{ record.error }}</p>
+  {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,21 @@
+{% extends "web/base.html" %}
+{% block content %}
+<section class="vh-card">
+  <h3>Skill registry</h3>
+  <div class="vh-table-wrap">
+    <table class="vh-table">
+      <thead><tr><th>Skill</th><th>Status</th><th>Risk</th><th>Required tools</th></tr></thead>
+      <tbody>
+        {% for skill in skills %}
+          <tr>
+            <td><a href="{% url 'web-skill-detail' skill.skill_id %}">{{ skill.display_name }}</a><br><code>{{ skill.skill_id }}</code></td>
+            <td>{{ skill.operational_state }}</td>
+            <td>{{ skill.risk_level }}</td>
+            <td>{% for item in skill.required_tools %}<code>{{ item }}</code>{% if not forloop.last %}, {% endif %}{% empty %}None{% endfor %}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

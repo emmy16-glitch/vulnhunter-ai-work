@@ -1,0 +1,62 @@
+{
+  "schema_version": "1.0",
+  "default_state": "disabled",
+  "connectors": {
+    "androguard": {
+      "requires_approval": false,
+      "requires_isolation": false,
+      "allowed_operations": [
+        "parse-apk",
+        "analyze-bytecode",
+        "export-json"
+      ]
+    },
+    "mobsf": {
+      "requires_approval": true,
+      "requires_isolation": true,
+      "allowed_operations": [
+        "upload-by-digest",
+        "run-static-analysis",
+        "run-approved-dynamic-analysis",
+        "export-json-report"
+      ]
+    },
+    "ghidra": {
+      "requires_approval": true,
+      "requires_isolation": true,
+      "allowed_operations": [
+        "import-native-library",
+        "run-reviewed-headless-analysis",
+        "export-symbol-report"
+      ]
+    },
+    "adb": {
+      "requires_approval": true,
+      "requires_isolation": true,
+      "allowed_operations": [
+        "install-approved-apk",
+        "inspect-package",
+        "collect-bounded-logcat",
+        "uninstall-approved-apk"
+      ]
+    },
+    "frida": {
+      "requires_approval": true,
+      "requires_isolation": true,
+      "allowed_operations": [
+        "attach-approved-package",
+        "run-approved-named-script",
+        "collect-bounded-events",
+        "detach"
+      ]
+    }
+  },
+  "globally_forbidden_operations": [
+    "arbitrary-shell",
+    "arbitrary-script",
+    "host-execution",
+    "persistence",
+    "credential-extraction",
+    "scope-bypass"
+  ]
+}

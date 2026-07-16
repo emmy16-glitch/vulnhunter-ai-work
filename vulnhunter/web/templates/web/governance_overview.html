@@ -1,0 +1,5 @@
+{% extends "web/base.html" %}
+{% block content %}
+<header class="vh-page-heading"><div><p class="vh-eyebrow">Governance</p><h1>Control centre</h1><p>Scope, roles and trusted capabilities.</p></div></header>
+<section class="vh-hub-grid"><a class="vh-hub-card" href="{% url 'web-campaign-list' %}"><strong>Campaigns</strong><span>Authorization and scope</span></a><a class="vh-hub-card" href="{% url 'web-role-list' %}"><strong>Roles</strong><span>Responsibilities and permissions</span></a><a class="vh-hub-card" href="{% url 'web-skill-list' %}"><strong>Skills</strong><span>Bounded capability registry</span></a><a class="vh-hub-card" href="{% url 'web-security-tool-registry' %}"><strong>Security tools</strong><span>Readiness and adapters</span></a></section>
+{% endblock %}

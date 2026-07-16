@@ -13,8 +13,8 @@ def test_validate_command_prints_registry_report(capsys) -> None:
     output = json.loads(capsys.readouterr().out)
 
     assert exit_code == 0
-    assert output["role_count"] == 13
-    assert output["skill_count"] == 13
+    assert output["role_count"] == 18
+    assert output["skill_count"] == 21
     assert output["active_role_count"] == 0
 
 

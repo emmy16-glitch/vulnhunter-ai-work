@@ -73,6 +73,14 @@ ml.training / tuning / diagnostics
   +--> training-only selection
   +--> locked holdout evaluation
   +--> versioned model provenance
+  |
+  v
+product application layer
+  |
+  +--> typed read models over authorization, governance, readiness,
+  |    role/skill registry, and bounded agent runtime state
+  +--> read-only local CLI surface
+  +--> explicit unavailable states for unsupported browser capabilities
 ```
 
 ## Architectural principles
@@ -88,6 +96,9 @@ ml.training / tuning / diagnostics
 - Keep scans intact across dataset splits.
 - Store enough provenance to reproduce every model artifact.
 - Prefer explicit failure to silent fallback.
+- Keep the product presentation boundary above domain and store services.
+- Do not add a browser server without an approved framework plus session and
+  CSRF protections.
 
 ## Runtime dependencies
 
@@ -164,6 +175,21 @@ ScopedUrl
 ```
 
 The connection pool disables keep-alive reuse. This intentionally trades some throughput for a fresh, auditable binding decision on every request and redirect.
+
+## Product application layer
+
+```text
+Product CLI
+  -> vulnhunter.product.service.ProductApplicationService
+  -> read-only store/service adapters
+  -> typed product read models
+  -> JSON output for local operational inspection
+```
+
+This boundary is intentionally framework-independent. It is the only new
+presentation-facing layer added in Milestone 24. It does not mutate SQLite
+tables directly and does not reimplement governance, authorization, readiness,
+or runtime policy.
 
 ## Governed collection and review flow
 

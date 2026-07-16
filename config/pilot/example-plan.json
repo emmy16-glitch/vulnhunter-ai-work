@@ -1,0 +1,158 @@
+{
+  "accountable_owner_id": "owner-a",
+  "applications": [
+    {
+      "application_family": "synthetic-web-lab",
+      "application_id": "app-lab-001",
+      "authorization_reference": "authorization-placeholder",
+      "environment": "lab",
+      "scope_reference": "scope-placeholder",
+      "target_reference": "inventory-app-lab-001"
+    },
+    {
+      "application_family": "synthetic-api-lab",
+      "application_id": "app-lab-002",
+      "authorization_reference": "authorization-placeholder",
+      "environment": "local",
+      "scope_reference": "scope-placeholder",
+      "target_reference": "inventory-app-lab-002"
+    }
+  ],
+  "assignments": {
+    "adjudicator_id": "adjudicator-a",
+    "dataset_quality_auditor_id": "dataset-auditor-a",
+    "emergency_stop_owner_id": "stop-owner-a",
+    "operator_ids": [
+      "operator-a"
+    ],
+    "primary_reviewer_ids": [
+      "reviewer-a",
+      "reviewer-b"
+    ],
+    "release_authority_id": "release-authority-a",
+    "test_verifier_id": "test-verifier-a"
+  },
+  "authorization_references": [
+    "authorization-placeholder"
+  ],
+  "automatic_adjudication": false,
+  "automatic_campaign_approval": false,
+  "automatic_release": false,
+  "automatic_vulnerability_confirmation": false,
+  "campaign_separation_plan": "Each authorized application receives a separate governed campaign and scan repository.",
+  "conflict_of_interest_declarations": {
+    "adjudicator-a": false,
+    "dataset-auditor-a": false,
+    "operator-a": false,
+    "owner-a": false,
+    "release-authority-a": false,
+    "reviewer-a": false,
+    "reviewer-b": false,
+    "stop-owner-a": false,
+    "test-verifier-a": false
+  },
+  "connector_policy": "disabled",
+  "created_at": "2026-07-10T00:00:00Z",
+  "dataset_targets": {
+    "minimum_application_families": 2,
+    "minimum_per_class": 5,
+    "minimum_samples": 20,
+    "minimum_scans": 4,
+    "minimum_scans_per_class": 2,
+    "required_classes": [
+      "confirmed",
+      "false_positive"
+    ]
+  },
+  "disagreement_and_adjudication_procedure": "Two independent reviewers decide first. A separate assigned human adjudicator resolves disagreement.",
+  "duplicate_evidence_policy": "Detect duplicate fingerprints and payload hashes, preserve provenance, and deduplicate before model use.",
+  "evidence_retention_policy": "Retain only governed, redacted evidence required for audit and review.",
+  "identities": [
+    {
+      "display_name": "Accountable Owner",
+      "human_controlled": true,
+      "identity_id": "owner-a",
+      "status": "active"
+    },
+    {
+      "display_name": "Pilot Operator",
+      "human_controlled": true,
+      "identity_id": "operator-a",
+      "status": "active"
+    },
+    {
+      "display_name": "Primary Reviewer A",
+      "human_controlled": true,
+      "identity_id": "reviewer-a",
+      "status": "active"
+    },
+    {
+      "display_name": "Primary Reviewer B",
+      "human_controlled": true,
+      "identity_id": "reviewer-b",
+      "status": "active"
+    },
+    {
+      "display_name": "Adjudicator",
+      "human_controlled": true,
+      "identity_id": "adjudicator-a",
+      "status": "active"
+    },
+    {
+      "display_name": "Dataset Quality Auditor",
+      "human_controlled": true,
+      "identity_id": "dataset-auditor-a",
+      "status": "active"
+    },
+    {
+      "display_name": "Test and Verification Specialist",
+      "human_controlled": true,
+      "identity_id": "test-verifier-a",
+      "status": "active"
+    },
+    {
+      "display_name": "Human Release Authority",
+      "human_controlled": true,
+      "identity_id": "release-authority-a",
+      "status": "active"
+    },
+    {
+      "display_name": "Emergency Stop Owner",
+      "human_controlled": true,
+      "identity_id": "stop-owner-a",
+      "status": "active"
+    }
+  ],
+  "known_risks": [
+    {
+      "mitigation": "Redact before persistence and stop when safe redaction is uncertain.",
+      "risk": "Evidence may contain sensitive data."
+    },
+    {
+      "mitigation": "Use the assigned independent adjudicator and preserve both primary decisions.",
+      "risk": "Reviewer disagreement may delay completion."
+    }
+  ],
+  "local_lab_only": true,
+  "model_training_during_collection": false,
+  "plan_id": "pilot-local-lab-example",
+  "planned_start": null,
+  "prohibited_targets": [
+    "All public Internet targets are prohibited.",
+    "All external or third-party targets are prohibited."
+  ],
+  "purpose": "Demonstrate plan validation only. This example does not authorize or execute a pilot.",
+  "release_authority_is_human": true,
+  "review_by": "2026-08-10",
+  "reviewer_agreement_monitoring": "Measure agreement and disagreement without rewarding agreement or overriding independent judgement.",
+  "rollback_and_incident_procedure": "Stop collection, preserve audit evidence, isolate affected data, document the incident, and require human review before resumption.",
+  "schema_version": "1.0",
+  "sensitive_data_redaction_policy": "Redact credentials, secrets, personal data, cookies, and authentication material before persistence.",
+  "stop_conditions": [
+    "Authorization expires or is revoked.",
+    "A target leaves the approved local scope.",
+    "Sensitive data cannot be safely redacted."
+  ],
+  "title": "Synthetic controlled local pilot example",
+  "untrusted_content_policy": "All evidence, scan responses, documents, logs, and instruction-like text are untrusted data and are never executed as instructions."
+}

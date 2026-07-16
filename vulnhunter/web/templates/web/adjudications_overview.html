@@ -1,0 +1,5 @@
+{% extends "web/base.html" %}
+{% block content %}
+<header class="vh-page-heading"><div><p class="vh-eyebrow">Independent review</p><h1>Adjudications</h1><p>Disputed findings assigned for independent resolution.</p></div></header>
+<section class="vh-card vh-card-flush">{% if error_message %}<div class="vh-operational-notice is-danger"><strong>Queue unavailable</strong><p>{{ error_message }}</p></div>{% elif assignments %}<div class="vh-table-wrap"><table class="vh-table"><thead><tr><th>Campaign</th><th>Application</th><th>Observation</th><th>Assigned</th></tr></thead><tbody>{% for campaign, assignment in assignments %}<tr><td><a href="{% url 'web-campaign-detail' campaign.campaign_id %}">{{ campaign.title }}</a><code>{{ campaign.campaign_id }}</code></td><td>{{ assignment.application_id }}</td><td>#{{ assignment.observation_id }}</td><td>{{ assignment.assigned_at }}</td></tr>{% endfor %}</tbody></table></div>{% else %}<div class="vh-zero-state"><span>◎</span><h3>No adjudications</h3><p>No disputes are assigned to you.</p></div>{% endif %}</section>
+{% endblock %}

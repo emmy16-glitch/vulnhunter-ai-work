@@ -56,3 +56,32 @@ def test_render_markdown_includes_security_checks() -> None:
     assert "No sensitive-looking tracked filenames detected." in output
     assert "No tracked database/model artifact paths detected." in output
     assert "Warnings" in output
+
+
+def test_sensitive_path_check_allows_environment_templates() -> None:
+    module = load_audit_module()
+
+    safe_templates = (
+        ".env.example",
+        "config/.env.sample",
+        "deployment/nested/.env.template",
+    )
+
+    for path in safe_templates:
+        assert module.is_sensitive_tracked_path(path) is False
+
+
+def test_sensitive_path_check_still_flags_real_secret_names() -> None:
+    module = load_audit_module()
+
+    sensitive_paths = (
+        ".env",
+        "config/.env.production",
+        "config/credentials.json",
+        "secrets/private_key.pem",
+        "keys/id_rsa",
+        "runtime/token.txt",
+    )
+
+    for path in sensitive_paths:
+        assert module.is_sensitive_tracked_path(path) is True

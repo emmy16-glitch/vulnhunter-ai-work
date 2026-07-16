@@ -1,0 +1,57 @@
+{
+  "schema_version": "1.0",
+  "skill_id": "android-native-library-triage",
+  "display_name": "Android Native Library Triage",
+  "owner": "Emmanuel Okunlola",
+  "version": "1.0.0",
+  "purpose": "Identify APK native libraries and plan bounded radare2 or separately approved Ghidra analysis.",
+  "risk_level": "high",
+  "status": "planned",
+  "trust_assumption": "untrusted",
+  "allowed_inputs": [
+    "verified native-library paths",
+    "APK artifact metadata",
+    "approved output directory"
+  ],
+  "allowed_outputs": [
+    "native library inventory",
+    "candidate native findings",
+    "hashed evidence references"
+  ],
+  "allowed_actions": [
+    "mobile-artifact.inspect",
+    "mobile-analysis.plan",
+    "security-tool.plan",
+    "evidence.record"
+  ],
+  "denied_actions": [
+    "authorization.override",
+    "connector.enable",
+    "data.delete",
+    "deployment.execute",
+    "git.push",
+    "review.self_approve",
+    "secrets.read"
+  ],
+  "required_tools": [
+    "mobile-artifact.store",
+    "security-tool.registry"
+  ],
+  "verification_requirements": [
+    "Verify the artifact SHA-256 and content-addressed storage record.",
+    "Use only fixed tool adapters or reviewed connector contracts.",
+    "Never execute an uploaded APK on the VulnHunter host."
+  ],
+  "required_tests": [
+    "Schema validation test.",
+    "Malicious archive rejection test.",
+    "Dynamic isolation and approval test."
+  ],
+  "last_reviewed_on": "2026-07-11",
+  "rollback_procedure": [
+    "Disable the skill definition.",
+    "Revert the registry commit.",
+    "Re-run registry and mobile tests."
+  ],
+  "external_dependencies": []
+}

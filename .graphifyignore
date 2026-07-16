@@ -1,0 +1,25 @@
+# BEGIN VULNHUNTER GRAPHIFY EXCLUSIONS
+.venv/
+var/
+artifacts/
+.vulnhunter-install-backups/
+__pycache__/
+*.pyc
+.git/
+graphify-out/
+node_modules/
+coverage/
+htmlcov/
+dist/
+build/
+.env
+.env.*
+*.key
+*.pem
+*.p12
+*.pfx
+*.sqlite
+*.sqlite3
+agent.db
+*.log
+# END VULNHUNTER GRAPHIFY EXCLUSIONS

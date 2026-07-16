@@ -28,8 +28,8 @@ def write_json(path: Path, value: dict) -> None:
 def test_registry_loads_all_required_roles_and_skills() -> None:
     registry = RoleRegistry.from_path(REGISTRY_ROOT)
 
-    assert len(registry.roles) == 13
-    assert len(registry.skills) == 13
+    assert len(registry.roles) == 18
+    assert len(registry.skills) == 21
     assert set(registry.manifest.required_role_ids) == {role.role_id for role in registry.roles}
     assert set(registry.manifest.required_skill_ids) == {
         skill.skill_id for skill in registry.skills

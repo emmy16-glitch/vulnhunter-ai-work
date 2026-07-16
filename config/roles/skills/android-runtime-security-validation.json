@@ -1,0 +1,57 @@
+{
+  "schema_version": "1.0",
+  "skill_id": "android-runtime-security-validation",
+  "display_name": "Android Runtime Security Validation",
+  "owner": "Emmanuel Okunlola",
+  "version": "1.0.0",
+  "purpose": "Plan MobSF, ADB, and Frida validation only inside an explicitly approved disposable Android runtime.",
+  "risk_level": "critical",
+  "status": "planned",
+  "trust_assumption": "untrusted",
+  "allowed_inputs": [
+    "approved dynamic-analysis manifest",
+    "isolated runtime reference",
+    "verified APK artifact"
+  ],
+  "allowed_outputs": [
+    "dynamic analysis plan",
+    "redacted runtime evidence",
+    "validation limitations"
+  ],
+  "allowed_actions": [
+    "mobile-analysis.plan",
+    "validation.request",
+    "security-tool.plan",
+    "evidence.record"
+  ],
+  "denied_actions": [
+    "authorization.override",
+    "connector.enable",
+    "data.delete",
+    "deployment.execute",
+    "git.push",
+    "review.self_approve",
+    "secrets.read"
+  ],
+  "required_tools": [
+    "security-tool.registry",
+    "approval.store"
+  ],
+  "verification_requirements": [
+    "Verify the artifact SHA-256 and content-addressed storage record.",
+    "Use only fixed tool adapters or reviewed connector contracts.",
+    "Never execute an uploaded APK on the VulnHunter host."
+  ],
+  "required_tests": [
+    "Schema validation test.",
+    "Malicious archive rejection test.",
+    "Dynamic isolation and approval test."
+  ],
+  "last_reviewed_on": "2026-07-11",
+  "rollback_procedure": [
+    "Disable the skill definition.",
+    "Revert the registry commit.",
+    "Re-run registry and mobile tests."
+  ],
+  "external_dependencies": []
+}

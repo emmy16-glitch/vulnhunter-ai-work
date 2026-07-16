@@ -9,6 +9,7 @@
 | Application-level experiment isolation | A fully privileged local account is not OS-sandboxed | High | Dedicated low-privilege runner, container, VM, or sandbox profile |
 | Local unsigned artifacts | Integrity depends on local filesystem | Medium | Artifact signing and verification |
 | CLI-only review | Lower reviewer productivity | Medium | Stable review contracts plus optional UI |
+| No approved web framework or browser security layer for the product shell | A browser UI would otherwise require ad hoc routing, session handling, and CSRF controls | High | Approve and integrate the smallest safe web framework plus authenticated session and CSRF protections |
 | Limited performance profiling | Unknown scaling limits | Medium | Repeatable mapper/storage/feature benchmarks |
 | Manual intelligence-note updates | Documentation drift | Medium | CI check for required files and audit freshness |
 | Unsigned authorization evidence | Registry records reference permission evidence but do not verify an external signature | Medium | Signed approval evidence and documented retention policy |
@@ -38,3 +39,6 @@ Do not silently work around technical debt. Link significant implementation chan
   backward-incompatible way.
 - Add a campaign dashboard only after the CLI workflow and real-data operating
   process are stable.
+- Approve a browser-capable framework only when it can enforce authenticated
+  sessions, CSRF protection, and route-level authorization without duplicating
+  domain policy.

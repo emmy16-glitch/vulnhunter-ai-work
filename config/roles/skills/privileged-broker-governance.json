@@ -1,0 +1,53 @@
+{
+  "schema_version": "1.0",
+  "owner": "Emmanuel Okunlola",
+  "version": "1.0.0",
+  "status": "planned",
+  "trust_assumption": "untrusted",
+  "denied_actions": [
+    "authorization.override",
+    "connector.enable",
+    "data.delete",
+    "deployment.execute",
+    "git.push",
+    "review.self_approve",
+    "secrets.read"
+  ],
+  "verification_requirements": [
+    "Verify exact manifest, role, skill, target, authorization, limits, and approval.",
+    "Stop on malformed, stale, conflicting, missing, or revoked evidence."
+  ],
+  "required_tests": [
+    "Schema validation test.",
+    "Negative permission-boundary test.",
+    "Exact-action approval binding test."
+  ],
+  "last_reviewed_on": "2026-07-11",
+  "rollback_procedure": [
+    "Disable the skill definition.",
+    "Revert the registry commit.",
+    "Re-run registry and project verification."
+  ],
+  "external_dependencies": [],
+  "skill_id": "privileged-broker-governance",
+  "display_name": "Privileged Broker Governance",
+  "purpose": "Issue and revoke short-lived exact-action privilege grants without handling sudo passwords.",
+  "risk_level": "critical",
+  "allowed_inputs": [
+    "owner reauthentication evidence",
+    "consumed approval",
+    "exact action manifest"
+  ],
+  "allowed_outputs": [
+    "privilege grant",
+    "revocation record"
+  ],
+  "allowed_actions": [
+    "privilege.request",
+    "privilege.revoke"
+  ],
+  "required_tools": [
+    "privileged-broker.contract",
+    "approval.store"
+  ]
+}

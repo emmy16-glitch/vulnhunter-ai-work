@@ -1,0 +1,52 @@
+{
+  "schema_version": "1.0",
+  "owner": "Emmanuel Okunlola",
+  "version": "1.0.0",
+  "status": "planned",
+  "trust_assumption": "untrusted",
+  "denied_actions": [
+    "authorization.override",
+    "connector.enable",
+    "data.delete",
+    "deployment.execute",
+    "git.push",
+    "review.self_approve",
+    "secrets.read"
+  ],
+  "verification_requirements": [
+    "Verify exact manifest, role, skill, target, authorization, limits, and approval.",
+    "Stop on malformed, stale, conflicting, missing, or revoked evidence."
+  ],
+  "required_tests": [
+    "Schema validation test.",
+    "Negative permission-boundary test.",
+    "Exact-action approval binding test."
+  ],
+  "last_reviewed_on": "2026-07-11",
+  "rollback_procedure": [
+    "Disable the skill definition.",
+    "Revert the registry commit.",
+    "Re-run registry and project verification."
+  ],
+  "external_dependencies": [],
+  "skill_id": "local-code-and-dependency-assessment",
+  "display_name": "Local Code and Dependency Assessment",
+  "purpose": "Run approved local-only static code, configuration, filesystem, and dependency checks.",
+  "risk_level": "high",
+  "allowed_inputs": [
+    "explicitly approved repository path",
+    "local dependency metadata"
+  ],
+  "allowed_outputs": [
+    "candidate finding records",
+    "redacted local evidence"
+  ],
+  "allowed_actions": [
+    "security-tool.plan",
+    "evidence.record"
+  ],
+  "required_tools": [
+    "security-tool.registry",
+    "evidence.store"
+  ]
+}

@@ -1,0 +1,65 @@
+{% extends "web/base.html" %}
+{% block content %}
+<section class="vh-grid">
+  <article class="vh-card">
+    <p class="vh-eyebrow">Exact action hash</p>
+    <h3>{{ approval.request_id }}</h3>
+    <ul class="vh-key-value-list">
+      <li><strong>Status</strong><span>{{ approval.status.value }}</span></li>
+      <li><strong>Campaign</strong><span>{{ approval.campaign_id }}</span></li>
+      <li><strong>Run</strong><span>{{ approval.run_id }}</span></li>
+      <li><strong>Action SHA-256</strong><code>{{ approval.action_manifest_sha256 }}</code></li>
+      <li><strong>Requested by</strong><span>{{ approval.requested_by }}</span></li>
+      <li><strong>Expires</strong><span>{{ approval.expires_at }}</span></li>
+    </ul>
+    <h4>Summary</h4>
+    <p>{{ approval.summary }}</p>
+    <h4>Risk</h4>
+    <p>{{ approval.risk_summary }}</p>
+  </article>
+
+  <article class="vh-card">
+    <p class="vh-eyebrow">Human decision</p>
+    <h3>Record a decision</h3>
+    {% if approval.status.value == "pending" or approval.status.value == "information_required" or approval.status.value == "conditions_proposed" %}
+      <form method="post" action="{% url 'web-approval-decision' approval.request_id %}">
+        {% csrf_token %}
+        <div class="vh-form-field">
+          <label for="decision">Decision</label>
+          <select id="decision" name="decision" required>
+            {% for decision in decisions %}
+              <option value="{{ decision.value }}">{{ decision.value }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="vh-form-field">
+          <label for="reason">Reason</label>
+          <textarea id="reason" name="reason" rows="4" required></textarea>
+        </div>
+        <div class="vh-form-field">
+          <label for="conditions">Conditions, one per line</label>
+          <textarea id="conditions" name="conditions" rows="4"></textarea>
+        </div>
+        <button type="submit">Record decision</button>
+      </form>
+    {% else %}
+      <p class="vh-empty-state">This request is no longer awaiting a decision.</p>
+    {% endif %}
+  </article>
+</section>
+
+<section class="vh-panel">
+  <h3>Audit events</h3>
+  <ul class="vh-rows">
+    {% for event in events %}
+      <li class="vh-card">
+        <strong>{{ event.sequence }} · {{ event.event_type }}</strong>
+        <span>{{ event.actor_id }} · {{ event.occurred_at }}</span>
+        <code>{{ event.event_sha256 }}</code>
+      </li>
+    {% empty %}
+      <li class="vh-empty-state">No events are available.</li>
+    {% endfor %}
+  </ul>
+</section>
+{% endblock %}

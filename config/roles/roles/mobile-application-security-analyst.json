@@ -1,0 +1,134 @@
+{
+  "schema_version": "1.0",
+  "role_id": "mobile-application-security-analyst",
+  "display_name": "Mobile Application Security Analyst",
+  "owner": "Emmanuel Okunlola",
+  "version": "1.0.0",
+  "purpose": "Plan and review content-addressed Android APK static, manifest, bytecode, resource, and native-library analysis.",
+  "risk_level": "high",
+  "status": "planned",
+  "trust_assumption": "untrusted",
+  "allowed_inputs": [
+    "ingested APK artifact record",
+    "approved action manifest",
+    "redacted tool evidence"
+  ],
+  "allowed_actions": [
+    "mobile-artifact.inspect",
+    "mobile-analysis.plan",
+    "security-tool.plan",
+    "evidence.record"
+  ],
+  "denied_actions": [
+    "authorization.override",
+    "connector.enable",
+    "data.delete",
+    "deployment.execute",
+    "git.push",
+    "review.self_approve",
+    "secrets.read"
+  ],
+  "skill_ids": [
+    "android-apk-static-analysis",
+    "android-native-library-triage"
+  ],
+  "tools": [
+    {
+      "tool_id": "security-tool.registry",
+      "purpose": "Plan fixed Android static-analysis adapters.",
+      "allowed_operations": [
+        "inspect",
+        "plan"
+      ],
+      "denied_operations": [
+        "arbitrary-shell",
+        "execute-dynamic",
+        "scope-bypass"
+      ],
+      "write_access": false,
+      "network_access": false,
+      "connector_access": false,
+      "secrets_access": false
+    },
+    {
+      "tool_id": "mobile-artifact.store",
+      "purpose": "Read content-addressed APK metadata and immutable artifacts.",
+      "allowed_operations": [
+        "read",
+        "verify-integrity"
+      ],
+      "denied_operations": [
+        "execute",
+        "modify",
+        "delete"
+      ],
+      "write_access": false,
+      "network_access": false,
+      "connector_access": false,
+      "secrets_access": false
+    }
+  ],
+  "data_permissions": [
+    {
+      "resource": "mobile-artifacts",
+      "classification": "sensitive",
+      "operations": [
+        "read"
+      ],
+      "purpose": "Analyze only stored APK evidence and metadata.",
+      "retention": "No independent copy outside the governed evidence workspace."
+    }
+  ],
+  "output_schema": {
+    "type": "object",
+    "required": [
+      "role_id",
+      "verdict",
+      "evidence",
+      "limitations"
+    ],
+    "properties": {
+      "role_id": {
+        "type": "string"
+      },
+      "verdict": {
+        "type": "string"
+      },
+      "evidence": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "limitations": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "additionalProperties": false
+  },
+  "verification_requirements": [
+    "Verify the exact artifact digest, campaign authorization, action manifest, and tool profile.",
+    "Stop on artifact integrity, isolation, approval, scope, redaction, or evidence failure.",
+    "Treat all automated findings as candidates until independently verified."
+  ],
+  "human_approval_points": [],
+  "required_tests": [
+    "Role schema validation.",
+    "Denied-action decision test.",
+    "APK integrity and exact-action binding test."
+  ],
+  "last_reviewed_on": "2026-07-11",
+  "rollback_procedure": [
+    "Disable the role definition.",
+    "Revert the registry commit.",
+    "Re-run registry and mobile security verification."
+  ],
+  "connector_policy": {
+    "default": "disabled",
+    "grants": []
+  },
+  "external_dependencies": []
+}

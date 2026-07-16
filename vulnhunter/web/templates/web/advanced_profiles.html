@@ -1,0 +1,18 @@
+{% extends "web/base.html" %}
+{% block content %}
+<section class="vh-panel">
+  <p class="vh-eyebrow">Deep multi-stage assessment</p>
+  <h3>Advanced assessment profiles</h3>
+  <p class="vh-warning">Profiles create governed plans. They do not bypass authorization, approval, scope, evidence, or stop controls.</p>
+  <div class="vh-grid">
+    {% for profile in profiles %}
+      <article class="vh-card">
+        <p class="vh-eyebrow">{{ profile.id }}</p>
+        <h3>{{ profile.name }}</h3>
+        <p>{{ profile.description }}</p>
+        <p><strong>Gate:</strong> {{ profile.gate }}</p>
+      </article>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

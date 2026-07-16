@@ -1,0 +1,57 @@
+{
+  "schema_version": "1.0",
+  "skill_id": "android-apk-static-analysis",
+  "display_name": "Android APK Static Analysis",
+  "owner": "Emmanuel Okunlola",
+  "version": "1.0.0",
+  "purpose": "Safely inspect an uploaded APK with fixed JADX, Apktool, Android SDK, APKiD, YARA, and Androguard analysis plans.",
+  "risk_level": "high",
+  "status": "planned",
+  "trust_assumption": "untrusted",
+  "allowed_inputs": [
+    "content-addressed APK artifact",
+    "artifact SHA-256",
+    "approved output directory"
+  ],
+  "allowed_outputs": [
+    "static analysis task graph",
+    "candidate mobile findings",
+    "hashed evidence references"
+  ],
+  "allowed_actions": [
+    "mobile-artifact.inspect",
+    "mobile-analysis.plan",
+    "security-tool.plan",
+    "evidence.record"
+  ],
+  "denied_actions": [
+    "authorization.override",
+    "connector.enable",
+    "data.delete",
+    "deployment.execute",
+    "git.push",
+    "review.self_approve",
+    "secrets.read"
+  ],
+  "required_tools": [
+    "mobile-artifact.store",
+    "security-tool.registry"
+  ],
+  "verification_requirements": [
+    "Verify the artifact SHA-256 and content-addressed storage record.",
+    "Use only fixed tool adapters or reviewed connector contracts.",
+    "Never execute an uploaded APK on the VulnHunter host."
+  ],
+  "required_tests": [
+    "Schema validation test.",
+    "Malicious archive rejection test.",
+    "Dynamic isolation and approval test."
+  ],
+  "last_reviewed_on": "2026-07-11",
+  "rollback_procedure": [
+    "Disable the skill definition.",
+    "Revert the registry commit.",
+    "Re-run registry and mobile tests."
+  ],
+  "external_dependencies": []
+}

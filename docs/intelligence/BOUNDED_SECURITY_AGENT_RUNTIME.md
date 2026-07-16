@@ -32,7 +32,9 @@ objective
 - human-approval pause and resume;
 - stop after repeated materially identical failures;
 - deterministic execution reports;
-- a local no-network demonstration command.
+- a local no-network demonstration command;
+- read-only operational product summaries for bounded runs through
+  `python -m vulnhunter.product runs` and `python -m vulnhunter.product run <id>`.
 
 ## Deliberately absent
 
@@ -47,3 +49,11 @@ The planner is untrusted. Every requested action is validated against the runtim
 configuration, task permission manifest, exact tool declaration, budgets, risk flags,
 and human-approval requirements. A model cannot register tools, expand permissions,
 edit the audit chain, or approve its own blocked action.
+
+## Current product-console integration
+
+Milestone 24 does not add a browser approval queue or operator stop form for
+agent tasks because the repository still lacks an approved browser session and
+CSRF boundary. The product layer currently exposes bounded runs as read-only
+inspection surfaces and reports unsupported consequential controls as
+unavailable rather than fabricating them.

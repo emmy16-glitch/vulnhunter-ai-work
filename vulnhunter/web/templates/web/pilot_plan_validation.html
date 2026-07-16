@@ -1,0 +1,20 @@
+{% extends "web/base.html" %}
+{% block content %}
+<section class="vh-card">
+  <h3>Pilot-plan validation</h3>
+  <p>Plan validation ≠ pilot authorization ≠ pilot execution ≠ dataset release ≠ model-training approval.</p>
+  {% if record.report %}
+    <ul class="vh-key-value-list">
+      <li><strong>Valid</strong><span>{{ record.report.valid }}</span></li>
+      <li><strong>Plan hash</strong><code>{{ record.report.plan_sha256 }}</code></li>
+      <li><strong>Report hash</strong><code>{{ record.report.report_sha256 }}</code></li>
+    </ul>
+    <h4>Hard blockers</h4>
+    <ul class="vh-rows">{% for item in record.report.hard_blockers %}<li>{{ item }}</li>{% empty %}<li>No hard blockers were reported.</li>{% endfor %}</ul>
+    <h4>Warnings</h4>
+    <ul class="vh-rows">{% for item in record.report.warnings %}<li>{{ item }}</li>{% empty %}<li>No warnings were reported.</li>{% endfor %}</ul>
+  {% else %}
+    <p class="vh-empty-state">{{ record.error }}</p>
+  {% endif %}
+</section>
+{% endblock %}

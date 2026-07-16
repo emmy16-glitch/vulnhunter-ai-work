@@ -95,6 +95,53 @@ def test_evolved_task_increments_revision() -> None:
     assert evolved.updated_at >= task.updated_at
 
 
+def test_agent_task_rejects_illegal_transition() -> None:
+    task = AgentTask(
+        task_id="task-one",
+        objective="Inspect approved local evidence.",
+        permission_manifest=manifest(),
+    )
+    with pytest.raises(ValueError, match="created -> completed"):
+        task.evolved(status=TaskStatus.COMPLETED)
+
+
+def test_terminal_agent_task_is_immutable() -> None:
+    task = AgentTask(
+        task_id="task-one",
+        objective="Inspect approved local evidence.",
+        permission_manifest=manifest(),
+    )
+    running = task.evolved(status=TaskStatus.RUNNING)
+    completed = running.evolved(
+        status=TaskStatus.COMPLETED,
+        final_summary="Verified bounded completion.",
+    )
+    with pytest.raises(ValueError, match="terminal agent tasks are immutable"):
+        completed.evolved(paused_reason="late mutation")
+
+
+def test_task_deadline_is_bound_to_manifest_runtime() -> None:
+    created_at = datetime(2026, 1, 1, tzinfo=UTC)
+    task = AgentTask(
+        task_id="task-one",
+        objective="Inspect approved local evidence.",
+        permission_manifest=manifest(maximum_runtime_seconds=90),
+        created_at=created_at,
+        updated_at=created_at,
+    )
+    assert task.deadline_at == created_at + timedelta(seconds=90)
+
+    with pytest.raises(ValidationError, match="immutable task runtime budget"):
+        AgentTask(
+            task_id="task-other",
+            objective="Inspect approved local evidence.",
+            permission_manifest=manifest(maximum_runtime_seconds=90),
+            created_at=created_at,
+            updated_at=created_at,
+            deadline_at=created_at + timedelta(seconds=91),
+        )
+
+
 def test_runtime_config_forbids_enabling_connectors() -> None:
     with pytest.raises(ValidationError):
         RuntimeConfig(connectors_enabled=True)

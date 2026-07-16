@@ -1,0 +1,27 @@
+{
+  "browser": {
+    "browserName": "chromium",
+    "isolated": true,
+    "launchOptions": {
+      "headless": true,
+      "chromiumSandbox": false,
+      "executablePath": "/tmp/vh-playwright-browsers/chromium_headless_shell-1232/chrome-headless-shell-linux64/chrome-headless-shell"
+    },
+    "contextOptions": {
+      "viewport": {
+        "width": 1672,
+        "height": 941
+      }
+    }
+  },
+  "outputDir": "/tmp/vh-playwright-output",
+  "outputMode": "stdout",
+  "console": {
+    "level": "debug"
+  },
+  "network": {
+    "allowedOrigins": [
+      "http://127.0.0.1:8767"
+    ]
+  }
+}

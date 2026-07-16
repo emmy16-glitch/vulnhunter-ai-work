@@ -1,0 +1,7 @@
+{% extends "web/base.html" %}
+{% block content %}
+<section class="vh-panel vh-panel-danger" aria-labelledby="denied-title">
+  <h3 id="denied-title">Access denied</h3>
+  <p>{{ denied_message }}</p>
+</section>
+{% endblock %}

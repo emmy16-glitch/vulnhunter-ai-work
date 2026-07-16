@@ -1,0 +1,27 @@
+{% extends "web/base.html" %}
+{% block content %}
+<section class="vh-card">
+  <h3>Controlled pilot plans</h3>
+  <p>Plan validation ≠ pilot authorization ≠ pilot execution ≠ dataset release ≠ model-training approval.</p>
+  {% if records %}
+    <div class="vh-table-wrap">
+      <table class="vh-table">
+        <thead><tr><th>Plan</th><th>State</th><th>Applications</th><th>Families</th><th>Plan hash</th></tr></thead>
+        <tbody>
+          {% for record in records %}
+            <tr>
+              <td><a href="{% url 'web-pilot-plan-detail' record.plan_id %}">{{ record.plan_id }}</a></td>
+              <td>{% if record.report %}{% if record.report.valid %}valid{% else %}blocked{% endif %}{% else %}invalid{% endif %}</td>
+              <td>{% if record.plan %}{{ record.plan.applications|length }}{% else %}Unavailable{% endif %}</td>
+              <td>{% if record.report %}{{ record.report.informational_metrics.application_family_count }}{% else %}Unavailable{% endif %}</td>
+              <td>{% if record.report %}<code>{{ record.report.plan_sha256 }}</code>{% else %}Unavailable{% endif %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="vh-empty-state">No pilot plans were found.</p>
+  {% endif %}
+</section>
+{% endblock %}

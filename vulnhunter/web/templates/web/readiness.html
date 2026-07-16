@@ -1,0 +1,32 @@
+{% extends "web/base.html" %}
+{% block content %}
+<section class="vh-card">
+  <h3>Readiness report</h3>
+  {% if readiness %}
+    <ul class="vh-key-value-list">
+      <li><strong>Pilot ready</strong><span>{{ readiness.pilot_ready }}</span></li>
+      <li><strong>Model training ready</strong><span>{{ readiness.model_training_ready }}</span></li>
+      <li><strong>Dataset SHA-256</strong><code>{{ readiness.dataset_sha256 }}</code></li>
+      <li><strong>Report SHA-256</strong><code>{{ readiness.report_sha256 }}</code></li>
+    </ul>
+    <h4>Hard blockers</h4>
+    <ul class="vh-rows">
+      {% for item in readiness.hard_release_blockers %}
+        <li>{{ item }}</li>
+      {% empty %}
+        <li>No hard blockers were reported.</li>
+      {% endfor %}
+    </ul>
+    <h4>Warnings</h4>
+    <ul class="vh-rows">
+      {% for item in readiness.warnings %}
+        <li>{{ item }}</li>
+      {% empty %}
+        <li>No warnings were reported.</li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="vh-empty-state">This campaign does not currently have a readiness report.</p>
+  {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,14 @@
+{% extends "web/base.html" %}
+{% block content %}
+<header class="vh-page-heading"><div><p class="vh-eyebrow">Security operations</p><h1>Overview</h1><p>Assessments, approvals and verification.</p></div><a class="vh-button-primary" href="{% url 'web-agent-run-list' %}">Open assessments</a></header>
+<section class="vh-metric-grid">
+  <article class="vh-metric-card"><span>Campaign states</span><strong>{{ dashboard.campaign_totals_by_status|length }}</strong><small>Tracked states</small></article>
+  <article class="vh-metric-card"><span>Pending reviews</span><strong>{{ dashboard.pending_reviews|default:"—" }}</strong><small>Analyst decisions</small></article>
+  <article class="vh-metric-card"><span>Pending approvals</span><strong>{{ dashboard.pending_human_approvals|default:"—" }}</strong><small>Awaiting action</small></article>
+  <article class="vh-metric-card"><span>Released campaigns</span><strong>{{ dashboard.released_campaigns|default:"—" }}</strong><small>Published releases</small></article>
+</section>
+<section class="vh-dashboard-grid">
+  <article class="vh-card"><div class="vh-card-header"><div><h2>Capability status</h2><p>Current readiness.</p></div></div><ul class="vh-readiness-list"><li><span><i></i>Authorization store</span><strong>{{ dashboard.status.authorization_store.state }}</strong></li><li><span><i></i>Governance store</span><strong>{{ dashboard.status.governance_store.state }}</strong></li><li><span><i></i>Role registry</span><strong>{{ dashboard.status.role_registry.state }}</strong></li><li><span><i></i>Agent runtime</span><strong>{{ dashboard.status.agent_runtime.state }}</strong></li><li><span><i></i>Audit evidence</span><strong>{{ dashboard.status.audit_evidence.state }}</strong></li></ul></article>
+  <article class="vh-card"><div class="vh-card-header"><div><h2>Recent audit activity</h2><p>Latest recorded events.</p></div></div>{% if dashboard.recent_audit_activity %}<ul class="vh-audit-feed">{% for item in dashboard.recent_audit_activity %}<li><span class="vh-audit-icon">{{ item.source|slice:":1"|upper }}</span><div><strong>{{ item.event_type }}</strong><small>{{ item.source }} · {{ item.subject }}</small><code>{{ item.evidence_reference|default:"Unavailable"|slice:":20" }}…</code></div></li>{% endfor %}</ul>{% else %}<div class="vh-zero-state"><span>◎</span><h3>No audit activity</h3><p>Events will appear here.</p></div>{% endif %}</article>
+</section>
+{% endblock %}

@@ -1,0 +1,21 @@
+{% extends "web/base.html" %}
+{% block content %}
+<section class="vh-card">
+  <h3>Confirm cancellation request</h3>
+  <p>Exact action: request cancellation for bounded run <code>{{ run.run_id }}</code>. This records the stop request, moves the task to cancelled when the backend transition succeeds, and does not approve pending actions, release findings, or mark the run successful.</p>
+  {% if stop_control.available %}
+    <form method="post">
+      {% csrf_token %}
+      <div class="vh-form-field">
+        {{ form.reason.label_tag }}
+        {{ form.reason }}
+        <p class="vh-form-help">{{ form.reason.help_text }}</p>
+        {{ form.reason.errors }}
+      </div>
+      <button type="submit">Record cancellation request</button>
+    </form>
+  {% else %}
+    <p class="vh-empty-state">{{ stop_control.reason }}</p>
+  {% endif %}
+</section>
+{% endblock %}

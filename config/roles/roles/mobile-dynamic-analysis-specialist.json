@@ -1,0 +1,136 @@
+{
+  "schema_version": "1.0",
+  "role_id": "mobile-dynamic-analysis-specialist",
+  "display_name": "Mobile Dynamic Analysis Specialist",
+  "owner": "Emmanuel Okunlola",
+  "version": "1.0.0",
+  "purpose": "Prepare separately approved Android emulator, ADB, MobSF, and Frida validation without executing untrusted apps on the host.",
+  "risk_level": "critical",
+  "status": "planned",
+  "trust_assumption": "untrusted",
+  "allowed_inputs": [
+    "approved dynamic-analysis manifest",
+    "isolated runtime reference",
+    "verified APK artifact record"
+  ],
+  "allowed_actions": [
+    "mobile-analysis.plan",
+    "validation.request",
+    "security-tool.plan",
+    "evidence.record"
+  ],
+  "denied_actions": [
+    "authorization.override",
+    "connector.enable",
+    "data.delete",
+    "deployment.execute",
+    "git.push",
+    "review.self_approve",
+    "secrets.read"
+  ],
+  "skill_ids": [
+    "android-runtime-security-validation"
+  ],
+  "tools": [
+    {
+      "tool_id": "security-tool.registry",
+      "purpose": "Plan isolated Android runtime connectors.",
+      "allowed_operations": [
+        "inspect",
+        "plan"
+      ],
+      "denied_operations": [
+        "arbitrary-shell",
+        "self-approve",
+        "host-execution"
+      ],
+      "write_access": false,
+      "network_access": false,
+      "connector_access": false,
+      "secrets_access": false
+    },
+    {
+      "tool_id": "approval.store",
+      "purpose": "Read exact-action approval state for dynamic analysis.",
+      "allowed_operations": [
+        "read",
+        "verify-consumption"
+      ],
+      "denied_operations": [
+        "self-approve",
+        "rewrite-history",
+        "delete"
+      ],
+      "write_access": false,
+      "network_access": false,
+      "connector_access": false,
+      "secrets_access": false
+    }
+  ],
+  "data_permissions": [
+    {
+      "resource": "mobile-dynamic-evidence",
+      "classification": "sensitive",
+      "operations": [
+        "read",
+        "append"
+      ],
+      "purpose": "Preserve bounded runtime evidence from an isolated emulator.",
+      "retention": "Retain under campaign evidence policy."
+    }
+  ],
+  "output_schema": {
+    "type": "object",
+    "required": [
+      "role_id",
+      "verdict",
+      "evidence",
+      "limitations"
+    ],
+    "properties": {
+      "role_id": {
+        "type": "string"
+      },
+      "verdict": {
+        "type": "string"
+      },
+      "evidence": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "limitations": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "additionalProperties": false
+  },
+  "verification_requirements": [
+    "Verify the exact artifact digest, campaign authorization, action manifest, and tool profile.",
+    "Stop on artifact integrity, isolation, approval, scope, redaction, or evidence failure.",
+    "Treat all automated findings as candidates until independently verified."
+  ],
+  "human_approval_points": [
+    "validation.request"
+  ],
+  "required_tests": [
+    "Role schema validation.",
+    "Denied-action decision test.",
+    "APK integrity and exact-action binding test."
+  ],
+  "last_reviewed_on": "2026-07-11",
+  "rollback_procedure": [
+    "Disable the role definition.",
+    "Revert the registry commit.",
+    "Re-run registry and mobile security verification."
+  ],
+  "connector_policy": {
+    "default": "disabled",
+    "grants": []
+  },
+  "external_dependencies": []
+}

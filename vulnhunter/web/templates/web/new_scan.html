@@ -1,0 +1,10 @@
+{% extends "web/base.html" %}
+{% block content %}
+<header class="vh-page-heading"><div><p class="vh-eyebrow">Collection</p><h1>New bounded scan</h1><p>Select an active authorization and approved profile.</p></div><span class="vh-status-chip vh-status-warning">Web launch not enabled</span></header>
+{% if error_message %}<section class="vh-operational-notice is-danger"><strong>Authorization store unavailable</strong><p>{{ error_message }}</p></section>{% endif %}
+<section class="vh-setup-grid">
+  <article class="vh-card"><div class="vh-card-header"><div><h2>1 · Authorization</h2><p>Permission and scope.</p></div></div>{% if authorizations %}<ul class="vh-selection-list">{% for item in authorizations %}<li><span><strong>{{ item.hostname }}:{{ item.port }}</strong><small>{{ item.authorization_id }} · {{ item.status }}</small></span><code>{{ item.path_boundary }}</code></li>{% endfor %}</ul>{% else %}<div class="vh-zero-state is-compact"><h3>No active record</h3><p>A valid authorization is required.</p></div>{% endif %}</article>
+  <article class="vh-card"><div class="vh-card-header"><div><h2>2 · Profile</h2><p>Bounded operating mode.</p></div></div><div class="vh-profile-stack">{% for profile in profiles %}<details class="vh-profile-option"><summary><span><strong>{{ profile.name }}</strong><small>{{ profile.description }}</small></span><svg aria-hidden="true"><use href="#vh-i-chevron"></use></svg></summary><p><span>Gate</span>{{ profile.gate }}</p></details>{% endfor %}</div></article>
+</section>
+<section class="vh-card vh-launch-boundary"><div><p class="vh-eyebrow">Launch boundary</p><h2>Scan submission remains CLI-governed</h2><p>Create scans through the governed CLI. Web submission is not available in this milestone.</p></div><a class="vh-button-secondary" href="{% url 'web-scan-run-list' %}">Open scan runs</a></section>
+{% endblock %}

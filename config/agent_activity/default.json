@@ -1,0 +1,14 @@
+{
+  "auto_scroll_default": true,
+  "connectors_enabled": false,
+  "hidden_reasoning_exposure": "forbidden",
+  "max_events_per_request": 200,
+  "poll_interval_ms": 1500,
+  "schema_version": "1.0",
+  "show_safe_audit_references": true,
+  "terminal_states": [
+    "completed",
+    "failed",
+    "stopped"
+  ]
+}

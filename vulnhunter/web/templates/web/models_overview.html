@@ -1,0 +1,5 @@
+{% extends "web/base.html" %}
+{% block content %}
+<header class="vh-page-heading"><div><p class="vh-eyebrow">Intelligence</p><h1>Models</h1><p>Advisory-provider and evaluation evidence.</p></div><span class="vh-status-chip">Evidence only</span></header>
+<section class="vh-card"><div class="vh-card-header"><div><h2>Provider status</h2><p>No training control is exposed.</p></div></div><ul class="vh-readiness-list">{% for item in intelligence_status %}<li><span><i></i>{{ item.name }}</span><strong>{{ item.state }}</strong><small>{{ item.detail }}</small></li>{% endfor %}</ul></section>
+{% endblock %}

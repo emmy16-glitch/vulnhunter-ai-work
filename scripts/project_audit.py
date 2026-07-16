@@ -64,6 +64,22 @@ IGNORED_DIRECTORY_NAMES = {
     "artifacts",
 }
 
+SAFE_SENSITIVE_TEMPLATE_NAMES = {
+    ".env.example",
+    ".env.sample",
+    ".env.template",
+}
+
+SENSITIVE_NAME_FRAGMENTS = (
+    ".env",
+    "credential",
+    "credentials",
+    "secret",
+    "private_key",
+    "id_rsa",
+    "token.txt",
+)
+
 
 @dataclass(frozen=True)
 class AuditResult:
@@ -140,6 +156,15 @@ def tree_hash(root: Path, files: tuple[Path, ...]) -> str:
     return digest.hexdigest()
 
 
+def is_sensitive_tracked_path(name: str) -> bool:
+    """Return whether a tracked path looks sensitive rather than templated."""
+    normalized = name.lower()
+    basename = normalized.rsplit("/", 1)[-1]
+    if basename in SAFE_SENSITIVE_TEMPLATE_NAMES:
+        return False
+    return any(fragment in normalized for fragment in SENSITIVE_NAME_FRAGMENTS)
+
+
 def audit(root: Path) -> AuditResult:
     """Build the project audit result."""
     files = tracked_files(root)
@@ -158,20 +183,7 @@ def audit(root: Path) -> AuditResult:
 
     required_presence = {path: (root / path).is_file() for path in REQUIRED_INTELLIGENCE_FILES}
 
-    sensitive_fragments = (
-        ".env",
-        "credential",
-        "credentials",
-        "secret",
-        "private_key",
-        "id_rsa",
-        "token.txt",
-    )
-    sensitive_hits = tuple(
-        name
-        for name in relative_names
-        if any(fragment in name.lower() for fragment in sensitive_fragments)
-    )
+    sensitive_hits = tuple(name for name in relative_names if is_sensitive_tracked_path(name))
 
     generated_suffixes = (".db", ".sqlite", ".sqlite3", ".joblib", ".pkl")
     generated_hits = tuple(

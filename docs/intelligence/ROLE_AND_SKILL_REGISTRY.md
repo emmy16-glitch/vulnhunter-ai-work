@@ -135,6 +135,18 @@ Milestone 19.5B must use pilot evidence before activating roles. It will decide:
 
 No role should become active merely because Milestone 19.5A passes its tests.
 
+## Product-layer integration
+
+Milestone 24 reads the registry through `vulnhunter.product` and treats it as a
+fail-closed inspection source. Product surfaces must display planned,
+disabled, deprecated, revoked, or otherwise untrusted entries as explicitly
+non-operational.
+
+The product layer also validates bounded-agent task manifests against the
+registry when role ID, skill ID, action, or tool declarations are present. A
+missing role, missing skill, denied action, or ungranted tool remains a denied
+state even if a task record exists.
+
 ## Pilot-informed refinement
 
 The controlled governed pilot readiness workflow adds one declarative

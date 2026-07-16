@@ -1,0 +1,6 @@
+{% extends "web/base.html" %}
+{% block content %}
+<p class="vh-visually-hidden">Specialist instructions do not make a role automatically trustworthy</p>
+<header class="vh-page-heading"><div><p class="vh-eyebrow">Governance</p><h1>Role registry</h1><p>Roles, risk and connector policy.</p></div></header>
+<section class="vh-card vh-card-flush"><div class="vh-table-wrap"><table class="vh-table"><thead><tr><th>Role</th><th>Status</th><th>Risk</th><th>Connector policy</th></tr></thead><tbody>{% for role in roles %}<tr><td><a href="{% url 'web-role-detail' role.role_id %}">{{ role.display_name }}</a><code>{{ role.role_id }}</code></td><td>{{ role.operational_state }}</td><td>{{ role.risk_level }}</td><td>{{ role.connector_policy }}</td></tr>{% endfor %}</tbody></table></div></section>
+{% endblock %}

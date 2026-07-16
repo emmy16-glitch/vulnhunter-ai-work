@@ -68,3 +68,18 @@ exist:
 Public targets must retain local-network restriction. Internal targets require
 explicit private-range scope approval. Public Interactsh and ProjectDiscovery
 cloud upload remain prohibited by default.
+
+## Future controlled local-lab pilot
+
+Milestone 29 supports offline preparation only. For a future pilot, a human must
+create a time-limited engagement authorization, review exact normalized target
+URLs and current address pins, populate the template manifest with reviewed
+relative paths and SHA-256 digests, select an existing approved evidence
+directory, review the immutable command-plan digest, and issue a separate
+expiring approval for that digest.
+
+Do not interpret the resulting `APPROVED_EXECUTION_DISABLED` state as permission
+to run Nuclei. The empty template manifest, disabled runtime flags, missing
+isolated runner, and remaining blockers in
+`docs/intelligence/MILESTONE_29_NUCLEI_ACTIVATION_CONTROLS.md` must all be
+resolved through separately reviewed changes before any local-lab execution.

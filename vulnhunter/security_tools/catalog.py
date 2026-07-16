@@ -234,18 +234,20 @@ def default_catalog() -> SecurityToolCatalog:
         ),
         SecurityToolDefinition(
             tool_id="nuclei",
-            display_name="Nuclei",
+            display_name="ProjectDiscovery Nuclei",
             executable_candidates=("nuclei",),
             profiles=(
                 ToolProfile.SAFE_ASSESSMENT,
                 ToolProfile.ACTIVE_ASSESSMENT,
+                ToolProfile.VALIDATION,
                 ToolProfile.RETEST,
             ),
             target_kinds=network,
             action_class=ActionClass.CONSEQUENTIAL,
             approval_required=True,
             output_formats=("jsonl",),
-            description="Template-based vulnerability assessment with bounded profiles.",
+            description="Template-based vulnerability assessment with governed fixed profiles.",
+            homepage="https://github.com/projectdiscovery/nuclei",
         ),
         SecurityToolDefinition(
             tool_id="zap",

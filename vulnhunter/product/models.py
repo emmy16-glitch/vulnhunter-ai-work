@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import StrEnum
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -259,6 +259,13 @@ class AgentRunSummary(BaseModel):
     denial_or_failure_reason: str | None = None
     registry_validation_result: PolicyResultState = PolicyResultState.UNAVAILABLE
     registry_validation_reason: str = "Role and skill validation unavailable."
+    workflow_state: str | None = None
+    execution_enabled: Literal[False] = False
+    execution_blocking_reason: str | None = None
+    authorization_id: str | None = None
+    plan_digest: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+    readiness: dict[str, Any] = Field(default_factory=dict)
+    assessment_owner: str | None = None
 
 
 class AgentRunDetail(AgentRunSummary):
@@ -270,6 +277,10 @@ class AgentRunDetail(AgentRunSummary):
     requested_operation: str | None = None
     audit_references: tuple[str, ...] = ()
     recent_events: tuple[dict[str, Any], ...] = ()
+    command_plan_summary: dict[str, Any] = Field(default_factory=dict)
+    findings: tuple[dict[str, Any], ...] = ()
+    artifacts: tuple[dict[str, Any], ...] = ()
+    attack_path: tuple[dict[str, Any], ...] = ()
 
 
 class DashboardSummary(BaseModel):

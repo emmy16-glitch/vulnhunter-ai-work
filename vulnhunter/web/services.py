@@ -43,6 +43,16 @@ class WebCapabilityUnavailable(RuntimeError):
     """Raised when a requested control does not have a safe backend contract."""
 
 
+def run_visible_to_actor(run: object, actor: object) -> bool:
+    """Keep assessment workflow records scoped to their governed creator."""
+
+    owner = getattr(run, "assessment_owner", None)
+    if owner is None:
+        return True
+    identity = getattr(getattr(actor, "governance_identity", None), "reviewer_id", None)
+    return owner == identity
+
+
 @dataclass(frozen=True)
 class AuthorizedActor:
     user: Any
@@ -98,6 +108,7 @@ def product_paths() -> ProductPaths:
         role_registry_root=Path(settings.VULNHUNTER_ROLE_REGISTRY_ROOT),
         runtime_config=Path(settings.VULNHUNTER_RUNTIME_CONFIG),
         product_spec_root=Path(settings.VULNHUNTER_PRODUCT_SPEC_ROOT),
+        evidence_root=Path(settings.VULNHUNTER_SECURITY_EVIDENCE_ROOT),
     )
 
 

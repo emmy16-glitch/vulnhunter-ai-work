@@ -17,6 +17,7 @@ from vulnhunter.web.services import (
     activity_payload,
     authorized_actor,
     product_service,
+    run_visible_to_actor,
 )
 
 
@@ -59,7 +60,7 @@ def agent_activity_stream_view(request: HttpRequest, run_id: str):
     """Return a redacted live activity snapshot as a server-sent event."""
 
     try:
-        authorized_actor(request.user, required_actions=("audit.read", "scan.read"))
+        actor = authorized_actor(request.user, required_actions=("audit.read", "scan.read"))
     except WebPermissionDenied:
         return JsonResponse({"detail": "forbidden"}, status=403)
 
@@ -72,6 +73,8 @@ def agent_activity_stream_view(request: HttpRequest, run_id: str):
         run = product_service().get_agent_run(run_id)
     except ProductServiceError as exc:
         raise Http404(str(exc)) from exc
+    if not run_visible_to_actor(run, actor):
+        raise Http404("Assessment run does not exist.")
 
     payload = activity_payload(run_id, after_sequence=after_sequence)
     elapsed_seconds = max(0, int((datetime.now(UTC) - run.created_at).total_seconds()))
@@ -81,6 +84,10 @@ def agent_activity_stream_view(request: HttpRequest, run_id: str):
             "run_state": run.current_state,
             "approval_state": run.approval_state.value,
             "execution_state": run.execution_state,
+            "workflow_state": getattr(run, "workflow_state", None),
+            "execution_enabled": getattr(run, "execution_enabled", False),
+            "execution_blocking_reason": getattr(run, "execution_blocking_reason", None),
+            "readiness": getattr(run, "readiness", {}),
             "evaluation_result": run.evaluation_result,
             "elapsed_seconds": elapsed_seconds,
             "updated_at": run.updated_at.isoformat(),

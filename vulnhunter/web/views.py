@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime
 from pathlib import Path
 
 from django.conf import settings
@@ -33,6 +34,7 @@ from vulnhunter.web.services import (
     list_pilot_plan_records,
     navigation_for,
     product_service,
+    run_visible_to_actor,
     stop_agent_run,
 )
 
@@ -114,7 +116,7 @@ def _approval_context_for_run(run_id: str) -> tuple[object | None, object | None
         (
             item
             for item in sorted(records, key=lambda item: item.requested_at, reverse=True)
-            if item.status in actionable_states
+            if item.status in actionable_states and item.expires_at > datetime.now(UTC)
         ),
         None,
     )
@@ -513,11 +515,13 @@ def skill_detail_view(request: HttpRequest, skill_id: str) -> HttpResponse:
 @require_GET
 def agent_run_list_view(request: HttpRequest) -> HttpResponse:
     try:
-        _protected(request, required_actions=("audit.read", "scan.read"))
+        actor = _protected(request, required_actions=("audit.read", "scan.read"))
     except WebPermissionDenied as exc:
         return _denied(request, str(exc))
     try:
-        runs = product_service().list_agent_runs()
+        runs = tuple(
+            run for run in product_service().list_agent_runs() if run_visible_to_actor(run, actor)
+        )
     except ProductServiceError as exc:
         runs = ()
         error = str(exc)
@@ -542,6 +546,8 @@ def agent_run_detail_view(request: HttpRequest, run_id: str) -> HttpResponse:
         run = product_service().get_agent_run(run_id)
     except ProductServiceError as exc:
         raise Http404(str(exc)) from exc
+    if not run_visible_to_actor(run, actor):
+        raise Http404("Assessment run does not exist.")
     timeline = activity_payload(run_id, after_sequence=0)
     controls = control_availability(request.user, run.current_state, run.approval_state.value)
     approval_record, pending_approval = _approval_context_for_run(run_id)
@@ -572,13 +578,15 @@ def agent_run_detail_view(request: HttpRequest, run_id: str) -> HttpResponse:
 @require_GET
 def agent_activity_view(request: HttpRequest, run_id: str) -> JsonResponse:
     try:
-        _protected(request, required_actions=("audit.read", "scan.read"))
+        actor = _protected(request, required_actions=("audit.read", "scan.read"))
     except WebPermissionDenied:
         return JsonResponse({"detail": "forbidden"}, status=403)
     try:
-        product_service().get_agent_run(run_id)
+        run = product_service().get_agent_run(run_id)
     except ProductServiceError as exc:
         raise Http404(str(exc)) from exc
+    if not run_visible_to_actor(run, actor):
+        raise Http404("Assessment run does not exist.")
     try:
         after_sequence = _after_sequence_or_400(request)
     except ValueError as exc:
@@ -591,13 +599,15 @@ def agent_activity_view(request: HttpRequest, run_id: str) -> JsonResponse:
 @require_http_methods(["GET", "POST"])
 def stop_run_view(request: HttpRequest, run_id: str) -> HttpResponse:
     try:
-        _protected(request, required_actions=("audit.read", "scan.read"))
+        actor = _protected(request, required_actions=("audit.read", "scan.read"))
     except WebPermissionDenied as exc:
         return _denied(request, str(exc))
     try:
         run = product_service().get_agent_run(run_id)
     except ProductServiceError as exc:
         raise Http404(str(exc)) from exc
+    if not run_visible_to_actor(run, actor):
+        raise Http404("Assessment run does not exist.")
 
     controls = control_availability(request.user, run.current_state, run.approval_state.value)
     stop_control = controls["stop"]

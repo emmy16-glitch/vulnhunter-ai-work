@@ -14,6 +14,11 @@ urlpatterns = [
     path("audit/", views.status_view, name="web-audit-overview"),
     path("authorizations/", views.authorization_list_view, name="web-authorization-list"),
     path("scans/new/", operations_views.new_scan_view, name="web-new-scan"),
+    path(
+        "scans/authorizations/",
+        operations_views.active_authorizations_view,
+        name="web-active-authorizations",
+    ),
     path("scans/", views.agent_run_list_view, name="web-scan-run-list"),
     path(
         "scans/<str:run_id>/",

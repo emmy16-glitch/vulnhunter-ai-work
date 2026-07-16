@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections import Counter
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -16,6 +17,7 @@ from vulnhunter.agent.models import TaskStatus
 from vulnhunter.agent.store import AgentStore, AgentStoreError
 from vulnhunter.authorization.models import AuthorizationRecord
 from vulnhunter.authorization.store import AuthorizationStore
+from vulnhunter.evidence.store import EvidenceStore, EvidenceStoreError
 from vulnhunter.exceptions import GovernanceError, GovernanceNotFoundError
 from vulnhunter.governance.readiness import PilotReadinessReport, assess_pilot_readiness
 from vulnhunter.governance.store import GovernanceStore
@@ -58,6 +60,7 @@ class ProductPaths:
     role_registry_root: Path = Path("config/roles")
     runtime_config: Path = Path("config/agent_runtime/runtime.json")
     product_spec_root: Path = Path("config/product_interface")
+    evidence_root: Path = Path(".local/security-evidence")
 
 
 class ProductApplicationService:
@@ -343,6 +346,11 @@ class ProductApplicationService:
         latest_proposal = self._latest_payload(events, "planner.proposed")
         latest_call = latest_proposal.get("call") if latest_proposal else {}
         call = latest_call if isinstance(latest_call, dict) else {}
+        workflow = task.memory.get("assessment_workflow")
+        workflow_data = workflow if isinstance(workflow, dict) else {}
+        command_plan = workflow_data.get("command_plan")
+        command_plan_data = command_plan if isinstance(command_plan, dict) else {}
+        findings, artifacts, attack_path = self._assessment_evidence(run_id)
         return AgentRunDetail(
             **summary.model_dump(),
             planner_output=planner_output,
@@ -357,7 +365,74 @@ class ProductApplicationService:
                 reference for reference in (summary.final_event_sha256,) if reference
             ),
             recent_events=tuple(recent_events),
+            command_plan_summary={
+                "authorization_id": command_plan_data.get("authorization_id"),
+                "exact_profile": command_plan_data.get("exact_profile"),
+                "template_manifest_hashes": command_plan_data.get("template_manifest_hashes", ()),
+                "rate_limit": command_plan_data.get("rate_limit"),
+                "concurrency": command_plan_data.get("concurrency"),
+                "expires_at": command_plan_data.get("expires_at"),
+                "plan_digest": command_plan_data.get("plan_digest"),
+            }
+            if command_plan_data
+            else {},
+            findings=findings,
+            artifacts=artifacts,
+            attack_path=attack_path,
         )
+
+    def _assessment_evidence(
+        self, run_id: str
+    ) -> tuple[tuple[dict[str, Any], ...], tuple[dict[str, Any], ...], tuple[dict[str, Any], ...]]:
+        try:
+            records = tuple(
+                record
+                for record in EvidenceStore(self.paths.evidence_root).list()
+                if record.run_id == run_id
+            )
+        except (OSError, EvidenceStoreError):
+            return (), (), ()
+        findings: list[dict[str, Any]] = []
+        artifacts: list[dict[str, Any]] = []
+        attack_path: list[dict[str, Any]] = []
+        for record in records:
+            findings.append(
+                {
+                    "evidence_id": record.evidence_id,
+                    "title": record.title,
+                    "severity": record.severity,
+                    "confidence": record.confidence,
+                    "verification": record.finding_status.value,
+                    "target_reference": record.target_reference,
+                }
+            )
+            if record.artifact_path and record.artifact_sha256:
+                path = self.paths.evidence_root / record.artifact_path
+                try:
+                    stat = path.stat()
+                except OSError:
+                    continue
+                artifacts.append(
+                    {
+                        "filename": path.name,
+                        "type": path.suffix.lstrip(".") or "file",
+                        "age_seconds": max(0, int(datetime.now(UTC).timestamp() - stat.st_mtime)),
+                        "size": stat.st_size,
+                        "status": "redacted",
+                        "checksum": record.artifact_sha256,
+                    }
+                )
+            nodes = record.metadata.get("attack_path")
+            if isinstance(nodes, list):
+                for node in nodes:
+                    if isinstance(node, dict) and isinstance(node.get("label"), str):
+                        attack_path.append(
+                            {
+                                "label": str(node["label"])[:200],
+                                "state": str(node.get("state", "observed"))[:40],
+                            }
+                        )
+        return tuple(findings), tuple(artifacts), tuple(attack_path)
 
     def _campaign_summary(self, campaign_id: str) -> CampaignSummary:
         detail = self.get_campaign(campaign_id)
@@ -462,6 +537,32 @@ class ProductApplicationService:
 
         evaluation_result = str(latest_evaluation.get("status")) if latest_evaluation else None
         registry_result, registry_reason = self._validate_role_skill(task, call)
+        workflow = task.memory.get("assessment_workflow")
+        workflow_data = workflow if isinstance(workflow, dict) else {}
+        if workflow_data:
+            requested_tool = "nuclei"
+            risk_classification = str(workflow_data.get("profile") or "unknown")
+            policy_state = (
+                PolicyResultState.REQUIRES_APPROVAL
+                if workflow_data.get("workflow_state") == "awaiting_approval"
+                else PolicyResultState.DENIED
+                if task.status == TaskStatus.BLOCKED
+                else policy_state
+            )
+            approval_value = str(workflow_data.get("approval_state", "not_requested"))
+            approval_state = {
+                "pending": ApprovalState.PENDING,
+                "approved": ApprovalState.APPROVED,
+                "denied": ApprovalState.REJECTED,
+            }.get(approval_value, approval_state)
+            execution_state = str(workflow_data.get("workflow_state") or execution_state)
+        else:
+            requested_tool = call.get("tool_id")
+            risk_classification = (
+                task.permission_manifest.allowed_risks[0].value
+                if len(task.permission_manifest.allowed_risks) == 1
+                else None
+            )
 
         return AgentRunSummary(
             run_id=task.task_id,
@@ -470,12 +571,8 @@ class ProductApplicationService:
             selected_skill=task.permission_manifest.skill_id,
             current_state=task.status.value,
             proposed_action=call.get("action"),
-            requested_tool=call.get("tool_id"),
-            risk_classification=(
-                task.permission_manifest.allowed_risks[0].value
-                if len(task.permission_manifest.allowed_risks) == 1
-                else None
-            ),
+            requested_tool=requested_tool,
+            risk_classification=risk_classification,
             policy_result=policy_state,
             policy_reason=policy_reason,
             approval_requirement=bool(task.permission_manifest.approval_required_actions),
@@ -489,6 +586,31 @@ class ProductApplicationService:
             denial_or_failure_reason=task.paused_reason,
             registry_validation_result=registry_result,
             registry_validation_reason=registry_reason,
+            workflow_state=(str(workflow_data.get("workflow_state")) if workflow_data else None),
+            execution_enabled=bool(workflow_data.get("execution_enabled", False)),
+            execution_blocking_reason=(
+                str(workflow_data.get("blocking_reason"))
+                if workflow_data.get("blocking_reason")
+                else None
+            ),
+            authorization_id=(
+                str(workflow_data.get("authorization_id"))
+                if workflow_data.get("authorization_id")
+                else None
+            ),
+            plan_digest=(
+                str(workflow_data.get("plan_digest")) if workflow_data.get("plan_digest") else None
+            ),
+            readiness=(
+                dict(workflow_data.get("readiness", {}))
+                if isinstance(workflow_data.get("readiness"), dict)
+                else {}
+            ),
+            assessment_owner=(
+                str(workflow_data.get("requested_by"))
+                if workflow_data.get("requested_by")
+                else None
+            ),
         )
 
     def _validate_role_skill(self, task, call: dict[str, Any]) -> tuple[PolicyResultState, str]:

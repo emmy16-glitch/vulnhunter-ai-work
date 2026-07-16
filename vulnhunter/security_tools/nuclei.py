@@ -180,9 +180,7 @@ def build_nuclei_command(
             )
         )
         allowed_types = (
-            _ALLOWED_INTRUSIVE_TYPES
-            if scan_profile == "intrusive"
-            else _ALLOWED_STANDARD_TYPES
+            _ALLOWED_INTRUSIVE_TYPES if scan_profile == "intrusive" else _ALLOWED_STANDARD_TYPES
         )
         if not requested_types or not requested_types <= allowed_types:
             raise NucleiPolicyError("nuclei protocol_types contain an unsupported type")
@@ -201,9 +199,7 @@ def build_nuclei_command(
             )
 
     if scan_profile == "retest" and not template_ids:
-        raise NucleiPolicyError(
-            "nuclei retest profile requires exact approved template IDs"
-        )
+        raise NucleiPolicyError("nuclei retest profile requires exact approved template IDs")
 
     private_network_approved = parameters.get("private_network_approved", False)
     if not isinstance(private_network_approved, bool):
@@ -217,19 +213,13 @@ def build_nuclei_command(
             "nuclei private-network access requires active, validation, or retest profile"
         )
 
-    rate_limit = _bounded_int(
-        parameters, "rate_limit", default=5, minimum=1, maximum=10
-    )
+    rate_limit = _bounded_int(parameters, "rate_limit", default=5, minimum=1, maximum=10)
     bulk_size = _bounded_int(parameters, "bulk_size", default=2, minimum=1, maximum=2)
-    concurrency = _bounded_int(
-        parameters, "concurrency", default=2, minimum=1, maximum=2
-    )
+    concurrency = _bounded_int(parameters, "concurrency", default=2, minimum=1, maximum=2)
     probe_concurrency = _bounded_int(
         parameters, "probe_concurrency", default=2, minimum=1, maximum=2
     )
-    request_timeout = _bounded_int(
-        parameters, "request_timeout", default=10, minimum=1, maximum=30
-    )
+    request_timeout = _bounded_int(parameters, "request_timeout", default=10, minimum=1, maximum=30)
     retries = _bounded_int(parameters, "retries", default=1, minimum=0, maximum=1)
 
     argv: list[str] = [
@@ -353,15 +343,10 @@ def parse_nuclei_jsonl(
             or "unknown-template"
         )[:200]
         matched_at = _safe_url_reference(
-            item.get("matched-at")
-            or item.get("matched")
-            or item.get("host")
-            or target_reference
+            item.get("matched-at") or item.get("matched") or item.get("host") or target_reference
         )
         title = str(info.get("name") or item.get("name") or template_id)[:500]
-        severity = str(
-            info.get("severity") or item.get("severity") or "unknown"
-        ).lower()
+        severity = str(info.get("severity") or item.get("severity") or "unknown").lower()
         if severity not in _ALLOWED_SEVERITIES:
             severity = "unknown"
         record_digest = sha256_json(item)
@@ -386,8 +371,7 @@ def parse_nuclei_jsonl(
             "host": _safe_url_reference(item.get("host")),
             "ip": str(item.get("ip") or "")[:100] or None,
             "port": str(item.get("port") or "")[:20] or None,
-            "protocol": str(item.get("type") or item.get("protocol") or "")[:50]
-            or None,
+            "protocol": str(item.get("type") or item.get("protocol") or "")[:50] or None,
             "matcher_name": str(item.get("matcher-name") or "")[:200] or None,
             "extractor_name": str(item.get("extractor-name") or "")[:200] or None,
             "timestamp": str(item.get("timestamp") or "")[:100] or None,

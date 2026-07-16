@@ -51,9 +51,7 @@ class NewAssessmentForm(forms.Form):
         self.fields["authorization_id"].choices = tuple(
             (row["id"], row["label"]) for row in authorization_rows
         )
-        self.fields["profile_id"].choices = tuple(
-            (row["id"], row["name"]) for row in profile_rows
-        )
+        self.fields["profile_id"].choices = tuple((row["id"], row["name"]) for row in profile_rows)
 
     def clean_objective(self) -> str:
         return str(self.cleaned_data.get("objective") or "").strip()

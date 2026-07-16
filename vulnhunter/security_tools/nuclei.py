@@ -201,7 +201,9 @@ def build_nuclei_command(
             )
 
     if scan_profile == "retest" and not template_ids:
-        raise NucleiPolicyError("nuclei retest profile requires exact approved template IDs")
+        raise NucleiPolicyError(
+            "nuclei retest profile requires exact approved template IDs"
+        )
 
     private_network_approved = parameters.get("private_network_approved", False)
     if not isinstance(private_network_approved, bool):
@@ -218,9 +220,7 @@ def build_nuclei_command(
     rate_limit = _bounded_int(
         parameters, "rate_limit", default=5, minimum=1, maximum=10
     )
-    bulk_size = _bounded_int(
-        parameters, "bulk_size", default=2, minimum=1, maximum=2
-    )
+    bulk_size = _bounded_int(parameters, "bulk_size", default=2, minimum=1, maximum=2)
     concurrency = _bounded_int(
         parameters, "concurrency", default=2, minimum=1, maximum=2
     )
@@ -230,9 +230,7 @@ def build_nuclei_command(
     request_timeout = _bounded_int(
         parameters, "request_timeout", default=10, minimum=1, maximum=30
     )
-    retries = _bounded_int(
-        parameters, "retries", default=1, minimum=0, maximum=1
-    )
+    retries = _bounded_int(parameters, "retries", default=1, minimum=0, maximum=1)
 
     argv: list[str] = [
         executable,
@@ -371,9 +369,7 @@ def parse_nuclei_jsonl(
         tags = info.get("tags")
         if isinstance(tags, str):
             safe_tags: object = tuple(
-                part.strip()[:100]
-                for part in tags.split(",")[:50]
-                if part.strip()
+                part.strip()[:100] for part in tags.split(",")[:50] if part.strip()
             )
         elif isinstance(tags, list):
             safe_tags = tuple(str(part)[:100] for part in tags[:50])
@@ -390,9 +386,7 @@ def parse_nuclei_jsonl(
             "host": _safe_url_reference(item.get("host")),
             "ip": str(item.get("ip") or "")[:100] or None,
             "port": str(item.get("port") or "")[:20] or None,
-            "protocol": str(
-                item.get("type") or item.get("protocol") or ""
-            )[:50]
+            "protocol": str(item.get("type") or item.get("protocol") or "")[:50]
             or None,
             "matcher_name": str(item.get("matcher-name") or "")[:200] or None,
             "extractor_name": str(item.get("extractor-name") or "")[:200] or None,
@@ -400,9 +394,7 @@ def parse_nuclei_jsonl(
             "tags": safe_tags,
             "cve_id": _safe_classification_value(classification.get("cve-id")),
             "cwe_id": _safe_classification_value(classification.get("cwe-id")),
-            "cvss_score": _safe_classification_value(
-                classification.get("cvss-score")
-            ),
+            "cvss_score": _safe_classification_value(classification.get("cvss-score")),
         }
 
         findings.append(

@@ -1,5 +1,31 @@
 {% extends "web/base.html" %}
+{% load static %}
 {% block content %}
-<header class="vh-page-heading"><div><p class="vh-eyebrow">Verified outcomes</p><h1>Findings</h1><p>Evidence, review and remediation.</p></div><a class="vh-button-primary" href="{% url 'web-agent-run-list' %}">Open assessments</a></header>
-<section class="vh-card"><div class="vh-card-header"><div><h2>Pipeline readiness</h2><p>Current capability state.</p></div></div><ul class="vh-readiness-list">{% for label, state in capabilities %}<li><span><i></i>{{ label }}</span><strong>{{ state }}</strong></li>{% endfor %}</ul></section>
+<link rel="stylesheet" href="{% static 'web/product.css' %}?v=20260716-product1">
+<section class="vh-product-page">
+  <header class="vh-product-heading">
+    <div><p class="vh-eyebrow">Verified outcomes</p><h1>Findings</h1><p>Track the evidence, verification, remediation and retest capabilities that separate scanner observations from releasable findings.</p></div>
+    <div class="vh-product-heading-actions"><a class="vh-button-secondary" href="{% url 'web-reports-overview' %}">Open reports</a><a class="vh-button-primary" href="{% url 'web-agent-run-list' %}">Open assessments</a></div>
+  </header>
+
+  <section class="vh-lifecycle" aria-label="Finding lifecycle">
+    <div class="vh-lifecycle-step"><b>01</b><strong>Candidate</strong><small>A bounded tool produces a scoped observation.</small></div>
+    <div class="vh-lifecycle-step"><b>02</b><strong>Evidence</strong><small>Artifacts are sanitised, hashed and linked to provenance.</small></div>
+    <div class="vh-lifecycle-step"><b>03</b><strong>Verification</strong><small>Independent and human review determines whether the claim holds.</small></div>
+    <div class="vh-lifecycle-step"><b>04</b><strong>Release</strong><small>Only reviewed findings enter governed reports and retests.</small></div>
+  </section>
+
+  <section class="vh-product-panel" style="margin-top:12px">
+    <header class="vh-product-panel-header"><div><h2>Pipeline readiness</h2><p>Current capability state for the unified finding lifecycle.</p></div><span class="vh-panel-count">{{ capabilities|length }}</span></header>
+    <div class="vh-capability-grid">
+      {% for label, state in capabilities %}
+        <article class="vh-capability-card">
+          <div class="vh-capability-card-head"><span class="vh-capability-card-icon" aria-hidden="true"><svg><use href="#vh-i-finding"></use></svg></span><span class="vh-state-label {% if state == 'ready' %}is-ready{% else %}is-gated{% endif %}">{{ state }}</span></div>
+          <strong>{{ label }}</strong>
+          <small>{% if state == 'ready' %}The backend contract and persistence path are available.{% else %}Manual activation or an external dependency is still required.{% endif %}</small>
+        </article>
+      {% endfor %}
+    </div>
+  </section>
+</section>
 {% endblock %}

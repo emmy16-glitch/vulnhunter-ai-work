@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from django.urls import path
 
-from vulnhunter.web import operations_views, stream_views, views
+from vulnhunter.web import assessment_views, operations_views, stream_views, views
 
 urlpatterns = [
     path("health/", views.health_view, name="web-health"),
@@ -13,11 +13,11 @@ urlpatterns = [
     path("status/", views.status_view, name="web-status"),
     path("audit/", views.status_view, name="web-audit-overview"),
     path("authorizations/", views.authorization_list_view, name="web-authorization-list"),
-    path("scans/new/", operations_views.new_scan_view, name="web-new-scan"),
-    path("scans/", views.agent_run_list_view, name="web-scan-run-list"),
+    path("scans/new/", assessment_views.new_assessment_view, name="web-new-scan"),
+    path("scans/", assessment_views.assessment_list_view, name="web-scan-run-list"),
     path(
         "scans/<str:run_id>/",
-        views.agent_run_detail_view,
+        assessment_views.assessment_detail_view,
         name="web-scan-run-detail",
     ),
     path("reviews/", views.review_queue_view, name="web-review-queue"),
@@ -45,8 +45,12 @@ urlpatterns = [
     path("roles/<str:role_id>/", views.role_detail_view, name="web-role-detail"),
     path("skills/", views.skill_list_view, name="web-skill-list"),
     path("skills/<str:skill_id>/", views.skill_detail_view, name="web-skill-detail"),
-    path("agent/runs/", views.agent_run_list_view, name="web-agent-run-list"),
-    path("agent/runs/<str:run_id>/", views.agent_run_detail_view, name="web-agent-run-detail"),
+    path("agent/runs/", assessment_views.assessment_list_view, name="web-agent-run-list"),
+    path(
+        "agent/runs/<str:run_id>/",
+        assessment_views.assessment_detail_view,
+        name="web-agent-run-detail",
+    ),
     path(
         "agent/runs/<str:run_id>/activity/",
         views.agent_activity_view,

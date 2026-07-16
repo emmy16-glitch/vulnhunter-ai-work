@@ -12,6 +12,7 @@ from django.views.decorators.cache import cache_control
 from django.views.decorators.http import require_GET
 
 from vulnhunter.product import ProductServiceError
+from vulnhunter.web.assessment_projection import build_live_assessment_projection
 from vulnhunter.web.services import (
     WebPermissionDenied,
     activity_payload,
@@ -84,6 +85,7 @@ def agent_activity_stream_view(request: HttpRequest, run_id: str):
             "evaluation_result": run.evaluation_result,
             "elapsed_seconds": elapsed_seconds,
             "updated_at": run.updated_at.isoformat(),
+            "assessment": build_live_assessment_projection(run),
         }
     )
     sequence = int(payload.get("last_sequence", after_sequence))

@@ -1,10 +1,108 @@
 {% extends "web/base.html" %}
+{% load static %}
 {% block content %}
-<header class="vh-page-heading"><div><p class="vh-eyebrow">Collection</p><h1>New bounded scan</h1><p>Select an active authorization and approved profile.</p></div><span class="vh-status-chip vh-status-warning">Web launch not enabled</span></header>
-{% if error_message %}<section class="vh-operational-notice is-danger"><strong>Authorization store unavailable</strong><p>{{ error_message }}</p></section>{% endif %}
-<section class="vh-setup-grid">
-  <article class="vh-card"><div class="vh-card-header"><div><h2>1 · Authorization</h2><p>Permission and scope.</p></div></div>{% if authorizations %}<ul class="vh-selection-list">{% for item in authorizations %}<li><span><strong>{{ item.hostname }}:{{ item.port }}</strong><small>{{ item.authorization_id }} · {{ item.status }}</small></span><code>{{ item.path_boundary }}</code></li>{% endfor %}</ul>{% else %}<div class="vh-zero-state is-compact"><h3>No active record</h3><p>A valid authorization is required.</p></div>{% endif %}</article>
-  <article class="vh-card"><div class="vh-card-header"><div><h2>2 · Profile</h2><p>Bounded operating mode.</p></div></div><div class="vh-profile-stack">{% for profile in profiles %}<details class="vh-profile-option"><summary><span><strong>{{ profile.name }}</strong><small>{{ profile.description }}</small></span><svg aria-hidden="true"><use href="#vh-i-chevron"></use></svg></summary><p><span>Gate</span>{{ profile.gate }}</p></details>{% endfor %}</div></article>
+<link rel="stylesheet" href="{% static 'web/assessment.css' %}?v=20260716-demo1">
+<script src="{% static 'web/assessment.js' %}?v=20260716-demo1" defer></script>
+
+<section class="vh-assessment-launch-page" data-assessment-launch>
+  <header class="vh-assessment-launch-heading">
+    <div>
+      <p class="vh-eyebrow">Governed collection</p>
+      <h1>New assessment</h1>
+      <p>Create an authorization-bound launch request. This form does not start a scanner or enable network execution.</p>
+    </div>
+    <a class="vh-button-secondary" href="{% url 'web-scan-run-list' %}">Back to assessments</a>
+  </header>
+
+  {% if error_message %}
+    <section class="vh-operational-notice is-danger">
+      <strong>Launch prerequisites unavailable</strong>
+      <p>{{ error_message }}</p>
+    </section>
+  {% endif %}
+
+  <form class="vh-assessment-launch-card" method="post" action="{% url 'web-new-scan' %}" data-assessment-form>
+    {% csrf_token %}
+    <div class="vh-launch-card-intro">
+      <span class="vh-launch-shield" aria-hidden="true"><svg><use href="#vh-i-shield"></use></svg></span>
+      <div>
+        <span class="vh-risk-label">Human-controlled launch</span>
+        <h2>Bind authorization, profile and objective</h2>
+        <p>The target comes from the selected authorization record and cannot be typed or overridden here.</p>
+      </div>
+    </div>
+
+    {% if launch_form.non_field_errors %}
+      <div class="vh-form-errors">{{ launch_form.non_field_errors }}</div>
+    {% endif %}
+
+    <div class="vh-launch-steps">
+      <fieldset class="vh-launch-step">
+        <legend><span>01</span><strong>Authorization</strong></legend>
+        <p>Select a current record. Its target, path boundary and expiry remain read-only.</p>
+        {% if authorization_rows %}
+          <label class="vh-form-label" for="id_authorization_id">Active authorization</label>
+          <select id="id_authorization_id" name="authorization_id" required data-authorization-select>
+            <option value="">Select an authorization</option>
+            {% for row in authorization_rows %}
+              <option value="{{ row.id }}" data-target="{{ row.target }}" data-scope="{{ row.scope }}" data-owner="{{ row.owner }}" data-expires="{{ row.expires_at }}"{% if launch_form.authorization_id.value == row.id %} selected{% endif %}>{{ row.label }}</option>
+            {% endfor %}
+          </select>
+          {% for error in launch_form.authorization_id.errors %}<small class="vh-field-error">{{ error }}</small>{% endfor %}
+          <dl class="vh-scope-preview" aria-live="polite">
+            <div><dt>Target</dt><dd data-selected-target>Choose a record</dd></div>
+            <div><dt>Scope</dt><dd data-selected-scope>Not bound</dd></div>
+            <div><dt>Owner</dt><dd data-selected-owner>—</dd></div>
+            <div><dt>Expires</dt><dd data-selected-expiry>—</dd></div>
+          </dl>
+        {% else %}
+          <div class="vh-zero-state is-compact">
+            <h3>No current authorization</h3>
+            <p>Create or renew an authorization before launching an assessment.</p>
+            <a class="vh-button-secondary" href="{% url 'web-authorization-list' %}">Open authorizations</a>
+          </div>
+        {% endif %}
+      </fieldset>
+
+      <fieldset class="vh-launch-step">
+        <legend><span>02</span><strong>Assessment profile</strong></legend>
+        <p>Profiles describe governed intent. Runtime policy still decides which tools and actions may proceed.</p>
+        <div class="vh-profile-choice-grid">
+          {% for profile in profiles %}
+            <label class="vh-profile-choice">
+              <input type="radio" name="profile_id" value="{{ profile.id }}" required{% if launch_form.profile_id.value == profile.id %} checked{% endif %}>
+              <span class="vh-profile-choice-body">
+                <span class="vh-profile-choice-top"><strong>{{ profile.name }}</strong><b>{{ profile.risk }}</b></span>
+                <small>{{ profile.description }}</small>
+                <em>{{ profile.gate }}</em>
+              </span>
+            </label>
+          {% endfor %}
+        </div>
+        {% for error in launch_form.profile_id.errors %}<small class="vh-field-error">{{ error }}</small>{% endfor %}
+      </fieldset>
+
+      <fieldset class="vh-launch-step">
+        <legend><span>03</span><strong>Objective and confirmation</strong></legend>
+        <label class="vh-form-label" for="id_objective">Assessment objective <small>Optional</small></label>
+        <textarea id="id_objective" name="objective" rows="3" maxlength="500" placeholder="Describe the approved outcome for this assessment.">{{ launch_form.objective.value|default:"" }}</textarea>
+        {% for error in launch_form.objective.errors %}<small class="vh-field-error">{{ error }}</small>{% endfor %}
+        <label class="vh-scope-confirmation">
+          <input type="checkbox" name="acknowledge_scope" required{% if launch_form.acknowledge_scope.value %} checked{% endif %}>
+          <span>I confirm that this launch request must remain within the selected authorization and all later actions remain approval- and policy-gated.</span>
+        </label>
+        {% for error in launch_form.acknowledge_scope.errors %}<small class="vh-field-error">{{ error }}</small>{% endfor %}
+      </fieldset>
+    </div>
+
+    <footer class="vh-launch-actions">
+      <div>
+        <strong>No automatic execution</strong>
+        <small>The request is persisted in the bounded agent store with hash-linked launch evidence.</small>
+      </div>
+      <a class="vh-button-secondary" href="{% url 'web-scan-run-list' %}">Cancel</a>
+      <button class="vh-button-primary" type="submit"{% if not authorization_rows %} disabled{% endif %}>Create launch request</button>
+    </footer>
+  </form>
 </section>
-<section class="vh-card vh-launch-boundary"><div><p class="vh-eyebrow">Launch boundary</p><h2>Scan submission remains CLI-governed</h2><p>Create scans through the governed CLI. Web submission is not available in this milestone.</p></div><a class="vh-button-secondary" href="{% url 'web-scan-run-list' %}">Open scan runs</a></section>
 {% endblock %}

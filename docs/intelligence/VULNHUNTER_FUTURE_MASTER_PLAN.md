@@ -1,9 +1,9 @@
 # VulnHunter AI — Future Master Plan
 
-**Canonical deferred architecture and roadmap**  
-**Owner:** Emmanuel Okunlola  
-**Project:** VulnHunter AI  
-**Created:** 2026-07-12  
+**Canonical deferred architecture and roadmap**
+**Owner:** Emmanuel Okunlola
+**Project:** VulnHunter AI
+**Created:** 2026-07-12
 **Status:** Deferred until explicitly resumed
 
 ---
@@ -1167,3 +1167,21 @@ Do not begin implementing it merely because this file was read.
 Implementation resumes only when Emmanuel explicitly gives an instruction such as:
 
 > Resume the VulnHunter future roadmap from Phase 1.
+
+## Programme execution status
+
+Emmanuel explicitly resumed this roadmap on `2026-07-13`. This status note
+does not alter or merge away any canonical requirement above.
+
+- Restored canonical-body integrity before this status appendix:
+  `27179 bytes`, SHA-256
+  `3ffac0a5b441c7eb6877e2fa7c3d5a4eeb243808d6f0eb2002f49202d0dcf265`.
+- One-to-one mapping:
+  `docs/intelligence/TOTAL_PROGRAMME_CANONICAL_COVERAGE_MATRIX.md`.
+- Coverage gate: `608` explicit rows, all 26 numbered sections, all canonical
+  subsections, all 25 deferred phases, and `UNMAPPED=0`.
+- Current programme position: Stage A technically complete; Stage B Wave 1
+  capability subtraction active.
+- External tools, models, providers, MCP services, and connectors remain
+  disabled until their recorded manual, credential, resource, approval, and
+  readiness gates pass.

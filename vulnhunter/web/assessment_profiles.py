@@ -8,7 +8,6 @@ from __future__ import annotations
 
 from vulnhunter.advanced import AssessmentProfile
 
-
 _ASSESSMENT_PROFILES: tuple[dict[str, str], ...] = (
     {
         "id": AssessmentProfile.DEEP_DISCOVERY.value,

@@ -49,7 +49,10 @@ def _stage(
         "status": status.replace("_", " ").title(),
         "state": state,
         "marker": "✓" if state == "complete" else "Ⅱ" if state == "warning" else f"{number:02d}",
-        "facts": tuple({"label": label, "value": _text(value, "Waiting")} for label, value in facts),
+        "facts": tuple(
+            {"label": label, "value": _text(value, "Waiting")}
+            for label, value in facts
+        ),
     }
 
 
@@ -91,7 +94,10 @@ def build_assessment_projection(run: Any) -> dict[str, object]:
         _stage(
             2,
             "Authorization Validation",
-            "The launch request is bound to a stored authorization record; runtime checks remain authoritative.",
+            (
+                "The launch request is bound to a stored authorization record; "
+                "runtime checks remain authoritative."
+            ),
             "Bound",
             "complete",
             ("Skill", selected_skill),
@@ -100,7 +106,10 @@ def build_assessment_projection(run: Any) -> dict[str, object]:
         _stage(
             3,
             "Passive Reconnaissance",
-            _text(getattr(run, "policy_reason", None), "Policy evaluation has not produced a decision."),
+            _text(
+                getattr(run, "policy_reason", None),
+                "Policy evaluation has not produced a decision.",
+            ),
             policy_result,
             "danger" if policy_denied else "complete" if policy_allowed else "active",
             ("Policy", policy_result),
@@ -126,16 +135,28 @@ def build_assessment_projection(run: Any) -> dict[str, object]:
         _stage(
             5,
             "Evidence Normalization",
-            "Normalize tool output into hash-linked candidate evidence without copying unsafe raw exchanges.",
+            (
+                "Normalize tool output into hash-linked candidate evidence without "
+                "copying unsafe raw exchanges."
+            ),
             "Available" if artifacts and tool_succeeded else "Pending",
-            "complete" if artifacts and tool_succeeded else "active" if tool_succeeded else "pending",
+            (
+                "complete"
+                if artifacts and tool_succeeded
+                else "active"
+                if tool_succeeded
+                else "pending"
+            ),
             ("Artifacts", len(artifacts)),
             ("Integrity", "Hash linked" if final_digest else "Waiting"),
         ),
         _stage(
             6,
             "Oracle Verification",
-            "Independent verification remains evidence-bound and cannot be inferred from a scanner match.",
+            (
+                "Independent verification remains evidence-bound and cannot be inferred "
+                "from a scanner match."
+            ),
             evaluation_result or "Pending",
             "complete" if evaluation_result else "pending",
             ("Result", evaluation_result or "Waiting"),

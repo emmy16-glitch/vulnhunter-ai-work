@@ -330,7 +330,10 @@ def new_assessment_view(request: HttpRequest) -> HttpResponse:
                     else:
                         messages.success(
                             request,
-                            "Assessment launch request created. No scanner or network operation started.",
+                            (
+                                "Assessment launch request created. No scanner or network "
+                                "operation started."
+                            ),
                         )
                     return redirect("web-agent-run-detail", run_id=task.task_id)
 

@@ -42,6 +42,23 @@ because a template matched.
 - Nuclei-specific JSONL normalization that never copies raw request/response
   bodies into normalized finding metadata.
 
+## Milestone 29 activation controls
+
+- immutable, hash-audited engagement authorization records;
+- exact normalized URL, port, protocol and current-resolution checks;
+- mandatory redirect revalidation and fail-closed DNS rebinding protection;
+- unconditional localhost, loopback, link-local and metadata rejection;
+- exact reviewed template manifests with release, risk, approval and digest
+  binding;
+- immutable expiring command plans with no argv or shell command field;
+- expiring human approval bound to the exact command-plan digest;
+- explicit intrusive approval plus isolation requirement;
+- approved evidence-root validation and secret-leakage verification;
+- cancellation, monotonic timeout and process-group termination interfaces.
+
+These controls end in `APPROVED_EXECUTION_DISABLED`. They are not connected to
+the external-tool executor and cannot launch Nuclei.
+
 ## Operational pins
 
 - Engine candidate: `v3.11.0`
@@ -53,11 +70,13 @@ script reports a mismatch but never installs or updates anything.
 ## Remaining implementation gates
 
 1. Download verification with release asset SHA-256 and provenance records.
-2. A reviewed template trust registry with release/commit and digest pinning.
+2. Populate the currently empty reviewed template trust registry through a
+   separately reviewed change.
 3. A private template signing key ceremony and certificate distribution.
 4. A self-hosted Interactsh deployment and explicit OAST approval workflow.
 5. An isolated unprivileged runtime for headless and JavaScript templates.
-6. Profile-specific authorization IDs and engagement rate ceilings.
+6. Persist and authenticate profile-specific engagement authorizations and
+   approvals; the immutable in-memory contracts and ceilings now exist.
 7. Authenticated scan secret injection without secrets appearing in argv,
    persisted plans, logs, or model-visible state.
 8. Request/response artifact-level redaction verification before export.

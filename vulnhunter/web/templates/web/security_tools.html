@@ -1,17 +1,36 @@
 {% extends "web/base.html" %}
+{% load static %}
 {% block content %}
-<header class="vh-page-heading"><div><p class="vh-eyebrow">Local readiness</p><h1>Tool registry</h1><p>Read-only status checks. Execution remains gated.</p></div></header>
-<section class="vh-card vh-card-flush">
-  <div class="vh-table-wrap"><table class="vh-table">
-    <thead><tr><th>Tool</th><th>Profiles</th><th>Targets</th><th>Gate</th><th>Readiness</th><th>Version / diagnostic</th></tr></thead>
-    <tbody>{% for row in tool_rows %}<tr>
-      <td><strong>{{ row.definition.display_name }}</strong><small>{{ row.definition.description }}</small></td>
-      <td>{% for profile in row.definition.profiles %}{{ profile.value }}{% if not forloop.last %}, {% endif %}{% endfor %}</td>
-      <td>{% for kind in row.definition.target_kinds %}{{ kind.value }}{% if not forloop.last %}, {% endif %}{% endfor %}</td>
-      <td>{% if row.definition.connector_only %}connector{% elif row.definition.approval_required %}approval{% else %}policy{% endif %}{% if row.definition.requires_isolation %} + isolation{% endif %}</td>
-      <td><strong>{{ row.availability.status.value }}</strong>{% if row.availability.executable_path %}<small>{{ row.availability.executable_path }}</small>{% endif %}</td>
-      <td>{% if row.availability.version_summary %}{{ row.availability.version_summary }}{% elif row.availability.error_summary %}{{ row.availability.error_summary }}{% else %}—{% endif %}</td>
-    </tr>{% endfor %}</tbody>
-  </table></div>
+<link rel="stylesheet" href="{% static 'web/product.css' %}?v=20260716-product1">
+<section class="vh-product-page">
+  <header class="vh-product-heading">
+    <div><p class="vh-eyebrow">Local readiness</p><h1>Tool registry</h1><p>Inspect fixed adapter definitions, target support and local readiness. These checks never activate execution.</p></div>
+    <div class="vh-product-heading-actions"><a class="vh-button-secondary" href="{% url 'web-status' %}">System status</a><a class="vh-button-primary" href="{% url 'web-advanced-profiles' %}">Assessment profiles</a></div>
+  </header>
+
+  <section class="vh-product-summary" aria-label="Tool registry safety boundary">
+    <div><small>Registry purpose</small><strong>Readiness and policy metadata</strong><span>The page reports definitions and local diagnostics only.</span></div>
+    <div><small>Execution state</small><strong>Gated elsewhere</strong><span>Availability does not enable a tool or network access.</span></div>
+    <div><small>Registered tools</small><strong>{{ tool_rows|length }}</strong><span>Definitions currently visible to this operator.</span></div>
+  </section>
+
+  <section class="vh-product-panel">
+    <header class="vh-product-panel-header"><div><h2>Security tool adapters</h2><p>Supported profiles, target kinds, safety gates and local diagnostics.</p></div><span class="vh-panel-count">{{ tool_rows|length }}</span></header>
+    <div class="vh-product-table-wrap"><table class="vh-product-table">
+      <thead><tr><th>Tool</th><th>Profiles</th><th>Targets</th><th>Gate</th><th>Readiness</th><th>Version / diagnostic</th></tr></thead>
+      <tbody>
+        {% for row in tool_rows %}
+          <tr>
+            <td><div class="vh-record-identity"><span class="vh-record-icon" aria-hidden="true"><svg><use href="#vh-i-settings"></use></svg></span><div><strong>{{ row.definition.display_name }}</strong><small>{{ row.definition.description }}</small></div></div></td>
+            <td><small>{% for profile in row.definition.profiles %}{{ profile.value }}{% if not forloop.last %}, {% endif %}{% endfor %}</small></td>
+            <td><small>{% for kind in row.definition.target_kinds %}{{ kind.value }}{% if not forloop.last %}, {% endif %}{% endfor %}</small></td>
+            <td><strong>{% if row.definition.connector_only %}Connector{% elif row.definition.approval_required %}Approval{% else %}Policy{% endif %}</strong>{% if row.definition.requires_isolation %}<small>Isolation required</small>{% endif %}</td>
+            <td><span class="vh-status-chip">{{ row.availability.status.value }}</span>{% if row.availability.executable_path %}<small>{{ row.availability.executable_path }}</small>{% endif %}</td>
+            <td>{% if row.availability.version_summary %}{{ row.availability.version_summary }}{% elif row.availability.error_summary %}{{ row.availability.error_summary }}{% else %}—{% endif %}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table></div>
+  </section>
 </section>
 {% endblock %}

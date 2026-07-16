@@ -11,6 +11,7 @@ from vulnhunter.security_tools.models import (
     ToolProfile,
     ToolTargetKind,
 )
+from vulnhunter.security_tools.nuclei import build_nuclei_command
 from vulnhunter.security_tools.targets import validate_tool_target
 
 
@@ -74,6 +75,7 @@ def build_command_plan(
     stdout_file: Path | None = None
     stderr_file: Path | None = None
     acceptable_return_codes = (0,)
+    requires_isolation = definition.requires_isolation
 
     if request.tool_id == "nmap":
         output = _output_path(out, request.request_id, ".xml")
@@ -106,24 +108,14 @@ def build_command_plan(
         outputs = (output,)
     elif request.tool_id == "nuclei":
         output = _output_path(out, request.request_id, ".jsonl")
-        severity = str(request.parameters.get("severity", "info,low,medium,high,critical"))
-        allowed = {"info", "low", "medium", "high", "critical", "unknown"}
-        values = tuple(item.strip() for item in severity.split(",") if item.strip())
-        if not values or any(item not in allowed for item in values):
-            raise ToolAdapterError("nuclei severity contains an unsupported value")
-        argv = (
-            executable,
-            "-u",
-            target,
-            "-jsonl",
-            "-silent",
-            "-no-color",
-            "-severity",
-            ",".join(values),
-            "-o",
-            str(output),
+        nuclei_command = build_nuclei_command(
+            request,
+            executable=executable,
+            output=output,
         )
+        argv = nuclei_command.argv
         outputs = (output,)
+        requires_isolation = requires_isolation or nuclei_command.requires_isolation
     elif request.tool_id == "testssl":
         output = _output_path(out, request.request_id, ".json")
         argv = (
@@ -362,7 +354,7 @@ def build_command_plan(
         working_directory=request.output_directory.expanduser().resolve(),
         action_manifest_sha256=request.action_manifest_sha256,
         requires_approval=definition.approval_required,
-        requires_isolation=definition.requires_isolation,
+        requires_isolation=requires_isolation,
         action_class=definition.action_class,
         acceptable_return_codes=acceptable_return_codes,
     )

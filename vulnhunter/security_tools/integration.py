@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from vulnhunter.security_tools.models import ToolExecutionResult
+from vulnhunter.security_tools.nuclei import parse_nuclei_jsonl
 from vulnhunter.security_tools.parsers import (
     NormalizedFinding,
     parse_jsonl_findings,
@@ -12,7 +13,7 @@ from vulnhunter.security_tools.parsers import (
     parse_structured_findings,
 )
 
-_JSONL_TOOLS = {"httpx", "nuclei"}
+_JSONL_TOOLS = {"httpx"}
 _STRUCTURED_TOOLS = {
     "bearer",
     "bandit",
@@ -41,6 +42,13 @@ def normalize_execution_findings(
             continue
         if result.tool_id == "nmap" and path.suffix.lower() == ".xml":
             findings.extend(parse_nmap_xml(path, target_reference=target_reference))
+        elif result.tool_id == "nuclei" and path.suffix.lower() == ".jsonl":
+            findings.extend(
+                parse_nuclei_jsonl(
+                    path,
+                    target_reference=target_reference,
+                )
+            )
         elif result.tool_id in _JSONL_TOOLS and path.suffix.lower() == ".jsonl":
             findings.extend(
                 parse_jsonl_findings(

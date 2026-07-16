@@ -1,0 +1,99 @@
+{
+  "schema_version": "1.0",
+  "engine_pin": "v3.11.0",
+  "templates_pin": "v10.4.5",
+  "execution_enabled": false,
+  "automatic_updates_enabled": false,
+  "cloud_upload_enabled": false,
+  "public_oast_enabled": false,
+  "profiles": {
+    "passive": {
+      "tool_profile": "safe_assessment",
+      "default_tags": [
+        "tech",
+        "exposure",
+        "misconfig"
+      ],
+      "protocol_types": [
+        "http",
+        "ssl",
+        "dns"
+      ],
+      "rate_limit": 5,
+      "bulk_size": 2,
+      "concurrency": 2,
+      "private_network_access": false,
+      "interactsh": false,
+      "requires_isolation": false
+    },
+    "standard": {
+      "tool_profiles": [
+        "safe_assessment",
+        "active_assessment"
+      ],
+      "explicit_template_filter_required": true,
+      "protocol_types": [
+        "http",
+        "ssl",
+        "dns",
+        "tcp",
+        "websocket",
+        "whois"
+      ],
+      "rate_limit": 5,
+      "bulk_size": 2,
+      "concurrency": 2,
+      "private_network_access": false,
+      "interactsh": false,
+      "requires_isolation": false
+    },
+    "intrusive": {
+      "tool_profiles": [
+        "active_assessment",
+        "validation"
+      ],
+      "explicit_template_ids_required": true,
+      "exact_human_approval_required": true,
+      "protocol_types": [
+        "http",
+        "ssl",
+        "dns",
+        "tcp",
+        "websocket",
+        "whois",
+        "headless",
+        "javascript"
+      ],
+      "rate_limit": 5,
+      "bulk_size": 2,
+      "concurrency": 2,
+      "private_network_access": "approval-gated",
+      "interactsh": false,
+      "requires_isolation": true
+    },
+    "retest": {
+      "tool_profile": "retest",
+      "explicit_template_ids_required": true,
+      "rate_limit": 5,
+      "bulk_size": 1,
+      "concurrency": 1,
+      "private_network_access": "approval-gated",
+      "interactsh": false,
+      "requires_isolation": false
+    }
+  },
+  "blocked_capabilities": [
+    "raw command-line arguments",
+    "template URLs and workflow URLs",
+    "AI prompt template generation and immediate execution",
+    "cloud/dashboard upload",
+    "public Interactsh/OAST",
+    "code templates",
+    "file templates",
+    "self-contained templates",
+    "local file access",
+    "DAST server mode",
+    "Uncover search engines",
+    "secret files, raw headers, and proxies supplied by the model"
+  ]
+}

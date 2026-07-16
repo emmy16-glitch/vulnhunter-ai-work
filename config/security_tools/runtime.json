@@ -20,5 +20,23 @@
   "mobile_dynamic_enabled": false,
   "mobile_native_enabled": false,
   "mobile_artifact_root": ".local/mobile-artifacts",
-  "mobile_isolated_runtime_required": true
+  "mobile_isolated_runtime_required": true,
+  "nuclei": {
+    "enabled": false,
+    "engine_version": "v3.11.0",
+    "templates_version": "v10.4.5",
+    "automatic_updates_enabled": false,
+    "cloud_upload_enabled": false,
+    "public_oast_enabled": false,
+    "unsigned_templates_allowed": false,
+    "code_templates_enabled": false,
+    "file_templates_enabled": false,
+    "self_contained_templates_enabled": false,
+    "ai_template_generation_enabled": false,
+    "default_profile": "passive",
+    "maximum_rate_limit": 10,
+    "maximum_concurrency": 2,
+    "maximum_bulk_size": 2,
+    "isolated_intrusive_runtime_required": true
+  }
 }

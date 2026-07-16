@@ -1,5 +1,30 @@
 {% extends "web/base.html" %}
+{% load static %}
 {% block content %}
-<header class="vh-page-heading"><div><p class="vh-eyebrow">Deliverables</p><h1>Reports</h1><p>Exported findings and evidence.</p></div><a class="vh-button-secondary" href="{% url 'web-pilot-plan-list' %}">Pilot plans</a></header>
-<section class="vh-card"><div class="vh-card-header"><div><h2>Formats</h2><p>Available report outputs.</p></div></div><div class="vh-format-grid">{% for label, state in report_formats %}<article><strong>{{ label }}</strong><small>{{ state }}</small></article>{% endfor %}</div></section>
+<link rel="stylesheet" href="{% static 'web/product.css' %}?v=20260716-product1">
+<section class="vh-product-page">
+  <header class="vh-product-heading">
+    <div><p class="vh-eyebrow">Deliverables</p><h1>Reports</h1><p>Prepare governed exports from reviewed findings, integrity-linked evidence and approved attack-path context.</p></div>
+    <div class="vh-product-heading-actions"><a class="vh-button-secondary" href="{% url 'web-pilot-plan-list' %}">Pilot plans</a><a class="vh-button-primary" href="{% url 'web-findings-overview' %}">Open findings</a></div>
+  </header>
+
+  <section class="vh-product-summary" aria-label="Report release boundary">
+    <div><small>Release source</small><strong>Reviewed findings only</strong><span>Scanner observations cannot become published claims without verification.</span></div>
+    <div><small>Evidence handling</small><strong>Hash-linked</strong><span>Exports retain provenance without exposing unsafe raw exchanges.</span></div>
+    <div><small>Publication</small><strong>Separately gated</strong><span>Availability of a format does not authorize release.</span></div>
+  </section>
+
+  <section class="vh-product-panel">
+    <header class="vh-product-panel-header"><div><h2>Available formats</h2><p>Output contracts currently represented by the reporting layer.</p></div><span class="vh-panel-count">{{ report_formats|length }}</span></header>
+    <div class="vh-format-card-grid">
+      {% for label, state in report_formats %}
+        <article class="vh-format-card">
+          <div class="vh-format-card-head"><span class="vh-format-card-icon" aria-hidden="true"><svg><use href="#vh-i-report"></use></svg></span><span class="vh-state-label {% if state == 'available' %}is-available{% else %}is-gated{% endif %}">{{ state }}</span></div>
+          <strong>{{ label }}</strong>
+          <small>{% if state == 'available' %}The format contract is available for governed report generation.{% else %}A renderer or manually activated dependency is still required.{% endif %}</small>
+        </article>
+      {% endfor %}
+    </div>
+  </section>
+</section>
 {% endblock %}

@@ -1,45 +1,68 @@
 {% extends "web/base.html" %}
+{% load static %}
 {% block content %}
-<header class="vh-page-heading"><div><p class="vh-eyebrow">Android security</p><h1>Mobile APK Analysis</h1><p>Upload, inspect and review Android artifacts.</p></div></header>
+<link rel="stylesheet" href="{% static 'web/product.css' %}?v=20260716-product1">
+<section class="vh-product-page">
+  <header class="vh-product-heading">
+    <div><p class="vh-eyebrow">Android security</p><h1>Mobile APK Analysis</h1><p>Store, fingerprint and review Android artifacts before any governed static or isolated dynamic-analysis workflow is considered.</p></div>
+    <div class="vh-product-heading-actions"><a class="vh-button-secondary" href="{% url 'web-security-tool-registry' %}">Mobile tool readiness</a></div>
+  </header>
 
-<section class="vh-card">
-  <div class="vh-card-header"><div><h2>Upload APK</h2><p>Files are stored and validated before analysis.</p></div></div>
-  <form method="post" enctype="multipart/form-data" class="vh-form">
-    {% csrf_token %}
-    {{ form.non_field_errors }}
-    <div class="vh-field">
-      {{ form.apk_file.label_tag }}
-      {{ form.apk_file }}
-      {% if form.apk_file.help_text %}<small>{{ form.apk_file.help_text }}</small>{% endif %}
-      {{ form.apk_file.errors }}
-    </div>
-    <button class="vh-button-primary" type="submit">Store APK</button>
-  </form>
-  {% if uploaded_record %}
-    <div class="vh-callout">
-      <strong>{{ uploaded_record.original_filename }}</strong>
-      <small>{{ uploaded_record.artifact_id }}</small>
-      <code>{{ uploaded_record.sha256 }}</code>
-      <span>{{ uploaded_record.dex_entries|length }} DEX · {{ uploaded_record.native_libraries|length }} native libraries</span>
-    </div>
-  {% endif %}
-</section>
+  <section class="vh-product-summary" aria-label="Mobile analysis safety boundary">
+    <div><small>Upload behavior</small><strong>Store and validate only</strong><span>Uploading an APK does not execute it or activate an external tool.</span></div>
+    <div><small>Dynamic analysis</small><strong>Isolated and approval gated</strong><span>The VulnHunter host must never execute the uploaded APK directly.</span></div>
+    <div><small>Stored artifacts</small><strong>{{ artifacts|length }}</strong><span>Content-addressed APK records visible to this operator.</span></div>
+  </section>
 
-<section class="vh-card">
-  <div class="vh-card-header"><div><h2>Analysis profiles</h2><p>Select a governed workflow.</p></div></div>
-  <div class="vh-format-grid">
-    {% for profile in profiles %}
-      <article><strong>{{ profile.name }}</strong><small>{{ profile.description }}</small><span class="vh-status-chip">{{ profile.gate }}</span></article>
-    {% endfor %}
+  <div class="vh-mobile-layout">
+    <section class="vh-product-panel vh-upload-panel" aria-labelledby="apk-upload-title">
+      <div class="vh-upload-intro"><span class="vh-record-icon" aria-hidden="true"><svg><use href="#vh-i-mobile"></use></svg></span><div><h2 id="apk-upload-title">Upload APK</h2><p>The file is stored, hashed and structurally validated before later analysis planning.</p></div></div>
+      <form method="post" enctype="multipart/form-data" class="vh-form">
+        {% csrf_token %}
+        {{ form.non_field_errors }}
+        <div class="vh-field">
+          {{ form.apk_file.label_tag }}
+          {{ form.apk_file }}
+          {% if form.apk_file.help_text %}<small>{{ form.apk_file.help_text }}</small>{% endif %}
+          {{ form.apk_file.errors }}
+        </div>
+        <button class="vh-button-primary" type="submit">Store APK</button>
+      </form>
+      <div class="vh-upload-safety"><svg aria-hidden="true"><use href="#vh-i-shield"></use></svg><span>Storage does not grant execution authority. Static adapters remain disabled until reviewed configuration enables them; dynamic work requires explicit approval and a disposable Android runtime.</span></div>
+      {% if uploaded_record %}
+        <div class="vh-artifact-callout"><span aria-hidden="true"><svg><use href="#vh-i-checkdoc"></use></svg></span><div><strong>{{ uploaded_record.original_filename }}</strong><small>{{ uploaded_record.artifact_id }}</small><code>{{ uploaded_record.sha256 }}</code><em>{{ uploaded_record.dex_entries|length }} DEX · {{ uploaded_record.native_libraries|length }} native libraries</em></div></div>
+      {% endif %}
+    </section>
+
+    <section class="vh-product-panel" aria-labelledby="mobile-profile-title">
+      <header class="vh-product-panel-header"><div><h2 id="mobile-profile-title">Analysis profiles</h2><p>Fixed governed workflows exposed by the mobile security planner.</p></div><span class="vh-panel-count">{{ profiles|length }}</span></header>
+      <div class="vh-mobile-profile-list">
+        {% for profile in profiles %}
+          <article class="vh-mobile-profile"><span aria-hidden="true"><svg><use href="#vh-i-layers"></use></svg></span><div><strong>{{ profile.name }}</strong><small>{{ profile.description }}</small><em>{{ profile.gate }}</em></div></article>
+        {% endfor %}
+      </div>
+    </section>
   </div>
-</section>
 
-<section class="vh-card vh-card-flush">
-  <div class="vh-section-toolbar"><div><h2>Stored artifacts</h2><p>Uploaded APK inventory.</p></div></div>
-  {% if artifacts %}
-    <div class="vh-table-wrap"><table class="vh-table"><thead><tr><th>Artifact</th><th>File</th><th>SHA-256</th><th>Native ABIs</th></tr></thead><tbody>{% for artifact in artifacts %}<tr><td>{{ artifact.artifact_id }}</td><td>{{ artifact.original_filename }}</td><td><code>{{ artifact.sha256 }}</code></td><td>{% for abi in artifact.native_abis %}{{ abi }}{% if not forloop.last %}, {% endif %}{% empty %}none{% endfor %}</td></tr>{% endfor %}</tbody></table></div>
-  {% else %}
-    <div class="vh-zero-state"><span>◎</span><h3>No APK artifacts</h3><p>Upload an APK to begin.</p></div>
-  {% endif %}
+  <section class="vh-product-panel">
+    <header class="vh-product-panel-header"><div><h2>Stored artifacts</h2><p>Content-addressed APK inventory and extracted architecture metadata.</p></div><span class="vh-panel-count">{{ artifacts|length }}</span></header>
+    {% if artifacts %}
+      <div class="vh-product-table-wrap"><table class="vh-product-table">
+        <thead><tr><th>Artifact</th><th>File</th><th>SHA-256</th><th>Native ABIs</th></tr></thead>
+        <tbody>
+          {% for artifact in artifacts %}
+            <tr>
+              <td><div class="vh-record-identity"><span class="vh-record-icon" aria-hidden="true"><svg><use href="#vh-i-mobile"></use></svg></span><div><strong>{{ artifact.artifact_id }}</strong><small>Stored Android package</small></div></div></td>
+              <td>{{ artifact.original_filename }}</td>
+              <td><code>{{ artifact.sha256 }}</code></td>
+              <td>{% for abi in artifact.native_abis %}{{ abi }}{% if not forloop.last %}, {% endif %}{% empty %}none{% endfor %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table></div>
+    {% else %}
+      <div class="vh-product-empty"><span aria-hidden="true"><svg><use href="#vh-i-mobile"></use></svg></span><h3>No APK artifacts</h3><p>Upload an APK to create a content-addressed record. The application will not be executed during upload.</p></div>
+    {% endif %}
+  </section>
 </section>
 {% endblock %}

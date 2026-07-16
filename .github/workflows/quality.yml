@@ -55,7 +55,19 @@ jobs:
           retention-days: 3
 
       - name: Verify formatting
-        run: python -m ruff format --check .
+        shell: bash
+        run: |
+          set -o pipefail
+          python -m ruff format --check . 2>&1 | tee "$RUNNER_TEMP/ruff-format-${{ matrix.python-version }}.log"
+
+      - name: Upload failed formatting log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ruff-format-log-${{ matrix.python-version }}
+          path: ${{ runner.temp }}/ruff-format-${{ matrix.python-version }}.log
+          if-no-files-found: error
+          retention-days: 1
 
       - name: Repository audit
         run: python scripts/project_audit.py --strict

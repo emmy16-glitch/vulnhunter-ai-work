@@ -2,7 +2,14 @@ from __future__ import annotations
 
 from django.urls import path
 
-from vulnhunter.web import assessment_views, audit_views, operations_views, stream_views, views
+from vulnhunter.web import (
+    assessment_views,
+    audit_views,
+    operations_views,
+    oracle_views,
+    stream_views,
+    views,
+)
 
 urlpatterns = [
     path("health/", views.health_view, name="web-health"),
@@ -35,7 +42,7 @@ urlpatterns = [
     path("datasets/", views.dataset_list_view, name="web-dataset-list"),
     path("models/", views.model_list_view, name="web-model-list"),
     path("findings/", views.findings_overview_view, name="web-findings-overview"),
-    path("machine-oracle/", views.oracle_overview_view, name="web-oracle-overview"),
+    path("machine-oracle/", oracle_views.oracle_overview_view, name="web-oracle-overview"),
     path("reports/", views.reports_overview_view, name="web-reports-overview"),
     path("governance/", views.governance_overview_view, name="web-governance-overview"),
     path("settings/", views.settings_overview_view, name="web-settings-overview"),

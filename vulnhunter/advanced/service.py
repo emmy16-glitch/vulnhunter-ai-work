@@ -4,10 +4,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 
-from vulnhunter.actions.models import (
-    ActionManifest,
-    ExecutionLimits,
-)
+from vulnhunter.actions.models import ActionManifest, ExecutionLimits
 from vulnhunter.advanced.models import AssessmentProfile, AssessmentRequest
 from vulnhunter.security_tools.catalog import SecurityToolCatalog
 from vulnhunter.taskgraph.models import GraphNode, TaskGraph
@@ -86,13 +83,12 @@ class AdvancedAssessmentPlanner:
                 "zap",
             ),
             AssessmentProfile.EXPLOITABILITY_VALIDATION: ("sqlmap", "metasploit"),
-            AssessmentProfile.PRIVILEGED_ENVIRONMENT: ("nmap", "greenbone"),
+            AssessmentProfile.PRIVILEGED_ENVIRONMENT: ("nmap",),
             AssessmentProfile.ATTACK_PATH_SIMULATION: (
                 "amass",
                 "nmap",
                 "httpx",
                 "nuclei",
-                "greenbone",
             ),
             AssessmentProfile.REMEDIATION_RETEST: (
                 "httpx",
@@ -106,7 +102,7 @@ class AdvancedAssessmentPlanner:
 
     @staticmethod
     def _role_for(tool_id: str) -> str:
-        if tool_id in {"sqlmap", "metasploit", "greenbone"}:
+        if tool_id in {"sqlmap", "metasploit"}:
             return "advanced-validation-specialist"
         return "scanner-evidence-specialist"
 

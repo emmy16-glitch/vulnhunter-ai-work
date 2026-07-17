@@ -1,0 +1,30 @@
+id: vulnhunter-passive-security-headers
+
+info:
+  name: Passive Security Header Review
+  author: vulnhunter
+  severity: info
+  description: Records a candidate when a basic browser hardening header is absent.
+  tags: passive,headers,vulnhunter
+
+http:
+  - method: GET
+    path:
+      - "{{BaseURL}}"
+
+    redirects: false
+    max-redirects: 0
+
+    matchers-condition: or
+    matchers:
+      - type: word
+        part: header
+        words:
+          - "X-Content-Type-Options:"
+        negative: true
+
+    extractors:
+      - type: kval
+        part: header
+        kval:
+          - server

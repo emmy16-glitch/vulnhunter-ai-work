@@ -10,6 +10,34 @@ permissions:
   contents: read
 
 jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+      - name: Capture Milestone 32 implementation inventory
+        shell: bash
+        run: |
+          set -eu
+          {
+            echo "# files"
+            find . -type f -not -path './.git/*' | sort
+            echo
+            echo "# qwen ollama openvas oracle groq references"
+            grep -RInE 'Qwen|qwen|Ollama|ollama|OpenVAS|openvas|Greenbone|greenbone|Machine Oracle|machine-oracle|Groq|groq' \
+              --exclude-dir=.git . || true
+            echo
+            echo "# scanner worker and provider references"
+            grep -RInE 'scanner_worker|NucleiExecutionHarness|ScannerCandidateObservation|provider_runtime|candidate finding|proof capsule' \
+              --exclude-dir=.git . || true
+          } > "$RUNNER_TEMP/milestone32-inventory.txt"
+      - name: Upload implementation inventory
+        uses: actions/upload-artifact@v4
+        with:
+          name: milestone32-inventory
+          path: ${{ runner.temp }}/milestone32-inventory.txt
+          retention-days: 1
+
   verify:
     runs-on: ubuntu-latest
     strategy:

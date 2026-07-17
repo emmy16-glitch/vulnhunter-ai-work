@@ -28,7 +28,14 @@ def _text(path: Path) -> str:
 
 def test_canonical_navigation_has_one_destination_per_capability():
     navigation = _text(NAVIGATION)
-    for section in ("Overview", "Operations", "Review", "Governance", "Intelligence", "System"):
+    for section in (
+        "Overview",
+        "Operations",
+        "Review",
+        "Governance",
+        "Intelligence",
+        "System",
+    ):
         assert f'"section_label": "{section}"' in navigation
     labels = (
         "Dashboard",
@@ -103,7 +110,7 @@ def test_blueprint_tokens_and_responsive_breakpoints_are_present():
         assert token in product_css
     script = _text(SCRIPT)
     assert 'window.matchMedia("(max-width: 1023px)").matches' in script
-    assert 'product-wide.css' in script
+    assert "product-wide.css" in script
 
 
 def test_assessment_workspace_is_interactive_and_backend_truthful():
@@ -153,7 +160,9 @@ def test_scanner_choice_is_bounded_to_automatic_or_nuclei():
     assert "data-engine-select" in listing
     assert "engineSelect" in modal_script
     web_text = "\n".join(path.read_text(encoding="utf-8") for path in WEB.rglob("*.py"))
-    template_text = "\n".join(path.read_text(encoding="utf-8") for path in TEMPLATES.rglob("*.html"))
+    template_text = "\n".join(
+        path.read_text(encoding="utf-8") for path in TEMPLATES.rglob("*.html")
+    )
     assert "OpenVAS" not in web_text + template_text
 
 
@@ -174,7 +183,12 @@ def test_pending_approval_dialog_records_real_decision_and_returns_to_canonical_
     from django.contrib.auth import get_user_model
     from governance_test_support import ADMIN_SECRET, NOW, make_governance_store
 
-    from vulnhunter.agent.models import AgentTask, PermissionManifest, TaskStatus, ToolRisk
+    from vulnhunter.agent.models import (
+        AgentTask,
+        PermissionManifest,
+        TaskStatus,
+        ToolRisk,
+    )
     from vulnhunter.agent.store import AgentStore
     from vulnhunter.approvals import ApprovalRequest, ApprovalStatus, ApprovalStore
     from vulnhunter.governance.service import bootstrap_administrator
@@ -227,7 +241,10 @@ def test_pending_approval_dialog_records_real_decision_and_returns_to_canonical_
             expires_at=instant + timedelta(hours=1),
         )
     )
-    user = get_user_model().objects.create_user(username="admin-ui", password="password-1234")
+    user = get_user_model().objects.create_user(
+        username="admin-ui",
+        password="password-1234",
+    )
     WebUserMapping.objects.create(
         user=user,
         governance_identity_id="admin-a",
@@ -288,7 +305,10 @@ def test_product_routes_render_for_a_multi_role_operator(client, tmp_path, setti
         secret=ADMIN_SECRET,
         now=NOW,
     )
-    user = get_user_model().objects.create_user(username="blueprint-admin", password="password-1234")
+    user = get_user_model().objects.create_user(
+        username="blueprint-admin",
+        password="password-1234",
+    )
     WebUserMapping.objects.create(
         user=user,
         governance_identity_id="admin-blueprint",
@@ -353,7 +373,10 @@ def test_navigation_is_filtered_by_product_role():
     from vulnhunter.web.models import WebUserMapping
     from vulnhunter.web.templatetags.vh_navigation import canonical_navigation
 
-    user = get_user_model().objects.create_user(username="reviewer-nav", password="password-1234")
+    user = get_user_model().objects.create_user(
+        username="reviewer-nav",
+        password="password-1234",
+    )
     WebUserMapping.objects.create(
         user=user,
         governance_identity_id="reviewer-nav",

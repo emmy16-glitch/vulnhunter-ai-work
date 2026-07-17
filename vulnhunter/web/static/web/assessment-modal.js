@@ -10,6 +10,7 @@
   const protocolSelect = dialog.querySelector("[data-protocol-select]");
   const portSelect = dialog.querySelector("[data-port-select]");
   const profileSelect = dialog.querySelector("[data-profile-select]");
+  const engineSelect = dialog.querySelector("[data-engine-select]");
   const submit = dialog.querySelector("[data-assessment-submit]");
   let records = [];
   let loaded = false;
@@ -40,7 +41,8 @@
       protocolSelect,
       portSelect,
       profileSelect,
-    ].every((select) => select.value);
+      engineSelect,
+    ].every((select) => select?.value);
   }
 
   function updateChoices() {
@@ -102,7 +104,7 @@
     if (event.target === dialog) dialog.close();
   });
   authorizationSelect.addEventListener("change", updateChoices);
-  [targetSelect, protocolSelect, portSelect, profileSelect].forEach((select) => {
-    select.addEventListener("change", updateSubmit);
+  [targetSelect, protocolSelect, portSelect, profileSelect, engineSelect].forEach((select) => {
+    select?.addEventListener("change", updateSubmit);
   });
 })();

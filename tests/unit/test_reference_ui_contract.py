@@ -3,73 +3,91 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
-BASE = ROOT / "vulnhunter" / "web" / "templates" / "web" / "base.html"
-LISTING = ROOT / "vulnhunter" / "web" / "templates" / "web" / "agent_runs.html"
-DETAIL = ROOT / "vulnhunter" / "web" / "templates" / "web" / "agent_run_detail.html"
-CSS = ROOT / "vulnhunter" / "web" / "static" / "web" / "app.css"
-SCRIPT = ROOT / "vulnhunter" / "web" / "static" / "web" / "app.js"
-SERVICES = ROOT / "vulnhunter" / "web" / "services.py"
-VIEWS = ROOT / "vulnhunter" / "web" / "views.py"
-OPERATIONS_VIEWS = ROOT / "vulnhunter" / "web" / "operations_views.py"
-URLS = ROOT / "vulnhunter" / "web" / "urls.py"
+WEB = ROOT / "vulnhunter" / "web"
+TEMPLATES = WEB / "templates" / "web"
+STATIC = WEB / "static" / "web"
+BASE = TEMPLATES / "base.html"
+LISTING = TEMPLATES / "agent_runs.html"
+DETAIL = TEMPLATES / "agent_run_detail.html"
+NEW_ASSESSMENT = TEMPLATES / "new_scan.html"
+CSS = STATIC / "app.css"
+PRODUCT_WIDE_CSS = STATIC / "product-wide.css"
+SCRIPT = STATIC / "app.js"
+NAVIGATION = WEB / "templatetags" / "vh_navigation.py"
+URLS = WEB / "urls.py"
+ASSESSMENT_VIEWS = WEB / "assessment_views.py"
+AUDIT_VIEWS = WEB / "audit_views.py"
+FINDINGS_VIEWS = WEB / "findings_views.py"
+REPORT_VIEWS = WEB / "report_views.py"
+OPERATIONS_VIEWS = WEB / "operations_views.py"
 
 
 def _text(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
 
-def test_approved_navigation_information_architecture_is_present():
-    services = _text(SERVICES)
+def test_canonical_navigation_has_one_destination_per_capability():
+    navigation = _text(NAVIGATION)
     for section in (
         "Overview",
-        "Collection",
-        "Analysis",
-        "Independent Review",
+        "Operations",
+        "Review",
         "Governance",
         "Intelligence",
-        "Assurance",
         "System",
     ):
-        assert f'"section_label": "{section}"' in services
-    for label in (
+        assert f'"section_label": "{section}"' in navigation
+    labels = (
         "Dashboard",
         "Authorizations",
-        "New Scan",
-        "Scan Runs",
+        "Assessments",
         "Findings",
+        "Machine Oracle",
+        "Approval Centre",
         "Review Queue",
         "Adjudications",
         "Campaigns",
         "Releases",
+        "Reports",
+        "Policies",
         "Datasets",
         "Models",
-        "Audit",
-        "Reports",
+        "Mobile APK Analysis",
+        "Integrations & Tools",
+        "Audit Log",
         "Settings",
-    ):
-        assert f'"label": "{label}"' in services
+    )
+    for label in labels:
+        assert navigation.count(f'"label": "{label}"') == 1
+    assert '"label": "New Scan"' not in navigation
+    assert '"label": "Scan Runs"' not in navigation
 
 
-def test_approved_navigation_routes_are_real_and_contextual():
+def test_canonical_routes_and_legacy_aliases_are_explicit():
     urls = _text(URLS)
-    base = _text(BASE)
     for route_name in (
         "web-authorization-list",
         "web-new-scan",
         "web-scan-run-list",
+        "web-findings-overview",
+        "web-oracle-overview",
+        "web-approval-list",
         "web-review-queue",
         "web-adjudication-queue",
         "web-release-list",
-        "web-dataset-list",
-        "web-model-list",
+        "web-reports-overview",
         "web-audit-overview",
     ):
         assert route_name in urls
-    assert "current_route in item.active_routes" in base
-    assert "vh-nav-section-label" in base
+    assert 'path("agent/runs/", views.agent_run_list_view' in urls
+    assert 'path("agent/runs/<str:run_id>/", views.agent_run_detail_view' in urls
+    assert "audit_views.audit_overview_view" in urls
+    assert "oracle_views.oracle_overview_view" in urls
+    assert "findings_views.findings_overview_view" in urls
+    assert "report_views.reports_overview_view" in urls
 
 
-def test_blueprint_tokens_and_semantic_colours_are_authoritative():
+def test_blueprint_tokens_and_responsive_breakpoints_are_present():
     css = _text(CSS).lower()
     for token in (
         "--vh-accent: #4f8cff",
@@ -80,26 +98,22 @@ def test_blueprint_tokens_and_semantic_colours_are_authoritative():
         "--vh-danger: #ef4444",
     ):
         assert token in css
-    assert "background: linear-gradient(90deg, var(--vh-accent), var(--vh-accent-hover))" in css
-    assert ".vh-status-live, .vh-status-safe" in css
-
-
-def test_blueprint_shell_dimensions_and_breakpoints_are_present():
-    css = _text(CSS)
+    product_css = _text(PRODUCT_WIDE_CSS)
     for token in (
-        "--vh-sidebar-width: 264px",
-        "--vh-header-height: 64px",
-        "--vh-content-max-width: 1600px",
-        "@media (min-width: 1024px)",
+        "100dvh",
+        "@media (max-width: 1260px)",
         "@media (max-width: 1023px)",
-        "@media (max-width: 639px)",
-        "overflow-x: hidden",
+        "@media (max-width: 760px)",
+        "@media (max-width: 560px)",
+        "overflow-x: auto",
     ):
-        assert token in css
-    assert 'window.matchMedia("(max-width: 1023px)").matches' in _text(SCRIPT)
+        assert token in product_css
+    script = _text(SCRIPT)
+    assert 'window.matchMedia("(max-width: 1023px)").matches' in script
+    assert "product-wide.css" in script
 
 
-def test_reference_workspace_remains_interactive_and_truthful():
+def test_assessment_workspace_is_interactive_and_backend_truthful():
     listing = _text(LISTING)
     detail = _text(DETAIL)
     script = _text(SCRIPT)
@@ -109,55 +123,59 @@ def test_reference_workspace_remains_interactive_and_truthful():
         "vh-bottom-dock",
         "vh-stage-disclosure",
         "vh-output-panel",
-        "vh-attack-path",
+        "data-attack-path",
+        "data-attack-node",
     ):
-        assert token in listing + detail
-    assert listing.count('role="tab"') >= 8
+        assert token in detail
     assert detail.count('role="tab"') >= 8
     assert "querySelector(\":scope > [role='tablist']\")" in script
+    assert "run.attack_path" in detail
+    assert "Nodes appear only" not in listing
+    assert "vh-workstream-panel" not in listing
+    assert "vh-progress-100" not in detail
+    assert "78%" not in detail
+    assert "52%" not in detail
+    assert "estimated percentage" in detail
     for fake_value in (
         "acme-payments.com",
         "CVE-2023-50287",
         "/api/v1/users",
         "Nuclei v3.1.3",
+        "6,421",
+        "32 threads",
     ):
         assert fake_value not in listing + detail
 
 
-def test_target_profile_and_approval_controls_are_real():
-    base = _text(BASE)
-    detail = _text(DETAIL)
-    operations = _text(OPERATIONS_VIEWS)
-    assert '<details class="vh-context-menu">' in base
-    assert 'aria-label="Select assessment target"' in base
-    assert 'aria-label="Select assessment profile"' in base
-    assert "{% if pending_approval %}" in detail
-    assert '<dialog id="vh-approval-dialog"' in detail
-    assert 'name="decision" value="approve_once"' in detail
-    assert 'name="decision" value="deny_continue_safely"' in detail
-    assert "url_has_allowed_host_and_scheme" in operations
-
-
-def test_new_workflow_surfaces_are_read_only_and_data_backed():
-    views = _text(VIEWS)
-    operations = _text(OPERATIONS_VIEWS)
-    for function_name in (
-        "authorization_list_view",
-        "review_queue_view",
-        "adjudication_queue_view",
-        "release_list_view",
-        "dataset_list_view",
-        "model_list_view",
-    ):
-        assert f"def {function_name}" in views
-    assert "def new_scan_view" in operations
-    assert "Web launch not enabled" in _text(
-        ROOT / "vulnhunter" / "web" / "templates" / "web" / "new_scan.html"
+def test_scanner_choice_is_bounded_to_automatic_or_nuclei():
+    listing = _text(LISTING)
+    new_assessment = _text(NEW_ASSESSMENT)
+    view = _text(ASSESSMENT_VIEWS)
+    modal_script = _text(STATIC / "assessment-modal.js")
+    for template in (listing, new_assessment):
+        assert 'name="scanner_engine"' in template
+        assert 'value="automatic"' in template
+        assert 'value="nuclei"' in template
+    assert '_ALLOWED_SCANNER_ENGINES = {"automatic", "nuclei"}' in view
+    assert "data-engine-select" in listing
+    assert "engineSelect" in modal_script
+    web_text = "\n".join(path.read_text(encoding="utf-8") for path in WEB.rglob("*.py"))
+    template_text = "\n".join(
+        path.read_text(encoding="utf-8") for path in TEMPLATES.rglob("*.html")
     )
+    assert "OpenVAS" not in web_text + template_text
+
+
+def test_data_backed_pages_have_distinct_view_modules():
+    assert "recent_audit_activity" in _text(AUDIT_VIEWS)
+    assert "detail.findings" in _text(FINDINGS_VIEWS)
+    assert "list_pilot_plan_records" in _text(REPORT_VIEWS)
+    assert "intelligence_status" in _text(WEB / "oracle_views.py")
+    assert "url_has_allowed_host_and_scheme" in _text(OPERATIONS_VIEWS)
 
 
 @pytest.mark.django_db
-def test_pending_approval_dialog_records_real_decision_and_returns_to_run(
+def test_pending_approval_dialog_records_real_decision_and_returns_to_canonical_run(
     client, tmp_path, settings
 ):
     from datetime import UTC, datetime, timedelta
@@ -176,13 +194,13 @@ def test_pending_approval_dialog_records_real_decision_and_returns_to_run(
     from vulnhunter.governance.service import bootstrap_administrator
     from vulnhunter.web.models import WebUserMapping
 
-    pytest.importorskip("django")
     settings.PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
     settings.VULNHUNTER_AUTHORIZATION_DATABASE = str(tmp_path / "auth.db")
     settings.VULNHUNTER_GOVERNANCE_DATABASE = str(tmp_path / "governance.db")
     settings.VULNHUNTER_AGENT_DATABASE = str(tmp_path / "agent.db")
     settings.VULNHUNTER_APPROVAL_DATABASE = str(tmp_path / "approvals.sqlite3")
     settings.VULNHUNTER_AGENT_ACTIVITY_ROOT = str(tmp_path / "activity")
+    settings.VULNHUNTER_SECURITY_EVIDENCE_ROOT = str(tmp_path / "evidence")
     settings.ALLOWED_HOSTS = ["testserver", "localhost", "127.0.0.1"]
 
     governance_store = make_governance_store(tmp_path)
@@ -193,7 +211,6 @@ def test_pending_approval_dialog_records_real_decision_and_returns_to_run(
         secret=ADMIN_SECRET,
         now=NOW,
     )
-
     AgentStore(tmp_path / "agent.db").create_task(
         AgentTask(
             task_id="run-modal",
@@ -224,7 +241,6 @@ def test_pending_approval_dialog_records_real_decision_and_returns_to_run(
             expires_at=instant + timedelta(hours=1),
         )
     )
-
     user = get_user_model().objects.create_user(
         username="admin-ui",
         password="password-1234",
@@ -236,7 +252,7 @@ def test_pending_approval_dialog_records_real_decision_and_returns_to_run(
     )
     client.force_login(user)
 
-    detail = client.get("/agent/runs/run-modal/")
+    detail = client.get("/scans/run-modal/")
     assert detail.status_code == 200
     assert b'id="vh-approval-dialog"' in detail.content
     assert b'value="approve_once"' in detail.content
@@ -247,20 +263,20 @@ def test_pending_approval_dialog_records_real_decision_and_returns_to_run(
         {
             "decision": "approve_once",
             "reason": "Approved for this bounded local test.",
-            "next": "/agent/runs/run-modal/",
+            "next": "/scans/run-modal/",
         },
     )
     assert decision.status_code == 302
-    assert decision["Location"].endswith("/agent/runs/run-modal/")
+    assert decision["Location"].endswith("/scans/run-modal/")
     assert approval_store.get("approval-modal").status == ApprovalStatus.APPROVED
 
-    refreshed = client.get("/agent/runs/run-modal/")
+    refreshed = client.get("/scans/run-modal/")
     assert refreshed.status_code == 200
     assert b'id="vh-approval-dialog"' not in refreshed.content
 
 
 @pytest.mark.django_db
-def test_approved_navigation_routes_render_for_a_multi_role_operator(client, tmp_path, settings):
+def test_product_routes_render_for_a_multi_role_operator(client, tmp_path, settings):
     from django.contrib.auth import get_user_model
     from governance_test_support import ADMIN_SECRET, NOW, make_governance_store
 
@@ -275,6 +291,8 @@ def test_approved_navigation_routes_render_for_a_multi_role_operator(client, tmp
     settings.VULNHUNTER_AGENT_DATABASE = str(tmp_path / "agent.db")
     settings.VULNHUNTER_APPROVAL_DATABASE = str(tmp_path / "approvals.sqlite3")
     settings.VULNHUNTER_AGENT_ACTIVITY_ROOT = str(tmp_path / "activity")
+    settings.VULNHUNTER_SECURITY_EVIDENCE_ROOT = str(tmp_path / "evidence")
+    settings.VULNHUNTER_PILOT_PLAN_ROOT = str(tmp_path / "pilot-plans")
     settings.ALLOWED_HOSTS = ["testserver", "localhost", "127.0.0.1"]
 
     AuthorizationStore.from_path(tmp_path / "auth.db").initialize()
@@ -287,7 +305,6 @@ def test_approved_navigation_routes_render_for_a_multi_role_operator(client, tmp
         secret=ADMIN_SECRET,
         now=NOW,
     )
-
     user = get_user_model().objects.create_user(
         username="blueprint-admin",
         password="password-1234",
@@ -312,6 +329,8 @@ def test_approved_navigation_routes_render_for_a_multi_role_operator(client, tmp
         "/scans/new/",
         "/scans/",
         "/findings/",
+        "/machine-oracle/",
+        "/approvals/",
         "/reviews/",
         "/adjudications/",
         "/campaigns/",
@@ -320,24 +339,28 @@ def test_approved_navigation_routes_render_for_a_multi_role_operator(client, tmp
         "/models/",
         "/audit/",
         "/reports/",
+        "/governance/",
         "/settings/",
     )
     for route in routes:
         response = client.get(route)
         assert response.status_code == 200, route
 
+    legacy_list = client.get("/agent/runs/")
+    assert legacy_list.status_code == 200
+
     dashboard = client.get("/")
     assert dashboard.status_code == 200
     for label in (
         b"Authorizations",
-        b"New Scan",
-        b"Scan Runs",
+        b"Assessments",
+        b"Findings",
+        b"Machine Oracle",
+        b"Approval Centre",
         b"Review Queue",
         b"Adjudications",
-        b"Releases",
-        b"Datasets",
-        b"Models",
-        b"Audit",
+        b"Reports",
+        b"Audit Log",
     ):
         assert label in dashboard.content
 
@@ -347,7 +370,7 @@ def test_navigation_is_filtered_by_product_role():
     from django.contrib.auth import get_user_model
 
     from vulnhunter.web.models import WebUserMapping
-    from vulnhunter.web.services import navigation_for
+    from vulnhunter.web.templatetags.vh_navigation import canonical_navigation
 
     user = get_user_model().objects.create_user(
         username="reviewer-nav",
@@ -359,8 +382,7 @@ def test_navigation_is_filtered_by_product_role():
         product_roles=["reviewer"],
     )
 
-    labels = {str(item["label"]) for item in navigation_for(user)}
-    assert labels == {"Dashboard", "Findings", "Review Queue", "Reports"}
-    assert "New Scan" not in labels
-    assert "Adjudications" not in labels
-    assert "Settings" not in labels
+    labels = {str(item["label"]) for item in canonical_navigation(user)}
+    assert labels == {"Dashboard", "Findings", "Review Queue", "Reports", "Settings"}
+    assert "Assessments" not in labels
+    assert "Approval Centre" not in labels

@@ -2,7 +2,16 @@ from __future__ import annotations
 
 from django.urls import path
 
-from vulnhunter.web import operations_views, stream_views, views
+from vulnhunter.web import (
+    assessment_views,
+    audit_views,
+    findings_views,
+    operations_views,
+    oracle_views,
+    report_views,
+    stream_views,
+    views,
+)
 
 urlpatterns = [
     path("health/", views.health_view, name="web-health"),
@@ -11,41 +20,29 @@ urlpatterns = [
     path("logout/", views.logout_view, name="web-logout"),
     path("", views.dashboard_view, name="web-dashboard"),
     path("status/", views.status_view, name="web-status"),
-    path("audit/", views.status_view, name="web-audit-overview"),
+    path("audit/", audit_views.audit_overview_view, name="web-audit-overview"),
     path("authorizations/", views.authorization_list_view, name="web-authorization-list"),
-    path("scans/new/", operations_views.new_scan_view, name="web-new-scan"),
+    path("scans/new/", assessment_views.new_assessment_view, name="web-new-scan"),
     path(
         "scans/authorizations/",
         operations_views.active_authorizations_view,
         name="web-active-authorizations",
     ),
     path("scans/", views.agent_run_list_view, name="web-scan-run-list"),
-    path(
-        "scans/<str:run_id>/",
-        views.agent_run_detail_view,
-        name="web-scan-run-detail",
-    ),
+    path("scans/<str:run_id>/", views.agent_run_detail_view, name="web-scan-run-detail"),
     path("reviews/", views.review_queue_view, name="web-review-queue"),
-    path(
-        "adjudications/",
-        views.adjudication_queue_view,
-        name="web-adjudication-queue",
-    ),
+    path("adjudications/", views.adjudication_queue_view, name="web-adjudication-queue"),
     path("releases/", views.release_list_view, name="web-release-list"),
     path("datasets/", views.dataset_list_view, name="web-dataset-list"),
     path("models/", views.model_list_view, name="web-model-list"),
-    path("findings/", views.findings_overview_view, name="web-findings-overview"),
-    path("machine-oracle/", views.oracle_overview_view, name="web-oracle-overview"),
-    path("reports/", views.reports_overview_view, name="web-reports-overview"),
+    path("findings/", findings_views.findings_overview_view, name="web-findings-overview"),
+    path("machine-oracle/", oracle_views.oracle_overview_view, name="web-oracle-overview"),
+    path("reports/", report_views.reports_overview_view, name="web-reports-overview"),
     path("governance/", views.governance_overview_view, name="web-governance-overview"),
     path("settings/", views.settings_overview_view, name="web-settings-overview"),
     path("campaigns/", views.campaign_list_view, name="web-campaign-list"),
     path("campaigns/<str:campaign_id>/", views.campaign_detail_view, name="web-campaign-detail"),
-    path(
-        "readiness/<str:campaign_id>/",
-        views.readiness_view,
-        name="web-readiness-detail",
-    ),
+    path("readiness/<str:campaign_id>/", views.readiness_view, name="web-readiness-detail"),
     path("roles/", views.role_list_view, name="web-role-list"),
     path("roles/<str:role_id>/", views.role_detail_view, name="web-role-detail"),
     path("skills/", views.skill_list_view, name="web-skill-list"),

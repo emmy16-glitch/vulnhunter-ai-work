@@ -1,5 +1,18 @@
 {% extends "web/base.html" %}
 {% block content %}
-<header class="vh-page-heading"><div><p class="vh-eyebrow">Governance</p><h1>Releases</h1><p>Campaign release state and immutable manifest evidence.</p></div></header>
-<section class="vh-card vh-card-flush">{% if error_message %}<div class="vh-operational-notice is-danger"><strong>Release data unavailable</strong><p>{{ error_message }}</p></div>{% elif campaigns %}<div class="vh-table-wrap"><table class="vh-table"><thead><tr><th>Campaign</th><th>Status</th><th>Applications</th><th>Scans</th><th>Manifest</th></tr></thead><tbody>{% for item in campaigns %}<tr><td><a href="{% url 'web-campaign-detail' item.campaign_id %}">{{ item.title }}</a><code>{{ item.campaign_id }}</code></td><td>{{ item.status }}</td><td>{{ item.application_count }}</td><td>{{ item.scan_count }}</td><td><span class="vh-status-chip {% if item.release_manifest_state == 'present' %}vh-status-safe{% endif %}">{{ item.release_manifest_state }}</span></td></tr>{% endfor %}</tbody></table></div>{% else %}<div class="vh-zero-state"><span>◎</span><h3>No release candidates</h3><p>Completed campaigns will appear here.</p></div>{% endif %}</section>
+<section class="vh-page-shell">
+  <header class="vh-page-header">
+    <div><p class="vh-eyebrow">Governance</p><h1>Releases</h1><p>Campaign release state and manifest evidence.</p></div>
+    <div class="vh-page-actions"><a class="vh-button-secondary" href="{% url 'web-campaign-list' %}">Campaigns</a><a class="vh-button-secondary" href="{% url 'web-reports-overview' %}">Reports</a></div>
+  </header>
+
+  <section class="vh-summary-strip"><article class="vh-summary-item"><small>Campaigns</small><strong>{{ campaigns|length }}</strong><span>Loaded from governance</span></article><article class="vh-summary-item"><small>Release rule</small><strong>Manifest required</strong><span>No release inferred from completion</span></article></section>
+
+  <section class="vh-surface">
+    <header class="vh-surface-header"><div><h2>Release state</h2><p>Open a campaign for its readiness and evidence details.</p></div><span class="vh-panel-count">{{ campaigns|length }}</span></header>
+    {% if error_message %}<div class="vh-operational-notice is-danger"><strong>Release data unavailable</strong><p>{{ error_message }}</p></div>
+    {% elif campaigns %}<div class="vh-table-wrap"><table class="vh-table"><thead><tr><th>Campaign</th><th>Status</th><th>Applications</th><th>Scans</th><th>Manifest</th><th></th></tr></thead><tbody>{% for item in campaigns %}<tr><td><strong>{{ item.title }}</strong><code>{{ item.campaign_id }}</code></td><td>{{ item.status }}</td><td>{{ item.application_count }}</td><td>{{ item.scan_count }}</td><td><span class="vh-status-chip {% if item.release_manifest_state == 'present' %}vh-status-safe{% else %}vh-status-warning{% endif %}">{{ item.release_manifest_state }}</span></td><td><a href="{% url 'web-campaign-detail' item.campaign_id %}">Open campaign →</a></td></tr>{% endfor %}</tbody></table></div>
+    {% else %}<div class="vh-empty-panel"><svg aria-hidden="true"><use href="#vh-i-release"></use></svg><h3>No release records</h3><p>No governed campaigns are available.</p></div>{% endif %}
+  </section>
+</section>
 {% endblock %}

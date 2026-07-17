@@ -1,32 +1,20 @@
 {% extends "web/base.html" %}
 {% block content %}
-<section class="vh-card">
-  <h3>Readiness report</h3>
+<section class="vh-page-shell">
+  <header class="vh-page-header">
+    <div><p class="vh-eyebrow">Campaign</p><h1>Readiness</h1><p>Release and model-training readiness for this campaign.</p></div>
+    <div class="vh-page-actions"><a class="vh-button-secondary" href="{% url 'web-campaign-detail' campaign.campaign_id %}">Campaign</a><a class="vh-button-secondary" href="{% url 'web-dataset-list' %}">Datasets</a></div>
+  </header>
+
   {% if readiness %}
-    <ul class="vh-key-value-list">
-      <li><strong>Pilot ready</strong><span>{{ readiness.pilot_ready }}</span></li>
-      <li><strong>Model training ready</strong><span>{{ readiness.model_training_ready }}</span></li>
-      <li><strong>Dataset SHA-256</strong><code>{{ readiness.dataset_sha256 }}</code></li>
-      <li><strong>Report SHA-256</strong><code>{{ readiness.report_sha256 }}</code></li>
-    </ul>
-    <h4>Hard blockers</h4>
-    <ul class="vh-rows">
-      {% for item in readiness.hard_release_blockers %}
-        <li>{{ item }}</li>
-      {% empty %}
-        <li>No hard blockers were reported.</li>
-      {% endfor %}
-    </ul>
-    <h4>Warnings</h4>
-    <ul class="vh-rows">
-      {% for item in readiness.warnings %}
-        <li>{{ item }}</li>
-      {% empty %}
-        <li>No warnings were reported.</li>
-      {% endfor %}
-    </ul>
+    <section class="vh-summary-strip"><article class="vh-summary-item"><small>Pilot ready</small><strong>{{ readiness.pilot_ready }}</strong><span>Release assessment</span></article><article class="vh-summary-item"><small>Model training</small><strong>{{ readiness.model_training_ready }}</strong><span>Training gate</span></article><article class="vh-summary-item"><small>Hard blockers</small><strong>{{ readiness.hard_release_blockers|length }}</strong><span>Release blockers</span></article><article class="vh-summary-item"><small>Warnings</small><strong>{{ readiness.warnings|length }}</strong><span>Recorded warnings</span></article></section>
+    <div class="vh-surface-grid">
+      <section class="vh-surface vh-surface-span-6"><header class="vh-surface-header"><div><h2>Evidence hashes</h2><p>References for the evaluated dataset and report.</p></div></header><ul class="vh-compact-list"><li><span>Dataset SHA-256</span><code>{{ readiness.dataset_sha256 }}</code></li><li><span>Report SHA-256</span><code>{{ readiness.report_sha256 }}</code></li><li><span>Release manifest</span><code>{{ readiness.release_manifest_sha256|default:"Not available" }}</code></li></ul></section>
+      <section class="vh-surface vh-surface-span-6"><header class="vh-surface-header"><div><h2>Hard blockers</h2><p>Items that prevent release.</p></div><span class="vh-panel-count">{{ readiness.hard_release_blockers|length }}</span></header><ul class="vh-compact-list">{% for item in readiness.hard_release_blockers %}<li><span>{{ item }}</span><strong class="vh-state-warning">Blocker</strong></li>{% empty %}<li><span>No hard blockers</span><strong class="vh-state-safe">Clear</strong></li>{% endfor %}</ul></section>
+      <section class="vh-surface vh-surface-span-12"><header class="vh-surface-header"><div><h2>Warnings</h2><p>Recorded readiness warnings.</p></div><span class="vh-panel-count">{{ readiness.warnings|length }}</span></header><ul class="vh-compact-list">{% for item in readiness.warnings %}<li><span>{{ item }}</span><strong>Warning</strong></li>{% empty %}<li><span>No warnings</span><strong class="vh-state-safe">Clear</strong></li>{% endfor %}</ul></section>
+    </div>
   {% else %}
-    <p class="vh-empty-state">This campaign does not currently have a readiness report.</p>
+    <section class="vh-surface"><div class="vh-empty-panel"><svg aria-hidden="true"><use href="#vh-i-checkdoc"></use></svg><h3>Readiness unavailable</h3><p>This campaign has no stored readiness report.</p></div></section>
   {% endif %}
 </section>
 {% endblock %}

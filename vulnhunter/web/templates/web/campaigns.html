@@ -1,29 +1,18 @@
 {% extends "web/base.html" %}
 {% block content %}
-<section class="vh-card">
-  <h3>Governed campaigns</h3>
-  {% if error_message %}
-    <p class="vh-empty-state">{{ error_message }}</p>
-  {% elif campaigns %}
-    <div class="vh-table-wrap">
-      <table class="vh-table">
-        <thead><tr><th>ID</th><th>Status</th><th>Scope</th><th>Applications</th><th>Scans</th><th>Release</th></tr></thead>
-        <tbody>
-          {% for campaign in campaigns %}
-            <tr>
-              <td><a href="{% url 'web-campaign-detail' campaign.campaign_id %}">{{ campaign.campaign_id }}</a></td>
-              <td>{{ campaign.status }}</td>
-              <td>{% for item in campaign.scope_summary %}<code>{{ item }}</code>{% if not forloop.last %}<br>{% endif %}{% endfor %}</td>
-              <td>{{ campaign.application_count }}</td>
-              <td>{{ campaign.scan_count }}</td>
-              <td>{{ campaign.release_manifest_state }}</td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  {% else %}
-    <p class="vh-empty-state">No governed campaigns are available.</p>
-  {% endif %}
+<section class="vh-page-shell">
+  <header class="vh-page-header">
+    <div><p class="vh-eyebrow">Governance</p><h1>Campaigns</h1><p>Scope, applications, scans, review and release state.</p></div>
+    <div class="vh-page-actions"><a class="vh-button-secondary" href="{% url 'web-release-list' %}">Releases</a><a class="vh-button-secondary" href="{% url 'web-reports-overview' %}">Reports</a></div>
+  </header>
+
+  <section class="vh-summary-strip"><article class="vh-summary-item"><small>Campaigns</small><strong>{{ campaigns|length }}</strong><span>Governance records</span></article><article class="vh-summary-item"><small>Scope source</small><strong>Authorizations</strong><span>No scope is inferred by the UI</span></article></section>
+
+  <section class="vh-surface">
+    <header class="vh-surface-header"><div><h2>Governed campaigns</h2><p>Open a campaign for applications, scans, assignments and readiness.</p></div><span class="vh-panel-count">{{ campaigns|length }}</span></header>
+    {% if error_message %}<div class="vh-operational-notice is-danger"><strong>Campaign data unavailable</strong><p>{{ error_message }}</p></div>
+    {% elif campaigns %}<div class="vh-table-wrap"><table class="vh-table"><thead><tr><th>Campaign</th><th>Status</th><th>Scope</th><th>Applications</th><th>Scans</th><th>Release</th><th></th></tr></thead><tbody>{% for campaign in campaigns %}<tr><td><strong>{{ campaign.campaign_id }}</strong></td><td>{{ campaign.status }}</td><td>{% for item in campaign.scope_summary %}<code>{{ item }}</code>{% empty %}<small>No scope summary</small>{% endfor %}</td><td>{{ campaign.application_count }}</td><td>{{ campaign.scan_count }}</td><td>{{ campaign.release_manifest_state }}</td><td><a href="{% url 'web-campaign-detail' campaign.campaign_id %}">Open campaign →</a></td></tr>{% endfor %}</tbody></table></div>
+    {% else %}<div class="vh-empty-panel"><svg aria-hidden="true"><use href="#vh-i-layers"></use></svg><h3>No campaigns</h3><p>No governed campaign records are available.</p></div>{% endif %}
+  </section>
 </section>
 {% endblock %}

@@ -1,0 +1,25 @@
+{% extends "web/base.html" %}
+{% block content %}
+<section class="vh-page-shell">
+  <header class="vh-page-header">
+    <div><p class="vh-eyebrow">System</p><h1>Audit Log</h1><p>Recent hash-linked events from the agent and governance stores.</p></div>
+    <div class="vh-page-actions"><a class="vh-button-secondary" href="{% url 'web-status' %}">System status</a></div>
+  </header>
+
+  <section class="vh-summary-strip" aria-label="Audit summary">
+    <article class="vh-summary-item"><small>Store state</small><strong>{{ audit_status.state }}</strong><span>{{ audit_status.detail|truncatechars:90 }}</span></article>
+    <article class="vh-summary-item"><small>Recent events</small><strong>{{ audit_events|length }}</strong><span>Newest recorded activity</span></article>
+    <article class="vh-summary-item"><small>Integrity</small><strong>Hash linked</strong><span>References are shown when available</span></article>
+    <article class="vh-summary-item"><small>Access</small><strong>Read only</strong><span>This page does not mutate records</span></article>
+  </section>
+
+  <section class="vh-surface">
+    <header class="vh-surface-header"><div><h2>Recent activity</h2><p>Events are ordered by recorded time.</p></div><span class="vh-panel-count">{{ audit_events|length }}</span></header>
+    {% if audit_events %}
+      <div>{% for event in audit_events %}<article class="vh-audit-event"><time datetime="{{ event.occurred_at|date:'c' }}">{{ event.occurred_at }}</time><div><strong>{{ event.event_type }}</strong><span>{{ event.source }} · {{ event.subject }}{% if event.actor_id %} · {{ event.actor_id }}{% endif %}</span></div><code>{% if event.evidence_reference %}{{ event.evidence_reference }}{% else %}No reference{% endif %}</code></article>{% endfor %}</div>
+    {% else %}
+      <div class="vh-empty-panel"><svg aria-hidden="true"><use href="#vh-i-audit"></use></svg><h3>No audit activity</h3><p>No recent agent or governance events are available.</p></div>
+    {% endif %}
+  </section>
+</section>
+{% endblock %}

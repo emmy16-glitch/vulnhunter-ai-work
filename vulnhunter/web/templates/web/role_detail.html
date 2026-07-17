@@ -1,44 +1,18 @@
 {% extends "web/base.html" %}
 {% block content %}
-<section class="vh-grid">
-  <article class="vh-card">
-    <h3>{{ role.display_name }}</h3>
-    <p>{{ role.purpose }}</p>
-    <p class="vh-warning">{{ role.trust_warning }}</p>
-    <ul class="vh-key-value-list">
-      <li><strong>Identifier</strong><code>{{ role.role_id }}</code></li>
-      <li><strong>Version</strong><span>{{ role.version }}</span></li>
-      <li><strong>Risk</strong><span>{{ role.risk_level }}</span></li>
-      <li><strong>Status</strong><span>{{ role.status }}</span></li>
-      <li><strong>Operational state</strong><span>{{ role.operational_state }}</span></li>
-      <li><strong>Connector policy</strong><span>{{ role.connector_policy }}</span></li>
-      <li><strong>Last reviewed</strong><span>{{ role.last_reviewed_on }}</span></li>
-    </ul>
-  </article>
-  <article class="vh-card">
-    <h3>Actions and tools</h3>
-    <h4>Allowed actions</h4>
-    <ul class="vh-rows">{% for item in role.allowed_actions %}<li><code>{{ item }}</code></li>{% empty %}<li>None</li>{% endfor %}</ul>
-    <h4>Denied actions</h4>
-    <ul class="vh-rows">{% for item in role.denied_actions %}<li><code>{{ item }}</code></li>{% empty %}<li>None</li>{% endfor %}</ul>
-    <h4>Tools</h4>
-    <ul class="vh-rows">{% for item in role.tool_ids %}<li><code>{{ item }}</code></li>{% empty %}<li>None</li>{% endfor %}</ul>
-    <h4>Approval points</h4>
-    <ul class="vh-rows">{% for item in role.human_approval_points %}<li><code>{{ item }}</code></li>{% empty %}<li>None</li>{% endfor %}</ul>
-  </article>
-</section>
-<section class="vh-grid">
-  <article class="vh-card">
-    <h3>Verification requirements</h3>
-    <ul class="vh-rows">{% for item in role.verification_requirements %}<li>{{ item }}</li>{% empty %}<li>None</li>{% endfor %}</ul>
-    <h4>Required tests</h4>
-    <ul class="vh-rows">{% for item in role.required_tests %}<li>{{ item }}</li>{% empty %}<li>None</li>{% endfor %}</ul>
-  </article>
-  <article class="vh-card">
-    <h3>Data permissions and rollback</h3>
-    <ul class="vh-rows">{% for item in role.data_permissions %}<li><pre>{{ item }}</pre></li>{% empty %}<li>No data permissions were declared.</li>{% endfor %}</ul>
-    <h4>Rollback procedure</h4>
-    <ul class="vh-rows">{% for item in role.rollback_procedure %}<li>{{ item }}</li>{% empty %}<li>None</li>{% endfor %}</ul>
-  </article>
+<section class="vh-page-shell">
+  <header class="vh-page-header">
+    <div><p class="vh-eyebrow">Role</p><h1>{{ role.display_name }}</h1><p>{{ role.purpose }}</p></div>
+    <div class="vh-page-actions"><a class="vh-button-secondary" href="{% url 'web-role-list' %}">All Roles</a><a class="vh-button-secondary" href="{% url 'web-skill-list' %}">Skills</a></div>
+  </header>
+
+  <section class="vh-summary-strip"><article class="vh-summary-item"><small>Identifier</small><strong>{{ role.role_id }}</strong><span>Version {{ role.version }}</span></article><article class="vh-summary-item"><small>Status</small><strong>{{ role.operational_state }}</strong><span>{{ role.status }}</span></article><article class="vh-summary-item"><small>Risk</small><strong>{{ role.risk_level }}</strong><span>{{ role.trust_assumption }}</span></article><article class="vh-summary-item"><small>Reviewed</small><strong>{{ role.last_reviewed_on }}</strong><span>{{ role.connector_policy }}</span></article></section>
+
+  <div class="vh-surface-grid">
+    <section class="vh-surface vh-surface-span-6"><header class="vh-surface-header"><div><h2>Actions</h2><p>Allowed and denied operations.</p></div></header><div class="vh-surface-body"><h3>Allowed</h3><ul class="vh-rows">{% for item in role.allowed_actions %}<li><code>{{ item }}</code></li>{% empty %}<li>None</li>{% endfor %}</ul><h3>Denied</h3><ul class="vh-rows">{% for item in role.denied_actions %}<li><code>{{ item }}</code></li>{% empty %}<li>None</li>{% endfor %}</ul></div></section>
+    <section class="vh-surface vh-surface-span-6"><header class="vh-surface-header"><div><h2>Tools and approvals</h2><p>Registered tool access and approval points.</p></div></header><div class="vh-surface-body"><h3>Tools</h3><ul class="vh-rows">{% for item in role.tool_ids %}<li><code>{{ item }}</code></li>{% empty %}<li>None</li>{% endfor %}</ul><h3>Approval points</h3><ul class="vh-rows">{% for item in role.human_approval_points %}<li>{{ item }}</li>{% empty %}<li>None</li>{% endfor %}</ul></div></section>
+    <section class="vh-surface vh-surface-span-6"><header class="vh-surface-header"><div><h2>Verification</h2><p>Requirements before the role is used.</p></div></header><div class="vh-surface-body"><ul class="vh-rows">{% for item in role.verification_requirements %}<li>{{ item }}</li>{% empty %}<li>None</li>{% endfor %}</ul><h3>Required tests</h3><ul class="vh-rows">{% for item in role.required_tests %}<li>{{ item }}</li>{% empty %}<li>None</li>{% endfor %}</ul></div></section>
+    <section class="vh-surface vh-surface-span-6"><header class="vh-surface-header"><div><h2>Data and rollback</h2><p>Declared access and recovery steps.</p></div></header><div class="vh-surface-body"><h3>Data permissions</h3><ul class="vh-rows">{% for item in role.data_permissions %}<li><pre>{{ item }}</pre></li>{% empty %}<li>None</li>{% endfor %}</ul><h3>Rollback</h3><ul class="vh-rows">{% for item in role.rollback_procedure %}<li>{{ item }}</li>{% empty %}<li>None</li>{% endfor %}</ul></div></section>
+  </div>
 </section>
 {% endblock %}

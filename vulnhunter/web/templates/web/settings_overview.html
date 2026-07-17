@@ -1,6 +1,21 @@
 {% extends "web/base.html" %}
 {% block content %}
-<header class="vh-page-heading"><div><p class="vh-eyebrow">Configuration</p><h1>Settings</h1><p>Platform and assessment controls.</p></div></header>
-<section class="vh-hub-grid"><a class="vh-hub-card" href="{% url 'web-status' %}"><strong>System status</strong><span>Storage, runtime and audit</span></a><a class="vh-hub-card" href="{% url 'web-advanced-profiles' %}"><strong>Assessment profiles</strong><span>Profile contracts and limits</span></a></section>
-<section class="vh-card"><div class="vh-card-header"><div><h2>Advisory intelligence</h2><p>Provider status.</p></div></div><ul class="vh-readiness-list">{% for item in intelligence_status %}<li><span><i></i>{{ item.name }}</span><strong>{{ item.state }}</strong><small>{{ item.detail }}</small></li>{% endfor %}</ul></section>
+<section class="vh-page-shell">
+  <header class="vh-page-header">
+    <div><p class="vh-eyebrow">System</p><h1>Settings</h1><p>Read-only configuration and provider state exposed by the current backend.</p></div>
+    <div class="vh-page-actions"><a class="vh-button-secondary" href="{% url 'web-status' %}">System Status</a><a class="vh-button-secondary" href="{% url 'web-security-tool-registry' %}">Integrations &amp; Tools</a></div>
+  </header>
+
+  <div class="vh-surface-grid">
+    <section class="vh-surface vh-surface-span-5">
+      <header class="vh-surface-header"><div><h2>Assessment configuration</h2><p>Open the governed profile definitions.</p></div></header>
+      <div class="vh-surface-body vh-link-grid"><a class="vh-link-card" href="{% url 'web-advanced-profiles' %}"><strong>Assessment Profiles</strong><span>Profile limits and approval gates</span></a><a class="vh-link-card" href="{% url 'web-authorization-list' %}"><strong>Authorizations</strong><span>Scope and expiry records</span></a></div>
+    </section>
+
+    <section class="vh-surface vh-surface-span-7">
+      <header class="vh-surface-header"><div><h2>Provider state</h2><p>Health checks only. No inference starts here.</p></div><span class="vh-panel-count">{{ intelligence_status|length }}</span></header>
+      {% if intelligence_status %}<ul class="vh-compact-list">{% for item in intelligence_status %}<li><span>{{ item.name }}<small>{{ item.detail }}</small></span><strong class="{% if 'READY' in item.state %}vh-state-safe{% else %}vh-state-warning{% endif %}">{{ item.state }}</strong></li>{% endfor %}</ul>{% else %}<div class="vh-empty-panel"><svg aria-hidden="true"><use href="#vh-i-settings"></use></svg><h3>No provider state</h3><p>No advisory provider status is available.</p></div>{% endif %}
+    </section>
+  </div>
+</section>
 {% endblock %}

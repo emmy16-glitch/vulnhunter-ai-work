@@ -1,6 +1,14 @@
 (() => {
   "use strict";
 
+  const productStyles = document.querySelector('link[href*="/product.css"]');
+  if (productStyles && !document.querySelector('link[href*="/product-wide.css"]')) {
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = productStyles.href.replace("product.css", "product-wide.css");
+    document.head.append(link);
+  }
+
   const sidebar = document.querySelector("[data-sidebar]");
   const navToggle = document.querySelector("[data-nav-toggle]");
   const navClose = document.querySelector("[data-nav-close]");
@@ -135,6 +143,29 @@
       tab.click();
       tab.scrollIntoView({ block: "nearest", behavior: "smooth" });
     });
+  });
+
+  document.querySelectorAll("[data-attack-path]").forEach((root) => {
+    const nodes = [...root.querySelectorAll("[data-attack-node]")];
+    const label = root.querySelector("[data-attack-detail-label]");
+    const state = root.querySelector("[data-attack-detail-state]");
+    const source = root.querySelector("[data-attack-detail-source]");
+    const reference = root.querySelector("[data-attack-detail-reference]");
+
+    function selectNode(node) {
+      nodes.forEach((item) => {
+        const selected = item === node;
+        item.classList.toggle("is-selected", selected);
+        item.setAttribute("aria-pressed", String(selected));
+      });
+      if (label) label.textContent = node.dataset.label || "Not available";
+      if (state) state.textContent = node.dataset.state || "Not available";
+      if (source) source.textContent = node.dataset.source || "Persisted evidence";
+      if (reference) reference.textContent = node.dataset.reference || "No reference";
+    }
+
+    nodes.forEach((node) => node.addEventListener("click", () => selectNode(node)));
+    if (nodes[0]) selectNode(nodes[0]);
   });
 
   const approvalDialog = document.querySelector("[data-approval-dialog]");

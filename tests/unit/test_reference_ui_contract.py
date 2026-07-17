@@ -63,7 +63,7 @@ def test_canonical_navigation_has_one_destination_per_capability():
     assert '"label": "Scan Runs"' not in navigation
 
 
-def test_canonical_routes_and_legacy_redirects_are_explicit():
+def test_canonical_routes_and_legacy_aliases_are_explicit():
     urls = _text(URLS)
     for route_name in (
         "web-authorization-list",
@@ -79,8 +79,8 @@ def test_canonical_routes_and_legacy_redirects_are_explicit():
         "web-audit-overview",
     ):
         assert route_name in urls
-    assert 'RedirectView.as_view(pattern_name="web-scan-run-list"' in urls
-    assert 'RedirectView.as_view(pattern_name="web-scan-run-detail"' in urls
+    assert 'path("agent/runs/", views.agent_run_list_view' in urls
+    assert 'path("agent/runs/<str:run_id>/", views.agent_run_detail_view' in urls
     assert "audit_views.audit_overview_view" in urls
     assert "oracle_views.oracle_overview_view" in urls
     assert "findings_views.findings_overview_view" in urls
@@ -347,8 +347,7 @@ def test_product_routes_render_for_a_multi_role_operator(client, tmp_path, setti
         assert response.status_code == 200, route
 
     legacy_list = client.get("/agent/runs/")
-    assert legacy_list.status_code == 302
-    assert legacy_list["Location"].endswith("/scans/")
+    assert legacy_list.status_code == 200
 
     dashboard = client.get("/")
     assert dashboard.status_code == 200
@@ -384,7 +383,6 @@ def test_navigation_is_filtered_by_product_role():
     )
 
     labels = {str(item["label"]) for item in canonical_navigation(user)}
-    assert labels == {"Dashboard", "Findings", "Review Queue", "Reports"}
+    assert labels == {"Dashboard", "Findings", "Review Queue", "Reports", "Settings"}
     assert "Assessments" not in labels
     assert "Approval Centre" not in labels
-    assert "Settings" not in labels

@@ -18,9 +18,9 @@
   <section class="vh-surface">
     <header class="vh-surface-header"><div><h2>Assessment runs</h2><p>Open a run for activity, evidence, findings and safety controls.</p></div><span class="vh-panel-count">{{ runs|length }}</span></header>
     {% if runs %}
-      <div class="vh-table-wrap"><table class="vh-table vh-assessment-table"><thead><tr><th>Assessment</th><th>State</th><th>Scanner</th><th>Profile</th><th>Approval</th><th>Updated</th><th></th></tr></thead><tbody>{% for run in runs %}<tr><td><strong>{{ run.objective }}</strong><code>{{ run.run_id }}</code></td><td><span class="vh-status-chip">{{ run.current_state }}</span>{% if run.execution_blocking_reason %}<small>{{ run.execution_blocking_reason|truncatechars:80 }}</small>{% endif %}</td><td>{{ run.requested_tool|default:"Not selected" }}</td><td>{{ run.risk_classification|default:run.selected_skill|default:"Not set" }}</td><td>{{ run.approval_state }}</td><td>{{ run.updated_at }}</td><td><a href="{% url 'web-agent-run-detail' run.run_id %}">Open run →</a></td></tr>{% endfor %}</tbody></table></div>
+      <div class="vh-table-wrap"><table class="vh-table vh-assessment-table"><thead><tr><th>Assessment</th><th>State</th><th>Scanner</th><th>Profile</th><th>Approval</th><th>Updated</th><th></th></tr></thead><tbody>{% for run in runs %}<tr><td><strong>{{ run.objective }}</strong><code>{{ run.run_id }}</code></td><td><span class="vh-status-chip">{{ run.current_state }}</span>{% if run.execution_blocking_reason %}<small>{{ run.execution_blocking_reason|truncatechars:80 }}</small>{% endif %}</td><td>{{ run.requested_tool|default:"Not selected" }}</td><td>{{ run.risk_classification|default:run.selected_skill|default:"Not set" }}</td><td>{{ run.approval_state }}</td><td>{{ run.updated_at }}</td><td><a href="{% url 'web-scan-run-detail' run.run_id %}">Open run →</a></td></tr>{% endfor %}</tbody></table></div>
     {% else %}
-      <div class="vh-empty-panel"><svg aria-hidden="true"><use href="#vh-i-assessment"></use></svg><h3>No assessments</h3><p>Create a plan from an active authorization. No scan starts automatically.</p><button class="vh-button-primary" type="button" data-assessment-open>New Assessment</button></div>
+      <div class="vh-empty-panel"><svg aria-hidden="true"><use href="#vh-i-assessment"></use></svg><h3>No Active Assessment</h3><p>Create a plan from an active authorization. No scan starts automatically.</p><button class="vh-button-primary" type="button" data-assessment-open>New Assessment</button></div>
     {% endif %}
   </section>
 
@@ -38,7 +38,7 @@
         <label class="vh-engine-field">Scanning engine<select name="scanner_engine" data-engine-select required><option value="automatic" selected>Automatic — Recommended</option><option value="nuclei">Nuclei</option></select><span class="vh-engine-state"><i></i>Nuclei planning is available. Execution is disabled.</span></label>
       </div>
       <footer class="vh-assessment-dialog-actions"><button type="button" class="vh-button-secondary" data-assessment-close>Cancel</button><button type="submit" class="vh-button-primary" disabled data-assessment-submit>Create plan</button></footer>
-      <p class="vh-form-note">Creating a plan records scope and approval requirements. It does not run the scanner.</p>
+      <p class="vh-form-note">Creating a plan records scope and approval requirements. Nuclei execution remains globally disabled.</p>
     </form>
   </dialog>
 </section>

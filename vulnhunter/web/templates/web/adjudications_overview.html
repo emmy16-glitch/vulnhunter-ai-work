@@ -1,5 +1,18 @@
 {% extends "web/base.html" %}
 {% block content %}
-<header class="vh-page-heading"><div><p class="vh-eyebrow">Independent review</p><h1>Adjudications</h1><p>Disputed findings assigned for independent resolution.</p></div></header>
-<section class="vh-card vh-card-flush">{% if error_message %}<div class="vh-operational-notice is-danger"><strong>Queue unavailable</strong><p>{{ error_message }}</p></div>{% elif assignments %}<div class="vh-table-wrap"><table class="vh-table"><thead><tr><th>Campaign</th><th>Application</th><th>Observation</th><th>Assigned</th></tr></thead><tbody>{% for campaign, assignment in assignments %}<tr><td><a href="{% url 'web-campaign-detail' campaign.campaign_id %}">{{ campaign.title }}</a><code>{{ campaign.campaign_id }}</code></td><td>{{ assignment.application_id }}</td><td>#{{ assignment.observation_id }}</td><td>{{ assignment.assigned_at }}</td></tr>{% endfor %}</tbody></table></div>{% else %}<div class="vh-zero-state"><span>◎</span><h3>No adjudications</h3><p>No disputes are assigned to you.</p></div>{% endif %}</section>
+<section class="vh-page-shell">
+  <header class="vh-page-header">
+    <div><p class="vh-eyebrow">Review</p><h1>Adjudications</h1><p>Disputed observations assigned for independent resolution.</p></div>
+    <div class="vh-page-actions"><a class="vh-button-secondary" href="{% url 'web-review-queue' %}">Review Queue</a><a class="vh-button-secondary" href="{% url 'web-findings-overview' %}">Findings</a></div>
+  </header>
+
+  <section class="vh-summary-strip"><article class="vh-summary-item"><small>Assigned</small><strong>{{ assignments|length }}</strong><span>Current disputes</span></article><article class="vh-summary-item"><small>Decision source</small><strong>Human review</strong><span>No automatic adjudication</span></article></section>
+
+  <section class="vh-surface">
+    <header class="vh-surface-header"><div><h2>Assigned disputes</h2><p>Open the campaign to inspect the linked observation and review state.</p></div><span class="vh-panel-count">{{ assignments|length }}</span></header>
+    {% if error_message %}<div class="vh-operational-notice is-danger"><strong>Queue unavailable</strong><p>{{ error_message }}</p></div>
+    {% elif assignments %}<div class="vh-table-wrap"><table class="vh-table"><thead><tr><th>Campaign</th><th>Application</th><th>Observation</th><th>Assigned</th><th></th></tr></thead><tbody>{% for campaign, assignment in assignments %}<tr><td><strong>{{ campaign.title }}</strong><code>{{ campaign.campaign_id }}</code></td><td>{{ assignment.application_id }}</td><td>#{{ assignment.observation_id }}</td><td>{{ assignment.assigned_at }}</td><td><a href="{% url 'web-campaign-detail' campaign.campaign_id %}">Open campaign →</a></td></tr>{% endfor %}</tbody></table></div>
+    {% else %}<div class="vh-empty-panel"><svg aria-hidden="true"><use href="#vh-i-scale"></use></svg><h3>No adjudications</h3><p>No disputes are assigned to you.</p></div>{% endif %}
+  </section>
+</section>
 {% endblock %}

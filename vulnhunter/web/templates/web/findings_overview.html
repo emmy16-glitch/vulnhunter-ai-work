@@ -1,5 +1,29 @@
 {% extends "web/base.html" %}
+{% load static %}
 {% block content %}
-<header class="vh-page-heading"><div><p class="vh-eyebrow">Verified outcomes</p><h1>Findings</h1><p>Evidence, review and remediation.</p></div><a class="vh-button-primary" href="{% url 'web-agent-run-list' %}">Open assessments</a></header>
-<section class="vh-card"><div class="vh-card-header"><div><h2>Pipeline readiness</h2><p>Current capability state.</p></div></div><ul class="vh-readiness-list">{% for label, state in capabilities %}<li><span><i></i>{{ label }}</span><strong>{{ state }}</strong></li>{% endfor %}</ul></section>
+<link rel="stylesheet" href="{% static 'web/product.css' %}?v=20260717-integration1">
+<section class="vh-product-page">
+  <header class="vh-product-heading">
+    <div><p class="vh-eyebrow">Verified outcomes</p><h1>Findings</h1><p>Follow the evidence, review and remediation lifecycle without presenting scanner observations as confirmed vulnerabilities.</p></div>
+    <div class="vh-product-heading-actions"><a class="vh-button-secondary" href="{% url 'web-review-queue' %}">Review queue</a><a class="vh-button-primary" href="{% url 'web-agent-run-list' %}">Open assessments</a></div>
+  </header>
+
+  <div class="vh-product-grid">
+    <section class="vh-product-panel vh-product-span-8">
+      <header class="vh-product-panel-header"><div><h2>Finding lifecycle readiness</h2><p>These states describe implemented backend controls, not invented findings.</p></div></header>
+      <ul class="vh-product-list">{% for label, state in capabilities %}<li><span>{{ label }}</span><strong class="{% if state == 'ready' %}vh-state-safe{% else %}vh-state-warning{% endif %}">{{ state }}</strong></li>{% endfor %}</ul>
+    </section>
+    <aside class="vh-product-panel vh-product-span-4 vh-boundary-card">
+      <span class="vh-boundary-icon" aria-hidden="true"><svg><use href="#vh-i-finding"></use></svg></span><div><p class="vh-eyebrow">Trust sequence</p><h2>Candidate before confirmation</h2></div><p>A tool match remains a candidate until evidence verification and independent human review complete.</p><ul class="vh-rule-list"><li><span>Tool observation</span><strong>Candidate</strong></li><li><span>Machine verification</span><strong>Advisory</strong></li><li><span>Human decision</span><strong>Required</strong></li><li><span>Publication</span><strong>Separate gate</strong></li></ul>
+    </aside>
+    <section class="vh-product-panel vh-product-span-12">
+      <header class="vh-product-panel-header"><div><h2>Connected finding work</h2><p>Move through the real assessment, review and reporting surfaces.</p></div></header>
+      <div class="vh-action-grid vh-panel-body">
+        <article class="vh-action-card"><span class="vh-product-icon"><svg><use href="#vh-i-assessment"></use></svg></span><h2>Assessment evidence</h2><p>Open a run to inspect its persisted artifacts, audit events and attack-path data.</p><div class="vh-card-actions"><a class="vh-button-secondary" href="{% url 'web-agent-run-list' %}">Assessment runs</a></div></article>
+        <article class="vh-action-card"><span class="vh-product-icon"><svg><use href="#vh-i-review"></use></svg></span><h2>Independent review</h2><p>Assigned reviewers evaluate evidence without receiving mutation authority over other roles.</p><div class="vh-card-actions"><a class="vh-button-secondary" href="{% url 'web-review-queue' %}">Review queue</a><a class="vh-button-secondary" href="{% url 'web-adjudication-queue' %}">Adjudications</a></div></article>
+        <article class="vh-action-card"><span class="vh-product-icon"><svg><use href="#vh-i-report"></use></svg></span><h2>Inspection reports</h2><p>See which report formats are available after persisted evidence and review records exist.</p><div class="vh-card-actions"><a class="vh-button-secondary" href="{% url 'web-reports-overview' %}">Reports</a></div></article>
+      </div>
+    </section>
+  </div>
+</section>
 {% endblock %}

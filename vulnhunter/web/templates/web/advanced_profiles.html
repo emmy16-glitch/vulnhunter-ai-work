@@ -1,18 +1,29 @@
 {% extends "web/base.html" %}
+{% load static %}
 {% block content %}
-<section class="vh-panel">
-  <p class="vh-eyebrow">Deep multi-stage assessment</p>
-  <h3>Advanced assessment profiles</h3>
-  <p class="vh-warning">Profiles create governed plans. They do not bypass authorization, approval, scope, evidence, or stop controls.</p>
-  <div class="vh-grid">
+<link rel="stylesheet" href="{% static 'web/product.css' %}?v=20260717-integration1">
+<section class="vh-product-page">
+  <header class="vh-product-heading">
+    <div><p class="vh-eyebrow">Deep multi-stage assessment</p><h1>Advanced assessment profiles</h1><p>Profiles describe governed planning paths. They never bypass authorization, approval, scope, evidence or stop controls.</p></div>
+    <div class="vh-product-heading-actions"><a class="vh-button-secondary" href="{% url 'web-security-tool-registry' %}">Tool registry</a><a class="vh-button-primary" href="{% url 'web-new-scan' %}">Create governed plan</a></div>
+  </header>
+
+  <section class="vh-profile-grid" aria-label="Assessment profiles">
     {% for profile in profiles %}
-      <article class="vh-card">
+      <article class="vh-profile-card">
+        <span class="vh-product-icon" aria-hidden="true"><svg><use href="#vh-i-assessment"></use></svg></span>
         <p class="vh-eyebrow">{{ profile.id }}</p>
-        <h3>{{ profile.name }}</h3>
+        <h2>{{ profile.name }}</h2>
         <p>{{ profile.description }}</p>
-        <p><strong>Gate:</strong> {{ profile.gate }}</p>
+        <ul class="vh-rule-list"><li><span>Required gate</span><strong>{{ profile.gate }}</strong></li><li><span>Execution authority</span><strong>Not granted here</strong></li></ul>
+        <div class="vh-card-actions"><a class="vh-button-secondary" href="{% url 'web-new-scan' %}">Use through assessment form</a></div>
       </article>
     {% endfor %}
-  </div>
+  </section>
+
+  <section class="vh-product-panel">
+    <header class="vh-product-panel-header"><div><h2>How profiles connect to the backend</h2><p>The browser cannot create its own target, port or risk scope.</p></div></header>
+    <ul class="vh-fact-list"><li><span>Authorization selection<small>Only active, actor-owned records are returned.</small></span><strong>Backend filtered</strong></li><li><span>Target and profile values<small>Every submitted value is reloaded and revalidated.</small></span><strong>Exact match</strong></li><li><span>Command planning<small>The stored plan contains structured fields, not arbitrary shell commands.</small></span><strong>Immutable digest</strong></li><li><span>Approval result<small>An approval still leaves real execution blocked while the global gate is disabled.</small></span><strong class="vh-state-warning">Planning only</strong></li></ul>
+  </section>
 </section>
 {% endblock %}

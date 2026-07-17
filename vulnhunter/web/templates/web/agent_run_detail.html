@@ -1,11 +1,17 @@
 {% extends "web/base.html" %}
+{% load static %}
 {% block content %}
+<link rel="stylesheet" href="{% static 'web/product.css' %}?v=20260717-integration2">
+
 <h1 class="vh-visually-hidden">Assessment workstream: {{ run.objective }}</h1>
 <span class="vh-visually-hidden">Human controls</span>
+
 <div class="vh-assessment-layout">
   <section class="vh-workstream-panel" aria-label="Assessment workspace" data-ui-tabs>
     <nav class="vh-workspace-tabs" role="tablist" aria-label="Assessment workspace">
       <button id="workstream-tab" class="is-active" type="button" role="tab" aria-selected="true" aria-controls="workstream-pane" data-tab-target="workstream-pane">Workstream</button>
+      <button id="inspection-report-tab" type="button" role="tab" aria-selected="false" aria-controls="inspection-report-pane" data-tab-target="inspection-report-pane">Inspection Report</button>
+      <button id="safety-actions-tab" type="button" role="tab" aria-selected="false" aria-controls="safety-actions-pane" data-tab-target="safety-actions-pane">Safety &amp; Actions</button>
       <button id="attack-path-tab" type="button" role="tab" aria-selected="false" aria-controls="attack-path-pane" data-tab-target="attack-path-pane">Attack Path</button>
       <button id="evidence-tab" type="button" role="tab" aria-selected="false" aria-controls="evidence-pane" data-tab-target="evidence-pane">Evidence</button>
       <button id="logs-tab" type="button" role="tab" aria-selected="false" aria-controls="logs-pane" data-tab-target="logs-pane">Logs</button>
@@ -16,33 +22,28 @@
         <li class="vh-stage is-complete">
           <span class="vh-stage-marker" aria-label="Completed">✓</span>
           <details class="vh-stage-card vh-stage-disclosure">
-            <summary><span class="vh-stage-number">01</span><span class="vh-stage-copy"><strong>Planning &amp; Scope Confirmation</strong><small>{{ run.scope_summary|default:"Target and constraints bound." }}</small></span><span class="vh-stage-state">Verified</span><svg class="vh-stage-chevron" aria-hidden="true"><use href="#vh-i-chevron"></use></svg></summary>
+            <summary><span class="vh-stage-number">01</span><span class="vh-stage-copy"><strong>Planning &amp; Scope Confirmation</strong><small>{{ run.scope_summary|default:"Target and constraints bound." }}</small></span><span class="vh-stage-state">Verified</span><svg class="vh-stage-chevron"><use href="#vh-i-chevron"></use></svg></summary>
             <div class="vh-stage-detail"><span>Run</span><strong>{{ run.run_id }}</strong><span>Role</span><strong>{{ run.selected_role }}</strong></div>
           </details>
         </li>
         <li class="vh-stage is-complete">
           <span class="vh-stage-marker" aria-label="Completed">✓</span>
           <details class="vh-stage-card vh-stage-disclosure">
-            <summary><span class="vh-stage-number">02</span><span class="vh-stage-copy"><strong>Authorization Validation</strong><small>Permissions and rules of engagement checked.</small></span><span class="vh-stage-state">Bound</span><svg class="vh-stage-chevron" aria-hidden="true"><use href="#vh-i-chevron"></use></svg></summary>
+            <summary><span class="vh-stage-number">02</span><span class="vh-stage-copy"><strong>Authorization Validation</strong><small>Permissions and rules of engagement checked.</small></span><span class="vh-stage-state">Bound</span><svg class="vh-stage-chevron"><use href="#vh-i-chevron"></use></svg></summary>
             <div class="vh-stage-detail"><span>Manifest</span><strong>{{ run.selected_skill|default:"Bounded task" }}</strong><span>Risk</span><strong>{{ run.risk_classification|default:"Not set" }}</strong></div>
           </details>
         </li>
         <li class="vh-stage {% if run.policy_result == 'allowed' %}is-complete{% elif run.policy_result == 'denied' %}is-danger{% else %}is-active{% endif %}">
-          <span class="vh-stage-marker" aria-label="{% if run.policy_result == 'allowed' %}Completed{% else %}Current stage{% endif %}">{% if run.policy_result == 'allowed' %}✓{% else %}03{% endif %}</span>
+          <span class="vh-stage-marker">{% if run.policy_result == 'allowed' %}✓{% else %}03{% endif %}</span>
           <details class="vh-stage-card vh-stage-disclosure">
-            <summary><span class="vh-stage-number">03</span><span class="vh-stage-copy"><strong>Passive Reconnaissance</strong><small>{{ run.policy_reason|default:"Policy evaluation is pending." }}</small></span><span class="vh-stage-state">{{ run.policy_result }}</span><svg class="vh-stage-chevron" aria-hidden="true"><use href="#vh-i-chevron"></use></svg></summary>
+            <summary><span class="vh-stage-number">03</span><span class="vh-stage-copy"><strong>Passive Reconnaissance</strong><small>{{ run.policy_reason|default:"Policy evaluation is pending." }}</small></span><span class="vh-stage-state">{{ run.policy_result }}</span><svg class="vh-stage-chevron"><use href="#vh-i-chevron"></use></svg></summary>
             <div class="vh-stage-detail"><span>Policy</span><strong>{{ run.policy_result }}</strong><span>Action</span><strong>{{ run.proposed_action|default:"None" }}</strong></div>
           </details>
         </li>
         <li class="vh-stage {% if run.execution_state == 'tool_executed' or run.current_state == 'completed' %}is-complete{% elif run.execution_state == 'tool_failed' %}is-danger{% elif run.approval_state == 'pending' %}is-warning{% else %}is-active{% endif %}">
-          <span class="vh-stage-marker" aria-label="Current tool stage">{% if run.execution_state == 'tool_executed' or run.current_state == 'completed' %}✓{% elif run.approval_state == 'pending' %}Ⅱ{% else %}04{% endif %}</span>
+          <span class="vh-stage-marker">{% if run.execution_state == 'tool_executed' or run.current_state == 'completed' %}✓{% elif run.approval_state == 'pending' %}Ⅱ{% else %}04{% endif %}</span>
           <details class="vh-stage-card vh-stage-disclosure vh-stage-tool" open>
-            <summary>
-              <span class="vh-stage-number">04</span>
-              <span class="vh-stage-copy"><strong>Tool Invocation – {{ run.requested_tool|default:"Bounded Tool" }}</strong><small>{{ run.requested_operation|default:"No operation recorded." }}</small></span>
-              <span class="vh-stage-state">{{ run.execution_state }}</span>
-              <svg class="vh-stage-chevron" aria-hidden="true"><use href="#vh-i-chevron"></use></svg>
-            </summary>
+            <summary><span class="vh-stage-number">04</span><span class="vh-stage-copy"><strong>Tool Invocation – {{ run.requested_tool|default:"Bounded Tool" }}</strong><small>{{ run.requested_operation|default:"No operation recorded." }}</small></span><span class="vh-stage-state">{{ run.execution_state }}</span><svg class="vh-stage-chevron"><use href="#vh-i-chevron"></use></svg></summary>
             <div class="vh-stage-expanded-body">
               <div class="vh-output-panel" data-ui-tabs>
                 <div class="vh-output-tabs" role="tablist" aria-label="Tool execution detail">
@@ -52,33 +53,73 @@
                   <button id="tool-raw-tab" type="button" role="tab" aria-selected="false" aria-controls="tool-raw-pane" data-tab-target="tool-raw-pane">Raw</button>
                 </div>
                 <div id="tool-output-pane" class="vh-output-body" role="tabpanel" aria-labelledby="tool-output-tab" tabindex="0">
-                  {% if run.recent_events %}{% for event in run.recent_events %}<div class="vh-log-line"><span class="vh-log-prefix">[INF]</span><time>{{ event.created_at }}</time><span>{{ event.event_type }}</span><code>{{ event.event_sha256|slice:":16" }}…</code></div>{% endfor %}{% else %}<p class="vh-terminal-empty">[INF] No execution events.</p>{% endif %}
+                  {% if run.recent_events %}
+                    {% for event in run.recent_events %}<div class="vh-log-line"><span class="vh-log-prefix">[INF]</span><time>{{ event.created_at }}</time><span>{{ event.event_type }}</span><code>{{ event.event_sha256|slice:":16" }}…</code></div>{% endfor %}
+                  {% else %}
+                    <p class="vh-terminal-empty">[INF] No execution events.</p>
+                  {% endif %}
                 </div>
                 <div id="tool-request-pane" class="vh-output-body" role="tabpanel" aria-labelledby="tool-request-tab" tabindex="0" hidden><dl class="vh-terminal-facts"><div><dt>Tool</dt><dd>{{ run.requested_tool|default:"Not recorded" }}</dd></div><div><dt>Operation</dt><dd>{{ run.requested_operation|default:"Not recorded" }}</dd></div><div><dt>Policy</dt><dd>{{ run.policy_result }}</dd></div></dl></div>
                 <div id="tool-response-pane" class="vh-output-body" role="tabpanel" aria-labelledby="tool-response-tab" tabindex="0" hidden><p class="vh-terminal-empty">Evaluation: {{ run.evaluation_result|default:"Pending independent verification" }}</p></div>
                 <div id="tool-raw-pane" class="vh-output-body" role="tabpanel" aria-labelledby="tool-raw-tab" tabindex="0" hidden><code class="vh-terminal-hash">{{ run.final_event_sha256|default:"No final audit event has been recorded." }}</code></div>
               </div>
               {% if pending_approval %}
-                <button class="vh-stage-approval-trigger" type="button" data-approval-open aria-haspopup="dialog" aria-controls="vh-approval-dialog"><svg aria-hidden="true"><use href="#vh-i-shield"></use></svg><span><strong>Approval required</strong><small>{{ pending_approval.summary|truncatechars:72 }}</small></span><b>Review</b></button>
+                <button class="vh-stage-approval-trigger" type="button" data-approval-open aria-haspopup="dialog" aria-controls="vh-approval-dialog"><svg><use href="#vh-i-shield"></use></svg><span><strong>Approval required</strong><small>{{ pending_approval.summary|truncatechars:72 }}</small></span><b>Review</b></button>
               {% elif run.approval_state == 'pending' %}
-                <a class="vh-stage-approval-trigger" href="{% url 'web-approval-list' %}"><svg aria-hidden="true"><use href="#vh-i-shield"></use></svg><span><strong>Approval required</strong><small>Open Approval Centre to review the recorded request.</small></span><b>Open</b></a>
+                <a class="vh-stage-approval-trigger" href="{% url 'web-approval-list' %}"><svg><use href="#vh-i-shield"></use></svg><span><strong>Approval required</strong><small>Open Approval Centre to review the recorded request.</small></span><b>Open</b></a>
               {% endif %}
             </div>
           </details>
         </li>
-        <li class="vh-stage {% if run.execution_state == 'tool_executed' %}is-active{% endif %}"><span class="vh-stage-marker" aria-label="Pending stage">05</span><details class="vh-stage-card vh-stage-disclosure"><summary><span class="vh-stage-number">05</span><span class="vh-stage-copy"><strong>Evidence Normalization</strong><small>Normalize and hash tool results.</small></span><span class="vh-stage-state">Pending</span><svg class="vh-stage-chevron" aria-hidden="true"><use href="#vh-i-chevron"></use></svg></summary><div class="vh-stage-detail"><span>Events</span><strong>{{ run.recent_events|length }}</strong><span>Integrity</span><strong>{% if run.final_event_sha256 %}Verified{% else %}Waiting{% endif %}</strong></div></details></li>
-        <li class="vh-stage {% if run.evaluation_result %}is-complete{% endif %}"><span class="vh-stage-marker" aria-label="{% if run.evaluation_result %}Completed{% else %}Pending stage{% endif %}">{% if run.evaluation_result %}✓{% else %}06{% endif %}</span><details class="vh-stage-card vh-stage-disclosure"><summary><span class="vh-stage-number">06</span><span class="vh-stage-copy"><strong>Oracle Verification</strong><small>Verify evidence-bound claims.</small></span><span class="vh-stage-state">{{ run.evaluation_result|default:"Pending" }}</span><svg class="vh-stage-chevron" aria-hidden="true"><use href="#vh-i-chevron"></use></svg></summary><div class="vh-stage-detail"><span>Result</span><strong>{{ run.evaluation_result|default:"Waiting" }}</strong><span>Mode</span><strong>Independent</strong></div></details></li>
-        <li class="vh-stage {% if run.current_state == 'completed' %}is-complete{% endif %}"><span class="vh-stage-marker" aria-label="{% if run.current_state == 'completed' %}Completed{% else %}Pending stage{% endif %}">{% if run.current_state == 'completed' %}✓{% else %}07{% endif %}</span><details class="vh-stage-card vh-stage-disclosure"><summary><span class="vh-stage-number">07</span><span class="vh-stage-copy"><strong>Findings Packaging</strong><small>Compile verified findings and evidence.</small></span><span class="vh-stage-state">{% if run.current_state == 'completed' %}Ready{% else %}Pending{% endif %}</span><svg class="vh-stage-chevron" aria-hidden="true"><use href="#vh-i-chevron"></use></svg></summary><div class="vh-stage-detail"><span>State</span><strong>{{ run.current_state }}</strong><span>Release</span><strong>Human gated</strong></div></details></li>
+        <li class="vh-stage {% if run.execution_state == 'tool_executed' %}is-active{% endif %}"><span class="vh-stage-marker">05</span><details class="vh-stage-card vh-stage-disclosure"><summary><span class="vh-stage-number">05</span><span class="vh-stage-copy"><strong>Evidence Normalization</strong><small>Normalize and hash tool results.</small></span><span class="vh-stage-state">Pending</span><svg class="vh-stage-chevron"><use href="#vh-i-chevron"></use></svg></summary><div class="vh-stage-detail"><span>Events</span><strong>{{ run.recent_events|length }}</strong><span>Integrity</span><strong>{% if run.final_event_sha256 %}Verified{% else %}Waiting{% endif %}</strong></div></details></li>
+        <li class="vh-stage {% if run.evaluation_result %}is-complete{% endif %}"><span class="vh-stage-marker">{% if run.evaluation_result %}✓{% else %}06{% endif %}</span><details class="vh-stage-card vh-stage-disclosure"><summary><span class="vh-stage-number">06</span><span class="vh-stage-copy"><strong>Oracle Verification</strong><small>Verify evidence-bound claims.</small></span><span class="vh-stage-state">{{ run.evaluation_result|default:"Pending" }}</span><svg class="vh-stage-chevron"><use href="#vh-i-chevron"></use></svg></summary><div class="vh-stage-detail"><span>Result</span><strong>{{ run.evaluation_result|default:"Waiting" }}</strong><span>Mode</span><strong>Independent</strong></div></details></li>
+        <li class="vh-stage {% if run.current_state == 'completed' %}is-complete{% endif %}"><span class="vh-stage-marker">{% if run.current_state == 'completed' %}✓{% else %}07{% endif %}</span><details class="vh-stage-card vh-stage-disclosure"><summary><span class="vh-stage-number">07</span><span class="vh-stage-copy"><strong>Findings Packaging</strong><small>Compile verified findings and evidence.</small></span><span class="vh-stage-state">{% if run.current_state == 'completed' %}Ready{% else %}Pending{% endif %}</span><svg class="vh-stage-chevron"><use href="#vh-i-chevron"></use></svg></summary><div class="vh-stage-detail"><span>State</span><strong>{{ run.current_state }}</strong><span>Release</span><strong>Human gated</strong></div></details></li>
       </ol>
     </div>
 
-    <div id="attack-path-pane" class="vh-workspace-pane vh-workspace-graph" role="tabpanel" aria-labelledby="attack-path-tab" hidden>{% if run.attack_path %}<div class="vh-path-row">{% for node in run.attack_path %}<span class="vh-path-node">{{ node.label }}</span>{% if not forloop.last %}<i>→</i>{% endif %}{% endfor %}</div>{% else %}<div class="vh-workspace-empty"><strong>No attack path evidence</strong><span>Nodes appear only from persisted evidence.</span></div>{% endif %}</div>
-    <div id="evidence-pane" class="vh-workspace-pane vh-workspace-evidence" role="tabpanel" aria-labelledby="evidence-tab" hidden>{% for artifact in run.artifacts %}<article><svg aria-hidden="true"><use href="#vh-i-checkdoc"></use></svg><span><strong>{{ artifact.filename }}</strong><code>{{ artifact.type }} · {{ artifact.size }} bytes · sha256: {{ artifact.checksum }}</code></span></article>{% empty %}<div class="vh-workspace-empty"><strong>No persisted evidence</strong><span>Only validated, redacted artifacts appear here.</span></div>{% endfor %}</div>
+    <div id="inspection-report-pane" class="vh-workspace-pane" role="tabpanel" aria-labelledby="inspection-report-tab" hidden>
+      <div class="vh-report-grid">
+        <section class="vh-report-card"><h3>Assessment identity</h3><ul class="vh-fact-list"><li><span>Run ID</span><strong>{{ run.run_id }}</strong></li><li><span>Objective</span><strong>{{ run.objective|truncatechars:64 }}</strong></li><li><span>Current state</span><strong>{{ run.current_state }}</strong></li><li><span>Workflow state</span><strong>{{ run.workflow_state|default:run.current_state }}</strong></li></ul></section>
+        <section class="vh-report-card"><h3>Inspection decision state</h3><ul class="vh-fact-list"><li><span>Policy result</span><strong>{{ run.policy_result }}</strong></li><li><span>Approval state</span><strong>{% if approval_record %}{{ approval_record.status.value }}{% else %}{{ run.approval_state }}{% endif %}</strong></li><li><span>Evaluation</span><strong>{{ run.evaluation_result|default:"Pending" }}</strong></li><li><span>Candidate findings</span><strong>{{ run.findings|length }}</strong></li></ul></section>
+        <section class="vh-report-card"><h3>Evidence summary</h3><ul class="vh-fact-list"><li><span>Artifacts</span><strong>{{ run.artifacts|length }}</strong></li><li><span>Recent events</span><strong>{{ run.recent_events|length }}</strong></li><li><span>Attack-path nodes</span><strong>{{ run.attack_path|length }}</strong></li><li><span>Final audit reference</span><strong>{{ run.final_event_sha256|default:"Not recorded"|slice:":18" }}{% if run.final_event_sha256 %}…{% endif %}</strong></li></ul></section>
+        <section class="vh-report-card"><h3>Report connections</h3><p>This summary is rendered from the current backend read model. Open the related pages for the wider finding, review and release state.</p><div class="vh-safety-actions"><a class="vh-button-secondary" href="{% url 'web-findings-overview' %}">All findings</a><a class="vh-button-secondary" href="{% url 'web-reports-overview' %}">Report formats</a><a class="vh-button-secondary" href="{% url 'web-audit-overview' %}">Audit status</a></div></section>
+      </div>
+    </div>
+
+    <div id="safety-actions-pane" class="vh-workspace-pane" role="tabpanel" aria-labelledby="safety-actions-tab" hidden>
+      <div class="vh-safety-grid">
+        <section class="vh-safety-card"><h3>Safety and scope</h3><ul class="vh-fact-list"><li><span>Scope status<small>{{ run.scope_summary|default:"Exact authorization-bound scope" }}</small></span><strong class="vh-state-safe">Bound</strong></li><li><span>Plan digest<small>Approval must match this immutable value.</small></span><strong>{{ run.plan_digest|default:"Not generated"|slice:":18" }}{% if run.plan_digest %}…{% endif %}</strong></li><li><span>Readiness<small>{{ run.readiness.reason|default:"No readiness detail supplied" }}</small></span><strong>{% if run.readiness.ready %}Verified{% else %}Unavailable{% endif %}</strong></li><li><span>Execution enabled<small>Readiness does not grant execution authority.</small></span><strong class="{% if run.execution_enabled %}vh-state-danger{% else %}vh-state-warning{% endif %}">{{ run.execution_enabled|yesno:"true,false" }}</strong></li></ul></section>
+        <section class="vh-safety-card"><h3>Available actions</h3><p>{{ run.execution_blocking_reason|default:"Backend state and product-role policy determine every available action." }}</p><ul class="vh-action-list"><li><span>Approval review<small>Opens the persisted request and its decision history.</small></span><strong>{% if pending_approval %}Required{% else %}{{ run.approval_state }}{% endif %}</strong></li><li><span>Stop control<small>{{ controls.stop.reason }}</small></span><strong>{% if controls.stop.available %}Available{% else %}Unavailable{% endif %}</strong></li><li><span>Release<small>Assessment completion does not publish a finding.</small></span><strong>Separately gated</strong></li></ul><div class="vh-safety-actions">{% if pending_approval %}<button class="vh-button-primary" type="button" data-approval-open>Review pending approval</button>{% else %}<a class="vh-button-secondary" href="{% url 'web-approval-list' %}">Approval Centre</a>{% endif %}{% if controls.stop.available %}<a class="vh-button-secondary" href="{% url 'web-agent-run-stop' run.run_id %}">Stop this run</a>{% endif %}<a class="vh-button-secondary" href="{% url 'web-authorization-list' %}">Authorizations</a></div></section>
+      </div>
+    </div>
+
+    <div id="attack-path-pane" class="vh-workspace-pane vh-workspace-graph" role="tabpanel" aria-labelledby="attack-path-tab" hidden>
+      {% if run.attack_path %}<div class="vh-path-row">{% for node in run.attack_path %}<span class="vh-path-node">{{ node.label }}</span>{% if not forloop.last %}<i>→</i>{% endif %}{% endfor %}</div>{% else %}<div class="vh-workspace-empty"><strong>No attack path evidence</strong><span>Nodes appear only from persisted evidence.</span></div>{% endif %}
+    </div>
+
+    <div id="evidence-pane" class="vh-workspace-pane vh-workspace-evidence" role="tabpanel" aria-labelledby="evidence-tab" hidden>
+      {% for artifact in run.artifacts %}<article><svg><use href="#vh-i-checkdoc"></use></svg><span><strong>{{ artifact.filename }}</strong><code>{{ artifact.type }} · {{ artifact.size }} bytes · sha256: {{ artifact.checksum }}</code></span></article>{% empty %}<div class="vh-workspace-empty"><strong>No persisted evidence</strong><span>Only validated, redacted artifacts appear here.</span></div>{% endfor %}
+    </div>
+
     <div id="logs-pane" class="vh-workspace-pane" role="tabpanel" aria-labelledby="logs-tab" hidden>
       <section id="activity-log" class="vh-activity-timeline vh-activity-embedded" data-endpoint="{% url 'web-agent-run-activity' run.run_id %}" data-after-sequence="{{ timeline.last_sequence }}" data-poll-interval-ms="1500" data-terminal="{% if timeline.terminal %}true{% else %}false{% endif %}" aria-labelledby="vh-activity-heading">
         <header class="vh-activity-header"><div><h2 id="vh-activity-heading">Activity</h2><p>Redacted operational events.</p></div><div class="vh-activity-controls"><span class="vh-activity-state" aria-live="polite">{{ timeline.run_state|default:"No activity" }}</span><button type="button" data-action="toggle-autoscroll" aria-pressed="false">Pause live view</button></div></header>
-        <p class="vh-activity-empty"{% if timeline.events %} hidden{% endif %}>No activity has been recorded yet.</p><p class="vh-activity-connection" data-connection-state aria-live="polite">Loading activity…</p>
-        <ol class="vh-activity-events">{% for event in timeline.events %}<li class="vh-activity-event" data-sequence="{{ event.sequence }}" data-event-id="{{ event.event_id }}"><div class="vh-activity-marker" aria-hidden="true"></div><div class="vh-activity-content"><time datetime="{{ event.timestamp }}">{{ event.timestamp }}</time><div class="vh-activity-title">{{ event.event_type }}</div><p>{{ event.summary }}</p><div class="vh-activity-meta"><span>State: {{ event.run_state }}</span>{% if event.audit_reference %}<span>Audit: <code>{{ event.audit_reference }}</code></span>{% endif %}</div>{% if event.metadata %}<details><summary>Safe metadata</summary><ul class="vh-rows">{% for key, value in event.metadata.items %}<li><strong>{{ key }}</strong> <code>{{ value }}</code></li>{% endfor %}</ul></details>{% endif %}</div></li>{% endfor %}</ol>
+        <p class="vh-activity-empty"{% if timeline.events %} hidden{% endif %}>No activity has been recorded yet.</p>
+        <p class="vh-activity-connection" data-connection-state aria-live="polite">Loading activity…</p>
+        <ol class="vh-activity-events">
+          {% for event in timeline.events %}
+            <li class="vh-activity-event" data-sequence="{{ event.sequence }}" data-event-id="{{ event.event_id }}">
+              <div class="vh-activity-marker" aria-hidden="true"></div>
+              <div class="vh-activity-content">
+                <time datetime="{{ event.timestamp }}">{{ event.timestamp }}</time>
+                <div class="vh-activity-title">{{ event.event_type }}</div>
+                <p>{{ event.summary }}</p>
+                <div class="vh-activity-meta"><span>State: {{ event.run_state }}</span>{% if event.audit_reference %}<span>Audit: <code>{{ event.audit_reference }}</code></span>{% endif %}</div>
+                {% if event.metadata %}<details><summary>Safe metadata</summary><ul class="vh-rows">{% for key, value in event.metadata.items %}<li><strong>{{ key }}</strong> <code>{{ value }}</code></li>{% endfor %}</ul></details>{% endif %}
+              </div>
+            </li>
+          {% endfor %}
+        </ol>
         <button type="button" class="vh-activity-new-events" data-action="show-new-events" hidden>Newer events exist below</button>
       </section>
     </div>
@@ -86,19 +127,12 @@
 
   <aside class="vh-inspector" aria-labelledby="overview-heading">
     <div class="vh-inspector-title"><h2 id="overview-heading">Assessment Overview</h2></div>
-    <section class="vh-inspector-section">
-      <div class="vh-inspector-heading"><span>Progress</span><strong class="vh-tabular">{% if run.current_state == 'completed' %}100%{% elif run.execution_state == 'tool_executed' %}78%{% elif run.approval_state == 'pending' %}52%{% else %}35%{% endif %}</strong></div>
-      <div class="vh-progress" role="progressbar" aria-label="Assessment progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{% if run.current_state == 'completed' %}100{% elif run.execution_state == 'tool_executed' %}78{% elif run.approval_state == 'pending' %}52{% else %}35{% endif %}"><i class="{% if run.current_state == 'completed' %}vh-progress-100{% elif run.execution_state == 'tool_executed' %}vh-progress-78{% elif run.approval_state == 'pending' %}vh-progress-52{% else %}vh-progress-35{% endif %}"></i></div>
-      <small>Current stage: {{ run.execution_state }}</small>
-    </section>
-    <div class="vh-inspector-grid">
-      <section><small>Approval Status</small><strong class="{% if pending_approval %}vh-text-warning{% else %}vh-text-safe{% endif %}">{% if approval_record %}{{ approval_record.status.value }}{% else %}{{ run.approval_state }}{% endif %}</strong></section>
-      <section><small>Scope Status</small><strong class="vh-text-safe">Bound</strong></section>
-    </div>
-    <section class="vh-inspector-section"><small>Current stage</small><div class="vh-tool-identity"><span aria-hidden="true">›_</span><div><strong>{{ run.workflow_state|default:run.current_state }}</strong><small>{{ run.execution_blocking_reason|default:"Backend state is authoritative" }}</small></div></div>{% if run.recent_events %}{% with latest=run.recent_events|last %}<span class="vh-sse-state">Latest event: {{ latest.event_type }}</span>{% endwith %}{% endif %}<span class="vh-sse-state" data-global-connection-state>EventSource state appears in Activity</span></section>
-    <section class="vh-inspector-section"><small>Tool State</small><div class="vh-tool-identity"><span aria-hidden="true">›_</span><div><strong>{{ run.requested_tool|default:"No live tool" }}{% if run.readiness.expected_engine %} {{ run.readiness.expected_engine }}{% endif %}</strong><small>{% if run.readiness.ready %}Readiness verified{% else %}Readiness unavailable{% endif %} · execution_enabled={{ run.execution_enabled|yesno:"true,false" }}</small></div></div></section>
-    <section class="vh-inspector-section"><small>Machine Oracle</small><div class="vh-oracle-state"><span class="vh-oracle-ring" aria-hidden="true"></span><div><strong>{{ run.evaluation_result|default:"Awaiting evidence" }}</strong><small>Evidence-bound verification</small></div></div></section>
-    <section class="vh-inspector-section vh-artifacts-section"><small>Artifacts</small>{% if run.artifacts %}<ul class="vh-artifact-list">{% for artifact in run.artifacts|slice:":3" %}<li><svg aria-hidden="true"><use href="#vh-i-checkdoc"></use></svg><span><strong>{{ artifact.filename }}</strong><code>{{ artifact.size }} bytes · {{ artifact.checksum|slice:":20" }}…</code></span></li>{% endfor %}</ul>{% else %}<div class="vh-inspector-empty">No persisted artifacts</div>{% endif %}<button class="vh-inspector-link" type="button" data-tab-jump="evidence-tab">View all artifacts</button></section>
+    <section class="vh-inspector-section"><div class="vh-inspector-heading"><span>Progress</span><strong class="vh-tabular">{% if run.current_state == 'completed' %}100%{% elif run.execution_state == 'tool_executed' %}78%{% elif run.approval_state == 'pending' %}52%{% else %}35%{% endif %}</strong></div><div class="vh-progress" role="progressbar" aria-label="Assessment progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{% if run.current_state == 'completed' %}100{% elif run.execution_state == 'tool_executed' %}78{% elif run.approval_state == 'pending' %}52{% else %}35{% endif %}"><i class="{% if run.current_state == 'completed' %}vh-progress-100{% elif run.execution_state == 'tool_executed' %}vh-progress-78{% elif run.approval_state == 'pending' %}vh-progress-52{% else %}vh-progress-35{% endif %}"></i></div><small>Current stage: {{ run.execution_state }}</small></section>
+    <div class="vh-inspector-grid"><section><small>Approval Status</small><strong class="{% if pending_approval %}vh-text-warning{% else %}vh-text-safe{% endif %}">{% if approval_record %}{{ approval_record.status.value }}{% else %}{{ run.approval_state }}{% endif %}</strong></section><section><small>Scope Status</small><strong class="vh-text-safe">Bound</strong></section></div>
+    <section class="vh-inspector-section"><small>Current stage</small><div class="vh-tool-identity"><span>›_</span><div><strong>{{ run.workflow_state|default:run.current_state }}</strong><small>{{ run.execution_blocking_reason|default:"Backend state is authoritative" }}</small></div></div>{% if run.recent_events %}{% with latest=run.recent_events|last %}<span class="vh-sse-state">Latest event: {{ latest.event_type }}</span>{% endwith %}{% endif %}<span class="vh-sse-state" data-global-connection-state>EventSource state appears in Activity</span></section>
+    <section class="vh-inspector-section"><small>Tool State</small><div class="vh-tool-identity"><span>›_</span><div><strong>{{ run.requested_tool|default:"No live tool" }}{% if run.readiness.expected_engine %} {{ run.readiness.expected_engine }}{% endif %}</strong><small>{% if run.readiness.ready %}Readiness verified{% else %}Readiness unavailable{% endif %} · execution_enabled={{ run.execution_enabled|yesno:"true,false" }}</small></div></div></section>
+    <section class="vh-inspector-section"><small>Machine Oracle</small><div class="vh-oracle-state"><span class="vh-oracle-ring"></span><div><strong>{{ run.evaluation_result|default:"Awaiting evidence" }}</strong><small>Evidence-bound verification</small></div></div></section>
+    <section class="vh-inspector-section vh-artifacts-section"><small>Artifacts</small>{% if run.artifacts %}<ul class="vh-artifact-list">{% for artifact in run.artifacts|slice:":3" %}<li><svg><use href="#vh-i-checkdoc"></use></svg><span><strong>{{ artifact.filename }}</strong><code>{{ artifact.size }} bytes · {{ artifact.checksum|slice:":20" }}…</code></span></li>{% endfor %}</ul>{% else %}<div class="vh-inspector-empty">No persisted artifacts</div>{% endif %}<button class="vh-inspector-link" type="button" data-tab-jump="evidence-tab">View all artifacts</button></section>
   </aside>
 </div>
 
@@ -110,48 +144,25 @@
     <button id="bottom-path-tab" type="button" role="tab" aria-selected="false" aria-controls="bottom-path-pane" data-tab-target="bottom-path-pane">Attack Path</button>
     <button type="button" data-tab-jump="attack-path-tab">View Full Graph ↗</button>
   </div>
-  <div id="finding-pane" class="vh-result-strip" role="tabpanel" aria-labelledby="finding-tab">
-    <article class="vh-result-summary">{% if run.findings %}{% with finding=run.findings.0 %}<span class="vh-status-chip">{{ finding.verification }}</span><h3>{{ finding.title }}</h3><p>{{ finding.target_reference }}</p><small>{{ run.findings|length }} candidate finding{{ run.findings|length|pluralize }}</small>{% endwith %}{% else %}<span class="vh-status-chip">Awaiting verification</span><h3>No persisted candidate findings</h3><p>Findings appear after normalized evidence review.</p><small>{{ run.current_state }}</small>{% endif %}</article>
-    <div class="vh-result-evidence"><small>Evidence</small>{% for event in run.recent_events|slice:":2" %}<div><svg aria-hidden="true"><use href="#vh-i-checkdoc"></use></svg><span><strong>{{ event.event_type }}</strong><code>sha256: {{ event.event_sha256|slice:":24" }}…</code></span></div>{% empty %}<div class="vh-evidence-empty"><svg aria-hidden="true"><use href="#vh-i-checkdoc"></use></svg><span><strong>No evidence yet</strong><code>Awaiting tool output</code></span></div>{% endfor %}</div>
-    <div class="vh-attack-path">{% if run.attack_path %}<div class="vh-path-row">{% for node in run.attack_path %}<span class="vh-path-node">{{ node.label }}</span>{% if not forloop.last %}<i>→</i>{% endif %}{% endfor %}</div>{% else %}<div class="vh-evidence-empty"><span><strong>No persisted attack path</strong><code>Awaiting evidence</code></span></div>{% endif %}</div>
-  </div>
+  <div id="finding-pane" class="vh-result-strip" role="tabpanel" aria-labelledby="finding-tab"><article class="vh-result-summary">{% if run.findings %}{% with finding=run.findings.0 %}<span class="vh-status-chip">{{ finding.verification }}</span><h3>{{ finding.title }}</h3><p>{{ finding.target_reference }}</p><small>{{ run.findings|length }} candidate finding{{ run.findings|length|pluralize }}</small>{% endwith %}{% else %}<span class="vh-status-chip">Awaiting verification</span><h3>No persisted candidate findings</h3><p>Findings appear after normalized evidence review.</p><small>{{ run.current_state }}</small>{% endif %}</article><div class="vh-result-evidence"><small>Evidence</small>{% for event in run.recent_events|slice:":2" %}<div><svg><use href="#vh-i-checkdoc"></use></svg><span><strong>{{ event.event_type }}</strong><code>sha256: {{ event.event_sha256|slice:":24" }}…</code></span></div>{% empty %}<div class="vh-evidence-empty"><svg><use href="#vh-i-checkdoc"></use></svg><span><strong>No evidence yet</strong><code>Awaiting tool output</code></span></div>{% endfor %}</div><div class="vh-attack-path">{% if run.attack_path %}<div class="vh-path-row">{% for node in run.attack_path %}<span class="vh-path-node">{{ node.label }}</span>{% if not forloop.last %}<i>→</i>{% endif %}{% endfor %}</div>{% else %}<div class="vh-evidence-empty"><span><strong>No persisted attack path</strong><code>Awaiting evidence</code></span></div>{% endif %}</div></div>
   <div id="all-findings-pane" class="vh-bottom-empty-pane" role="tabpanel" aria-labelledby="all-findings-tab" hidden><a href="{% url 'web-findings-overview' %}">Open all findings →</a></div>
-  <div id="bottom-evidence-pane" class="vh-bottom-empty-pane" role="tabpanel" aria-labelledby="bottom-evidence-tab" hidden>{% if run.recent_events %}{{ run.recent_events|length }} audit-linked artifacts available.{% else %}No evidence artifacts yet.{% endif %}</div>
+  <div id="bottom-evidence-pane" class="vh-bottom-empty-pane" role="tabpanel" aria-labelledby="bottom-evidence-tab" hidden>{% if run.recent_events %}{{ run.recent_events|length }} audit-linked events available.{% else %}No evidence artifacts yet.{% endif %}</div>
   <div id="bottom-path-pane" class="vh-bottom-empty-pane" role="tabpanel" aria-labelledby="bottom-path-tab" hidden>Open the Attack Path workspace tab for the full graph.</div>
 </section>
 
 {% if pending_approval %}
 <dialog id="vh-approval-dialog" class="vh-approval-dialog" data-approval-dialog data-auto-open="true" aria-labelledby="vh-approval-title">
   <div class="vh-approval-modal-shell">
-    <header class="vh-approval-modal-header">
-      <div class="vh-approval-modal-icon" aria-hidden="true"><svg><use href="#vh-i-shield"></use></svg></div>
-      <div><span class="vh-risk-label">Human controls</span><h2 id="vh-approval-title">Approval required</h2><p>{{ pending_approval.summary }}</p></div>
-      <button type="button" class="vh-dialog-close" data-approval-close aria-label="Close approval dialog">×</button>
-    </header>
-    <dl class="vh-approval-modal-facts">
-      <div><dt>Action</dt><dd>{{ run.requested_operation|default:pending_approval.summary }}</dd></div>
-      <div><dt>Target</dt><dd>{{ run.scope_summary|default:run.objective }}</dd></div>
-      <div><dt>Risk</dt><dd><span class="vh-risk-badge">{{ pending_approval.risk_summary|truncatechars:34 }}</span></dd></div>
-      <div><dt>Plan digest</dt><dd><code>{{ run.plan_digest }}</code></dd></div>
-    </dl>
+    <header class="vh-approval-modal-header"><div class="vh-approval-modal-icon"><svg><use href="#vh-i-shield"></use></svg></div><div><span class="vh-risk-label">Human controls</span><h2 id="vh-approval-title">Approval required</h2><p>{{ pending_approval.summary }}</p></div><button type="button" class="vh-dialog-close" data-approval-close aria-label="Close approval dialog">×</button></header>
+    <dl class="vh-approval-modal-facts"><div><dt>Action</dt><dd>{{ run.requested_operation|default:pending_approval.summary }}</dd></div><div><dt>Target</dt><dd>{{ run.scope_summary|default:run.objective }}</dd></div><div><dt>Risk</dt><dd><span class="vh-risk-badge">{{ pending_approval.risk_summary|truncatechars:34 }}</span></dd></div><div><dt>Plan digest</dt><dd><code>{{ run.plan_digest }}</code></dd></div></dl>
     {% if can_decide_approval %}
-      <form class="vh-approval-decision-form" method="post" action="{% url 'web-approval-decision' pending_approval.request_id %}">
-        {% csrf_token %}
-        <input type="hidden" name="plan_digest" value="{{ run.plan_digest }}">
-        <input type="hidden" name="next" value="{% url 'web-agent-run-detail' run.run_id %}">
-        <label for="vh-approval-reason">Decision note</label>
-        <textarea id="vh-approval-reason" name="reason" rows="2" minlength="8" maxlength="500" required placeholder="Record why this action is approved or denied."></textarea>
-        <div class="vh-approval-modal-actions">
-          <button class="vh-button-primary" type="submit" name="decision" value="approve_once">Approve Once<small>This action only</small></button>
-          <button class="vh-button-secondary" type="submit" name="decision" value="deny_continue_safely">Deny<small>Block action</small></button>
-          <a href="{% url 'web-approval-detail' pending_approval.request_id %}">Review full request</a>
-        </div>
-      </form>
+      <form class="vh-approval-decision-form" method="post" action="{% url 'web-approval-decision' pending_approval.request_id %}">{% csrf_token %}<input type="hidden" name="plan_digest" value="{{ run.plan_digest }}"><input type="hidden" name="next" value="{% url 'web-agent-run-detail' run.run_id %}"><label for="vh-approval-reason">Decision note</label><textarea id="vh-approval-reason" name="reason" rows="2" minlength="8" maxlength="500" required placeholder="Record why this action is approved or denied."></textarea><div class="vh-approval-modal-actions"><button class="vh-button-primary" type="submit" name="decision" value="approve_once">Approve Once<small>This action only</small></button><button class="vh-button-secondary" type="submit" name="decision" value="deny_continue_safely">Deny<small>Block action</small></button><a href="{% url 'web-approval-detail' pending_approval.request_id %}">Review full request</a></div></form>
     {% else %}
       <div class="vh-approval-readonly"><span>Your role cannot record this decision.</span><a class="vh-button-primary" href="{% url 'web-approval-detail' pending_approval.request_id %}">Open Approval Centre</a></div>
     {% endif %}
   </div>
 </dialog>
 {% endif %}
+
 {% if run.current_state == "completed" %}<section class="vh-completion-banner"><strong>Assessment completed</strong><span>The authoritative backend marked this run completed.</span></section>{% endif %}
 {% endblock %}

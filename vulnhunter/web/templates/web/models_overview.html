@@ -1,5 +1,14 @@
 {% extends "web/base.html" %}
 {% block content %}
-<header class="vh-page-heading"><div><p class="vh-eyebrow">Intelligence</p><h1>Models</h1><p>Advisory-provider and evaluation evidence.</p></div><span class="vh-status-chip">Evidence only</span></header>
-<section class="vh-card"><div class="vh-card-header"><div><h2>Provider status</h2><p>No training control is exposed.</p></div></div><ul class="vh-readiness-list">{% for item in intelligence_status %}<li><span><i></i>{{ item.name }}</span><strong>{{ item.state }}</strong><small>{{ item.detail }}</small></li>{% endfor %}</ul></section>
+<section class="vh-page-shell">
+  <header class="vh-page-header">
+    <div><p class="vh-eyebrow">Intelligence</p><h1>Models</h1><p>Current advisory-provider and graph state.</p></div>
+    <div class="vh-page-actions"><a class="vh-button-secondary" href="{% url 'web-oracle-overview' %}">Machine Oracle</a><a class="vh-button-secondary" href="{% url 'web-dataset-list' %}">Datasets</a></div>
+  </header>
+
+  <section class="vh-surface">
+    <header class="vh-surface-header"><div><h2>Provider status</h2><p>No training or inference action is started from this page.</p></div><span class="vh-panel-count">{{ intelligence_status|length }}</span></header>
+    {% if intelligence_status %}<ul class="vh-compact-list">{% for item in intelligence_status %}<li><span>{{ item.name }}<small>{{ item.detail }}</small></span><strong class="{% if 'READY' in item.state %}vh-state-safe{% else %}vh-state-warning{% endif %}">{{ item.state }}</strong></li>{% endfor %}</ul>{% else %}<div class="vh-empty-panel"><svg aria-hidden="true"><use href="#vh-i-model"></use></svg><h3>No provider status</h3><p>No model or graph provider state is available.</p></div>{% endif %}
+  </section>
+</section>
 {% endblock %}

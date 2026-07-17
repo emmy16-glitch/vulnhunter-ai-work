@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from django.urls import path
-from django.views.generic import RedirectView
 
 from vulnhunter.web import (
     assessment_views,
@@ -48,16 +47,8 @@ urlpatterns = [
     path("roles/<str:role_id>/", views.role_detail_view, name="web-role-detail"),
     path("skills/", views.skill_list_view, name="web-skill-list"),
     path("skills/<str:skill_id>/", views.skill_detail_view, name="web-skill-detail"),
-    path(
-        "agent/runs/",
-        RedirectView.as_view(pattern_name="web-scan-run-list", permanent=False),
-        name="web-agent-run-list",
-    ),
-    path(
-        "agent/runs/<str:run_id>/",
-        RedirectView.as_view(pattern_name="web-scan-run-detail", permanent=False),
-        name="web-agent-run-detail",
-    ),
+    path("agent/runs/", views.agent_run_list_view, name="web-agent-run-list"),
+    path("agent/runs/<str:run_id>/", views.agent_run_detail_view, name="web-agent-run-detail"),
     path(
         "agent/runs/<str:run_id>/activity/",
         views.agent_activity_view,

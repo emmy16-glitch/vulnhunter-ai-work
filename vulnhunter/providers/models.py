@@ -1,4 +1,4 @@
-"""Provider-routing contracts that never embed credentials."""
+"""Bounded remote-advisory provider contracts that never embed credentials."""
 
 from __future__ import annotations
 
@@ -12,9 +12,7 @@ _IDENTIFIER = re.compile(r"^[a-z0-9][a-z0-9._-]{1,127}$")
 
 
 class ProviderKind(StrEnum):
-    LOCAL_OLLAMA = "local_ollama"
-    GROQ_QWEN = "groq_qwen"
-    GROQ_COMPOUND_MINI = "groq_compound_mini"
+    GROQ_ADVISORY = "groq_advisory"
 
 
 class ProviderRequest(BaseModel):
@@ -74,13 +72,13 @@ class ProviderInvocation(BaseModel):
     model: str
     capability: ProviderCapability
     input_sha256: str
-    maximum_input_characters: int = Field(default=100_000, ge=1, le=1_000_000)
-    maximum_output_characters: int = Field(default=20_000, ge=1, le=200_000)
-    maximum_input_bytes: int = Field(default=100_000, ge=1, le=1_000_000)
-    maximum_output_bytes: int = Field(default=20_000, ge=1, le=200_000)
-    maximum_input_tokens: int = Field(default=25_000, ge=1, le=250_000)
-    maximum_output_tokens: int = Field(default=2_000, ge=1, le=20_000)
-    timeout_seconds: int = Field(default=60, ge=1, le=600)
+    maximum_input_characters: int = Field(default=24_000, ge=1, le=100_000)
+    maximum_output_characters: int = Field(default=8_000, ge=1, le=40_000)
+    maximum_input_bytes: int = Field(default=24_000, ge=1, le=100_000)
+    maximum_output_bytes: int = Field(default=8_000, ge=1, le=40_000)
+    maximum_input_tokens: int = Field(default=6_000, ge=1, le=25_000)
+    maximum_output_tokens: int = Field(default=1_200, ge=1, le=4_000)
+    timeout_seconds: int = Field(default=60, ge=1, le=180)
 
     @field_validator("invocation_id", "request_id")
     @classmethod
@@ -104,7 +102,7 @@ class ProviderOutputKind(StrEnum):
 
 
 class ProviderProvenance(BaseModel):
-    """Bounded provider metadata; never contains the raw prompt."""
+    """Bounded provider metadata; never contains the raw prompt or credential."""
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
@@ -128,7 +126,7 @@ class ProviderResponse(BaseModel):
     invocation_id: str
     provider: ProviderKind
     model: str
-    content: str = Field(max_length=200_000)
+    content: str = Field(max_length=40_000)
     output_sha256: str
     output_kind: ProviderOutputKind = ProviderOutputKind.PROPOSAL
     trusted: bool = False

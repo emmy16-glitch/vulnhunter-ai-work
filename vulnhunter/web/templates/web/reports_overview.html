@@ -1,5 +1,27 @@
 {% extends "web/base.html" %}
+{% load static %}
 {% block content %}
-<header class="vh-page-heading"><div><p class="vh-eyebrow">Deliverables</p><h1>Reports</h1><p>Exported findings and evidence.</p></div><a class="vh-button-secondary" href="{% url 'web-pilot-plan-list' %}">Pilot plans</a></header>
-<section class="vh-card"><div class="vh-card-header"><div><h2>Formats</h2><p>Available report outputs.</p></div></div><div class="vh-format-grid">{% for label, state in report_formats %}<article><strong>{{ label }}</strong><small>{{ state }}</small></article>{% endfor %}</div></section>
+<link rel="stylesheet" href="{% static 'web/product.css' %}?v=20260717-integration1">
+<section class="vh-product-page">
+  <header class="vh-product-heading">
+    <div><p class="vh-eyebrow">Deliverables</p><h1>Inspection reports</h1><p>Review the governed output formats supported by the backend. A format being available does not mean a report exists until evidence and review records have been persisted.</p></div>
+    <div class="vh-product-heading-actions"><a class="vh-button-secondary" href="{% url 'web-findings-overview' %}">Findings</a><a class="vh-button-primary" href="{% url 'web-pilot-plan-list' %}">Pilot plans</a></div>
+  </header>
+
+  <section class="vh-format-card-grid" aria-label="Report formats">
+    {% for label, state in report_formats %}
+      <article class="vh-format-card"><span class="vh-product-icon" aria-hidden="true"><svg><use href="#vh-i-report"></use></svg></span><h2>{{ label }}</h2><p>{{ state }}</p><code>Generated only from persisted, policy-approved records</code></article>
+    {% endfor %}
+  </section>
+
+  <div class="vh-product-grid">
+    <section class="vh-product-panel vh-product-span-7">
+      <header class="vh-product-panel-header"><div><h2>Report evidence chain</h2><p>Each deliverable must remain connected to the records that support it.</p></div></header>
+      <ul class="vh-fact-list"><li><span>Assessment source<small>Run state and artifacts come from the agent and evidence stores.</small></span><strong>Required</strong></li><li><span>Finding trust<small>Scanner matches remain candidates until verification and human review.</small></span><strong>Required</strong></li><li><span>Audit provenance<small>Action and evidence references remain hash linked.</small></span><strong>Required</strong></li><li><span>Release authority<small>Publication remains separate from report rendering.</small></span><strong>Separately gated</strong></li></ul>
+    </section>
+    <aside class="vh-product-panel vh-product-span-5 vh-boundary-card">
+      <span class="vh-boundary-icon" aria-hidden="true"><svg><use href="#vh-i-audit"></use></svg></span><div><p class="vh-eyebrow">Real connections</p><h2>Inspect before exporting</h2></div><p>There is no decorative export button here. Open the backend surfaces that supply report content and release authority.</p><div class="vh-card-actions"><a class="vh-button-secondary" href="{% url 'web-agent-run-list' %}">Assessment runs</a><a class="vh-button-secondary" href="{% url 'web-review-queue' %}">Review queue</a><a class="vh-button-secondary" href="{% url 'web-release-list' %}">Releases</a><a class="vh-button-secondary" href="{% url 'web-audit-overview' %}">Audit</a></div>
+    </aside>
+  </div>
+</section>
 {% endblock %}

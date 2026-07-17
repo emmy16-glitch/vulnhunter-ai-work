@@ -1,45 +1,39 @@
 {% extends "web/base.html" %}
+{% load static %}
 {% block content %}
-<header class="vh-page-heading"><div><p class="vh-eyebrow">Android security</p><h1>Mobile APK Analysis</h1><p>Upload, inspect and review Android artifacts.</p></div></header>
+<link rel="stylesheet" href="{% static 'web/product.css' %}?v=20260717-integration1">
+<section class="vh-product-page">
+  <header class="vh-product-heading">
+    <div><p class="vh-eyebrow">Android security</p><h1>Mobile APK analysis</h1><p>Store Android artifacts safely, inspect their recorded metadata and review the governed profiles available for later analysis.</p></div>
+    <div class="vh-product-heading-actions"><a class="vh-button-secondary" href="{% url 'web-security-tool-registry' %}">Tool registry</a><a class="vh-button-primary" href="{% url 'web-status' %}">Runtime status</a></div>
+  </header>
 
-<section class="vh-card">
-  <div class="vh-card-header"><div><h2>Upload APK</h2><p>Files are stored and validated before analysis.</p></div></div>
-  <form method="post" enctype="multipart/form-data" class="vh-form">
-    {% csrf_token %}
-    {{ form.non_field_errors }}
-    <div class="vh-field">
-      {{ form.apk_file.label_tag }}
-      {{ form.apk_file }}
-      {% if form.apk_file.help_text %}<small>{{ form.apk_file.help_text }}</small>{% endif %}
-      {{ form.apk_file.errors }}
-    </div>
-    <button class="vh-button-primary" type="submit">Store APK</button>
-  </form>
-  {% if uploaded_record %}
-    <div class="vh-callout">
-      <strong>{{ uploaded_record.original_filename }}</strong>
-      <small>{{ uploaded_record.artifact_id }}</small>
-      <code>{{ uploaded_record.sha256 }}</code>
-      <span>{{ uploaded_record.dex_entries|length }} DEX · {{ uploaded_record.native_libraries|length }} native libraries</span>
-    </div>
-  {% endif %}
-</section>
+  <div class="vh-mobile-layout">
+    <section class="vh-product-panel">
+      <header class="vh-product-panel-header"><div><h2>Upload APK</h2><p>The backend validates and stores the file; it does not execute it.</p></div></header>
+      <div class="vh-upload-shell">
+        <form method="post" enctype="multipart/form-data" class="vh-form">
+          {% csrf_token %}
+          {{ form.non_field_errors }}
+          <div class="vh-field">{{ form.apk_file.label_tag }}{{ form.apk_file }}{% if form.apk_file.help_text %}<small>{{ form.apk_file.help_text }}</small>{% endif %}{{ form.apk_file.errors }}</div>
+          <button class="vh-button-primary" type="submit">Store APK safely</button>
+        </form>
+        {% if uploaded_record %}<div class="vh-upload-result"><strong>{{ uploaded_record.original_filename }}</strong><small>{{ uploaded_record.artifact_id }}</small><code>{{ uploaded_record.sha256 }}</code><span>{{ uploaded_record.dex_entries|length }} DEX · {{ uploaded_record.native_libraries|length }} native libraries</span></div>{% endif %}
+      </div>
+    </section>
 
-<section class="vh-card">
-  <div class="vh-card-header"><div><h2>Analysis profiles</h2><p>Select a governed workflow.</p></div></div>
-  <div class="vh-format-grid">
-    {% for profile in profiles %}
-      <article><strong>{{ profile.name }}</strong><small>{{ profile.description }}</small><span class="vh-status-chip">{{ profile.gate }}</span></article>
-    {% endfor %}
+    <aside class="vh-product-panel vh-boundary-card">
+      <span class="vh-boundary-icon" aria-hidden="true"><svg><use href="#vh-i-mobile"></use></svg></span><div><p class="vh-eyebrow">Execution boundary</p><h2>Storage is not analysis</h2></div><p>Uploading an APK creates a content-addressed record only. Dynamic analysis still requires a disposable isolated Android runtime and explicit approval.</p><ul class="vh-rule-list"><li><span>Host execution</span><strong>Forbidden</strong></li><li><span>Static tools</span><strong>Policy gated</strong></li><li><span>Dynamic runtime</span><strong>Isolation required</strong></li><li><span>Human approval</span><strong>Required</strong></li></ul><a class="vh-button-secondary" href="{% url 'web-approval-list' %}">Approval Centre</a>
+    </aside>
   </div>
-</section>
 
-<section class="vh-card vh-card-flush">
-  <div class="vh-section-toolbar"><div><h2>Stored artifacts</h2><p>Uploaded APK inventory.</p></div></div>
-  {% if artifacts %}
-    <div class="vh-table-wrap"><table class="vh-table"><thead><tr><th>Artifact</th><th>File</th><th>SHA-256</th><th>Native ABIs</th></tr></thead><tbody>{% for artifact in artifacts %}<tr><td>{{ artifact.artifact_id }}</td><td>{{ artifact.original_filename }}</td><td><code>{{ artifact.sha256 }}</code></td><td>{% for abi in artifact.native_abis %}{{ abi }}{% if not forloop.last %}, {% endif %}{% empty %}none{% endfor %}</td></tr>{% endfor %}</tbody></table></div>
-  {% else %}
-    <div class="vh-zero-state"><span>◎</span><h3>No APK artifacts</h3><p>Upload an APK to begin.</p></div>
-  {% endif %}
+  <section class="vh-profile-grid" aria-label="Mobile analysis profiles" style="margin-top:12px">
+    {% for profile in profiles %}<article class="vh-profile-card"><span class="vh-product-icon"><svg><use href="#vh-i-mobile"></use></svg></span><p class="vh-eyebrow">{{ profile.id }}</p><h2>{{ profile.name }}</h2><p>{{ profile.description }}</p><ul class="vh-rule-list"><li><span>Gate</span><strong>{{ profile.gate }}</strong></li></ul></article>{% endfor %}
+  </section>
+
+  <section class="vh-product-panel">
+    <div class="vh-table-toolbar"><div><h2>Stored APK artifacts</h2><p>Real content-addressed records returned by the mobile artifact store.</p></div><span class="vh-panel-count">{{ artifacts|length }}</span></div>
+    {% if artifacts %}<div class="vh-table-wrap"><table class="vh-table"><thead><tr><th>Artifact</th><th>File</th><th>SHA-256</th><th>Native ABIs</th></tr></thead><tbody>{% for artifact in artifacts %}<tr><td><strong>{{ artifact.artifact_id }}</strong></td><td>{{ artifact.original_filename }}</td><td><code>{{ artifact.sha256 }}</code></td><td>{% for abi in artifact.native_abis %}{{ abi }}{% if not forloop.last %}, {% endif %}{% empty %}none{% endfor %}</td></tr>{% endfor %}</tbody></table></div>{% else %}<div class="vh-product-empty"><svg aria-hidden="true"><use href="#vh-i-mobile"></use></svg><h3>No APK artifacts</h3><p>Choose an APK above to store it safely. No analysis process will start automatically.</p></div>{% endif %}
+  </section>
 </section>
 {% endblock %}

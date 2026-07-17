@@ -1,5 +1,23 @@
 {% extends "web/base.html" %}
 {% block content %}
-<header class="vh-page-heading"><div><p class="vh-eyebrow">Independent verification</p><h1>Machine Oracle</h1><p>Evidence replay and verifier status.</p></div><span class="vh-status-chip vh-status-warning">Live verifier disabled</span></header>
-<section class="vh-card"><div class="vh-card-header"><div><h2>Oracle readiness</h2><p>Verification controls.</p></div></div><ul class="vh-readiness-list">{% for label, state in oracle_checks %}<li><span><i></i>{{ label }}</span><strong>{{ state }}</strong></li>{% endfor %}</ul></section>
+<section class="vh-page-shell">
+  <header class="vh-page-header">
+    <div><p class="vh-eyebrow">Intelligence</p><h1>Machine Oracle</h1><p>Current verification-provider state. No claim is shown as verified until evidence is processed and recorded.</p></div>
+    <div class="vh-page-actions"><a class="vh-button-secondary" href="{% url 'web-findings-overview' %}">Findings</a><a class="vh-button-secondary" href="{% url 'web-model-list' %}">Models</a></div>
+  </header>
+
+  <section class="vh-surface">
+    <header class="vh-surface-header"><div><h2>Provider status</h2><p>Read-only health and configuration checks.</p></div><span class="vh-panel-count">{{ provider_status|length }}</span></header>
+    {% if provider_status %}
+      <ul class="vh-compact-list">{% for item in provider_status %}<li><span>{{ item.name }}<small>{{ item.detail }}</small></span><strong class="{% if 'READY' in item.state %}vh-state-safe{% else %}vh-state-warning{% endif %}">{{ item.state }}</strong></li>{% endfor %}</ul>
+    {% else %}
+      <div class="vh-empty-panel"><svg aria-hidden="true"><use href="#vh-i-oracle"></use></svg><h3>Provider status unavailable</h3><p>No verification provider state was returned.</p></div>
+    {% endif %}
+  </section>
+
+  <section class="vh-surface-grid">
+    <article class="vh-surface vh-surface-span-6"><header class="vh-surface-header"><div><h2>Verification rule</h2><p>Scanner output remains a candidate.</p></div></header><ul class="vh-compact-list"><li><span>Input<small>Evidence-backed claim only.</small></span><strong>Required</strong></li><li><span>Oracle result<small>Advisory until review completes.</small></span><strong>Not final</strong></li><li><span>Human review<small>Required before confirmation.</small></span><strong>Required</strong></li></ul></article>
+    <article class="vh-surface vh-surface-span-6"><header class="vh-surface-header"><div><h2>Related work</h2><p>Open the canonical pages.</p></div></header><div class="vh-surface-body vh-link-grid"><a class="vh-link-card" href="{% url 'web-scan-run-list' %}"><strong>Assessments</strong><span>Evidence and run state</span></a><a class="vh-link-card" href="{% url 'web-review-queue' %}"><strong>Review Queue</strong><span>Independent review</span></a><a class="vh-link-card" href="{% url 'web-audit-overview' %}"><strong>Audit Log</strong><span>Recorded events</span></a></div></article>
+  </section>
+</section>
 {% endblock %}

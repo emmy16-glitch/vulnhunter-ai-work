@@ -1,14 +1,64 @@
 {% extends "web/base.html" %}
+{% load static %}
 {% block content %}
-<header class="vh-page-heading"><div><p class="vh-eyebrow">Security operations</p><h1>Overview</h1><p>Assessments, approvals and verification.</p></div><a class="vh-button-primary" href="{% url 'web-agent-run-list' %}">Open assessments</a></header>
-<section class="vh-metric-grid">
-  <article class="vh-metric-card"><span>Campaign states</span><strong>{{ dashboard.campaign_totals_by_status|length }}</strong><small>Tracked states</small></article>
-  <article class="vh-metric-card"><span>Pending reviews</span><strong>{{ dashboard.pending_reviews|default:"—" }}</strong><small>Analyst decisions</small></article>
-  <article class="vh-metric-card"><span>Pending approvals</span><strong>{{ dashboard.pending_human_approvals|default:"—" }}</strong><small>Awaiting action</small></article>
-  <article class="vh-metric-card"><span>Released campaigns</span><strong>{{ dashboard.released_campaigns|default:"—" }}</strong><small>Published releases</small></article>
-</section>
-<section class="vh-dashboard-grid">
-  <article class="vh-card"><div class="vh-card-header"><div><h2>Capability status</h2><p>Current readiness.</p></div></div><ul class="vh-readiness-list"><li><span><i></i>Authorization store</span><strong>{{ dashboard.status.authorization_store.state }}</strong></li><li><span><i></i>Governance store</span><strong>{{ dashboard.status.governance_store.state }}</strong></li><li><span><i></i>Role registry</span><strong>{{ dashboard.status.role_registry.state }}</strong></li><li><span><i></i>Agent runtime</span><strong>{{ dashboard.status.agent_runtime.state }}</strong></li><li><span><i></i>Audit evidence</span><strong>{{ dashboard.status.audit_evidence.state }}</strong></li></ul></article>
-  <article class="vh-card"><div class="vh-card-header"><div><h2>Recent audit activity</h2><p>Latest recorded events.</p></div></div>{% if dashboard.recent_audit_activity %}<ul class="vh-audit-feed">{% for item in dashboard.recent_audit_activity %}<li><span class="vh-audit-icon">{{ item.source|slice:":1"|upper }}</span><div><strong>{{ item.event_type }}</strong><small>{{ item.source }} · {{ item.subject }}</small><code>{{ item.evidence_reference|default:"Unavailable"|slice:":20" }}…</code></div></li>{% endfor %}</ul>{% else %}<div class="vh-zero-state"><span>◎</span><h3>No audit activity</h3><p>Events will appear here.</p></div>{% endif %}</article>
+<link rel="stylesheet" href="{% static 'web/product.css' %}?v=20260717-integration1">
+<section class="vh-product-page vh-dashboard-page">
+  <header class="vh-product-heading">
+    <div>
+      <p class="vh-eyebrow">Security operations</p>
+      <h1>Operational overview</h1>
+      <p>Monitor governed assessments, human decisions, release readiness and the evidence systems behind every action.</p>
+    </div>
+    <div class="vh-product-heading-actions">
+      <a class="vh-button-secondary" href="{% url 'web-status' %}">System status</a>
+      <a class="vh-button-primary" href="{% url 'web-agent-run-list' %}">Open assessments</a>
+    </div>
+  </header>
+
+  <section class="vh-ops-metric-grid" aria-label="Operational metrics">
+    <article class="vh-ops-metric"><span class="vh-ops-metric-icon" aria-hidden="true"><svg><use href="#vh-i-layers"></use></svg></span><div class="vh-ops-metric-copy"><span>Campaign states</span><strong>{{ dashboard.campaign_totals_by_status|length }}</strong><small>Tracked lifecycle states</small></div></article>
+    <article class="vh-ops-metric"><span class="vh-ops-metric-icon" aria-hidden="true"><svg><use href="#vh-i-review"></use></svg></span><div class="vh-ops-metric-copy"><span>Pending reviews</span><strong>{{ dashboard.pending_reviews|default:"—" }}</strong><small>Analyst decisions required</small></div></article>
+    <article class="vh-ops-metric"><span class="vh-ops-metric-icon" aria-hidden="true"><svg><use href="#vh-i-authorization"></use></svg></span><div class="vh-ops-metric-copy"><span>Pending approvals</span><strong>{{ dashboard.pending_human_approvals|default:"—" }}</strong><small>Human-controlled actions</small></div></article>
+    <article class="vh-ops-metric"><span class="vh-ops-metric-icon" aria-hidden="true"><svg><use href="#vh-i-release"></use></svg></span><div class="vh-ops-metric-copy"><span>Released campaigns</span><strong>{{ dashboard.released_campaigns|default:"—" }}</strong><small>Published governed outputs</small></div></article>
+  </section>
+
+  <div class="vh-product-grid">
+    <section class="vh-product-panel vh-product-span-5" aria-labelledby="dashboard-capability-title">
+      <header class="vh-product-panel-header"><div><h2 id="dashboard-capability-title">Capability status</h2><p>Current control-plane readiness.</p></div><a class="vh-row-link" href="{% url 'web-status' %}">View status</a></header>
+      <ul class="vh-capability-list">
+        <li><span>Authorization store</span><strong>{{ dashboard.status.authorization_store.state }}</strong></li>
+        <li><span>Governance store</span><strong>{{ dashboard.status.governance_store.state }}</strong></li>
+        <li><span>Role registry</span><strong>{{ dashboard.status.role_registry.state }}</strong></li>
+        <li><span>Agent runtime</span><strong>{{ dashboard.status.agent_runtime.state }}</strong></li>
+        <li><span>Audit evidence</span><strong>{{ dashboard.status.audit_evidence.state }}</strong></li>
+      </ul>
+    </section>
+
+    <section class="vh-product-panel vh-product-span-4" aria-labelledby="dashboard-activity-title">
+      <header class="vh-product-panel-header"><div><h2 id="dashboard-activity-title">Recent audit activity</h2><p>Latest persisted evidence events.</p></div><a class="vh-row-link" href="{% url 'web-audit-overview' %}">Open audit</a></header>
+      {% if dashboard.recent_audit_activity %}
+        <ul class="vh-activity-list">{% for item in dashboard.recent_audit_activity %}<li><span class="vh-audit-icon" aria-hidden="true">{{ item.source|slice:":1"|upper }}</span><div><strong>{{ item.event_type }}</strong><small>{{ item.source }} · {{ item.subject }}</small><code>{{ item.evidence_reference|default:"Unavailable"|slice:":20" }}…</code></div></li>{% endfor %}</ul>
+      {% else %}
+        <div class="vh-product-empty"><svg aria-hidden="true"><use href="#vh-i-audit"></use></svg><h3>No audit activity</h3><p>Hash-linked events will appear after governed operations are recorded.</p></div>
+      {% endif %}
+    </section>
+
+    <aside class="vh-product-panel vh-product-span-3 vh-boundary-card" aria-labelledby="dashboard-boundary-title">
+      <span class="vh-boundary-icon" aria-hidden="true"><svg><use href="#vh-i-shield"></use></svg></span>
+      <div><p class="vh-eyebrow">Operating boundary</p><h2 id="dashboard-boundary-title">Authority before capability</h2></div>
+      <p>Tool availability never grants permission. Scope, policy and human approval remain independent gates.</p>
+      <ul class="vh-rule-list"><li><span>Network execution</span><strong>Disabled by default</strong></li><li><span>Consequential actions</span><strong>Approval gated</strong></li><li><span>Evidence release</span><strong>Human reviewed</strong></li></ul>
+      <a class="vh-button-secondary" href="{% url 'web-governance-overview' %}">Open governance</a>
+    </aside>
+
+    <section class="vh-product-panel vh-product-span-12" aria-labelledby="dashboard-actions-title">
+      <header class="vh-product-panel-header"><div><h2 id="dashboard-actions-title">Connected work areas</h2><p>Every action below opens a real authenticated backend surface.</p></div></header>
+      <div class="vh-action-grid vh-panel-body">
+        <article class="vh-action-card"><span class="vh-product-icon" aria-hidden="true"><svg><use href="#vh-i-authorization"></use></svg></span><h2>Authorization and scope</h2><p>Inspect active permission records before creating a governed plan.</p><div class="vh-card-actions"><a class="vh-button-secondary" href="{% url 'web-authorization-list' %}">Open authorizations</a></div></article>
+        <article class="vh-action-card"><span class="vh-product-icon" aria-hidden="true"><svg><use href="#vh-i-shield"></use></svg></span><h2>Approval Centre</h2><p>Review recorded requests and submit CSRF-protected decisions when your role permits.</p><div class="vh-card-actions"><a class="vh-button-secondary" href="{% url 'web-approval-list' %}">Review approvals</a></div></article>
+        <article class="vh-action-card"><span class="vh-product-icon" aria-hidden="true"><svg><use href="#vh-i-report"></use></svg></span><h2>Inspection and reports</h2><p>Open evidence-backed findings and the available governed reporting formats.</p><div class="vh-card-actions"><a class="vh-button-secondary" href="{% url 'web-findings-overview' %}">Findings</a><a class="vh-button-secondary" href="{% url 'web-reports-overview' %}">Reports</a></div></article>
+      </div>
+    </section>
+  </div>
 </section>
 {% endblock %}

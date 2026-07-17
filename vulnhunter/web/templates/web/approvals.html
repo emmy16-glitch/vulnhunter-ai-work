@@ -1,7 +1,27 @@
 {% extends "web/base.html" %}
+{% load static %}
 {% block content %}
-<header class="vh-page-heading"><div><p class="vh-eyebrow">Human control</p><h1>Approval Centre</h1><p>Review gated actions.</p></div></header>
-<section class="vh-card vh-card-flush">
-  {% if approvals %}<div class="vh-table-wrap"><table class="vh-table"><thead><tr><th>Request</th><th>Campaign</th><th>Status</th><th>Expires</th></tr></thead><tbody>{% for approval in approvals %}<tr><td><a href="{% url 'web-approval-detail' approval.request_id %}">{{ approval.request_id }}</a></td><td>{{ approval.campaign_id }}</td><td>{{ approval.status.value }}</td><td>{{ approval.expires_at }}</td></tr>{% endfor %}</tbody></table></div>{% else %}<div class="vh-zero-state"><span>◎</span><h3>No pending approvals</h3><p>Requests will appear here.</p></div>{% endif %}
+<link rel="stylesheet" href="{% static 'web/product.css' %}?v=20260717-integration1">
+<section class="vh-product-page">
+  <header class="vh-product-heading">
+    <div><p class="vh-eyebrow">Human control</p><h1>Approval Centre</h1><p>Review persisted requests, inspect their exact action binding and open the decision surface permitted by your governed role.</p></div>
+    <div class="vh-product-heading-actions"><a class="vh-button-secondary" href="{% url 'web-agent-run-list' %}">Assessment runs</a><a class="vh-button-primary" href="{% url 'web-audit-overview' %}">Open audit</a></div>
+  </header>
+
+  <section class="vh-ops-metric-grid" aria-label="Approval summary">
+    <article class="vh-ops-metric"><span class="vh-ops-metric-icon"><svg><use href="#vh-i-shield"></use></svg></span><div class="vh-ops-metric-copy"><span>Recorded requests</span><strong>{{ approvals|length }}</strong><small>Read directly from the approval ledger</small></div></article>
+    <article class="vh-ops-metric"><span class="vh-ops-metric-icon"><svg><use href="#vh-i-checkdoc"></use></svg></span><div class="vh-ops-metric-copy"><span>Decision binding</span><strong>Digest</strong><small>Plan changes invalidate the decision path</small></div></article>
+    <article class="vh-ops-metric"><span class="vh-ops-metric-icon"><svg><use href="#vh-i-team"></use></svg></span><div class="vh-ops-metric-copy"><span>Authority</span><strong>Role based</strong><small>The backend checks the deciding identity</small></div></article>
+    <article class="vh-ops-metric"><span class="vh-ops-metric-icon"><svg><use href="#vh-i-audit"></use></svg></span><div class="vh-ops-metric-copy"><span>Decision history</span><strong>Append only</strong><small>Events remain available on each request</small></div></article>
+  </section>
+
+  <section class="vh-product-panel">
+    <div class="vh-table-toolbar"><div><h2>Approval requests</h2><p>Open a request to review its full facts and submit a real backend decision.</p></div><span class="vh-panel-count">{{ approvals|length }}</span></div>
+    {% if approvals %}
+      <div class="vh-table-wrap"><table class="vh-table"><thead><tr><th>Request</th><th>Campaign / run</th><th>Status</th><th>Requested by</th><th>Expires</th><th></th></tr></thead><tbody>{% for approval in approvals %}<tr><td><strong>{{ approval.request_id }}</strong><small>{{ approval.summary|truncatechars:72 }}</small></td><td><strong>{{ approval.campaign_id }}</strong><small>{{ approval.run_id }}</small></td><td><span class="vh-status-chip">{{ approval.status.value }}</span></td><td>{{ approval.requested_by }}</td><td>{{ approval.expires_at }}</td><td><a class="vh-table-primary-link" href="{% url 'web-approval-detail' approval.request_id %}">Review request →</a></td></tr>{% endfor %}</tbody></table></div>
+    {% else %}
+      <div class="vh-product-empty"><svg aria-hidden="true"><use href="#vh-i-shield"></use></svg><h3>No approval requests</h3><p>Requests appear only after a governed assessment creates an approval-bound plan.</p><a class="vh-button-secondary" href="{% url 'web-agent-run-list' %}">Open assessments</a></div>
+    {% endif %}
+  </section>
 </section>
 {% endblock %}

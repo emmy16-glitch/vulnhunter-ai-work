@@ -19,19 +19,19 @@
       "version_pin": {
         "scanner_id": "nuclei",
         "adapter_id": "nuclei-controlled-harness",
-        "adapter_version": "1.0.0",
+        "adapter_version": "1.1.0",
         "engine_version": "v3.11.0",
         "protocol_version": "1.0",
         "feed": {
           "feed_id": "nuclei-templates",
           "release": "v10.4.5",
           "manifest_path": "config/security_tools/nuclei_template_manifest.json",
-          "manifest_sha256": "450b643a7ce5be7eb169ff96f77bac53c30c73832d99c2c4021bcb6428569b16"
+          "manifest_sha256": "088f533aaa631f178bde29c3589d286b3bb136f839772a39d9276f16b545d35c"
         }
       },
       "notes": [
-        "The controlled harness is implemented but production execution remains disabled.",
-        "The reviewed template manifest is currently empty."
+        "The default manager harness remains execution-disabled.",
+        "A worker-local passive pilot can run one reviewed private-lab template only after separate activation."
       ]
     },
     {

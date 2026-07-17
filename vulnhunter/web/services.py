@@ -24,12 +24,7 @@ from vulnhunter.pilot import PilotPlan, PilotPlanLoadError, assess_pilot_plan, l
 from vulnhunter.product import ProductApplicationService
 from vulnhunter.product.service import ProductPaths
 from vulnhunter.product_spec.registry import ProductInterfaceSpec
-from vulnhunter.providers import (
-    GroqProvider,
-    GroqProviderError,
-    OllamaProvider,
-    OllamaProviderError,
-)
+from vulnhunter.providers import GroqProvider, GroqProviderError
 from vulnhunter.repository_graph import GraphifyAdapter, GraphifyAdapterError
 from vulnhunter.roles import RoleRegistry
 from vulnhunter.web.models import WebUserMapping
@@ -471,7 +466,7 @@ def navigation_for(user: Any) -> tuple[dict[str, object], ...]:
 
 
 def intelligence_status() -> tuple[dict[str, str], ...]:
-    """Return bounded, non-secret provider states without triggering inference."""
+    """Return non-secret graph, advisory, and verification states without inference."""
 
     repository_root = Path(settings.BASE_DIR).resolve()
     try:
@@ -501,51 +496,11 @@ def intelligence_status() -> tuple[dict[str, str], ...]:
             ),
         }
 
-    try:
-        ollama = OllamaProvider(
-            endpoint=settings.VULNHUNTER_OLLAMA_ENDPOINT,
-            approved_models=(settings.VULNHUNTER_OLLAMA_MODEL,),
-            connection_timeout_seconds=1,
-            health_timeout_seconds=2,
-            context_tokens=settings.VULNHUNTER_OLLAMA_CONTEXT_TOKENS,
-        )
-        health = ollama.health()
-    except OllamaProviderError as exc:
-        ollama_row = {
-            "name": "Local Ollama/Qwen",
-            "state": "NOT_READY",
-            "detail": f"Local provider configuration was rejected: {exc}",
-        }
-    else:
-        inference_enabled = bool(settings.VULNHUNTER_OLLAMA_INFERENCE_ENABLED)
-        model_ready = health.reachable and health.model_digest is not None
-        if model_ready and inference_enabled:
-            state = "READY_ENABLED"
-            detail = (
-                f"Loopback model {health.model} is healthy; bounded advisory inference is enabled."
-            )
-        elif model_ready:
-            state = "CODE_READY_DISABLED"
-            detail = (
-                f"Loopback model {health.model} is installed, but bounded inference remains "
-                "disabled until the controlled readiness command passes."
-            )
-        elif health.reachable:
-            state = "NOT_READY"
-            detail = health.reason
-        else:
-            state = "NOT_READY"
-            detail = "Loopback provider health is unavailable; deterministic workflows continue."
-        ollama_row = {
-            "name": "Local Ollama/Qwen",
-            "state": state,
-            "detail": detail,
-        }
     if not settings.VULNHUNTER_GROQ_ENABLED:
         groq_row = {
-            "name": "Groq Cloud advisory",
+            "name": "Groq advisory",
             "state": "CODE_READY_DISABLED",
-            "detail": "Remote inference is disabled. Deterministic workflows continue without AI.",
+            "detail": "Groq is optional and disabled. Deterministic workflows continue.",
         }
     else:
         try:
@@ -559,33 +514,28 @@ def intelligence_status() -> tuple[dict[str, str], ...]:
                 connection_timeout_seconds=3,
                 health_timeout_seconds=8,
             )
-            groq_health = groq.health()
+            health = groq.health()
         except GroqProviderError as exc:
             groq_row = {
-                "name": "Groq Cloud advisory",
+                "name": "Groq advisory",
                 "state": "NOT_READY",
                 "detail": f"Groq configuration was rejected safely: {exc}",
             }
         else:
-            ready = groq_health.reachable and groq_health.model is not None
+            ready = health.reachable and health.model is not None
             groq_row = {
-                "name": "Groq Cloud advisory",
+                "name": "Groq advisory",
                 "state": "READY_ENABLED" if ready else "NOT_READY",
                 "detail": (
-                    f"Approved remote model {groq_health.model} is available; "
-                    "output remains advisory."
+                    f"Approved advisory model {health.model} is available."
                     if ready
-                    else groq_health.reason
+                    else health.reason
                 ),
             }
 
-    return (
-        graphify_row,
-        ollama_row,
-        groq_row,
-        {
-            "name": "Machine Oracle external execution",
-            "state": "INTENTIONALLY_DISABLED",
-            "detail": "Proof contracts are present; external verifier execution is inactive.",
-        },
-    )
+    verification_row = {
+        "name": "Deterministic verification",
+        "state": "READY_ENABLED",
+        "detail": "Verification runs inside assessments and cannot publish findings.",
+    }
+    return (graphify_row, groq_row, verification_row)

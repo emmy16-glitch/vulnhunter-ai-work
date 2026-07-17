@@ -29,7 +29,7 @@ def _load_preview_environment() -> None:
     """Load allowlisted provider settings without reading credential contents."""
 
     root = Path.home() / ".config" / "vulnhunter"
-    for config in (root / "local-ai.env", root / "groq.env"):
+    for config in (root / "groq.env",):
         if not config.is_file() or config.is_symlink():
             continue
         for raw_line in config.read_text(encoding="utf-8").splitlines():
@@ -71,7 +71,6 @@ def main() -> int:
         str(root / ".local" / "runtime" / "governance" / "governance.db"),
     )
     os.environ.setdefault("VULNHUNTER_OLLAMA_ENDPOINT", "http://127.0.0.1:11434")
-    os.environ.setdefault("VULNHUNTER_OLLAMA_MODEL", "qwen3.5:2b-q4_k_m")
     os.environ.setdefault("VULNHUNTER_OLLAMA_CONTEXT_TOKENS", "1024")
     os.environ.setdefault("VULNHUNTER_OLLAMA_TIMEOUT_SECONDS", "600")
     database = Path(os.environ["VULNHUNTER_AGENT_DATABASE"])

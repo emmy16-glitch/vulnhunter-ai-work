@@ -27,7 +27,7 @@
     </aside>
   </div>
 
-  <section class="vh-profile-grid" aria-label="Mobile analysis profiles" style="margin-top:12px">
+  <section class="vh-profile-grid" aria-label="Mobile analysis profiles">
     {% for profile in profiles %}<article class="vh-profile-card"><span class="vh-product-icon"><svg><use href="#vh-i-mobile"></use></svg></span><p class="vh-eyebrow">{{ profile.id }}</p><h2>{{ profile.name }}</h2><p>{{ profile.description }}</p><ul class="vh-rule-list"><li><span>Gate</span><strong>{{ profile.gate }}</strong></li></ul></article>{% endfor %}
   </section>
 

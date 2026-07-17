@@ -1,21 +1,40 @@
 {% extends "web/base.html" %}
 {% block content %}
-<header class="vh-page-heading"><div><p class="vh-eyebrow">Collection</p><h1>New governed assessment</h1><p>Select exact values from an active authorization.</p></div><span class="vh-status-chip vh-status-warning">Execution disabled</span></header>
-{% if error_message %}<section class="vh-operational-notice is-danger"><strong>Authorization store unavailable</strong><p>{{ error_message }}</p></section>{% endif %}
-<section class="vh-card vh-governed-assessment-form">
-  {% if authorizations %}
-  <form method="post">
-    {% csrf_token %}
-    <div class="vh-assessment-form-grid">
-      <label>Authorization<select name="authorization_id" required>{% for item in authorizations %}<option value="{{ item.authorization_id }}">{{ item.display_label }} · expires {{ item.expires_at }}</option>{% endfor %}</select></label>
-      <label>Exact target<select name="target" required>{% for item in authorizations %}{% for target in item.approved_targets %}<option value="{{ target }}">{{ target }}</option>{% endfor %}{% endfor %}</select></label>
-      <label>Protocol<select name="protocol" required>{% for item in authorizations %}{% for protocol in item.approved_protocols %}<option value="{{ protocol }}">{{ protocol }}</option>{% endfor %}{% endfor %}</select></label>
-      <label>Port<select name="port" required>{% for item in authorizations %}{% for port in item.approved_ports %}<option value="{{ port }}">{{ port }}</option>{% endfor %}{% endfor %}</select></label>
-      <label>Profile<select name="profile" required>{% for item in authorizations %}{% for profile in item.approved_profiles %}<option value="{{ profile }}">{{ profile }}</option>{% endfor %}{% endfor %}</select></label>
-    </div>
-    <button class="vh-button-primary" type="submit">Create governed plan</button>
-  </form>
-  {% else %}<div class="vh-zero-state is-compact"><h3>No active authorization</h3><p>A reviewed Nuclei activation binding is required.</p></div>{% endif %}
+<section class="vh-page-shell">
+  <header class="vh-page-header">
+    <div><p class="vh-eyebrow">Assessments</p><h1>New Assessment</h1><p>Select values from an active authorization. The backend checks the complete combination before creating a plan.</p></div>
+    <div class="vh-page-actions"><a class="vh-button-secondary" href="{% url 'web-scan-run-list' %}">Assessment runs</a><a class="vh-button-secondary" href="{% url 'web-advanced-profiles' %}">Profiles</a></div>
+  </header>
+
+  {% if error_message %}<section class="vh-operational-notice is-danger"><strong>Assessment not created</strong><p>{{ error_message }}</p></section>{% endif %}
+
+  <div class="vh-surface-grid">
+    <section class="vh-surface vh-surface-span-8">
+      <header class="vh-surface-header"><div><h2>Assessment plan</h2><p>Only authorization-bound values are accepted.</p></div><span class="vh-status-chip vh-status-warning">Planning only</span></header>
+      <div class="vh-surface-body">
+        {% if authorizations %}
+          <form method="post" class="vh-form">
+            {% csrf_token %}
+            <div class="vh-assessment-form-grid">
+              <label>Authorization<select name="authorization_id" required>{% for item in authorizations %}<option value="{{ item.authorization_id }}">{{ item.display_label }} · expires {{ item.expires_at }}</option>{% endfor %}</select></label>
+              <label>Target<select name="target" required>{% for item in authorizations %}{% for target in item.approved_targets %}<option value="{{ target }}">{{ target }}</option>{% endfor %}{% endfor %}</select></label>
+              <label>Protocol<select name="protocol" required>{% for item in authorizations %}{% for protocol in item.approved_protocols %}<option value="{{ protocol }}">{{ protocol }}</option>{% endfor %}{% endfor %}</select></label>
+              <label>Port<select name="port" required>{% for item in authorizations %}{% for port in item.approved_ports %}<option value="{{ port }}">{{ port }}</option>{% endfor %}{% endfor %}</select></label>
+              <label>Assessment profile<select name="profile" required>{% for item in authorizations %}{% for profile in item.approved_profiles %}<option value="{{ profile }}">{{ profile }}</option>{% endfor %}{% endfor %}</select></label>
+              <label class="vh-engine-field">Scanning engine<select name="scanner_engine" required><option value="automatic" selected>Automatic — Recommended</option><option value="nuclei">Nuclei</option></select><span class="vh-engine-state"><i></i>Nuclei is wired for governed planning; execution remains disabled.</span></label>
+            </div>
+            <div class="vh-card-actions"><button class="vh-button-primary" type="submit">Create plan</button></div>
+          </form>
+        {% else %}
+          <div class="vh-empty-panel"><svg aria-hidden="true"><use href="#vh-i-authorization"></use></svg><h3>No active authorization</h3><p>A current Nuclei activation binding is required before a plan can be created.</p><a class="vh-button-secondary" href="{% url 'web-authorization-list' %}">Authorizations</a></div>
+        {% endif %}
+      </div>
+    </section>
+
+    <aside class="vh-surface vh-surface-span-4">
+      <header class="vh-surface-header"><div><h2>Current boundary</h2><p>Creating a plan does not start a scan.</p></div></header>
+      <ul class="vh-compact-list"><li><span>Target and port<small>Must match one authorization.</small></span><strong>Server checked</strong></li><li><span>Scanner<small>Automatic currently resolves to Nuclei.</small></span><strong>Nuclei</strong></li><li><span>Approval<small>Bound to the exact plan digest.</small></span><strong>Required</strong></li><li><span>Execution<small>The production runner remains blocked.</small></span><strong class="vh-state-warning">Disabled</strong></li></ul>
+    </aside>
+  </div>
 </section>
-<section class="vh-card vh-launch-boundary"><div><p class="vh-eyebrow">Activation boundary</p><h2>Planning only</h2><p>Web launch not enabled for execution. The backend revalidates every value; readiness does not grant execution permission, and execution_enabled remains false.</p></div><a class="vh-button-secondary" href="{% url 'web-scan-run-list' %}">Open assessments</a></section>
 {% endblock %}

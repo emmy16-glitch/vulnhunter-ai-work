@@ -1,4 +1,4 @@
-"""Deterministic-first AI routing policy."""
+"""Deterministic-first advisory routing policy."""
 
 from __future__ import annotations
 
@@ -11,45 +11,32 @@ class AiRoutingError(RuntimeError):
 
 def decide_route(request: RoutingRequest) -> AiRouteDecision:
     if request.privacy_class == PrivacyClass.UNKNOWN:
-        return _decision(request, AiRoute.DENIED, "unknown privacy classification fails closed")
+        return _decision(request, AiRoute.DENIED, "unknown privacy classification")
     if request.deterministic_sufficient:
         return _decision(request, AiRoute.DETERMINISTIC, "deterministic processing is sufficient")
-    if request.public_freshness_required:
-        if request.privacy_class != PrivacyClass.PUBLIC:
-            return _decision(
-                request, AiRoute.DENIED, "current public lookup cannot receive private data"
-            )
-        return _decision(
-            request, AiRoute.GROQ_COMPOUND_MINI, "approved public-current-information route"
-        )
     if request.privacy_class in {PrivacyClass.SECRET, PrivacyClass.CUSTOMER_PRIVATE}:
-        return _decision(
-            request, AiRoute.HUMAN_ESCALATION, "private data cannot route to cloud providers"
-        )
+        return _decision(request, AiRoute.HUMAN_ESCALATION, "human review is required")
     if request.non_sensitive_reasoning_approved:
-        return _decision(request, AiRoute.GROQ_QWEN, "approved difficult non-sensitive reasoning")
-    if request.escalation_reason:
-        return _decision(request, AiRoute.LOCAL_QWEN_STRONG, request.escalation_reason)
-    if request.route_history.count(AiRoute.LOCAL_QWEN_SMALL) >= 1:
-        return _decision(request, AiRoute.HUMAN_ESCALATION, "repeated local model loop blocked")
-    return _decision(request, AiRoute.LOCAL_QWEN_SMALL, "bounded local candidate generation")
+        if request.route_history.count(AiRoute.GROQ_ADVISORY) >= 1:
+            return _decision(request, AiRoute.HUMAN_ESCALATION, "advisory retry limit reached")
+        return _decision(request, AiRoute.GROQ_ADVISORY, "bounded advisory analysis approved")
+    return _decision(
+        request,
+        AiRoute.HUMAN_ESCALATION,
+        request.escalation_reason or "deterministic processing was insufficient",
+    )
 
 
 def _decision(request: RoutingRequest, route: AiRoute, reason: str) -> AiRouteDecision:
-    provider = "none"
-    if route in {AiRoute.LOCAL_QWEN_SMALL, AiRoute.LOCAL_QWEN_STRONG}:
-        provider = "local-disabled-contract"
-    elif route in {AiRoute.GROQ_QWEN, AiRoute.GROQ_COMPOUND_MINI}:
-        provider = "groq-disabled-contract"
     return AiRouteDecision(
         task_id=request.task_id,
         route=route,
-        provider=provider,
+        provider="groq-advisory" if route == AiRoute.GROQ_ADVISORY else "none",
         model_role=route.value,
         reason=reason,
         input_sha256=request.input_sha256,
         privacy_class=request.privacy_class,
-        deterministic_alternatives=("rules", "hashing", "schema_validation"),
+        deterministic_alternatives=("rules", "hashing", "schema_validation", "human_review"),
         output_trusted=False,
-        stop_condition="no provider activation performed",
+        stop_condition="one advisory attempt maximum",
     )

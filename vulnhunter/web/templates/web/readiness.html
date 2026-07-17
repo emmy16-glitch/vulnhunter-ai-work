@@ -3,7 +3,7 @@
 <section class="vh-page-shell">
   <header class="vh-page-header">
     <div><p class="vh-eyebrow">Campaign</p><h1>Readiness</h1><p>Release and model-training readiness for this campaign.</p></div>
-    <div class="vh-page-actions"><a class="vh-button-secondary" href="{% url 'web-campaign-detail' campaign_id %}">Campaign</a><a class="vh-button-secondary" href="{% url 'web-dataset-list' %}">Datasets</a></div>
+    <div class="vh-page-actions"><a class="vh-button-secondary" href="{% url 'web-campaign-detail' campaign.campaign_id %}">Campaign</a><a class="vh-button-secondary" href="{% url 'web-dataset-list' %}">Datasets</a></div>
   </header>
 
   {% if readiness %}

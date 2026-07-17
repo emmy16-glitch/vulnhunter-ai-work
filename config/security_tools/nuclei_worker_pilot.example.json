@@ -1,0 +1,12 @@
+{
+  "schema_version": "1.0",
+  "enabled": false,
+  "worker_id": "private-lab-worker-01",
+  "nuclei_executable": "/opt/vulnhunter/bin/nuclei",
+  "template_root": "/opt/vulnhunter/pilot-templates",
+  "maximum_rate_limit": 1,
+  "maximum_concurrency": 1,
+  "maximum_observations": 250,
+  "poll_interval_seconds": 0.1,
+  "private_targets_only": true
+}

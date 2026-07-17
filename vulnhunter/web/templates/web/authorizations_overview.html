@@ -1,9 +1,29 @@
 {% extends "web/base.html" %}
+{% load static %}
 {% block content %}
-<header class="vh-page-heading"><div><p class="vh-eyebrow">Collection</p><h1>Authorizations</h1><p>Active permission records and scope limits.</p></div></header>
-<section class="vh-card vh-card-flush">
-{% if error_message %}<div class="vh-operational-notice is-danger"><strong>Store unavailable</strong><p>{{ error_message }}</p></div>
-{% elif authorizations %}<div class="vh-table-wrap"><table class="vh-table"><thead><tr><th>Authorization</th><th>Target</th><th>Status</th><th>Expires</th><th>Limits</th></tr></thead><tbody>{% for item in authorizations %}<tr><td><strong>{{ item.authorization_id }}</strong><code>{{ item.record_sha256|slice:":18" }}…</code></td><td><strong>{{ item.hostname }}:{{ item.port }}</strong><small>{{ item.path_boundary }}</small></td><td><span class="vh-status-chip {% if item.status == 'active' %}vh-status-safe{% else %}vh-status-danger{% endif %}">{{ item.status }}</span></td><td>{{ item.expires_at }}</td><td><small>{{ item.limits.maximum_requests }} requests · {{ item.limits.maximum_pages }} pages</small></td></tr>{% endfor %}</tbody></table></div>
-{% else %}<div class="vh-zero-state"><span>◎</span><h3>No authorization records</h3><p>Create permission records through the governed authorization workflow.</p></div>{% endif %}
+<link rel="stylesheet" href="{% static 'web/product.css' %}?v=20260717-integration1">
+<section class="vh-product-page">
+  <header class="vh-product-heading">
+    <div><p class="vh-eyebrow">Collection</p><h1>Authorizations</h1><p>Inspect the real permission records that bound assessment targets, expiry and request limits.</p></div>
+    <div class="vh-product-heading-actions"><a class="vh-button-secondary" href="{% url 'web-governance-overview' %}">Governance</a><a class="vh-button-primary" href="{% url 'web-agent-run-list' %}">Start from assessments</a></div>
+  </header>
+
+  <section class="vh-ops-metric-grid" aria-label="Authorization summary">
+    <article class="vh-ops-metric"><span class="vh-ops-metric-icon"><svg><use href="#vh-i-authorization"></use></svg></span><div class="vh-ops-metric-copy"><span>Stored records</span><strong>{{ authorizations|length }}</strong><small>Loaded from the authorization database</small></div></article>
+    <article class="vh-ops-metric"><span class="vh-ops-metric-icon"><svg><use href="#vh-i-shield"></use></svg></span><div class="vh-ops-metric-copy"><span>Target entry</span><strong>Exact</strong><small>No unrestricted free-text target launch</small></div></article>
+    <article class="vh-ops-metric"><span class="vh-ops-metric-icon"><svg><use href="#vh-i-audit"></use></svg></span><div class="vh-ops-metric-copy"><span>Integrity</span><strong>Hash bound</strong><small>Record provenance remains inspectable</small></div></article>
+    <article class="vh-ops-metric"><span class="vh-ops-metric-icon"><svg><use href="#vh-i-activity"></use></svg></span><div class="vh-ops-metric-copy"><span>Assessment use</span><strong>Revalidated</strong><small>The backend reloads scope before planning</small></div></article>
+  </section>
+
+  <section class="vh-product-panel">
+    <div class="vh-table-toolbar"><div><h2>Authorization registry</h2><p>Only stored records are shown; no permission is inferred by the browser.</p></div><span class="vh-panel-count">{{ authorizations|length }}</span></div>
+    {% if error_message %}
+      <div class="vh-operational-notice is-danger"><strong>Store unavailable</strong><p>{{ error_message }}</p></div>
+    {% elif authorizations %}
+      <div class="vh-table-wrap"><table class="vh-table"><thead><tr><th>Authorization</th><th>Target boundary</th><th>Status</th><th>Expires</th><th>Limits</th></tr></thead><tbody>{% for item in authorizations %}<tr><td><strong>{{ item.authorization_id }}</strong><code>{{ item.record_sha256|slice:":18" }}…</code></td><td><strong>{{ item.hostname }}:{{ item.port }}</strong><small>{{ item.path_boundary }}</small></td><td><span class="vh-status-chip {% if item.status == 'active' %}vh-status-safe{% else %}vh-status-danger{% endif %}">{{ item.status }}</span></td><td>{{ item.expires_at }}</td><td><small>{{ item.limits.maximum_requests }} requests · {{ item.limits.maximum_pages }} pages</small></td></tr>{% endfor %}</tbody></table></div>
+    {% else %}
+      <div class="vh-product-empty"><svg aria-hidden="true"><use href="#vh-i-authorization"></use></svg><h3>No authorization records</h3><p>Create permission records through the governed authorization workflow before attempting an assessment.</p><a class="vh-button-secondary" href="{% url 'web-governance-overview' %}">Open governance</a></div>
+    {% endif %}
+  </section>
 </section>
 {% endblock %}

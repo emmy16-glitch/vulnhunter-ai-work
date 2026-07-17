@@ -1,38 +1,18 @@
 {% extends "web/base.html" %}
 {% block content %}
-<section class="vh-grid">
-  <article class="vh-card">
-    <h3>{{ skill.display_name }}</h3>
-    <p>{{ skill.purpose }}</p>
-    <ul class="vh-key-value-list">
-      <li><strong>Identifier</strong><code>{{ skill.skill_id }}</code></li>
-      <li><strong>Version</strong><span>{{ skill.version }}</span></li>
-      <li><strong>Risk</strong><span>{{ skill.risk_level }}</span></li>
-      <li><strong>Status</strong><span>{{ skill.status }}</span></li>
-      <li><strong>Operational state</strong><span>{{ skill.operational_state }}</span></li>
-      <li><strong>Last reviewed</strong><span>{{ skill.last_reviewed_on }}</span></li>
-    </ul>
-  </article>
-  <article class="vh-card">
-    <h3>Actions and tools</h3>
-    <h4>Allowed actions</h4>
-    <ul class="vh-rows">{% for item in skill.allowed_actions %}<li><code>{{ item }}</code></li>{% empty %}<li>None</li>{% endfor %}</ul>
-    <h4>Denied actions</h4>
-    <ul class="vh-rows">{% for item in skill.denied_actions %}<li><code>{{ item }}</code></li>{% empty %}<li>None</li>{% endfor %}</ul>
-    <h4>Required tools</h4>
-    <ul class="vh-rows">{% for item in skill.required_tools %}<li><code>{{ item }}</code></li>{% empty %}<li>None</li>{% endfor %}</ul>
-  </article>
-</section>
-<section class="vh-grid">
-  <article class="vh-card">
-    <h3>Verification requirements</h3>
-    <ul class="vh-rows">{% for item in skill.verification_requirements %}<li>{{ item }}</li>{% empty %}<li>None</li>{% endfor %}</ul>
-    <h4>Required tests</h4>
-    <ul class="vh-rows">{% for item in skill.required_tests %}<li>{{ item }}</li>{% empty %}<li>None</li>{% endfor %}</ul>
-  </article>
-  <article class="vh-card">
-    <h3>Rollback procedure</h3>
-    <ul class="vh-rows">{% for item in skill.rollback_procedure %}<li>{{ item }}</li>{% empty %}<li>None</li>{% endfor %}</ul>
-  </article>
+<section class="vh-page-shell">
+  <header class="vh-page-header">
+    <div><p class="vh-eyebrow">Skill</p><h1>{{ skill.display_name }}</h1><p>{{ skill.purpose }}</p></div>
+    <div class="vh-page-actions"><a class="vh-button-secondary" href="{% url 'web-skill-list' %}">All Skills</a><a class="vh-button-secondary" href="{% url 'web-security-tool-registry' %}">Integrations &amp; Tools</a></div>
+  </header>
+
+  <section class="vh-summary-strip"><article class="vh-summary-item"><small>Identifier</small><strong>{{ skill.skill_id }}</strong><span>Version {{ skill.version }}</span></article><article class="vh-summary-item"><small>Status</small><strong>{{ skill.operational_state }}</strong><span>{{ skill.status }}</span></article><article class="vh-summary-item"><small>Risk</small><strong>{{ skill.risk_level }}</strong><span>{{ skill.trust_assumption }}</span></article><article class="vh-summary-item"><small>Reviewed</small><strong>{{ skill.last_reviewed_on }}</strong><span>Registry record</span></article></section>
+
+  <div class="vh-surface-grid">
+    <section class="vh-surface vh-surface-span-6"><header class="vh-surface-header"><div><h2>Actions</h2><p>Allowed and denied operations.</p></div></header><div class="vh-surface-body"><h3>Allowed</h3><ul class="vh-rows">{% for item in skill.allowed_actions %}<li><code>{{ item }}</code></li>{% empty %}<li>None</li>{% endfor %}</ul><h3>Denied</h3><ul class="vh-rows">{% for item in skill.denied_actions %}<li><code>{{ item }}</code></li>{% empty %}<li>None</li>{% endfor %}</ul></div></section>
+    <section class="vh-surface vh-surface-span-6"><header class="vh-surface-header"><div><h2>Required tools</h2><p>Tool identifiers from the registry.</p></div></header><div class="vh-surface-body"><ul class="vh-rows">{% for item in skill.required_tools %}<li><code>{{ item }}</code></li>{% empty %}<li>None</li>{% endfor %}</ul></div></section>
+    <section class="vh-surface vh-surface-span-6"><header class="vh-surface-header"><div><h2>Verification</h2><p>Requirements and tests.</p></div></header><div class="vh-surface-body"><ul class="vh-rows">{% for item in skill.verification_requirements %}<li>{{ item }}</li>{% empty %}<li>None</li>{% endfor %}</ul><h3>Required tests</h3><ul class="vh-rows">{% for item in skill.required_tests %}<li>{{ item }}</li>{% empty %}<li>None</li>{% endfor %}</ul></div></section>
+    <section class="vh-surface vh-surface-span-6"><header class="vh-surface-header"><div><h2>Rollback</h2><p>Recovery steps from the skill definition.</p></div></header><div class="vh-surface-body"><ul class="vh-rows">{% for item in skill.rollback_procedure %}<li>{{ item }}</li>{% empty %}<li>None</li>{% endfor %}</ul></div></section>
+  </div>
 </section>
 {% endblock %}

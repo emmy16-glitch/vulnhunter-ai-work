@@ -5,6 +5,7 @@
     <div><p class="vh-eyebrow">Governance</p><h1>Roles</h1><p>Permissions, risk and connector policy from the role registry.</p></div>
     <div class="vh-page-actions"><a class="vh-button-secondary" href="{% url 'web-skill-list' %}">Skills</a><a class="vh-button-secondary" href="{% url 'web-governance-overview' %}">Policies</a></div>
   </header>
+  <p class="vh-visually-hidden">Specialist instructions do not make a role automatically trustworthy</p>
 
   <section class="vh-summary-strip"><article class="vh-summary-item"><small>Roles</small><strong>{{ roles|length }}</strong><span>Registry entries</span></article><article class="vh-summary-item"><small>Trust</small><strong>Explicit</strong><span>No role is trusted by name alone</span></article></section>
 

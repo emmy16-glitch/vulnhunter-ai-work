@@ -7,36 +7,31 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  inventory:
+  apply-provider-migration:
+    if: github.event_name == 'pull_request' && github.head_ref == 'milestone32/unified-verification-worker-pilot'
     runs-on: ubuntu-latest
     steps:
-      - name: Check out repository
+      - name: Check out implementation branch
         uses: actions/checkout@v7
-      - name: Capture Milestone 32 implementation inventory
+        with:
+          ref: milestone32/unified-verification-worker-pilot
+      - name: Apply exact provider migration
+        run: python scripts/apply_milestone32_provider_migration.py
+      - name: Commit generated migration
         shell: bash
         run: |
           set -eu
-          {
-            echo "# files"
-            find . -type f -not -path './.git/*' | sort
-            echo
-            echo "# qwen ollama openvas oracle groq references"
-            grep -RInE 'Qwen|qwen|Ollama|ollama|OpenVAS|openvas|Greenbone|greenbone|Machine Oracle|machine-oracle|Groq|groq' \
-              --exclude-dir=.git . || true
-            echo
-            echo "# scanner worker and provider references"
-            grep -RInE 'scanner_worker|NucleiExecutionHarness|ScannerCandidateObservation|provider_runtime|candidate finding|proof capsule' \
-              --exclude-dir=.git . || true
-          } > "$RUNNER_TEMP/milestone32-inventory.txt"
-      - name: Upload implementation inventory
-        uses: actions/upload-artifact@v4
-        with:
-          name: milestone32-inventory
-          path: ${{ runner.temp }}/milestone32-inventory.txt
-          retention-days: 1
+          if git diff --quiet; then
+            exit 0
+          fi
+          git config user.name "VulnHunter CI"
+          git config user.email "actions@users.noreply.github.com"
+          git add .
+          git commit -m "Apply exact Milestone 32 provider migration"
+          git push origin HEAD:milestone32/unified-verification-worker-pilot
 
   verify:
     runs-on: ubuntu-latest

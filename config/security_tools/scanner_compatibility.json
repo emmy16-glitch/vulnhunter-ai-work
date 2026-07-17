@@ -36,34 +36,6 @@
     },
     {
       "descriptor": {
-        "adapter_id": "openvas-planned-adapter",
-        "scanner_kind": "openvas",
-        "status": "planned",
-        "deployment_mode": "disabled",
-        "supported_profiles": [],
-        "protocol_version": "1.0",
-        "execution_enabled": false
-      },
-      "version_pin": {
-        "scanner_id": "openvas",
-        "adapter_id": "openvas-planned-adapter",
-        "adapter_version": "0.1.0",
-        "engine_version": null,
-        "protocol_version": "1.0",
-        "feed": {
-          "feed_id": "greenbone-community-feed",
-          "release": null,
-          "manifest_path": null,
-          "manifest_sha256": null
-        }
-      },
-      "notes": [
-        "No OpenVAS or Greenbone process is installed, connected, or activated.",
-        "A future adapter must use the same scanner protocol and isolated-worker boundary."
-      ]
-    },
-    {
-      "descriptor": {
         "adapter_id": "mobile-analysis-planned-adapter",
         "scanner_kind": "mobile_analysis",
         "status": "planned",

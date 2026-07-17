@@ -1,4 +1,4 @@
-"""AI routing records that keep model output untrusted."""
+"""Deterministic-first advisory routing records."""
 
 from __future__ import annotations
 
@@ -21,10 +21,7 @@ class PrivacyClass(StrEnum):
 
 class AiRoute(StrEnum):
     DETERMINISTIC = "deterministic"
-    LOCAL_QWEN_SMALL = "local_qwen_small"
-    LOCAL_QWEN_STRONG = "local_qwen_strong"
-    GROQ_QWEN = "groq_qwen"
-    GROQ_COMPOUND_MINI = "groq_compound_mini"
+    GROQ_ADVISORY = "groq_advisory"
     HUMAN_ESCALATION = "human_escalation"
     DENIED = "denied"
 
@@ -40,7 +37,7 @@ class RoutingRequest(BaseModel):
     public_freshness_required: bool = False
     non_sensitive_reasoning_approved: bool = False
     escalation_reason: str | None = None
-    attempt: int = Field(default=1, ge=1, le=5)
+    attempt: int = Field(default=1, ge=1, le=3)
     route_history: tuple[AiRoute, ...] = ()
 
     @field_validator("task_id", "task_type")

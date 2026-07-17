@@ -22,7 +22,10 @@ def findings_overview_view(request: HttpRequest) -> HttpResponse:
     """List only findings backed by persisted assessment evidence."""
 
     try:
-        actor = authorized_actor(request.user, required_actions=("finding.read", "scan.read", "audit.read"))
+        actor = authorized_actor(
+            request.user,
+            required_actions=("finding.read", "scan.read", "audit.read"),
+        )
     except WebPermissionDenied as exc:
         return render(
             request,

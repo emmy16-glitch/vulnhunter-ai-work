@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from django.urls import path
+from django.views.generic import RedirectView
 
 from vulnhunter.web import (
     assessment_views,
@@ -29,17 +30,9 @@ urlpatterns = [
         name="web-active-authorizations",
     ),
     path("scans/", views.agent_run_list_view, name="web-scan-run-list"),
-    path(
-        "scans/<str:run_id>/",
-        views.agent_run_detail_view,
-        name="web-scan-run-detail",
-    ),
+    path("scans/<str:run_id>/", views.agent_run_detail_view, name="web-scan-run-detail"),
     path("reviews/", views.review_queue_view, name="web-review-queue"),
-    path(
-        "adjudications/",
-        views.adjudication_queue_view,
-        name="web-adjudication-queue",
-    ),
+    path("adjudications/", views.adjudication_queue_view, name="web-adjudication-queue"),
     path("releases/", views.release_list_view, name="web-release-list"),
     path("datasets/", views.dataset_list_view, name="web-dataset-list"),
     path("models/", views.model_list_view, name="web-model-list"),
@@ -50,17 +43,21 @@ urlpatterns = [
     path("settings/", views.settings_overview_view, name="web-settings-overview"),
     path("campaigns/", views.campaign_list_view, name="web-campaign-list"),
     path("campaigns/<str:campaign_id>/", views.campaign_detail_view, name="web-campaign-detail"),
-    path(
-        "readiness/<str:campaign_id>/",
-        views.readiness_view,
-        name="web-readiness-detail",
-    ),
+    path("readiness/<str:campaign_id>/", views.readiness_view, name="web-readiness-detail"),
     path("roles/", views.role_list_view, name="web-role-list"),
     path("roles/<str:role_id>/", views.role_detail_view, name="web-role-detail"),
     path("skills/", views.skill_list_view, name="web-skill-list"),
     path("skills/<str:skill_id>/", views.skill_detail_view, name="web-skill-detail"),
-    path("agent/runs/", views.agent_run_list_view, name="web-agent-run-list"),
-    path("agent/runs/<str:run_id>/", views.agent_run_detail_view, name="web-agent-run-detail"),
+    path(
+        "agent/runs/",
+        RedirectView.as_view(pattern_name="web-scan-run-list", permanent=False),
+        name="web-agent-run-list",
+    ),
+    path(
+        "agent/runs/<str:run_id>/",
+        RedirectView.as_view(pattern_name="web-scan-run-detail", permanent=False),
+        name="web-agent-run-detail",
+    ),
     path(
         "agent/runs/<str:run_id>/activity/",
         views.agent_activity_view,

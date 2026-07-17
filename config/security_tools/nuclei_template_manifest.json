@@ -1,5 +1,17 @@
 {
   "schema_version": "1.0",
   "template_release": "v10.4.5",
-  "entries": []
+  "entries": [
+    {
+      "template_id": "vulnhunter-passive-security-headers",
+      "relative_path": "http/vulnhunter-passive-security-headers.yaml",
+      "sha256": "6ec1f633dccb5ee580693af3396e369ed799397587fc6ddb28db613b494dea20",
+      "template_release": "v10.4.5",
+      "risk_class": "passive",
+      "required_approval_level": "reviewed",
+      "enabled": true,
+      "reviewed_by": "vulnhunter-security-review",
+      "reviewed_at": "2026-07-18T00:00:00Z"
+    }
+  ]
 }

@@ -1,21 +1,16 @@
 {% extends "web/base.html" %}
 {% block content %}
-<section class="vh-card">
-  <h3>Skill registry</h3>
-  <div class="vh-table-wrap">
-    <table class="vh-table">
-      <thead><tr><th>Skill</th><th>Status</th><th>Risk</th><th>Required tools</th></tr></thead>
-      <tbody>
-        {% for skill in skills %}
-          <tr>
-            <td><a href="{% url 'web-skill-detail' skill.skill_id %}">{{ skill.display_name }}</a><br><code>{{ skill.skill_id }}</code></td>
-            <td>{{ skill.operational_state }}</td>
-            <td>{{ skill.risk_level }}</td>
-            <td>{% for item in skill.required_tools %}<code>{{ item }}</code>{% if not forloop.last %}, {% endif %}{% empty %}None{% endfor %}</td>
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
+<section class="vh-page-shell">
+  <header class="vh-page-header">
+    <div><p class="vh-eyebrow">Governance</p><h1>Skills</h1><p>Bounded capability definitions from the skill registry.</p></div>
+    <div class="vh-page-actions"><a class="vh-button-secondary" href="{% url 'web-role-list' %}">Roles</a><a class="vh-button-secondary" href="{% url 'web-security-tool-registry' %}">Integrations &amp; Tools</a></div>
+  </header>
+
+  <section class="vh-summary-strip"><article class="vh-summary-item"><small>Skills</small><strong>{{ skills|length }}</strong><span>Registry entries</span></article><article class="vh-summary-item"><small>Execution</small><strong>Policy controlled</strong><span>Definitions do not grant authority</span></article></section>
+
+  <section class="vh-surface">
+    <header class="vh-surface-header"><div><h2>Skill registry</h2><p>Open a skill for verification and rollback requirements.</p></div><span class="vh-panel-count">{{ skills|length }}</span></header>
+    {% if skills %}<div class="vh-table-wrap"><table class="vh-table"><thead><tr><th>Skill</th><th>Status</th><th>Risk</th><th>Required tools</th><th>Reviewed</th><th></th></tr></thead><tbody>{% for skill in skills %}<tr><td><strong>{{ skill.display_name }}</strong><code>{{ skill.skill_id }}</code></td><td>{{ skill.operational_state }}</td><td>{{ skill.risk_level }}</td><td>{% for item in skill.required_tools %}<code>{{ item }}</code>{% empty %}<small>None</small>{% endfor %}</td><td>{{ skill.last_reviewed_on }}</td><td><a href="{% url 'web-skill-detail' skill.skill_id %}">Open skill →</a></td></tr>{% endfor %}</tbody></table></div>{% else %}<div class="vh-empty-panel"><svg aria-hidden="true"><use href="#vh-i-policy"></use></svg><h3>No skills</h3><p>The skill registry is empty.</p></div>{% endif %}
+  </section>
 </section>
 {% endblock %}

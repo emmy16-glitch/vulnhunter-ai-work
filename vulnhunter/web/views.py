@@ -15,6 +15,7 @@ from django.shortcuts import redirect, render
 from django.views.decorators.cache import cache_control
 from django.views.decorators.http import require_GET, require_http_methods
 
+from vulnhunter.adversary_lab.store import AdversaryLabStore, AdversaryLabStoreError
 from vulnhunter.agent import AgentStore, AgentStoreError
 from vulnhunter.approvals import ApprovalStatus, ApprovalStore
 from vulnhunter.approvals.store import ApprovalStoreError
@@ -557,6 +558,19 @@ def agent_run_detail_view(request: HttpRequest, run_id: str) -> HttpResponse:
         can_decide_approval = False
     else:
         can_decide_approval = True
+    try:
+        lab_store = AdversaryLabStore(Path(settings.VULNHUNTER_ADVERSARY_LAB_DATABASE))
+        lab_store.initialize()
+        lab_runs = lab_store.list_for_assessment(run_id)
+    except (OSError, AdversaryLabStoreError):
+        lab_runs = ()
+    latest_lab = lab_runs[0] if lab_runs else None
+    try:
+        authorized_actor(request.user, required_actions=("lab.request",))
+    except WebPermissionDenied:
+        can_request_lab = False
+    else:
+        can_request_lab = bool(request.user.is_staff or request.user.is_superuser)
     return _render(
         request,
         "web/agent_run_detail.html",
@@ -569,6 +583,9 @@ def agent_run_detail_view(request: HttpRequest, run_id: str) -> HttpResponse:
             "approval_record": approval_record,
             "pending_approval": pending_approval,
             "can_decide_approval": can_decide_approval,
+            "lab_runs": lab_runs,
+            "latest_lab": latest_lab,
+            "can_request_lab": can_request_lab,
         },
     )
 

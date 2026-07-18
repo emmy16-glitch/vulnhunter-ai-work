@@ -7,29 +7,9 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  apply-lint-cleanup:
-    if: github.event_name == 'pull_request' && github.head_ref == 'milestone32/unified-verification-worker-pilot'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out implementation branch
-        uses: actions/checkout@v7
-        with:
-          ref: milestone32/unified-verification-worker-pilot
-      - name: Apply exact cleanup patch
-        run: python scripts/apply_milestone32_lint_cleanup.py
-      - name: Commit cleanup
-        shell: bash
-        run: |
-          set -eu
-          git config user.name "VulnHunter CI"
-          git config user.email "actions@users.noreply.github.com"
-          git add .
-          git commit -m "Apply exact Milestone 32 lint cleanup"
-          git push origin HEAD:milestone32/unified-verification-worker-pilot
-
   verify:
     runs-on: ubuntu-latest
     strategy:
@@ -54,19 +34,7 @@ jobs:
           python -m pip install pytest pytest-asyncio pytest-django ruff
 
       - name: Lint
-        shell: bash
-        run: |
-          set -o pipefail
-          python -m ruff check . --output-format concise 2>&1 | tee "$RUNNER_TEMP/ruff-${{ matrix.python-version }}.log"
-
-      - name: Upload failed lint log
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: ruff-log-${{ matrix.python-version }}
-          path: ${{ runner.temp }}/ruff-${{ matrix.python-version }}.log
-          if-no-files-found: error
-          retention-days: 1
+        run: python -m ruff check .
 
       - name: Compile
         run: python -m compileall -q vulnhunter scripts
@@ -86,7 +54,7 @@ jobs:
         with:
           name: pytest-log-${{ matrix.python-version }}
           path: ${{ runner.temp }}/pytest-${{ matrix.python-version }}.log
-          if-no-files-found: ignore
+          if-no-files-found: error
           retention-days: 3
 
       - name: Verify formatting

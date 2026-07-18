@@ -7,9 +7,29 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
+  apply-test-contract-fixes:
+    if: github.event_name == 'pull_request' && github.head_ref == 'milestone32/unified-verification-worker-pilot'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out implementation branch
+        uses: actions/checkout@v7
+        with:
+          ref: milestone32/unified-verification-worker-pilot
+      - name: Apply exact test contract fixes
+        run: python scripts/apply_milestone32_test_contract_fixes.py
+      - name: Commit fixes
+        shell: bash
+        run: |
+          set -eu
+          git config user.name "VulnHunter CI"
+          git config user.email "actions@users.noreply.github.com"
+          git add .
+          git commit -m "Align Milestone 32 test contracts"
+          git push origin HEAD:milestone32/unified-verification-worker-pilot
+
   verify:
     runs-on: ubuntu-latest
     strategy:

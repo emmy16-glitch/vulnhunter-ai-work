@@ -23,8 +23,8 @@ else
     --governance-database "$VULNHUNTER_GOVERNANCE_DATABASE"
 fi
 
-if python manage.py shell -c \
-  "from django.contrib.auth import get_user_model; raise SystemExit(0 if get_user_model().objects.filter(username='$WEB_USERNAME').exists() else 1)"; then
+if WEB_USERNAME="$WEB_USERNAME" python manage.py shell -c \
+  'import os; from django.contrib.auth import get_user_model; raise SystemExit(0 if get_user_model().objects.filter(username=os.environ["WEB_USERNAME"]).exists() else 1)'; then
   printf 'Web user already exists: %s\n' "$WEB_USERNAME"
 else
   python manage.py vh_create_web_user \

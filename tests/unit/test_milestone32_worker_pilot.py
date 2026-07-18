@@ -164,8 +164,9 @@ def _fake_nuclei(path: Path) -> Path:
         "type": "http",
         "info": {"name": "Passive Security Header Review", "severity": "info"},
     }
+    output = json.dumps(payload, separators=(",", ":"))
     script.write_text(
-        f"#!/usr/bin/env python3\nimport json\nprint(json.dumps({payload!r}))\n",
+        "#!/bin/sh\n" + "printf '%s\n' " + json.dumps(output) + "\n",
         encoding="utf-8",
     )
     script.chmod(0o700)

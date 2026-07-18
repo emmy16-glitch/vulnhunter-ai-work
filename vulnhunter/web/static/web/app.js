@@ -245,11 +245,6 @@
       elapsedSeconds = Math.max(0, Math.floor((Date.now() - startedAt) / 1000));
     }
     if (elapsed) elapsed.textContent = formatElapsed(elapsedSeconds);
-    const timer = window.setInterval(() => {
-      if (!root.classList.contains("is-active")) return;
-      elapsedSeconds += 1;
-      if (elapsed) elapsed.textContent = formatElapsed(elapsedSeconds);
-    }, 1000);
 
     function appendEvent(event) {
       if (!log || log.querySelector(`[data-event-sequence="${event.sequence}"]`)) return;
@@ -301,7 +296,6 @@
       root.classList.toggle("is-active", !terminal);
       root.classList.toggle("is-terminal", terminal);
       if (terminal) {
-        window.clearInterval(timer);
         source.close();
       }
     });

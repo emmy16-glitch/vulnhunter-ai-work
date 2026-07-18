@@ -217,6 +217,29 @@ class SignedWorkerSpool:
             return destination
         return None
 
+    def cancel_pending(self, job_id: str, *, reason: str, now: datetime) -> bool:
+        source = self.pending / f"{job_id}.json"
+        if not source.exists():
+            return False
+        if source.is_symlink():
+            raise WorkerSpoolError("pending worker job must not be a symbolic link")
+        destination = self.failed / source.name
+        os.replace(source, destination)
+        safe_reason = " ".join(reason.split())[:500] or "Worker job cancelled."
+        receipt = WorkerJobReceipt(
+            job_id=job_id,
+            state="cancelled",
+            execution_id="pending-job",
+            result_sha256=hashlib.sha256(safe_reason.encode()).hexdigest(),
+            completed_at=now,
+            reason=safe_reason,
+        )
+        self._write_exclusive(
+            self.failed / f"{job_id}.receipt.json",
+            receipt.model_dump_json(indent=2) + "\n",
+        )
+        return True
+
     def load_claimed(
         self,
         path: Path,

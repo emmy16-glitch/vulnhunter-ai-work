@@ -14,6 +14,8 @@ from vulnhunter.authorization.store import AuthorizationStore
 from vulnhunter.evidence.store import EvidenceStore
 from vulnhunter.oracle.store import OracleStore
 from vulnhunter.security_tools.nuclei_activation import (
+    EngagementAuthorization,
+    NucleiActivationError,
     NucleiCommandPlan,
     NucleiPlanApproval,
     NucleiTemplateManifest,
@@ -42,11 +44,32 @@ from vulnhunter.security_tools.worker_spool import (
     WorkerJobReceipt,
     WorkerSpoolError,
 )
-from vulnhunter.web.assessment_workflow import load_nuclei_authorization
 
 
 class NucleiPilotServiceError(RuntimeError):
     """Raised when the manager or worker cannot preserve the pilot boundary."""
+
+
+def _load_nuclei_authorization(
+    store: AuthorizationStore,
+    authorization_id: str,
+) -> EngagementAuthorization:
+    record = store.get(authorization_id)
+    for event in store.list_events(authorization_id):
+        if event.event_type != "nuclei_activation_bound":
+            continue
+        if event.detail.get("source_record_sha256") != record.record_sha256:
+            raise NucleiPilotServiceError("Nuclei binding is stale")
+        try:
+            engagement = EngagementAuthorization.model_validate(
+                event.detail.get("engagement_record")
+            )
+        except (TypeError, ValueError) as exc:
+            raise NucleiPilotServiceError("Nuclei binding is invalid") from exc
+        if engagement.authorization_id != record.authorization_id:
+            raise NucleiPilotServiceError("Nuclei binding references another authorization")
+        return engagement
+    raise NucleiPilotServiceError("No reviewed Nuclei activation binding exists")
 
 
 def build_approved_pilot_job(
@@ -84,7 +107,7 @@ def build_approved_pilot_job(
     if not approval_request.decided_at or not approval_request.decided_by:
         raise NucleiPilotServiceError("approval decision metadata is incomplete")
 
-    _, authorization = load_nuclei_authorization(
+    authorization = _load_nuclei_authorization(
         authorization_store,
         plan.authorization_id,
     )

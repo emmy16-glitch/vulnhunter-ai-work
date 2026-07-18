@@ -284,6 +284,33 @@ VULNHUNTER_NUCLEI_READINESS_REPORT = os.environ.get(
     "VULNHUNTER_NUCLEI_READINESS_REPORT",
     str(BASE_DIR / ".local" / "nuclei-readiness" / "readiness.json"),
 )
+VULNHUNTER_NUCLEI_PILOT_ENQUEUE_ENABLED = env_bool(
+    "VULNHUNTER_NUCLEI_PILOT_ENQUEUE_ENABLED", False
+)
+VULNHUNTER_NUCLEI_WORKER_SIGNING_KEY_FILE = os.environ.get(
+    "VULNHUNTER_NUCLEI_WORKER_SIGNING_KEY_FILE",
+    str(Path.home() / ".vulnhunter-nuclei-worker-key"),
+)
+VULNHUNTER_NUCLEI_WORKER_SPOOL_ROOT = os.environ.get(
+    "VULNHUNTER_NUCLEI_WORKER_SPOOL_ROOT",
+    str(BASE_DIR / ".local" / "nuclei-worker-spool"),
+)
+VULNHUNTER_NUCLEI_WORKER_POLICY = os.environ.get(
+    "VULNHUNTER_NUCLEI_WORKER_POLICY",
+    str(BASE_DIR / "config" / "security_tools" / "nuclei_worker_pilot.json"),
+)
+VULNHUNTER_NUCLEI_EXECUTION_ROOT = os.environ.get(
+    "VULNHUNTER_NUCLEI_EXECUTION_ROOT",
+    str(BASE_DIR / ".local" / "nuclei-executions"),
+)
+VULNHUNTER_VERIFICATION_ROOT = os.environ.get(
+    "VULNHUNTER_VERIFICATION_ROOT",
+    str(BASE_DIR / ".local" / "verification"),
+)
+VULNHUNTER_SCANNER_COMPATIBILITY_MANIFEST = os.environ.get(
+    "VULNHUNTER_SCANNER_COMPATIBILITY_MANIFEST",
+    str(BASE_DIR / "config" / "security_tools" / "scanner_compatibility.json"),
+)
 VULNHUNTER_TASK_GRAPH_ROOT = os.environ.get(
     "VULNHUNTER_TASK_GRAPH_ROOT",
     str(BASE_DIR / ".local" / "task-graphs"),

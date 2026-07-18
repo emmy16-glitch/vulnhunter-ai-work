@@ -12,6 +12,7 @@ import hashlib
 import ipaddress
 import json
 import os
+import resource
 import signal
 import stat
 import subprocess
@@ -186,6 +187,14 @@ class PassiveNucleiProcessRunner:
         target = request.exact_targets[0]
         if target.address_class != "private":
             raise NucleiExecutionError("the pilot accepts private laboratory targets only")
+        try:
+            literal = ipaddress.ip_address(target.hostname)
+        except ValueError as exc:
+            raise NucleiExecutionError(
+                "the pilot requires a literal private IP target to prevent DNS rebinding"
+            ) from exc
+        if str(literal) not in target.resolved_addresses:
+            raise NucleiExecutionError("the literal target is not present in the approved pins")
         for value in target.resolved_addresses:
             address = ipaddress.ip_address(value)
             if not address.is_private or address.is_link_local or address.is_loopback:
@@ -230,28 +239,67 @@ class PassiveNucleiProcessRunner:
             "LANG": "C.UTF-8",
             "LC_ALL": "C.UTF-8",
         }
-        with open(os.devnull, "rb") as stdin_handle, subprocess.Popen(
-            command,
-            stdin=stdin_handle,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            env=environment,
-            cwd=specification.request.output_directory,
-            start_new_session=True,
-            text=False,
-        ) as process:
-            while process.poll() is None:
-                control.checkpoint(process_group_id=process.pid)
-                time.sleep(self.policy.poll_interval_seconds)
-            stdout_bytes, stderr_bytes = process.communicate()
+        request = specification.request
+        output_root = request.output_directory
+        stdout_path = output_root / f".{request.execution_id}.stdout"
+        stderr_path = output_root / f".{request.execution_id}.stderr"
+        maximum_file_bytes = max(
+            request.limits.maximum_stdout_bytes,
+            request.limits.maximum_stderr_bytes,
+        )
+
+        def apply_limits() -> None:
+            resource.setrlimit(resource.RLIMIT_FSIZE, (maximum_file_bytes, maximum_file_bytes))
+            resource.setrlimit(resource.RLIMIT_NOFILE, (32, 32))
+            resource.setrlimit(
+                resource.RLIMIT_CPU,
+                (request.limits.timeout_seconds + 1, request.limits.timeout_seconds + 2),
+            )
+
+        stdout_descriptor = os.open(
+            stdout_path,
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0),
+            0o600,
+        )
+        stderr_descriptor = os.open(
+            stderr_path,
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0),
+            0o600,
+        )
+        try:
+            with (
+                open(os.devnull, "rb") as stdin_handle,
+                os.fdopen(stdout_descriptor, "wb") as stdout_handle,
+                os.fdopen(stderr_descriptor, "wb") as stderr_handle,
+                subprocess.Popen(
+                    command,
+                    stdin=stdin_handle,
+                    stdout=stdout_handle,
+                    stderr=stderr_handle,
+                    env=environment,
+                    cwd=output_root,
+                    start_new_session=True,
+                    text=False,
+                    preexec_fn=apply_limits,
+                ) as process,
+            ):
+                while process.poll() is None:
+                    control.checkpoint(process_group_id=process.pid)
+                    time.sleep(self.policy.poll_interval_seconds)
+                return_code = process.returncode
+            stdout_bytes = stdout_path.read_bytes()[: request.limits.maximum_stdout_bytes + 1]
+            stderr_bytes = stderr_path.read_bytes()[: request.limits.maximum_stderr_bytes + 1]
+        finally:
+            stdout_path.unlink(missing_ok=True)
+            stderr_path.unlink(missing_ok=True)
 
         stdout = stdout_bytes.decode("utf-8", errors="replace")
         stderr = stderr_bytes.decode("utf-8", errors="replace")
         observations = self._parse_observations(stdout)
-        if process.returncode != 0:
+        if return_code != 0:
             return NucleiRunnerResult(
                 state=ScannerJobState.FAILED,
-                reason=f"Nuclei exited with code {process.returncode}.",
+                reason=f"Nuclei exited with code {return_code}.",
                 stdout=stdout,
                 stderr=stderr,
                 observations=observations,

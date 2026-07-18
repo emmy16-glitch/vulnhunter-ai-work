@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 from django.urls import path
+from django.views.generic import RedirectView
 
 from vulnhunter.web import (
     assessment_views,
     audit_views,
     findings_views,
     operations_views,
-    oracle_views,
     report_views,
     stream_views,
     views,
@@ -36,7 +36,11 @@ urlpatterns = [
     path("datasets/", views.dataset_list_view, name="web-dataset-list"),
     path("models/", views.model_list_view, name="web-model-list"),
     path("findings/", findings_views.findings_overview_view, name="web-findings-overview"),
-    path("machine-oracle/", oracle_views.oracle_overview_view, name="web-oracle-overview"),
+    path(
+        "machine-oracle/",
+        RedirectView.as_view(pattern_name="web-scan-run-list", permanent=False),
+        name="web-oracle-overview",
+    ),
     path("reports/", report_views.reports_overview_view, name="web-reports-overview"),
     path("governance/", views.governance_overview_view, name="web-governance-overview"),
     path("settings/", views.settings_overview_view, name="web-settings-overview"),

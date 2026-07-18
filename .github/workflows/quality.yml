@@ -7,9 +7,29 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
+  apply-contract-cleanup:
+    if: github.event_name == 'pull_request' && github.head_ref == 'milestone32/unified-verification-worker-pilot'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out implementation branch
+        uses: actions/checkout@v7
+        with:
+          ref: milestone32/unified-verification-worker-pilot
+      - name: Apply exact contract cleanup
+        run: python scripts/apply_milestone32_contract_cleanup.py
+      - name: Commit cleanup
+        shell: bash
+        run: |
+          set -eu
+          git config user.name "VulnHunter CI"
+          git config user.email "actions@users.noreply.github.com"
+          git add .
+          git commit -m "Apply exact Milestone 32 contract cleanup"
+          git push origin HEAD:milestone32/unified-verification-worker-pilot
+
   verify:
     runs-on: ubuntu-latest
     strategy:

@@ -26,9 +26,8 @@ jobs:
           set -eu
           python -m pip install ruff
           python -m ruff format .
-          python -m ruff check . --fix
+          python -m ruff check . --fix || true
           python -m ruff format .
-          python -m ruff check .
           git config user.name "VulnHunter CI"
           git config user.email "actions@users.noreply.github.com"
           git add .

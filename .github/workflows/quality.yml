@@ -7,29 +7,9 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  apply-worker-wiring:
-    if: github.event_name == 'pull_request' && github.head_ref == 'milestone32/unified-verification-worker-pilot'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out implementation branch
-        uses: actions/checkout@v7
-        with:
-          ref: milestone32/unified-verification-worker-pilot
-      - name: Apply exact worker wiring
-        run: python scripts/apply_milestone32_worker_wiring.py
-      - name: Commit wiring
-        shell: bash
-        run: |
-          set -eu
-          git config user.name "VulnHunter CI"
-          git config user.email "actions@users.noreply.github.com"
-          git add .
-          git commit -m "Wire approved passive plans to the isolated worker"
-          git push origin HEAD:milestone32/unified-verification-worker-pilot
-
   verify:
     runs-on: ubuntu-latest
     strategy:

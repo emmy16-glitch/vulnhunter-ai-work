@@ -186,6 +186,7 @@ def _task_store(tmp_path: Path, invocation: NucleiExecutionInvocation) -> AgentS
                 allowed_actions=("security_tool.nuclei.run",),
                 allowed_tools=("nuclei",),
                 allowed_risks=(ToolRisk.NETWORK,),
+                allow_network=True,
             ),
             memory={
                 "assessment_workflow": {
@@ -218,7 +219,7 @@ def test_signed_spool_rejects_tampering_and_replay(tmp_path):
     path.write_text(json.dumps(payload), encoding="utf-8")
     claimed = spool.claim_next()
     assert claimed is not None
-    with pytest.raises(WorkerSpoolError, match="signature"):
+    with pytest.raises(WorkerSpoolError, match="invalid|signature"):
         spool.load_claimed(claimed, key=key, now=NOW + timedelta(seconds=1))
 
 

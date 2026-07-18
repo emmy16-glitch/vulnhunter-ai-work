@@ -42,6 +42,10 @@ def test_codespaces_setup_keeps_credentials_out_of_repository() -> None:
 
     assert ".codespaces/" in gitignore
     assert "VULNHUNTER_WEB_DEBUG=true" in setup
+    assert (
+        'VULNHUNTER_WEB_CSRF_TRUSTED_ORIGINS="https://*.app.github.dev,https://localhost:8002"'
+        in setup
+    )
     assert "VULNHUNTER_WEB_SECRET_KEY=" not in setup
     assert "--secret=" not in first_run
     assert "Password:" not in first_run

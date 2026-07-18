@@ -16,7 +16,7 @@ cat > "$ENV_FILE" <<EOF
 export VULNHUNTER_WEB_DEBUG=true
 export VULNHUNTER_WEB_HTTPS=false
 export VULNHUNTER_WEB_ALLOWED_HOSTS=".app.github.dev,localhost,127.0.0.1"
-export VULNHUNTER_WEB_CSRF_TRUSTED_ORIGINS="https://*.app.github.dev"
+export VULNHUNTER_WEB_CSRF_TRUSTED_ORIGINS="https://*.app.github.dev,https://localhost:8002"
 export VULNHUNTER_WEB_DATABASE="$ROOT/.local/vulnhunter-web.sqlite3"
 export VULNHUNTER_AUTHORIZATION_DATABASE="$ROOT/.local/runtime/authorization/authorizations.db"
 export VULNHUNTER_GOVERNANCE_DATABASE="$ROOT/.local/runtime/governance/governance.db"

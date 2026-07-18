@@ -1,121 +1,104 @@
 # VulnHunter AI
 
-VulnHunter AI is an authorised, laboratory-only security research project.
+VulnHunter AI is an authorised, laboratory-only security assessment and verification platform.
 
 ## Current milestone
 
-The current repository now includes:
+Milestone 32 provides:
 
-- Safe target-scope validation
-- Passive website mapping
-- Non-destructive HTTP inspection
-- Sanitised observation storage
-- Governed campaign and review workflows
-- Bounded agent runtime and activity timeline foundations
-- Controlled pilot-plan validation
-- A local authenticated Django operational web surface
-- A controlled scanner-manager protocol and disabled Nuclei execution harness
-- Central scanner version/feed compatibility tracking
-- A disabled, networkless isolated scanner-worker container boundary
+- exact target, protocol, port, address and profile authorization;
+- immutable Nuclei plans and digest-bound human approval;
+- a signed local manager-to-worker spool;
+- a passive-only isolated Nuclei worker pilot;
+- bounded timeout, cancellation, redaction and restart recovery;
+- evidence normalization into candidate findings;
+- deterministic verification and proof capsules inside each assessment;
+- one unified finding lifecycle with human review and release gates;
+- optional sanitized Groq advisory analysis that is disabled by default;
+- a networkless, read-only mobile static-analysis worker;
+- a controlled synthetic Active Validation workspace with up to ten clean-snapshot trials;
+- responsive operational pages for assessments, findings, approvals, review, reports and audit;
+- loopback-only production deployment examples with mounted secret files.
 
-It does not exploit vulnerabilities, perform public scanning, or train a model
-automatically.
+The active assessment path is:
 
-## Safety boundary
+```text
+Authorization
+→ immutable plan
+→ exact human approval
+→ signed worker job
+→ passive private-lab scan
+→ bounded evidence
+→ candidate finding
+→ deterministic verification
+→ optional controlled active validation
+→ human review
+→ governed release
+```
 
-The tool will only permit localhost, loopback addresses, RFC1918 private networks,
-and explicitly approved laboratory targets.
+Scanner output, deterministic verification, optional controlled validation and optional advisory analysis are consolidated into one finding record. Tool and provider details remain available as evidence provenance and audit metadata rather than separate competing findings.
 
-Public Internet scanning and destructive testing are rejected by design.
+## Default safety state
+
+The repository does not automatically:
+
+- enable the Nuclei worker pilot;
+- install or start a Nuclei binary;
+- contact a target;
+- provision a signing key;
+- activate Groq or store its API key;
+- execute an uploaded APK;
+- start an emulator or dynamic Android laboratory;
+- enable the controlled validation worker in production;
+- deploy PostgreSQL, TLS, DNS or a reverse proxy;
+- publish a finding without human review.
+
+The default manager harness remains fail-closed. A browser request cannot enable scanner execution.
+
+## Scope boundary
+
+The passive worker pilot accepts exactly one approved literal RFC1918 address, one reviewed passive template, rate limit `1`, concurrency `1`, and no redirects, public OAST, cloud upload, automatic updates, headless execution, code templates or file templates.
+
+Public Internet scanning and destructive testing remain prohibited.
 
 ## Local web startup
 
-The authenticated browser surface runs on loopback only. Follow
-[`docs/product/WEB_APPLICATION.md`](docs/product/WEB_APPLICATION.md) for the
-exact startup sequence, including a locally generated
-`VULNHUNTER_WEB_SECRET_KEY`, database migration, local user creation, and
-`python manage.py runserver --insecure 127.0.0.1:8000`.
+Follow [`docs/product/WEB_APPLICATION.md`](docs/product/WEB_APPLICATION.md). The local development surface binds to loopback and uses Django’s development server only for local testing.
 
-Here, `--insecure` is only Django's loopback local-development static-file
-option. It must not be used for public or production deployment.
+## Worker pilot
 
-## Governed security operations foundation
+The manager/worker architecture is documented in:
 
-Milestone 26 adds disabled-by-default foundations for persistent human approvals,
-hash-bound action manifests, durable task graphs, evidence integrity, local-first
-provider routing, owner break-glass contracts, and a registry of free security
-assessment tools. The installer does not download tools, run scans, enable
-connectors, create credentials, or change the laboratory-only authorization
-boundary.
-
-See:
-
-- `docs/adr/0018-governed-security-tool-orchestration.md`
-- `docs/product/GOVERNED_SECURITY_OPERATIONS.md`
-- `config/security_tools/runtime.json`
-
-## Governed Android APK analysis
-
-The same milestone also adds a disabled-by-default mobile application security
-foundation. An authenticated operator can upload an APK into content-addressed
-storage, after which the mobile analysis planner can select fixed adapters for
-JADX, Apktool, Android SDK metadata tools, APKiD, YARA, Androguard, MobSF,
-radare2, Ghidra, ADB, and Frida.
-
-Uploading an APK does not execute it. Static tools remain disabled until a
-reviewed runtime configuration enables them. Dynamic analysis requires an
-explicit approval and a disposable isolated Android runtime; the uploaded APK
-must never be executed directly on the VulnHunter host.
-
-See:
-
-- `docs/adr/0019-governed-android-apk-analysis.md`
-- `docs/product/MOBILE_APPLICATION_SECURITY.md`
-- `config/security_tools/runtime.json`
-
-## Milestone 27 integrated intelligence foundations
-
-Milestone 27 adds contract-only foundations for Machine Oracle verification, proof capsules, disabled-by-default `pentest-ai` authenticated response validation, repository coverage, deterministic-first AI routing, attack-path graphs, analyst feedback, improvement proposals, and protected report artifacts. These foundations do not activate external tools, APK execution, model providers, live connectors, privileged brokers, or scans.
-
-## Manual completion package
-
-The post-Milestone-27 completion modules are validated with:
-
-```bash
-python3 scripts/validate_manual_completion.py
-```
-
-Optional external tool readiness can be inspected without installing or
-activating anything:
-
-```bash
-python3 scripts/dependency_readiness.py
-```
-
-See `docs/intelligence/MANUAL_COMPLETION_RELEASE.md` for delivered code and
-`docs/setup/POST_INSTALL_ACTIVATION_PLAN.md` for remaining manual activation
-steps.
-
-## Hosting preparation
-
-Production hosting is deliberately external to this repository. Use
-[`docs/setup/DEPLOYMENT_READINESS.md`](docs/setup/DEPLOYMENT_READINESS.md) and
-`.env.example` to configure exact hosts/origins, HTTPS/proxy trust, persistent
-state, readiness checks, backups, and rollback without enabling scanners or
-other deferred integrations.
-
-## Milestone 31 controlled scanner harness
-
-Milestone 31 separates scanner management from the future isolated worker, adds
-a shared scanner protocol for Nuclei, planned OpenVAS, and planned mobile
-analysis, and implements a persistent Nuclei lifecycle with bounded redacted
-evidence. Production execution remains blocked and no scanner process or target
-connection is created.
-
-See:
-
-- `docs/intelligence/MILESTONE_31_CONTROLLED_NUCLEI_EXECUTION_HARNESS.md`
 - `docs/product/SCANNER_ARCHITECTURE.md`
 - `docs/product/SCANNER_COMPATIBILITY.md`
-- `config/security_tools/scanner_compatibility.json`
+- `docs/setup/NUCLEI_WORKER_PILOT.md`
+- `config/security_tools/nuclei_worker_pilot.example.json`
 - `deploy/scanner-worker/`
+
+The operator must provide the pinned Nuclei executable, reviewed worker policy, owner-private signing key and authorized private laboratory target before activation.
+
+## Mobile analysis
+
+APK upload validates and stores an artifact without executing it. The static worker can run fixed read-only metadata tools against a read-only copy when its worker policy is enabled. Dynamic APK execution remains a separate disposable-laboratory prerequisite.
+
+See `docs/product/MOBILE_APPLICATION_SECURITY.md`.
+
+## Controlled active validation
+
+A persisted finding can open a nested Active Validation workspace. The built-in worker uses reviewed synthetic scenarios, generated test data, no network egress, independent approval, password re-authentication, clean-snapshot retries, a hard maximum of ten trials, evidence hashes, cancellation checkpoints and verified cleanup.
+
+The workspace displays genuine persisted activity such as policy checks, snapshot restoration, trial state, evidence processing and cleanup. It does not display hidden reasoning or fabricated progress.
+
+See `docs/product/ACTIVE_VALIDATION.md`.
+
+## Advisory analysis
+
+Groq is the only optional remote advisory provider. It is disabled by default, receives sanitized bounded content only, has no tools, cannot authorize or verify a finding, and returns non-authoritative proposals or `ABSTAIN`.
+
+Deterministic verification and human review continue when Groq is unavailable.
+
+## Production preparation
+
+`deploy/production/compose.example.yaml` is a reviewed deployment example, not an active deployment. It keeps the web service on loopback, uses an internal database network, mounted secret files, a read-only application filesystem, dropped capabilities and resource limits. The controlled validation worker remains disabled and has no network namespace in the example.
+
+Complete the separate TLS, DNS, PostgreSQL, backup, restore, monitoring and independent security-review gates in `docs/setup/DEPLOYMENT_READINESS.md` before production use.

@@ -464,4 +464,9 @@ def test_repository_configuration_keeps_nuclei_execution_disabled():
     assert runtime["nuclei"]["enabled"] is False
     assert profiles["execution_enabled"] is False
     assert profiles["automatic_updates_enabled"] is False
-    assert manifest.entries == ()
+    assert len(manifest.entries) == 1
+    entry = manifest.entries[0]
+    assert entry.template_id == "vulnhunter-passive-security-headers"
+    assert entry.enabled is True
+    assert entry.risk_class.value == "passive"
+    assert entry.reviewed_by == "vulnhunter-security-review"

@@ -19,7 +19,7 @@ def _invocation(content="safe public evidence", **updates):
     values = {
         "invocation_id": "invoke-groq",
         "request_id": "request-groq",
-        "provider": ProviderKind.GROQ_QWEN,
+        "provider": ProviderKind.GROQ_ADVISORY,
         "model": "openai/gpt-oss-120b",
         "capability": ProviderCapability.CLASSIFICATION,
         "input_sha256": hashlib.sha256(content.encode()).hexdigest(),

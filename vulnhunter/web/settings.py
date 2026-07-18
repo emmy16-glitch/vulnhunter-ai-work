@@ -39,14 +39,46 @@ def env_int(name: str, default: int, *, minimum: int, maximum: int) -> int:
     return value
 
 
+def env_secret(name: str, *, file_name: str) -> str | None:
+    """Read one deployment secret from an environment value or mounted file."""
+
+    direct = os.environ.get(name)
+    secret_path = os.environ.get(file_name)
+    if direct and secret_path:
+        raise ImproperlyConfigured(f"{name} and {file_name} must not both be set.")
+    if direct:
+        return direct
+    if not secret_path:
+        return None
+    path = Path(secret_path).expanduser()
+    if path.is_symlink():
+        raise ImproperlyConfigured(f"{file_name} must not reference a symbolic link.")
+    try:
+        metadata = path.stat()
+        value = path.read_text(encoding="utf-8").strip()
+    except OSError as exc:
+        raise ImproperlyConfigured(f"{file_name} could not be read.") from exc
+    if metadata.st_mode & 0o022:
+        raise ImproperlyConfigured(f"{file_name} must not be group or world writable.")
+    if not value:
+        raise ImproperlyConfigured(f"{file_name} contains an empty secret.")
+    return value
+
+
 DEBUG = env_bool("VULNHUNTER_WEB_DEBUG", False)
 USE_HTTPS = env_bool("VULNHUNTER_WEB_HTTPS", False)
-SECRET_KEY = os.environ.get("VULNHUNTER_WEB_SECRET_KEY")
+SECRET_KEY = env_secret(
+    "VULNHUNTER_WEB_SECRET_KEY",
+    file_name="VULNHUNTER_WEB_SECRET_KEY_FILE",
+)
 if not SECRET_KEY:
     if DEBUG or TESTING:
         SECRET_KEY = secrets.token_urlsafe(32)
     else:
-        raise ImproperlyConfigured("VULNHUNTER_WEB_SECRET_KEY is required when DEBUG is disabled.")
+        raise ImproperlyConfigured(
+            "VULNHUNTER_WEB_SECRET_KEY or VULNHUNTER_WEB_SECRET_KEY_FILE is required "
+            "when DEBUG is disabled."
+        )
 
 ALLOWED_HOSTS = env_csv(
     "VULNHUNTER_WEB_ALLOWED_HOSTS",
@@ -140,7 +172,11 @@ elif DATABASE_ENGINE == "postgresql":
         "default": {
             "ENGINE": "django.db.backends.postgresql",
             **required_database_values,
-            "PASSWORD": os.environ.get("VULNHUNTER_POSTGRES_PASSWORD", ""),
+            "PASSWORD": env_secret(
+                "VULNHUNTER_POSTGRES_PASSWORD",
+                file_name="VULNHUNTER_POSTGRES_PASSWORD_FILE",
+            )
+            or "",
             "PORT": env_int("VULNHUNTER_POSTGRES_PORT", 5432, minimum=1, maximum=65_535),
             "CONN_MAX_AGE": env_int(
                 "VULNHUNTER_POSTGRES_CONN_MAX_AGE", 60, minimum=0, maximum=3_600
@@ -284,9 +320,62 @@ VULNHUNTER_NUCLEI_READINESS_REPORT = os.environ.get(
     "VULNHUNTER_NUCLEI_READINESS_REPORT",
     str(BASE_DIR / ".local" / "nuclei-readiness" / "readiness.json"),
 )
+VULNHUNTER_NUCLEI_PILOT_ENQUEUE_ENABLED = env_bool("VULNHUNTER_NUCLEI_PILOT_ENQUEUE_ENABLED", False)
+VULNHUNTER_NUCLEI_WORKER_SIGNING_KEY_FILE = os.environ.get(
+    "VULNHUNTER_NUCLEI_WORKER_SIGNING_KEY_FILE",
+    str(Path.home() / ".vulnhunter-nuclei-worker-key"),
+)
+VULNHUNTER_NUCLEI_WORKER_SPOOL_ROOT = os.environ.get(
+    "VULNHUNTER_NUCLEI_WORKER_SPOOL_ROOT",
+    str(BASE_DIR / ".local" / "nuclei-worker-spool"),
+)
+VULNHUNTER_NUCLEI_WORKER_POLICY = os.environ.get(
+    "VULNHUNTER_NUCLEI_WORKER_POLICY",
+    str(BASE_DIR / "config" / "security_tools" / "nuclei_worker_pilot.json"),
+)
+VULNHUNTER_NUCLEI_EXECUTION_ROOT = os.environ.get(
+    "VULNHUNTER_NUCLEI_EXECUTION_ROOT",
+    str(BASE_DIR / ".local" / "nuclei-executions"),
+)
+VULNHUNTER_VERIFICATION_ROOT = os.environ.get(
+    "VULNHUNTER_VERIFICATION_ROOT",
+    str(BASE_DIR / ".local" / "verification"),
+)
+VULNHUNTER_SCANNER_COMPATIBILITY_MANIFEST = os.environ.get(
+    "VULNHUNTER_SCANNER_COMPATIBILITY_MANIFEST",
+    str(BASE_DIR / "config" / "security_tools" / "scanner_compatibility.json"),
+)
 VULNHUNTER_TASK_GRAPH_ROOT = os.environ.get(
     "VULNHUNTER_TASK_GRAPH_ROOT",
     str(BASE_DIR / ".local" / "task-graphs"),
+)
+VULNHUNTER_ADVERSARY_LAB_DATABASE = os.environ.get(
+    "VULNHUNTER_ADVERSARY_LAB_DATABASE",
+    str(BASE_DIR / ".local" / "adversary-lab" / "lab.sqlite3"),
+)
+VULNHUNTER_ADVERSARY_LAB_WORKSPACE_ROOT = os.environ.get(
+    "VULNHUNTER_ADVERSARY_LAB_WORKSPACE_ROOT",
+    str(BASE_DIR / ".local" / "adversary-lab" / "workspaces"),
+)
+VULNHUNTER_ADVERSARY_LAB_EVIDENCE_ROOT = os.environ.get(
+    "VULNHUNTER_ADVERSARY_LAB_EVIDENCE_ROOT",
+    str(BASE_DIR / ".local" / "adversary-lab" / "evidence"),
+)
+VULNHUNTER_ADVERSARY_LAB_MAX_TRIALS = env_int(
+    "VULNHUNTER_ADVERSARY_LAB_MAX_TRIALS",
+    10,
+    minimum=1,
+    maximum=10,
+)
+VULNHUNTER_ADVERSARY_LAB_STEP_UP_SECONDS = env_int(
+    "VULNHUNTER_ADVERSARY_LAB_STEP_UP_SECONDS",
+    600,
+    minimum=60,
+    maximum=1_800,
+)
+VULNHUNTER_ADVERSARY_LAB_ENABLED = env_bool(
+    "VULNHUNTER_ADVERSARY_LAB_ENABLED",
+    DEBUG or TESTING,
 )
 
 VULNHUNTER_MOBILE_ARTIFACT_ROOT = os.environ.get(
@@ -309,16 +398,6 @@ VULNHUNTER_GRAPHIFY_OUTPUT_ROOT = os.environ.get(
     str(BASE_DIR / "graphify-out"),
 )
 VULNHUNTER_GRAPHIFY_EXECUTION_ENABLED = env_bool("VULNHUNTER_GRAPHIFY_EXECUTION_ENABLED", False)
-VULNHUNTER_OLLAMA_ENDPOINT = os.environ.get("VULNHUNTER_OLLAMA_ENDPOINT", "http://127.0.0.1:11434")
-VULNHUNTER_OLLAMA_MODEL = os.environ.get("VULNHUNTER_OLLAMA_MODEL", "qwen3.5:2b-q4_k_m")
-VULNHUNTER_OLLAMA_CONTEXT_TOKENS = env_int(
-    "VULNHUNTER_OLLAMA_CONTEXT_TOKENS", 1_024, minimum=256, maximum=8_192
-)
-VULNHUNTER_OLLAMA_TIMEOUT_SECONDS = env_int(
-    "VULNHUNTER_OLLAMA_TIMEOUT_SECONDS", 600, minimum=10, maximum=600
-)
-VULNHUNTER_OLLAMA_INFERENCE_ENABLED = env_bool("VULNHUNTER_OLLAMA_INFERENCE_ENABLED", False)
-
 VULNHUNTER_GROQ_ENABLED = env_bool("VULNHUNTER_GROQ_ENABLED", False)
 VULNHUNTER_GROQ_API_BASE = os.environ.get(
     "VULNHUNTER_GROQ_API_BASE", "https://api.groq.com/openai/v1"

@@ -50,6 +50,7 @@ def canonical_navigation(user: Any) -> tuple[dict[str, object], ...]:
                 "web-agent-run-stop",
                 "web-new-scan",
                 "web-advanced-profiles",
+                "web-oracle-overview",
             ),
         },
         {
@@ -60,15 +61,6 @@ def canonical_navigation(user: Any) -> tuple[dict[str, object], ...]:
             "icon": "finding",
             "actions": ("finding.read", "scan.read", "audit.read"),
             "active_routes": ("web-findings-overview",),
-        },
-        {
-            "section_id": "operations",
-            "section_label": "Operations",
-            "label": "Machine Oracle",
-            "url_name": "web-oracle-overview",
-            "icon": "oracle",
-            "actions": ("model.read", "scan.read", "audit.read"),
-            "active_routes": ("web-oracle-overview",),
         },
         {
             "section_id": "review",

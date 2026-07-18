@@ -1,89 +1,56 @@
-# AI Routing and Privacy Gate
+# Advisory Routing and Privacy Gate
 
-VulnHunter remains usable without any AI provider. Deterministic processing is
-always authoritative for hashing, parsing, validation, authorization, scope,
-approval, policy, limits, evidence integrity, and state transitions.
+VulnHunter remains fully usable without an advisory provider. Deterministic processing is authoritative for authorization, scope, approval, parsing, hashing, limits, evidence integrity, verification state and publication gates.
 
 Central rule:
 
-> Qwen proposes; Groq may review; VulnHunter verifies and enforces.
+> Advisory analysis may propose; VulnHunter verifies and enforces.
 
-## Local provider
+## Deterministic-first routing
 
-The local connector is loopback-only by default and uses the resource-safe
-Ollama model `qwen3.5:2b-q4_k_m` on this VM. Ollama may preserve the display tag
-as `qwen3.5:2b-q4_K_M`; inventory matching is deliberately case-insensitive,
-while the configured lookup tag remains explicit.
+Every request is first classified by privacy and task type.
 
-The connector provides:
+- Deterministic processing is used whenever rules, schema validation, hashing or direct evidence are sufficient.
+- Customer-private or secret data is denied remote routing.
+- Sanitized non-sensitive evidence may use one explicitly approved Groq advisory attempt.
+- Repeated remote loops are blocked and routed to a human analyst.
+- Provider failure, timeout, cancellation, malformed output or unavailable quota returns `ABSTAIN`.
 
-- one inference slot;
-- no automatic model pull;
-- no tool, scanner, shell, database, approval, or publication capability;
-- a conservative 1,024-token context default;
-- thinking disabled for bounded operational prompts;
-- strict `PROPOSAL`, `CANDIDATE_ANALYSIS`, or `ABSTAIN` output;
-- bounded request/response sizes and timeouts;
-- cancellation and deterministic abstention;
-- model, digest, endpoint, prompt-template, timestamp, and hash provenance;
-- health checks that list models without loading them.
+## Groq advisory provider
 
-The 9B model was removed from this VM because it could not coexist reliably
-with the operating system and VulnHunter inside approximately 5.3 GiB RAM.
-The 2B model is installed, but local inference must remain disabled until
-`python manage.py vh_verify_local_ai` passes after the VM-safe Ollama CPU
-configuration is active.
+Groq is optional and disabled by default. The provider contract enforces:
 
-## Hybrid routing contracts
+- the official HTTPS API endpoint only;
+- an owner-private API-key file;
+- an explicit model allowlist;
+- bounded input, output and timeout limits;
+- no tools, shell, scanner, browser, MCP or connector definitions;
+- structured `PROPOSAL`, `CANDIDATE_ANALYSIS` or `ABSTAIN` output only;
+- no trusted, verified, approved or published output state;
+- request/response hashes and bounded provenance without raw credentials.
 
-Three explicit modes are represented without enabling cloud execution:
+Private source code, private targets, authorization records, customer data, tokens, cookies, credentials, unpublished findings and raw evidence are denied remote routing.
 
-- `LOCAL_ONLY`: private, sensitive, and offline work remains local.
-- `LOCAL_THEN_GROQ`: Groq may be considered only after the local model abstains,
-  explicit policy permits remote processing, and deterministic sanitisation
-  passes.
-- `DUAL_REVIEW`: local and remote candidates may be compared independently;
-  agreement remains unverified and disagreement requires human review.
+## Assessment integration
 
-The hybrid coordinator performs no network request and never reads a credential.
-Groq remains `CREDENTIAL_PRESENT_BUT_NOT_ACCESSED` and
-`INTENTIONALLY_DISABLED` until a separate activation review.
+Groq is not consulted before authorization, planning, approval or scanning. It may be used after evidence exists when deterministic processing cannot summarize or classify sanitized non-sensitive material confidently.
+
+Groq output is stored as advisory provenance under the unified finding. It never creates a separate finding and cannot change deterministic verification or human-review state.
 
 ## Graph context
 
-A validated Graphify artifact may supply a small bounded subgraph. When Graphify
-is missing, stale, or runtime-incompatible, the context broker uses the native
-deterministic repository graph and bounded file excerpts. It never fabricates a
-graph or sends the complete repository to a provider.
+A validated repository graph may supply a bounded subgraph. When external graph tooling is missing or stale, the context broker uses the native deterministic repository graph and bounded source excerpts. It never fabricates graph relationships or send an unrestricted repository to a provider.
 
-## Deferred activation dependencies
+## Activation dependencies
 
-- successful bounded local 2B inference through the VulnHunter adapter;
-- separately approved Groq credential injection and model allowlist;
-- remote privacy/sanitisation acceptance tests;
-- external current-information lookup policy;
-- Graphify regeneration compatibility or a documented stale-graph fallback.
+Groq remains disabled until all of these pass:
 
-## Groq-only resource-constrained deployment
+1. owner-private key-file validation;
+2. approved model inventory check;
+3. harmless structured-response test;
+4. privacy and redaction acceptance tests;
+5. per-task and operational usage limits;
+6. cancellation, timeout and failure tests;
+7. human review of provider terms and data controls.
 
-For the current 5.3 GiB QEMU VM, local Ollama inference may remain disabled when
-it cannot complete the bounded readiness request. VulnHunter can use a
-GroqCloud advisory connector instead, while deterministic workflows continue
-without any model when the network, credential, quota, or privacy gate is
-unavailable.
-
-Approved production model preference:
-
-1. `openai/gpt-oss-120b`
-2. `openai/gpt-oss-20b`
-
-The connector discovers the account's current model inventory before use. It
-sends no tools, code-execution request, browser-search request, MCP server, or
-connector definition. Cloud-bound content must first pass the deterministic
-privacy gate. Private source, customer data, secrets, credentials, complete
-repositories, unrestricted graphs, and authorization records are denied.
-
-Enable Groq only after Zero Data Retention has been enabled in the GroqCloud
-Data Controls page and the controlled `vh_verify_groq` command succeeds. Model
-output remains `PROPOSAL`, `CANDIDATE_ANALYSIS`, or `ABSTAIN`; it is never
-trusted evidence, approval, authorization, verified severity, or publication.
+Deterministic workflows continue when Groq is disabled or unavailable.

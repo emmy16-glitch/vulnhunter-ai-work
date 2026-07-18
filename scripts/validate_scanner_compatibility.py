@@ -44,14 +44,14 @@ def validate(repository_root: Path, *, write: bool = False) -> str:
         raise ValueError("scanner worker transport must remain disabled")
     nuclei = runtime.get("nuclei", {})
     if nuclei.get("real_runner_enabled") is not False:
-        raise ValueError("real Nuclei runner must remain disabled")
+        raise ValueError("the default Nuclei runner must remain disabled")
 
     nuclei_record = manifest.get("nuclei")
     if nuclei_record.descriptor.status is not ScannerAdapterStatus.HARNESS_ONLY:
         raise ValueError("Nuclei compatibility status must remain harness_only")
-    for scanner_id in ("openvas", "mobile_analysis"):
-        if manifest.get(scanner_id).descriptor.status is not ScannerAdapterStatus.PLANNED:
-            raise ValueError(f"{scanner_id} must remain planned")
+    mobile_record = manifest.get("mobile_analysis")
+    if mobile_record.descriptor.status is not ScannerAdapterStatus.PLANNED:
+        raise ValueError("mobile analysis must remain planned")
 
     matrix = render_compatibility_matrix(manifest)
     document = document_path.read_text(encoding="utf-8")
@@ -74,7 +74,7 @@ def main() -> None:
     root = Path(__file__).resolve().parents[1]
     fingerprint = validate(root, write=args.write)
     print(f"Scanner compatibility manifest: {fingerprint}")
-    print("Scanner execution enabled: false")
+    print("Default scanner execution enabled: false")
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-"""Bounded GroqCloud advisory provider with deterministic privacy boundaries."""
+"""Bounded Groq advisory provider with deterministic privacy boundaries."""
 
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ from vulnhunter.providers.models import (
     ProviderResponse,
 )
 
-_PROMPT_TEMPLATE_VERSION = "vulnhunter-groq-advisory-v1"
+_PROMPT_TEMPLATE_VERSION = "vulnhunter-groq-advisory-v2"
 _DEFAULT_API_BASE = "https://api.groq.com/openai/v1"
 _REMOTE_SLOT = threading.BoundedSemaphore(1)
 
@@ -38,8 +38,6 @@ class _GroqProtocolError(GroqProviderError):
 
 
 class _GroqHttpError(GroqProviderError):
-    """Bounded remote HTTP failure that never includes credentials."""
-
     def __init__(self, status_code: int, safe_detail: str) -> None:
         self.status_code = status_code
         self.safe_detail = safe_detail
@@ -50,7 +48,7 @@ class _StructuredModelOutput(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     output_kind: ProviderOutputKind
-    content: str = Field(min_length=1, max_length=200_000)
+    content: str = Field(min_length=1, max_length=40_000)
 
 
 def load_groq_api_key_file(path: Path) -> str:
@@ -68,8 +66,7 @@ def load_groq_api_key_file(path: Path) -> str:
         raise GroqProviderError("Groq API key path must be a regular file")
     if metadata.st_uid != os.getuid():
         raise GroqProviderError("Groq API key file must be owned by the current user")
-    mode = stat.S_IMODE(metadata.st_mode)
-    if mode & 0o077:
+    if stat.S_IMODE(metadata.st_mode) & 0o077:
         raise GroqProviderError("Groq API key file permissions must be 0600 or stricter")
     try:
         value = resolved.read_text(encoding="utf-8").strip()
@@ -81,11 +78,7 @@ def load_groq_api_key_file(path: Path) -> str:
 
 
 class GroqProvider:
-    """Use GroqCloud for bounded advisory output only.
-
-    The connector sends no tool definitions and has no shell, scanner, approval,
-    evidence mutation, database mutation, or publication capability.
-    """
+    """Return bounded, non-authoritative advisory output only."""
 
     def __init__(
         self,
@@ -119,9 +112,9 @@ class GroqProvider:
     def health(self) -> ProviderHealth:
         try:
             models = self._model_inventory()
-        except (httpx.HTTPError, _GroqProtocolError) as exc:
+        except (httpx.HTTPError, _GroqProtocolError, _GroqHttpError) as exc:
             return ProviderHealth(
-                provider=ProviderKind.GROQ_QWEN,
+                provider=ProviderKind.GROQ_ADVISORY,
                 configured=True,
                 reachable=False,
                 reason=f"Groq health check failed safely: {type(exc).__name__}.",
@@ -131,7 +124,7 @@ class GroqProvider:
         selected = next((model for model in self.approved_models if model in models), None)
         if selected is None:
             return ProviderHealth(
-                provider=ProviderKind.GROQ_QWEN,
+                provider=ProviderKind.GROQ_ADVISORY,
                 configured=True,
                 reachable=True,
                 reason="Groq is reachable, but no approved model is available.",
@@ -140,10 +133,10 @@ class GroqProvider:
                 endpoint_classification="remote_groqcloud",
             )
         return ProviderHealth(
-            provider=ProviderKind.GROQ_QWEN,
+            provider=ProviderKind.GROQ_ADVISORY,
             configured=True,
             reachable=True,
-            reason="Groq is reachable and an approved production model is available.",
+            reason="Groq is reachable and an approved advisory model is available.",
             model=selected,
             provider_version="groq-openai-compatible-v1",
             endpoint_classification="remote_groqcloud",
@@ -156,7 +149,7 @@ class GroqProvider:
         *,
         cancelled: Callable[[], bool] | None = None,
     ) -> ProviderResponse:
-        if invocation.provider != ProviderKind.GROQ_QWEN:
+        if invocation.provider != ProviderKind.GROQ_ADVISORY:
             raise GroqProviderError("Groq invocation has the wrong provider identity")
         if invocation.model not in self.approved_models:
             raise GroqProviderError("Groq model is not in the explicit allowlist")
@@ -165,6 +158,7 @@ class GroqProvider:
             raise GroqProviderError("Groq prompt exceeds the configured byte limit")
         if len(raw_content) > invocation.maximum_input_tokens * 4:
             raise GroqProviderError("Groq prompt exceeds the conservative token limit")
+
         requested_at = datetime.now(UTC)
         is_cancelled = cancelled or (lambda: False)
         if is_cancelled():
@@ -202,7 +196,7 @@ class GroqProvider:
             payload = self._request_json(
                 "POST",
                 "/chat/completions",
-                maximum_bytes=min(500_000, invocation.maximum_output_bytes + 96_000),
+                maximum_bytes=min(200_000, invocation.maximum_output_bytes + 64_000),
                 total_timeout_seconds=invocation.timeout_seconds,
                 cancelled=is_cancelled,
                 json_body={
@@ -211,7 +205,7 @@ class GroqProvider:
                         {"role": "system", "content": self._system_prompt()},
                         {"role": "user", "content": content},
                     ],
-                    "temperature": 0.2,
+                    "temperature": 0.1,
                     "max_completion_tokens": invocation.maximum_output_tokens,
                     "reasoning_effort": "low",
                     "include_reasoning": False,
@@ -228,15 +222,13 @@ class GroqProvider:
             response_text = message.get("content")
             if not isinstance(response_text, str):
                 raise _GroqProtocolError("Groq response omitted structured content")
-            if len(response_text.encode("utf-8")) > invocation.maximum_output_bytes:
-                raise _GroqProtocolError("Groq response exceeded the output byte limit")
             structured = _StructuredModelOutput.model_validate_json(response_text)
-            if len(structured.content) > invocation.maximum_output_characters:
-                raise _GroqProtocolError("Groq response exceeded the output character limit")
             output_bytes = structured.content.encode("utf-8")
+            if len(output_bytes) > invocation.maximum_output_bytes:
+                raise _GroqProtocolError("Groq response exceeded the output byte limit")
             return ProviderResponse(
                 invocation_id=invocation.invocation_id,
-                provider=ProviderKind.GROQ_QWEN,
+                provider=ProviderKind.GROQ_ADVISORY,
                 model=invocation.model,
                 content=structured.content,
                 output_sha256=hashlib.sha256(output_bytes).hexdigest(),
@@ -263,12 +255,11 @@ class GroqProvider:
                 timed_out=True,
             )
         except _GroqHttpError as exc:
-            if exc.status_code == 429:
-                reason = "Groq request was rate-limited."
-            else:
-                reason = (
-                    f"Groq request was rejected safely (HTTP {exc.status_code}): {exc.safe_detail}"
-                )
+            reason = (
+                "Groq request was rate-limited."
+                if exc.status_code == 429
+                else f"Groq request was rejected safely (HTTP {exc.status_code}): {exc.safe_detail}"
+            )
             return self._abstain(invocation, raw_content, requested_at, reason)
         except (
             httpx.HTTPError,
@@ -356,8 +347,6 @@ class GroqProvider:
         return payload
 
     def _safe_http_error_detail(self, raw: bytes) -> str:
-        """Return one bounded, credential-free provider error message."""
-
         detail = "remote request rejected"
         try:
             payload = json.loads(raw)
@@ -387,7 +376,7 @@ class GroqProvider:
         output = b"ABSTAIN"
         return ProviderResponse(
             invocation_id=invocation.invocation_id,
-            provider=ProviderKind.GROQ_QWEN,
+            provider=ProviderKind.GROQ_ADVISORY,
             model=invocation.model,
             content="ABSTAIN",
             output_sha256=hashlib.sha256(output).hexdigest(),
@@ -414,11 +403,12 @@ class GroqProvider:
     def _system_prompt() -> str:
         return (
             "You are an advisory cybersecurity analyst inside VulnHunter. "
-            "Groq proposes; VulnHunter enforces. Never claim approval, authorization, scope "
-            "expansion, tool execution, verification, severity confirmation, or publication. "
-            "Do not request tools, shell access, scanners, credentials, private files, web search, "
-            "code execution, MCP, or connectors. Return exactly one JSON object containing only "
-            "output_kind and content. output_kind must be PROPOSAL, CANDIDATE_ANALYSIS, or ABSTAIN."
+            "VulnHunter controls authorization, scope, evidence, verification, severity, and "
+            "publication. Never claim that you ran a tool, verified a finding, or approved an "
+            "action. Do not request shell access, scanners, credentials, private files, web "
+            "search, code execution, MCP, or connectors. Return exactly one JSON object with "
+            "output_kind and content. output_kind must be PROPOSAL, CANDIDATE_ANALYSIS, or "
+            "ABSTAIN."
         )
 
     @staticmethod

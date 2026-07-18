@@ -1,8 +1,8 @@
 """Versioned contracts for scanner-manager and isolated-worker boundaries.
 
 The models in this module contain no shell command, arbitrary argv, process
-environment, or secret value.  They are safe control-plane contracts shared by
-Nuclei, future OpenVAS integration, and future mobile-analysis workers.
+environment, or secret value. They are safe control-plane contracts shared by
+Nuclei and mobile-analysis workers.
 """
 
 from __future__ import annotations
@@ -47,12 +47,12 @@ def _sha256(value: str, *, field: str) -> str:
 
 class ScannerKind(StrEnum):
     NUCLEI = "nuclei"
-    OPENVAS = "openvas"
     MOBILE_ANALYSIS = "mobile_analysis"
 
 
 class ScannerAdapterStatus(StrEnum):
     HARNESS_ONLY = "harness_only"
+    PILOT_READY = "pilot_ready"
     PLANNED = "planned"
     UNAVAILABLE = "unavailable"
 
@@ -157,7 +157,7 @@ class ScannerVersionPin(BaseModel):
 
 
 class ScannerAdapterDescriptor(BaseModel):
-    """Capabilities exposed to the manager without exposing implementation details."""
+    """Capabilities exposed to the manager without implementation details."""
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
@@ -199,7 +199,7 @@ class ScannerCompatibilityRecord(BaseModel):
 
 
 class ScannerCompatibilityManifest(BaseModel):
-    """Versioned central registry for scanner adapters, feeds, and deployment modes."""
+    """Versioned registry for scanner adapters, feeds, and deployment modes."""
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
@@ -248,13 +248,22 @@ class ScannerCompatibilityManifest(BaseModel):
                     f"scanner feed manifest digest mismatch for {record.version_pin.scanner_id}"
                 )
 
+    def validate_repository_manifests(self, repository_root: Path) -> None:
+        self.verify_repository_manifests(repository_root)
+
     @classmethod
     def load(cls, path: Path) -> ScannerCompatibilityManifest:
         return cls.model_validate_json(path.read_text(encoding="utf-8"))
 
+    @classmethod
+    def from_path(cls, path: Path) -> ScannerCompatibilityManifest:
+        manifest = cls.load(path)
+        manifest.verify_repository_manifests(path.parent.parent.parent)
+        return manifest
+
 
 class ScannerExecutionLimits(BaseModel):
-    """Shared bounded limits accepted by all scanner adapters."""
+    """Shared bounded limits accepted by scanner adapters."""
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
@@ -267,23 +276,24 @@ class ScannerExecutionLimits(BaseModel):
 
 
 class ScannerCandidateObservation(BaseModel):
-    """Unverified scanner output; its trust state is permanently candidate here."""
+    """Unverified scanner output; trust is permanently candidate here."""
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     observation_id: str
     scanner_id: str
-    target_reference: str
+    target_reference: str = Field(min_length=1, max_length=2_000)
     title: str = Field(min_length=3, max_length=500)
     severity: str = Field(min_length=2, max_length=32)
     confidence: str = Field(min_length=2, max_length=32)
+    template_id: str | None = None
     finding_status: Literal["candidate"] = "candidate"
     metadata: Mapping[str, object] = Field(default_factory=dict)
 
-    @field_validator("observation_id", "scanner_id")
+    @field_validator("observation_id", "scanner_id", "template_id")
     @classmethod
-    def validate_ids(cls, value: str) -> str:
-        return _identifier(value)
+    def validate_ids(cls, value: str | None) -> str | None:
+        return None if value is None else _identifier(value)
 
 
 class ScannerEvidenceReference(BaseModel):
@@ -315,7 +325,7 @@ class ScannerAdapterResult(BaseModel):
     state: ScannerJobState
     observations: tuple[ScannerCandidateObservation, ...] = ()
     evidence: tuple[ScannerEvidenceReference, ...] = ()
-    reason: str
+    reason: str = Field(min_length=3, max_length=500)
 
     @field_validator("execution_id")
     @classmethod
@@ -397,6 +407,7 @@ class PlannedScannerAdapter:
 
 def render_compatibility_matrix(manifest: ScannerCompatibilityManifest) -> str:
     """Render a small Markdown compatibility table for release documentation."""
+
     rows = [
         "| Scanner | Adapter | Adapter version | Engine | Feed | Status | Deployment |",
         "|---|---|---:|---:|---:|---|---|",
@@ -412,7 +423,7 @@ def render_compatibility_matrix(manifest: ScannerCompatibilityManifest) -> str:
                     pin.adapter_id,
                     pin.adapter_version,
                     pin.engine_version or "not selected",
-                    (feed.release if feed and feed.release else "not selected"),
+                    feed.release if feed and feed.release else "not selected",
                     record.descriptor.status.value,
                     record.descriptor.deployment_mode.value,
                 )
@@ -424,4 +435,20 @@ def render_compatibility_matrix(manifest: ScannerCompatibilityManifest) -> str:
 
 def dump_compatibility_json(manifest: ScannerCompatibilityManifest) -> str:
     """Deterministic JSON representation used by release tooling and tests."""
+
     return json.dumps(manifest.model_dump(mode="json"), indent=2, sort_keys=True) + "\n"
+
+
+def redact_mapping(value: Mapping[str, object]) -> dict[str, object]:
+    """Return bounded primitive metadata without secret-shaped values."""
+
+    safe: dict[str, object] = {}
+    for raw_key, raw_value in value.items():
+        key = str(raw_key)[:100]
+        if isinstance(raw_value, (str, int, float, bool)) or raw_value is None:
+            safe[key] = raw_value
+        elif isinstance(raw_value, Iterable) and not isinstance(raw_value, (str, bytes, Mapping)):
+            safe[key] = [str(item)[:500] for item in list(raw_value)[:50]]
+        else:
+            safe[key] = str(raw_value)[:500]
+    return safe

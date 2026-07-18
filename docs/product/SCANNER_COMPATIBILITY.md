@@ -9,11 +9,10 @@ intentional blockers, not requests to install the latest release.
 | Scanner | Adapter | Adapter version | Engine | Feed | Status | Deployment |
 |---|---|---:|---:|---:|---|---|
 | mobile_analysis | mobile-analysis-planned-adapter | 0.1.0 | not selected | not selected | planned | disabled |
-| nuclei | nuclei-controlled-harness | 1.0.0 | v3.11.0 | v10.4.5 | harness_only | isolated_container |
-| openvas | openvas-planned-adapter | 0.1.0 | not selected | not selected | planned | disabled |
+| nuclei | nuclei-controlled-harness | 1.1.0 | v3.11.0 | v10.4.5 | harness_only | isolated_container |
 
 <!-- scanner-compatibility:end -->
 
-The Nuclei template-manifest file is content addressed in the compatibility
-manifest. The reviewed repository manifest remains empty, so the version pin
-does not authorize a scan.
+The Nuclei template manifest is content addressed. It contains one reviewed,
+passive pilot template. The default manager harness remains execution-disabled;
+a separate worker-local policy is required before the private-lab pilot can run.

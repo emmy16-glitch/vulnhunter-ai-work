@@ -380,18 +380,6 @@ def default_catalog() -> SecurityToolCatalog:
             description="Static capability extraction from executable and native binary files.",
         ),
         SecurityToolDefinition(
-            tool_id="greenbone",
-            display_name="Greenbone Community Edition",
-            executable_candidates=("gvm-cli", "greenbone-nvt-sync"),
-            profiles=(ToolProfile.ACTIVE_ASSESSMENT, ToolProfile.RETEST),
-            target_kinds=network,
-            action_class=ActionClass.SENSITIVE,
-            approval_required=True,
-            connector_only=True,
-            output_formats=("xml",),
-            description="Broad vulnerability-management and assessment connector.",
-        ),
-        SecurityToolDefinition(
             tool_id="amass",
             display_name="OWASP Amass",
             executable_candidates=("amass",),

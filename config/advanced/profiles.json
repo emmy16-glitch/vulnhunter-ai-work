@@ -39,8 +39,7 @@
     },
     "privileged_environment": {
       "tools": [
-        "nmap",
-        "greenbone"
+        "nmap"
       ],
       "approval_stages": [
         "exact_action",
@@ -53,8 +52,7 @@
         "amass",
         "nmap",
         "httpx",
-        "nuclei",
-        "greenbone"
+        "nuclei"
       ],
       "approval_stages": [
         "campaign_scope",

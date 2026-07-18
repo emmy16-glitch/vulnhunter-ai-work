@@ -40,6 +40,16 @@ from vulnhunter.security_tools.nuclei_activation import (
     validate_evidence_directory,
     validate_nuclei_target_scope,
 )
+from vulnhunter.security_tools.nuclei_pilot_service import (
+    NucleiPilotServiceError,
+    build_approved_pilot_job,
+)
+from vulnhunter.security_tools.scanner_protocol import ScannerCompatibilityManifest
+from vulnhunter.security_tools.worker_spool import (
+    SignedWorkerSpool,
+    WorkerSpoolError,
+    load_worker_signing_key,
+)
 
 ScanProfile = Literal["passive", "standard", "intrusive", "retest"]
 _PROHIBITED_ACTIONS = (
@@ -477,16 +487,59 @@ class AssessmentWorkflowService:
             raise AssessmentWorkflowError("The command plan has expired.")
 
         approved = request.decision is not None and request.decision.value.startswith("approve_")
-        new_state = "execution_blocked" if approved else "denied"
-        new_status = TaskStatus.BLOCKED if approved else TaskStatus.CANCELLED
-        reason = (
-            "Approval recorded; Nuclei execution remains globally disabled."
-            if approved
-            else "The exact command plan was denied by a human approver."
-        )
+        queued_job = None
+        queue_error = None
+        if (
+            approved
+            and plan.exact_profile == "passive"
+            and getattr(settings, "VULNHUNTER_NUCLEI_PILOT_ENQUEUE_ENABLED", False)
+        ):
+            try:
+                signing_key = load_worker_signing_key(
+                    Path(settings.VULNHUNTER_NUCLEI_WORKER_SIGNING_KEY_FILE)
+                )
+                compatibility = ScannerCompatibilityManifest.load(
+                    Path(settings.VULNHUNTER_SCANNER_COMPATIBILITY_MANIFEST)
+                )
+                compatibility.verify_repository_manifests(Path(settings.BASE_DIR))
+                queued_job = build_approved_pilot_job(
+                    task=task,
+                    approval_request=request,
+                    authorization_store=self.authorization_store,
+                    compatibility_manifest=compatibility,
+                    signing_key=signing_key,
+                    actor_id=actor_id,
+                    now=now,
+                )
+                SignedWorkerSpool(Path(settings.VULNHUNTER_NUCLEI_WORKER_SPOOL_ROOT)).enqueue(
+                    queued_job
+                )
+            except (
+                OSError,
+                ValueError,
+                NucleiPilotServiceError,
+                WorkerSpoolError,
+            ) as exc:
+                queue_error = type(exc).__name__
+        if queued_job is not None:
+            new_state = "queued"
+            new_status = TaskStatus.RUNNING
+            reason = "Approved passive plan queued for the isolated Nuclei worker."
+        elif approved:
+            new_state = "execution_blocked"
+            new_status = TaskStatus.BLOCKED
+            reason = (
+                "Approval recorded; the isolated Nuclei worker remains disabled."
+                if queue_error is None
+                else "Approval recorded; worker queue activation failed closed."
+            )
+        else:
+            new_state = "denied"
+            new_status = TaskStatus.CANCELLED
+            reason = "The exact command plan was denied by a human approver."
         updated = task.evolved(
             status=new_status,
-            paused_reason=reason,
+            paused_reason=None if queued_job is not None else reason,
             memory={
                 **task.memory,
                 "assessment_workflow": {
@@ -495,7 +548,11 @@ class AssessmentWorkflowService:
                     "approval_state": "approved" if approved else "denied",
                     "decision_actor": actor_id,
                     "execution_enabled": False,
-                    "blocking_reason": reason,
+                    "execution_id": (
+                        queued_job.invocation.request.execution_id if queued_job else None
+                    ),
+                    "queue_error": queue_error,
+                    "blocking_reason": None if queued_job is not None else reason,
                 },
             },
         )
@@ -509,6 +566,8 @@ class AssessmentWorkflowService:
                 "decision": request.decision.value if request.decision else "unknown",
                 "actor": actor_id,
                 "execution_enabled": False,
+                "pilot_queued": queued_job is not None,
+                "queue_error": queue_error,
             },
         )
         self._record_transition(
@@ -516,8 +575,16 @@ class AssessmentWorkflowService:
             previous_state=str(workflow.get("workflow_state", "awaiting_approval")),
             new_state=new_state,
             reason=reason,
-            event_type="run_blocked" if approved else "approval_rejected",
-            run_state="blocked" if approved else "cancelled",
+            event_type=(
+                "scanner_queued"
+                if queued_job is not None
+                else "run_blocked"
+                if approved
+                else "approval_rejected"
+            ),
+            run_state=(
+                "queued" if queued_job is not None else "blocked" if approved else "cancelled"
+            ),
             audit_reference=event.event_sha256,
         )
         return updated

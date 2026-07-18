@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 from django.urls import path
+from django.views.generic import RedirectView
 
 from vulnhunter.web import (
     assessment_views,
     audit_views,
     findings_views,
+    lab_views,
     operations_views,
-    oracle_views,
     report_views,
     stream_views,
     views,
@@ -30,13 +31,47 @@ urlpatterns = [
     ),
     path("scans/", views.agent_run_list_view, name="web-scan-run-list"),
     path("scans/<str:run_id>/", views.agent_run_detail_view, name="web-scan-run-detail"),
+    path(
+        "scans/<str:assessment_id>/active-validation/new/",
+        lab_views.lab_create_view,
+        name="web-lab-create",
+    ),
+    path(
+        "active-validation/<str:lab_id>/",
+        lab_views.lab_detail_view,
+        name="web-lab-detail",
+    ),
+    path(
+        "active-validation/<str:lab_id>/approve/",
+        lab_views.lab_approve_view,
+        name="web-lab-approve",
+    ),
+    path(
+        "active-validation/<str:lab_id>/queue/",
+        lab_views.lab_queue_view,
+        name="web-lab-queue",
+    ),
+    path(
+        "active-validation/<str:lab_id>/stop/",
+        lab_views.lab_stop_view,
+        name="web-lab-stop",
+    ),
+    path(
+        "active-validation/<str:lab_id>/activity/stream/",
+        lab_views.lab_activity_stream_view,
+        name="web-lab-activity-stream",
+    ),
     path("reviews/", views.review_queue_view, name="web-review-queue"),
     path("adjudications/", views.adjudication_queue_view, name="web-adjudication-queue"),
     path("releases/", views.release_list_view, name="web-release-list"),
     path("datasets/", views.dataset_list_view, name="web-dataset-list"),
     path("models/", views.model_list_view, name="web-model-list"),
     path("findings/", findings_views.findings_overview_view, name="web-findings-overview"),
-    path("machine-oracle/", oracle_views.oracle_overview_view, name="web-oracle-overview"),
+    path(
+        "machine-oracle/",
+        RedirectView.as_view(pattern_name="web-scan-run-list", permanent=False),
+        name="web-oracle-overview",
+    ),
     path("reports/", report_views.reports_overview_view, name="web-reports-overview"),
     path("governance/", views.governance_overview_view, name="web-governance-overview"),
     path("settings/", views.settings_overview_view, name="web-settings-overview"),

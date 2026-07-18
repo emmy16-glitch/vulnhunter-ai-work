@@ -1,0 +1,47 @@
+{% extends "web/base.html" %}
+{% block content %}
+<section class="vh-page-shell">
+  <header class="vh-page-header">
+    <div>
+      <p class="vh-eyebrow">Assessment {{ run.run_id }}</p>
+      <h1>Request active validation</h1>
+      <p>Run a reviewed synthetic scenario inside a disposable no-egress workspace. No arbitrary command, public target, customer data, or unrestricted exploitation is accepted.</p>
+    </div>
+    <div class="vh-page-actions"><a class="vh-button-secondary" href="{% url 'web-agent-run-detail' run.run_id %}">Back to assessment</a></div>
+  </header>
+
+  {% if findings %}
+    <form method="post" class="vh-lab-request-form">
+      {% csrf_token %}
+      <section class="vh-surface">
+        <header class="vh-surface-header"><div><h2>Finding and retry policy</h2><p>The exact selection is included in the plan digest.</p></div></header>
+        <div class="vh-surface-body vh-form-grid">
+          <label class="vh-form-field vh-form-span-2"><span>Persisted finding</span><select name="finding_reference" required><option value="">Select a finding</option>{% for finding in findings %}<option value="{{ finding.evidence_id }}">{{ finding.title }} · {{ finding.verification }}</option>{% endfor %}</select></label>
+          <label class="vh-form-field"><span>Maximum trials</span><input type="number" name="maximum_trials" min="1" max="10" value="5" required><small>Hard ceiling: {{ hard_trial_ceiling }}. Each trial starts from a clean snapshot.</small></label>
+          <label class="vh-form-field"><span>Password re-authentication</span><input type="password" name="password" autocomplete="current-password" required><small>Required for this exact request. The requester cannot approve the same plan.</small></label>
+        </div>
+      </section>
+
+      <section class="vh-surface vh-lab-scenario-picker">
+        <header class="vh-surface-header"><div><h2>Reviewed scenario</h2><p>Only signed synthetic scenarios are available.</p></div></header>
+        <div class="vh-lab-scenario-grid">
+          {% for scenario in scenarios %}
+            <label class="vh-lab-scenario-card">
+              <input type="radio" name="scenario_id" value="{{ scenario.scenario_id }}" required{% if forloop.first %} checked{% endif %}>
+              <span class="vh-lab-scenario-main"><strong>{{ scenario.title }}</strong><small>{{ scenario.summary }}</small></span>
+              <details class="vh-inline-disclosure" data-persist-disclosure data-disclosure-key="scenario-{{ scenario.scenario_id }}">
+                <summary>Scenario controls</summary>
+                <dl class="vh-terminal-facts"><div><dt>Tools</dt><dd>{{ scenario.tool_ids|join:", " }}</dd></div><div><dt>Evidence</dt><dd>{{ scenario.expected_evidence|join:", " }}</dd></div><div><dt>Network</dt><dd>Isolated, no egress</dd></div><div><dt>Data</dt><dd>Generated test data only</dd></div></dl>
+              </details>
+            </label>
+          {% endfor %}
+        </div>
+      </section>
+
+      <section class="vh-lab-request-footer"><p>After creation, a different governed approver must accept the exact plan digest. Execution requires another password step-up.</p><button class="vh-button-primary" type="submit">Create exact lab plan</button></section>
+    </form>
+  {% else %}
+    <section class="vh-surface"><div class="vh-empty-panel"><svg aria-hidden="true"><use href="#vh-i-shield"></use></svg><h3>No persisted finding</h3><p>Active validation becomes available only after the assessment stores a candidate finding.</p><a class="vh-button-secondary" href="{% url 'web-agent-run-detail' run.run_id %}">Return to assessment</a></div></section>
+  {% endif %}
+</section>
+{% endblock %}

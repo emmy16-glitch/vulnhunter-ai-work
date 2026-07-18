@@ -299,6 +299,7 @@ class PassiveNucleiProcessRunner:
             observations.append(
                 ScannerCandidateObservation(
                     observation_id=f"nuclei-{fingerprint}",
+                    scanner_id="nuclei",
                     title=redact_text(title)[:500],
                     severity=redact_text(severity)[:32],
                     confidence="scanner_match",

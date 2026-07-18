@@ -15,7 +15,8 @@ def decide_route(request: RoutingRequest) -> AiRouteDecision:
     if request.deterministic_sufficient:
         return _decision(request, AiRoute.DETERMINISTIC, "deterministic processing is sufficient")
     if request.privacy_class in {PrivacyClass.SECRET, PrivacyClass.CUSTOMER_PRIVATE}:
-        return _decision(request, AiRoute.HUMAN_ESCALATION, "human review is required")
+        route = AiRoute.DENIED if request.public_freshness_required else AiRoute.HUMAN_ESCALATION
+        return _decision(request, route, "private evidence cannot use remote advisory routing")
     if request.non_sensitive_reasoning_approved:
         if request.route_history.count(AiRoute.GROQ_ADVISORY) >= 1:
             return _decision(request, AiRoute.HUMAN_ESCALATION, "advisory retry limit reached")

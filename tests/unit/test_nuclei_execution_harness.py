@@ -593,19 +593,11 @@ def test_unfinished_state_recovery_fails_closed(tmp_path):
     assert recovered[0].state is ScannerJobState.BLOCKED_EXECUTION_DISABLED
 
 
-def test_scanner_protocol_registers_nuclei_openvas_and_mobile_under_one_interface(tmp_path):
+def test_scanner_protocol_registers_nuclei_and_mobile_under_one_interface(tmp_path):
     harness, _ = _bundle(tmp_path)
     registry = ScannerAdapterRegistry(
         [
             NucleiScannerAdapter(harness),
-            PlannedScannerAdapter(
-                ScannerAdapterDescriptor(
-                    adapter_id="openvas-planned-adapter",
-                    scanner_kind=ScannerKind.OPENVAS,
-                    status=ScannerAdapterStatus.PLANNED,
-                    deployment_mode=ScannerDeploymentMode.DISABLED,
-                )
-            ),
             PlannedScannerAdapter(
                 ScannerAdapterDescriptor(
                     adapter_id="mobile-analysis-planned-adapter",
@@ -620,7 +612,6 @@ def test_scanner_protocol_registers_nuclei_openvas_and_mobile_under_one_interfac
     assert [item.scanner_kind for item in registry.descriptors()] == [
         ScannerKind.MOBILE_ANALYSIS,
         ScannerKind.NUCLEI,
-        ScannerKind.OPENVAS,
     ]
 
 
@@ -637,7 +628,6 @@ def test_compatibility_manifest_tracks_versions_feeds_checksums_and_deployment()
     assert nuclei.descriptor.deployment_mode is ScannerDeploymentMode.ISOLATED_CONTAINER
     assert {record.version_pin.scanner_id for record in manifest.records} == {
         "nuclei",
-        "openvas",
         "mobile_analysis",
     }
 

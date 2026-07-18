@@ -333,7 +333,6 @@ def test_core_authorized_pages_load_with_empty_runtime_and_disabled_providers(
             "/",
             "/agent/runs/",
             "/findings/",
-            "/machine-oracle/",
             "/approvals/",
             "/mobile-analysis/",
             "/reports/",
@@ -348,6 +347,9 @@ def test_core_authorized_pages_load_with_empty_runtime_and_disabled_providers(
             response = client.get(url)
             assert response.status_code == 200, url
             assert b"Traceback" not in response.content
+        verification_redirect = client.get("/machine-oracle/")
+        assert verification_redirect.status_code == 302
+        assert verification_redirect["Location"].endswith("/scans/")
         settings_page = client.get("/settings/")
     assert b".groq-api-key" not in settings_page.content
     assert b"raw prompt" not in settings_page.content.lower()

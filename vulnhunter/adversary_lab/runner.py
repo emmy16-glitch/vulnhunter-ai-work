@@ -289,7 +289,9 @@ class SyntheticScenarioRunner:
         )
         return (
             {
-                "result": "Synthetic records reached the approved internal sink with matching hashes."
+                "result": (
+                    "Synthetic records reached the approved internal sink with matching hashes."
+                )
             },
             (manifest.name, destination.name),
         )

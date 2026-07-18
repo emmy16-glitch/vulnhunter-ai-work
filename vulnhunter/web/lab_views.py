@@ -206,7 +206,8 @@ def lab_create_view(request: HttpRequest, assessment_id: str) -> HttpResponse:
         else:
             messages.success(
                 request,
-                "The exact synthetic lab plan was created and is waiting for an independent approver.",
+                "The exact synthetic lab plan was created and is waiting "
+                "for an independent approver.",
             )
             return redirect("web-lab-detail", lab_id=record.plan.lab_id)
 

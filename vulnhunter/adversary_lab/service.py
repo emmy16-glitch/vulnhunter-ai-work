@@ -331,14 +331,16 @@ class AdversaryLabService:
                     state=LabState.RUNNING,
                     current_trial=trial_number,
                     active_summary=(
-                        f"Trial {trial_number} of {plan.maximum_trials}: restoring the clean snapshot."
+                        f"Trial {trial_number} of {plan.maximum_trials}: "
+                        "restoring the clean snapshot."
                     ),
                 )
                 self._event(
                     current,
                     event_type="tool_progress",
                     summary=(
-                        f"Trial {trial_number} of {plan.maximum_trials}: restoring the clean snapshot."
+                        f"Trial {trial_number} of {plan.maximum_trials}: "
+                        "restoring the clean snapshot."
                     ),
                     run_state="executing",
                     source="tool",
@@ -459,7 +461,9 @@ class AdversaryLabService:
             self._event(
                 record,
                 event_type="tool_execution_completed",
-                summary="The synthetic lab worker completed and the disposable workspace was removed.",
+                summary=(
+                    "The synthetic lab worker completed and the disposable workspace was removed."
+                ),
                 run_state="completed",
                 source="tool",
                 tool_id="adversary-lab-synthetic-runner",

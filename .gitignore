@@ -50,3 +50,4 @@ graphify-out/
 *.db-shm
 *.db-wal
 .local
+.codespaces/

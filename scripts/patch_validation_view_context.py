@@ -16,12 +16,12 @@ if old not in text:
     raise RuntimeError("views import block changed")
 text = text.replace(old, new, 1)
 
-old = '''    else:
+old = """    else:
         can_decide_approval = True
     return _render(
         request,
-        "web/agent_run_detail.html",'''
-new = '''    else:
+        "web/agent_run_detail.html","""
+new = """    else:
         can_decide_approval = True
     try:
         lab_store = AdversaryLabStore(Path(settings.VULNHUNTER_ADVERSARY_LAB_DATABASE))
@@ -38,20 +38,20 @@ new = '''    else:
         can_request_lab = bool(request.user.is_staff or request.user.is_superuser)
     return _render(
         request,
-        "web/agent_run_detail.html",'''
+        "web/agent_run_detail.html","""
 if old not in text:
     raise RuntimeError("assessment view transition block changed")
 text = text.replace(old, new, 1)
 
-old = '''            "can_decide_approval": can_decide_approval,
+old = """            "can_decide_approval": can_decide_approval,
         },
-    )'''
-new = '''            "can_decide_approval": can_decide_approval,
+    )"""
+new = """            "can_decide_approval": can_decide_approval,
             "lab_runs": lab_runs,
             "latest_lab": latest_lab,
             "can_request_lab": can_request_lab,
         },
-    )'''
+    )"""
 if old not in text:
     raise RuntimeError("assessment context block changed")
 text = text.replace(old, new, 1)

@@ -13,7 +13,9 @@ from vulnhunter.agent_activity.service import AgentActivityService
 from vulnhunter.agent_activity.store import AppendOnlyActivityStore
 
 
-def _service(tmp_path: Path, *, enabled: bool = True) -> tuple[AdversaryLabService, AgentActivityService]:
+def _service(
+    tmp_path: Path, *, enabled: bool = True
+) -> tuple[AdversaryLabService, AgentActivityService]:
     activity = AgentActivityService(AppendOnlyActivityStore(tmp_path / "activity"))
     policy = LabWorkerPolicy(
         enabled=enabled,

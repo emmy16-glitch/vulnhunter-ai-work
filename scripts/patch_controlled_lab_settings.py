@@ -50,13 +50,13 @@ DEBUG = env_bool("VULNHUNTER_WEB_DEBUG", False)''',
 )
 settings = replace_once(
     settings,
-    '''SECRET_KEY = os.environ.get("VULNHUNTER_WEB_SECRET_KEY")
+    """SECRET_KEY = os.environ.get("VULNHUNTER_WEB_SECRET_KEY")
 if not SECRET_KEY:
     if DEBUG or TESTING:
         SECRET_KEY = secrets.token_urlsafe(32)
     else:
-        raise ImproperlyConfigured("VULNHUNTER_WEB_SECRET_KEY is required when DEBUG is disabled.")''',
-    '''SECRET_KEY = env_secret(
+        raise ImproperlyConfigured("VULNHUNTER_WEB_SECRET_KEY is required when DEBUG is disabled.")""",
+    """SECRET_KEY = env_secret(
     "VULNHUNTER_WEB_SECRET_KEY",
     file_name="VULNHUNTER_WEB_SECRET_KEY_FILE",
 )
@@ -67,25 +67,25 @@ if not SECRET_KEY:
         raise ImproperlyConfigured(
             "VULNHUNTER_WEB_SECRET_KEY or VULNHUNTER_WEB_SECRET_KEY_FILE is required "
             "when DEBUG is disabled."
-        )''',
+        )""",
 )
 settings = replace_once(
     settings,
     '            "PASSWORD": os.environ.get("VULNHUNTER_POSTGRES_PASSWORD", ""),',
-    '''            "PASSWORD": env_secret(
+    """            "PASSWORD": env_secret(
                 "VULNHUNTER_POSTGRES_PASSWORD",
                 file_name="VULNHUNTER_POSTGRES_PASSWORD_FILE",
             )
-            or "",''',
+            or "",""",
 )
 settings = replace_once(
     settings,
-    '''VULNHUNTER_TASK_GRAPH_ROOT = os.environ.get(
+    """VULNHUNTER_TASK_GRAPH_ROOT = os.environ.get(
     "VULNHUNTER_TASK_GRAPH_ROOT",
     str(BASE_DIR / ".local" / "task-graphs"),
 )
-''',
-    '''VULNHUNTER_TASK_GRAPH_ROOT = os.environ.get(
+""",
+    """VULNHUNTER_TASK_GRAPH_ROOT = os.environ.get(
     "VULNHUNTER_TASK_GRAPH_ROOT",
     str(BASE_DIR / ".local" / "task-graphs"),
 )
@@ -117,7 +117,7 @@ VULNHUNTER_ADVERSARY_LAB_ENABLED = env_bool(
     "VULNHUNTER_ADVERSARY_LAB_ENABLED",
     DEBUG or TESTING,
 )
-''',
+""",
 )
 SETTINGS.write_text(settings, encoding="utf-8")
 
@@ -127,7 +127,7 @@ tests = replace_once(
     "from vulnhunter.web.settings import env_bool, env_csv, env_int",
     "from vulnhunter.web.settings import env_bool, env_csv, env_int, env_secret",
 )
-addition = '''
+addition = """
 
 
 def test_secret_file_helper_reads_protected_file_and_rejects_conflicts(tmp_path, monkeypatch):
@@ -146,7 +146,7 @@ def test_controlled_lab_defaults_are_bounded_and_local(settings):
     assert settings.VULNHUNTER_ADVERSARY_LAB_MAX_TRIALS == 10
     assert settings.VULNHUNTER_ADVERSARY_LAB_STEP_UP_SECONDS <= 1_800
     assert settings.VULNHUNTER_ADVERSARY_LAB_DATABASE.endswith("adversary-lab/lab.sqlite3")
-'''
+"""
 if "test_secret_file_helper_reads_protected_file" not in tests:
     tests = tests.rstrip() + addition + "\n"
 TESTS.write_text(tests, encoding="utf-8")

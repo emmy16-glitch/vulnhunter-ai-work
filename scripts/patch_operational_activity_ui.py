@@ -9,7 +9,7 @@ if "const disclosureRoute" in text:
     raise SystemExit(0)
 if not text.endswith("})();\n"):
     raise RuntimeError("app.js closure marker changed")
-addition = r'''
+addition = r"""
 
   const disclosureRoute = document.body.dataset.route || "page";
   const disclosures = [...document.querySelectorAll(".vh-stage-disclosure, [data-persist-disclosure]")];
@@ -128,5 +128,5 @@ addition = r'''
       window.setTimeout(() => root.classList.remove("is-reconnecting"), 1200);
     });
   });
-'''
+"""
 path.write_text(text[:-5] + addition + "})();\n", encoding="utf-8")

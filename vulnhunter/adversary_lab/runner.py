@@ -121,7 +121,9 @@ class SyntheticScenarioRunner:
         elif plan.scenario_id == "internal-transfer-observation":
             source = baseline / "source"
             source.mkdir()
-            records = [{"record_id": index, "value": f"synthetic-{index}"} for index in range(1, 51)]
+            records = [
+                {"record_id": index, "value": f"synthetic-{index}"} for index in range(1, 51)
+            ]
             (source / "records.json").write_text(
                 json.dumps(records, indent=2) + "\n",
                 encoding="utf-8",
@@ -286,7 +288,9 @@ class SyntheticScenarioRunner:
             encoding="utf-8",
         )
         return (
-            {"result": "Synthetic records reached the approved internal sink with matching hashes."},
+            {
+                "result": "Synthetic records reached the approved internal sink with matching hashes."
+            },
             (manifest.name, destination.name),
         )
 

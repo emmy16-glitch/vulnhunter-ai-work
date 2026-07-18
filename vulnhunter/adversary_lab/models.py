@@ -125,7 +125,9 @@ class LabPlan(BaseModel):
         if self.required_confirmations > self.maximum_trials:
             raise ValueError("required_confirmations must not exceed maximum_trials")
         if len(self.variations) < self.maximum_trials:
-            raise ValueError("the signed plan must contain one reviewed variation per possible trial")
+            raise ValueError(
+                "the signed plan must contain one reviewed variation per possible trial"
+            )
         return self
 
     def fingerprint(self) -> str:
@@ -150,8 +152,7 @@ class LabPlan(BaseModel):
         minimum_trials = min(3, maximum_trials)
         required_confirmations = min(2, maximum_trials)
         variations = tuple(
-            scenario.variations[index % len(scenario.variations)]
-            for index in range(maximum_trials)
+            scenario.variations[index % len(scenario.variations)] for index in range(maximum_trials)
         )
         provisional = cls(
             lab_id=lab_id,

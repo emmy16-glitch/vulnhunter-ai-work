@@ -364,9 +364,7 @@ class AdversaryLabService:
                 inconclusive = current.inconclusive_trials + (
                     1 if trial.outcome is TrialOutcome.INCONCLUSIVE else 0
                 )
-                failed = current.failed_trials + (
-                    1 if trial.outcome is TrialOutcome.FAILED else 0
-                )
+                failed = current.failed_trials + (1 if trial.outcome is TrialOutcome.FAILED else 0)
                 current = self._save(
                     current,
                     trials=(*current.trials, trial),
@@ -380,9 +378,7 @@ class AdversaryLabService:
                 self._event(
                     current,
                     event_type="tool_progress",
-                    summary=(
-                        f"Trial {trial_number} completed with outcome {trial.outcome.value}."
-                    ),
+                    summary=(f"Trial {trial_number} completed with outcome {trial.outcome.value}."),
                     run_state="executing",
                     source="tool",
                     tool_id="adversary-lab-synthetic-runner",
@@ -432,9 +428,7 @@ class AdversaryLabService:
             self._event(
                 record,
                 event_type="evaluation_completed",
-                summary=(
-                    f"Impact simulation result: {result}; human review remains required."
-                ),
+                summary=(f"Impact simulation result: {result}; human review remains required."),
                 run_state="evaluating",
                 source="evaluator",
                 metadata={
@@ -451,7 +445,9 @@ class AdversaryLabService:
             )
             cleanup_verified = self.runner.cleanup(plan)
             if not cleanup_verified:
-                raise AdversaryLabServiceError("the disposable workspace cleanup could not be verified")
+                raise AdversaryLabServiceError(
+                    "the disposable workspace cleanup could not be verified"
+                )
             record = self._save(
                 self.store.get(plan.lab_id),
                 state=LabState.COMPLETED,

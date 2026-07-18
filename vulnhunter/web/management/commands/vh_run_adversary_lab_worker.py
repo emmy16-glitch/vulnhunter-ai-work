@@ -33,9 +33,7 @@ class Command(BaseCommand):
                 maximum_trials=settings.VULNHUNTER_ADVERSARY_LAB_MAX_TRIALS,
             )
             service = AdversaryLabService(
-                store=AdversaryLabStore(
-                    Path(settings.VULNHUNTER_ADVERSARY_LAB_DATABASE)
-                ),
+                store=AdversaryLabStore(Path(settings.VULNHUNTER_ADVERSARY_LAB_DATABASE)),
                 activity_service=AgentActivityService(
                     AppendOnlyActivityStore(Path(settings.VULNHUNTER_AGENT_ACTIVITY_ROOT))
                 ),

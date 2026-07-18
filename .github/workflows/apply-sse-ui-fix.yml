@@ -1,0 +1,27 @@
+name: Apply SSE UI fix
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.event_name == 'pull_request' && github.head_ref == 'milestone32/unified-verification-worker-pilot'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: milestone32/unified-verification-worker-pilot
+      - run: python scripts/remove_operational_browser_timer.py
+      - name: Commit UI correction
+        shell: bash
+        run: |
+          set -eu
+          git config user.name "VulnHunter CI"
+          git config user.email "actions@users.noreply.github.com"
+          git add vulnhunter/web/static/web/app.js
+          git commit -m "Keep operational elapsed time backend driven"
+          git push origin HEAD:milestone32/unified-verification-worker-pilot

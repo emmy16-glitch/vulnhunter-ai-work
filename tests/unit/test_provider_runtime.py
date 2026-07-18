@@ -72,7 +72,11 @@ def test_provider_runtime_requires_explicit_groq_activation_and_matching_route()
 
     runtime = ProviderRuntime(
         registry=registry,
-        connectors={ProviderKind.GROQ_ADVISORY: GroqProvider(api_key="test-key", transport=_groq_transport())},
+        connectors={
+            ProviderKind.GROQ_ADVISORY: GroqProvider(
+                api_key="test-key", transport=_groq_transport()
+            )
+        },
     )
     response = runtime.invoke(request, invocation)
     assert response.output_kind == ProviderOutputKind.CANDIDATE_ANALYSIS
@@ -89,7 +93,11 @@ def test_private_content_cannot_be_forced_to_groq():
     with pytest.raises(ProviderRuntimeError, match="denied"):
         ProviderRuntime(
             registry=ProviderRegistry(groq_enabled=True),
-            connectors={ProviderKind.GROQ_ADVISORY: GroqProvider(api_key="test-key", transport=_groq_transport())},
+            connectors={
+                ProviderKind.GROQ_ADVISORY: GroqProvider(
+                    api_key="test-key", transport=_groq_transport()
+                )
+            },
         ).invoke(request, _invocation(request.content))
 
 

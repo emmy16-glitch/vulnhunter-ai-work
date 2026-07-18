@@ -70,9 +70,6 @@ def main() -> int:
         "VULNHUNTER_GOVERNANCE_DATABASE",
         str(root / ".local" / "runtime" / "governance" / "governance.db"),
     )
-    os.environ.setdefault("VULNHUNTER_OLLAMA_ENDPOINT", "http://127.0.0.1:11434")
-    os.environ.setdefault("VULNHUNTER_OLLAMA_CONTEXT_TOKENS", "1024")
-    os.environ.setdefault("VULNHUNTER_OLLAMA_TIMEOUT_SECONDS", "600")
     database = Path(os.environ["VULNHUNTER_AGENT_DATABASE"])
     if not database.is_file():
         print(

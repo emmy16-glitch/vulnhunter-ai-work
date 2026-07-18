@@ -142,7 +142,9 @@ class EvidenceVerificationPipeline:
             )
         return tuple(outcomes)
 
-    def _artifact_context(self, result: ScannerAdapterResult) -> tuple[Path | None, tuple[str, ...]]:
+    def _artifact_context(
+        self, result: ScannerAdapterResult
+    ) -> tuple[Path | None, tuple[str, ...]]:
         if not result.evidence:
             return None, ()
         reference = result.evidence[0]

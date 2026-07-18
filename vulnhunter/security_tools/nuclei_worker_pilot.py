@@ -77,7 +77,7 @@ class NucleiPilotPolicy(BaseModel):
         return self
 
     @classmethod
-    def from_path(cls, path: Path) -> "NucleiPilotPolicy":
+    def from_path(cls, path: Path) -> NucleiPilotPolicy:
         expanded = path.expanduser()
         if expanded.is_symlink():
             raise NucleiExecutionError("worker policy must not be a symbolic link")
@@ -158,7 +158,9 @@ class PassiveNucleiProcessRunner:
                 resolved = candidate.resolve(strict=True)
                 resolved.relative_to(root)
             except (OSError, ValueError) as exc:
-                raise NucleiExecutionError("approved template is unavailable or escaped its root") from exc
+                raise NucleiExecutionError(
+                    "approved template is unavailable or escaped its root"
+                ) from exc
             if resolved.is_symlink() or not resolved.is_file():
                 raise NucleiExecutionError("approved template is not a regular file")
             digest = hashlib.sha256(resolved.read_bytes()).hexdigest()
@@ -166,7 +168,9 @@ class PassiveNucleiProcessRunner:
                 raise NucleiExecutionError("approved template digest changed before execution")
             paths.append(resolved)
         if not paths or len(paths) != len(selected):
-            raise NucleiExecutionError("the exact reviewed template selection could not be resolved")
+            raise NucleiExecutionError(
+                "the exact reviewed template selection could not be resolved"
+            )
         return tuple(paths)
 
     def _validate_pilot_scope(self, specification: NucleiValidatedSpecification) -> str:
@@ -271,8 +275,15 @@ class PassiveNucleiProcessRunner:
                 continue
             if not isinstance(item, dict):
                 continue
-            template_id = str(item.get("template-id") or item.get("template_id") or "nuclei-match")
-            matched = str(item.get("matched-at") or item.get("matched_at") or item.get("host") or "")
+            template_id = str(
+                item.get("template-id") or item.get("template_id") or "nuclei-match"
+            )
+            matched = str(
+                item.get("matched-at")
+                or item.get("matched_at")
+                or item.get("host")
+                or ""
+            )
             if not matched:
                 continue
             info = item.get("info") if isinstance(item.get("info"), dict) else {}
@@ -405,7 +416,10 @@ class NucleiPilotExecutionHarness(NucleiExecutionHarness):
         )
         current = self.store.load(request.execution_id)
         target_state = result.state
-        if current.state is ScannerJobState.CANCELLING and target_state is not ScannerJobState.CANCELLED:
+        if (
+            current.state is ScannerJobState.CANCELLING
+            and target_state is not ScannerJobState.CANCELLED
+        ):
             target_state = ScannerJobState.CANCELLED
         return self.store.transition(
             request.execution_id,

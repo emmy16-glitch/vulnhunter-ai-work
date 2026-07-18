@@ -7,9 +7,32 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
+  apply-controlled-lab-settings:
+    if: github.event_name == 'pull_request' && github.head_ref == 'milestone32/unified-verification-worker-pilot'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out implementation branch
+        uses: actions/checkout@v7
+        with:
+          ref: milestone32/unified-verification-worker-pilot
+      - name: Apply exact settings patch
+        run: python scripts/patch_controlled_lab_settings.py
+      - name: Format and commit settings
+        shell: bash
+        run: |
+          set -eu
+          python -m pip install ruff
+          python -m ruff format vulnhunter/web/settings.py tests/unit/test_web_settings.py
+          python -m ruff check vulnhunter/web/settings.py tests/unit/test_web_settings.py --fix
+          git config user.name "VulnHunter CI"
+          git config user.email "actions@users.noreply.github.com"
+          git add vulnhunter/web/settings.py tests/unit/test_web_settings.py
+          git commit -m "Wire production secrets and controlled lab settings"
+          git push origin HEAD:milestone32/unified-verification-worker-pilot
+
   verify:
     runs-on: ubuntu-latest
     strategy:

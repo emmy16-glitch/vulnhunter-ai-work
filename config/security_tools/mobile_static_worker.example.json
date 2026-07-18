@@ -1,0 +1,12 @@
+{
+  "schema_version": "1.0",
+  "enabled": false,
+  "worker_id": "mobile-static-worker-01",
+  "workspace_root": "/srv/vulnhunter/mobile-static-workspaces",
+  "aapt2_executable": "/opt/android-sdk/build-tools/current/aapt2",
+  "apksigner_executable": "/opt/android-sdk/build-tools/current/apksigner",
+  "apkid_executable": null,
+  "timeout_seconds": 60,
+  "maximum_output_bytes": 500000,
+  "networkless_runtime_required": true
+}

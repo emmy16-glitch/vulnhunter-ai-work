@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from pathlib import Path
 from uuid import uuid4
 
 from vulnhunter.agent.models import AgentTask, TaskStatus
@@ -15,7 +14,6 @@ from vulnhunter.evidence.store import EvidenceStore
 from vulnhunter.oracle.store import OracleStore
 from vulnhunter.security_tools.nuclei_activation import (
     EngagementAuthorization,
-    NucleiActivationError,
     NucleiCommandPlan,
     NucleiPlanApproval,
     NucleiTemplateManifest,
@@ -220,14 +218,17 @@ class NucleiPilotWorkerService:
     def _process(self, job: SignedNucleiWorkerJob) -> WorkerJobReceipt:
         invocation = job.invocation.model_copy(update={"now": self.clock().astimezone(UTC)})
         target_pins = {
-            target.hostname: target.resolved_addresses for target in invocation.request.exact_targets
+            target.hostname: target.resolved_addresses
+            for target in invocation.request.exact_targets
         }
 
         def resolver(hostname: str) -> tuple[str, ...]:
             try:
                 return target_pins[hostname]
             except KeyError as exc:
-                raise NucleiPilotServiceError("worker resolver received an unapproved host") from exc
+                raise NucleiPilotServiceError(
+                    "worker resolver received an unapproved host"
+                ) from exc
 
         runner = PassiveNucleiProcessRunner(
             policy=self.policy,
@@ -248,7 +249,9 @@ class NucleiPilotWorkerService:
             state=record.state,
             observations=record.observations,
             evidence=record.evidence,
-            reason=(record.stderr.text if record.stderr and record.stderr.text else record.state.value),
+            reason=(
+                record.stderr.text if record.stderr and record.stderr.text else record.state.value
+            ),
         )
         outcomes = ()
         if record.state is ScannerJobState.COMPLETED:
@@ -270,7 +273,9 @@ class NucleiPilotWorkerService:
                 tool_version=invocation.readiness.engine_version,
                 recorded_by=invocation.actor_id,
             )
-        self._project_run_state(job.job_id, record.state, len(outcomes), record.request.execution_id)
+        self._project_run_state(
+            job.job_id, record.state, len(outcomes), record.request.execution_id
+        )
         self._activity(
             job.job_id,
             "scanner_completed" if record.state is ScannerJobState.COMPLETED else "scanner_failed",

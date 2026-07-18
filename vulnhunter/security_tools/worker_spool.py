@@ -158,7 +158,9 @@ class WorkerJobReceipt(BaseModel):
             execution_id=record.request.execution_id,
             result_sha256=sha256_json(record.model_dump(mode="json")),
             completed_at=completed_at,
-            reason=(record.stderr.text if record.stderr and record.stderr.text else record.state.value)[:500],
+            reason=(
+                record.stderr.text if record.stderr and record.stderr.text else record.state.value
+            )[:500],
         )
 
 

@@ -323,14 +323,9 @@ class PassiveNucleiProcessRunner:
                 continue
             if not isinstance(item, dict):
                 continue
-            template_id = str(
-                item.get("template-id") or item.get("template_id") or "nuclei-match"
-            )
+            template_id = str(item.get("template-id") or item.get("template_id") or "nuclei-match")
             matched = str(
-                item.get("matched-at")
-                or item.get("matched_at")
-                or item.get("host")
-                or ""
+                item.get("matched-at") or item.get("matched_at") or item.get("host") or ""
             )
             if not matched:
                 continue

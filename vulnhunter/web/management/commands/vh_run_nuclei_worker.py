@@ -103,7 +103,5 @@ class Command(BaseCommand):
             self.stdout.write("No signed Nuclei pilot job is pending.")
             return
         self.stdout.write(
-            self.style.SUCCESS(
-                f"Worker job {receipt.job_id} finished with state {receipt.state}."
-            )
+            self.style.SUCCESS(f"Worker job {receipt.job_id} finished with state {receipt.state}.")
         )

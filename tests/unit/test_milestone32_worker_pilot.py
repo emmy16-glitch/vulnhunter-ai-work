@@ -60,9 +60,9 @@ def _compatibility() -> ScannerCompatibilityManifest:
 
 def _template_manifest() -> NucleiTemplateManifest:
     return NucleiTemplateManifest.model_validate_json(
-        (
-            _repository_root() / "config/security_tools/nuclei_template_manifest.json"
-        ).read_text(encoding="utf-8")
+        (_repository_root() / "config/security_tools/nuclei_template_manifest.json").read_text(
+            encoding="utf-8"
+        )
     )
 
 
@@ -165,9 +165,7 @@ def _fake_nuclei(path: Path) -> Path:
         "info": {"name": "Passive Security Header Review", "severity": "info"},
     }
     script.write_text(
-        "#!/usr/bin/env python3\n"
-        "import json\n"
-        f"print(json.dumps({payload!r}))\n",
+        f"#!/usr/bin/env python3\nimport json\nprint(json.dumps({payload!r}))\n",
         encoding="utf-8",
     )
     script.chmod(0o700)
@@ -240,9 +238,7 @@ def test_passive_private_lab_worker_runs_and_creates_one_unified_finding(tmp_pat
         enabled=True,
         worker_id="private-lab-worker",
         nuclei_executable=_fake_nuclei(tmp_path),
-        template_root=(
-            _repository_root() / "config/security_tools/pilot_templates"
-        ).resolve(),
+        template_root=(_repository_root() / "config/security_tools/pilot_templates").resolve(),
         maximum_rate_limit=1,
         maximum_concurrency=1,
         maximum_observations=10,

@@ -32,8 +32,7 @@ class Command(BaseCommand):
             getattr(
                 settings,
                 "VULNHUNTER_MOBILE_STATIC_WORKER_POLICY",
-                Path(settings.BASE_DIR)
-                / "config/security_tools/mobile_static_worker.json",
+                Path(settings.BASE_DIR) / "config/security_tools/mobile_static_worker.json",
             )
         )
         try:

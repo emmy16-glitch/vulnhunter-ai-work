@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import hashlib
-import json
 import os
 import resource
 import stat
@@ -61,7 +60,7 @@ class MobileStaticWorkerPolicy(BaseModel):
         return self
 
     @classmethod
-    def from_path(cls, path: Path) -> "MobileStaticWorkerPolicy":
+    def from_path(cls, path: Path) -> MobileStaticWorkerPolicy:
         candidate = path.expanduser()
         if candidate.is_symlink():
             raise MobileStaticWorkerError("mobile worker policy must not be a symbolic link")
@@ -140,9 +139,7 @@ class MobileStaticWorker:
             if capture.return_code != 0:
                 observations.append(
                     {
-                        "observation_id": (
-                            f"mobile-tool-{capture.tool}-{record.sha256[:16]}"
-                        ),
+                        "observation_id": (f"mobile-tool-{capture.tool}-{record.sha256[:16]}"),
                         "title": f"{capture.tool} could not complete static inspection",
                         "status": "candidate",
                         "return_code": capture.return_code,

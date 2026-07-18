@@ -29,16 +29,6 @@ from vulnhunter.approvals.store import ApprovalStore, ApprovalStoreError
 from vulnhunter.authorization.models import AuthorizationRecord
 from vulnhunter.authorization.store import AuthorizationStore
 from vulnhunter.security import redact_text
-from vulnhunter.security_tools.nuclei_pilot_service import (
-    NucleiPilotServiceError,
-    build_approved_pilot_job,
-)
-from vulnhunter.security_tools.scanner_protocol import ScannerCompatibilityManifest
-from vulnhunter.security_tools.worker_spool import (
-    SignedWorkerSpool,
-    WorkerSpoolError,
-    load_worker_signing_key,
-)
 from vulnhunter.security_tools.nuclei_activation import (
     EngagementAuthorization,
     NucleiActivationError,
@@ -49,6 +39,16 @@ from vulnhunter.security_tools.nuclei_activation import (
     TemplateRiskClass,
     validate_evidence_directory,
     validate_nuclei_target_scope,
+)
+from vulnhunter.security_tools.nuclei_pilot_service import (
+    NucleiPilotServiceError,
+    build_approved_pilot_job,
+)
+from vulnhunter.security_tools.scanner_protocol import ScannerCompatibilityManifest
+from vulnhunter.security_tools.worker_spool import (
+    SignedWorkerSpool,
+    WorkerSpoolError,
+    load_worker_signing_key,
 )
 
 ScanProfile = Literal["passive", "standard", "intrusive", "retest"]
@@ -511,9 +511,9 @@ class AssessmentWorkflowService:
                     actor_id=actor_id,
                     now=now,
                 )
-                SignedWorkerSpool(
-                    Path(settings.VULNHUNTER_NUCLEI_WORKER_SPOOL_ROOT)
-                ).enqueue(queued_job)
+                SignedWorkerSpool(Path(settings.VULNHUNTER_NUCLEI_WORKER_SPOOL_ROOT)).enqueue(
+                    queued_job
+                )
             except (
                 OSError,
                 ValueError,
@@ -578,9 +578,13 @@ class AssessmentWorkflowService:
             event_type=(
                 "scanner_queued"
                 if queued_job is not None
-                else "run_blocked" if approved else "approval_rejected"
+                else "run_blocked"
+                if approved
+                else "approval_rejected"
             ),
-            run_state=("queued" if queued_job is not None else "blocked" if approved else "cancelled"),
+            run_state=(
+                "queued" if queued_job is not None else "blocked" if approved else "cancelled"
+            ),
             audit_reference=event.event_sha256,
         )
         return updated

@@ -323,9 +323,7 @@ class GroqProvider:
             with client.stream(method, path, json=json_body) as response:
                 raw = bytearray()
                 response_limit = (
-                    maximum_bytes
-                    if response.is_success
-                    else min(maximum_bytes, 16_384)
+                    maximum_bytes if response.is_success else min(maximum_bytes, 16_384)
                 )
                 for chunk in response.iter_bytes():
                     if cancellation():

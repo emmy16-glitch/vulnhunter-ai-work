@@ -1,0 +1,76 @@
+services:
+  database:
+    image: postgres:17.5-alpine
+    profiles: ["reviewed-production"]
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${VULNHUNTER_POSTGRES_DATABASE:?required}
+      POSTGRES_USER: ${VULNHUNTER_POSTGRES_USER:?required}
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    secrets:
+      - postgres_password
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks: [state]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+
+  web:
+    build:
+      context: ../..
+    profiles: ["reviewed-production"]
+    restart: unless-stopped
+    command:
+      - gunicorn
+      - --config
+      - config/deployment/gunicorn.conf.py
+      - vulnhunter.web.wsgi:application
+    env_file:
+      - ../../.env.production
+    environment:
+      VULNHUNTER_POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+      VULNHUNTER_WEB_SECRET_KEY_FILE: /run/secrets/django_secret_key
+      VULNHUNTER_NUCLEI_PILOT_ENQUEUE_ENABLED: "false"
+      VULNHUNTER_GROQ_ENABLED: "false"
+    secrets:
+      - postgres_password
+      - django_secret_key
+    volumes:
+      - vulnhunter-state:/srv/vulnhunter/state
+      - vulnhunter-evidence:/srv/vulnhunter/evidence
+      - vulnhunter-static:/srv/vulnhunter/static
+    networks: [state]
+    ports:
+      - "127.0.0.1:8002:8002"
+    depends_on:
+      database:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp:size=128m,mode=1770
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+    pids_limit: 256
+    mem_limit: 2g
+    cpus: 2.0
+
+networks:
+  state:
+    internal: true
+
+volumes:
+  postgres-data:
+  vulnhunter-state:
+  vulnhunter-evidence:
+  vulnhunter-static:
+
+secrets:
+  postgres_password:
+    file: ${VULNHUNTER_POSTGRES_PASSWORD_FILE:?required}
+  django_secret_key:
+    file: ${VULNHUNTER_WEB_SECRET_KEY_FILE:?required}

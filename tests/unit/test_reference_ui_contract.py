@@ -6,7 +6,6 @@ ROOT = Path(__file__).resolve().parents[2]
 WEB = ROOT / "vulnhunter" / "web"
 TEMPLATES = WEB / "templates" / "web"
 STATIC = WEB / "static" / "web"
-BASE = TEMPLATES / "base.html"
 LISTING = TEMPLATES / "agent_runs.html"
 DETAIL = TEMPLATES / "agent_run_detail.html"
 NEW_ASSESSMENT = TEMPLATES / "new_scan.html"
@@ -42,7 +41,6 @@ def test_canonical_navigation_has_one_destination_per_capability():
         "Authorizations",
         "Assessments",
         "Findings",
-        "Machine Oracle",
         "Approval Centre",
         "Review Queue",
         "Adjudications",
@@ -59,6 +57,7 @@ def test_canonical_navigation_has_one_destination_per_capability():
     )
     for label in labels:
         assert navigation.count(f'"label": "{label}"') == 1
+    assert '"label": "Machine Oracle"' not in navigation
     assert '"label": "New Scan"' not in navigation
     assert '"label": "Scan Runs"' not in navigation
 
@@ -81,10 +80,11 @@ def test_canonical_routes_and_legacy_aliases_are_explicit():
         assert route_name in urls
     assert 'path("agent/runs/", views.agent_run_list_view' in urls
     assert 'path("agent/runs/<str:run_id>/", views.agent_run_detail_view' in urls
+    assert 'RedirectView.as_view(pattern_name="web-scan-run-list"' in urls
     assert "audit_views.audit_overview_view" in urls
-    assert "oracle_views.oracle_overview_view" in urls
     assert "findings_views.findings_overview_view" in urls
     assert "report_views.reports_overview_view" in urls
+    assert "oracle_views" not in urls
 
 
 def test_blueprint_tokens_and_responsive_breakpoints_are_present():
@@ -130,7 +130,6 @@ def test_assessment_workspace_is_interactive_and_backend_truthful():
     assert detail.count('role="tab"') >= 8
     assert "querySelector(\":scope > [role='tablist']\")" in script
     assert "run.attack_path" in detail
-    assert "Nodes appear only" not in listing
     assert "vh-workstream-panel" not in listing
     assert "vh-progress-100" not in detail
     assert "78%" not in detail
@@ -164,13 +163,13 @@ def test_scanner_choice_is_bounded_to_automatic_or_nuclei():
         path.read_text(encoding="utf-8") for path in TEMPLATES.rglob("*.html")
     )
     assert "OpenVAS" not in web_text + template_text
+    assert "Greenbone" not in web_text + template_text
 
 
 def test_data_backed_pages_have_distinct_view_modules():
     assert "recent_audit_activity" in _text(AUDIT_VIEWS)
     assert "detail.findings" in _text(FINDINGS_VIEWS)
     assert "list_pilot_plan_records" in _text(REPORT_VIEWS)
-    assert "intelligence_status" in _text(WEB / "oracle_views.py")
     assert "url_has_allowed_host_and_scheme" in _text(OPERATIONS_VIEWS)
 
 
@@ -183,12 +182,7 @@ def test_pending_approval_dialog_records_real_decision_and_returns_to_canonical_
     from django.contrib.auth import get_user_model
     from governance_test_support import ADMIN_SECRET, NOW, make_governance_store
 
-    from vulnhunter.agent.models import (
-        AgentTask,
-        PermissionManifest,
-        TaskStatus,
-        ToolRisk,
-    )
+    from vulnhunter.agent.models import AgentTask, PermissionManifest, TaskStatus, ToolRisk
     from vulnhunter.agent.store import AgentStore
     from vulnhunter.approvals import ApprovalRequest, ApprovalStatus, ApprovalStore
     from vulnhunter.governance.service import bootstrap_administrator
@@ -329,7 +323,6 @@ def test_product_routes_render_for_a_multi_role_operator(client, tmp_path, setti
         "/scans/new/",
         "/scans/",
         "/findings/",
-        "/machine-oracle/",
         "/approvals/",
         "/reviews/",
         "/adjudications/",
@@ -346,6 +339,10 @@ def test_product_routes_render_for_a_multi_role_operator(client, tmp_path, setti
         response = client.get(route)
         assert response.status_code == 200, route
 
+    compatibility = client.get("/machine-oracle/")
+    assert compatibility.status_code == 302
+    assert compatibility["Location"].endswith("/scans/")
+
     legacy_list = client.get("/agent/runs/")
     assert legacy_list.status_code == 200
 
@@ -355,7 +352,6 @@ def test_product_routes_render_for_a_multi_role_operator(client, tmp_path, setti
         b"Authorizations",
         b"Assessments",
         b"Findings",
-        b"Machine Oracle",
         b"Approval Centre",
         b"Review Queue",
         b"Adjudications",
@@ -363,6 +359,7 @@ def test_product_routes_render_for_a_multi_role_operator(client, tmp_path, setti
         b"Audit Log",
     ):
         assert label in dashboard.content
+    assert b"Machine Oracle" not in dashboard.content
 
 
 @pytest.mark.django_db
@@ -386,3 +383,4 @@ def test_navigation_is_filtered_by_product_role():
     assert labels == {"Dashboard", "Findings", "Review Queue", "Reports", "Settings"}
     assert "Assessments" not in labels
     assert "Approval Centre" not in labels
+    assert "Machine Oracle" not in labels

@@ -13,7 +13,7 @@ from django.contrib.auth.decorators import login_required
 from django.http import Http404, HttpRequest, HttpResponse, JsonResponse, StreamingHttpResponse
 from django.shortcuts import redirect, render
 from django.views.decorators.cache import cache_control
-from django.views.decorators.http import require_GET, require_POST, require_http_methods
+from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
 from vulnhunter.adversary_lab.models import LabState
 from vulnhunter.adversary_lab.registry import get_scenario, list_scenarios
@@ -160,7 +160,7 @@ def _event_stream(*, sequence: int, payload: dict[str, object]) -> Iterator[str]
 @require_http_methods(["GET", "POST"])
 def lab_create_view(request: HttpRequest, assessment_id: str) -> HttpResponse:
     try:
-        _operator(request, "lab.request")
+        _operator(request, "settings.manage")
         _actor, run = _assessment_for_actor(request, assessment_id)
     except WebPermissionDenied as exc:
         return _denied(request, str(exc))
@@ -229,7 +229,7 @@ def lab_create_view(request: HttpRequest, assessment_id: str) -> HttpResponse:
 @require_GET
 def lab_detail_view(request: HttpRequest, lab_id: str) -> HttpResponse:
     try:
-        authorized_actor(request.user, required_actions=("lab.read", "scan.read", "audit.read"))
+        authorized_actor(request.user, required_actions=("scan.read", "audit.read"))
         record = _store().get(lab_id)
         _actor, run = _assessment_for_actor(request, record.plan.assessment_id)
     except WebPermissionDenied as exc:
@@ -239,9 +239,9 @@ def lab_detail_view(request: HttpRequest, lab_id: str) -> HttpResponse:
 
     permissions: dict[str, bool] = {}
     for key, action in {
-        "approve": "lab.approve",
-        "execute": "lab.execute",
-        "cancel": "lab.cancel",
+        "approve": "campaign.approve",
+        "execute": "settings.manage",
+        "cancel": "settings.manage",
     }.items():
         try:
             _operator(request, action)
@@ -263,12 +263,17 @@ def lab_detail_view(request: HttpRequest, lab_id: str) -> HttpResponse:
             "timeline": activity_payload(lab_id, after_sequence=0),
             "permissions": permissions,
             "step_up_active": _step_up_active(request, lab_id),
-            "terminal_states": tuple(state.value for state in LabState if state in {
-                LabState.COMPLETED,
-                LabState.CANCELLED,
-                LabState.BLOCKED,
-                LabState.FAILED,
-            }),
+            "terminal_states": tuple(
+                state.value
+                for state in LabState
+                if state
+                in {
+                    LabState.COMPLETED,
+                    LabState.CANCELLED,
+                    LabState.BLOCKED,
+                    LabState.FAILED,
+                }
+            ),
         },
     )
 
@@ -278,7 +283,7 @@ def lab_detail_view(request: HttpRequest, lab_id: str) -> HttpResponse:
 @require_POST
 def lab_approve_view(request: HttpRequest, lab_id: str) -> HttpResponse:
     try:
-        _operator(request, "lab.approve")
+        _operator(request, "campaign.approve")
         record = _store().get(lab_id)
         _assessment_for_actor(request, record.plan.assessment_id)
         _password_step_up(request, lab_id=lab_id, password=request.POST.get("password", ""))
@@ -295,7 +300,7 @@ def lab_approve_view(request: HttpRequest, lab_id: str) -> HttpResponse:
 @require_POST
 def lab_queue_view(request: HttpRequest, lab_id: str) -> HttpResponse:
     try:
-        _operator(request, "lab.execute")
+        _operator(request, "settings.manage")
         record = _store().get(lab_id)
         _assessment_for_actor(request, record.plan.assessment_id)
         _password_step_up(request, lab_id=lab_id, password=request.POST.get("password", ""))
@@ -312,7 +317,7 @@ def lab_queue_view(request: HttpRequest, lab_id: str) -> HttpResponse:
 @require_POST
 def lab_stop_view(request: HttpRequest, lab_id: str) -> HttpResponse:
     try:
-        _operator(request, "lab.cancel")
+        _operator(request, "settings.manage")
         record = _store().get(lab_id)
         _assessment_for_actor(request, record.plan.assessment_id)
         _service().request_cancel(
@@ -332,7 +337,7 @@ def lab_stop_view(request: HttpRequest, lab_id: str) -> HttpResponse:
 @require_GET
 def lab_activity_stream_view(request: HttpRequest, lab_id: str):
     try:
-        authorized_actor(request.user, required_actions=("lab.read", "scan.read", "audit.read"))
+        authorized_actor(request.user, required_actions=("scan.read", "audit.read"))
         record = _store().get(lab_id)
         _assessment_for_actor(request, record.plan.assessment_id)
     except WebPermissionDenied:

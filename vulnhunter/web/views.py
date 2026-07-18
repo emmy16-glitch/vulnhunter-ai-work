@@ -566,7 +566,7 @@ def agent_run_detail_view(request: HttpRequest, run_id: str) -> HttpResponse:
         lab_runs = ()
     latest_lab = lab_runs[0] if lab_runs else None
     try:
-        authorized_actor(request.user, required_actions=("lab.request",))
+        authorized_actor(request.user, required_actions=("settings.manage",))
     except WebPermissionDenied:
         can_request_lab = False
     else:

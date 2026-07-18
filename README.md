@@ -16,8 +16,9 @@ Milestone 32 provides:
 - one unified finding lifecycle with human review and release gates;
 - optional sanitized Groq advisory analysis that is disabled by default;
 - a networkless, read-only mobile static-analysis worker;
+- a controlled synthetic Active Validation workspace with up to ten clean-snapshot trials;
 - responsive operational pages for assessments, findings, approvals, review, reports and audit;
-- a loopback-only production Compose example with external secret files.
+- loopback-only production deployment examples with mounted secret files.
 
 The active assessment path is:
 
@@ -30,11 +31,12 @@ Authorization
 → bounded evidence
 → candidate finding
 → deterministic verification
+→ optional controlled active validation
 → human review
 → governed release
 ```
 
-Scanner output, deterministic verification and optional advisory analysis are consolidated into one finding record. Tool and provider details remain available as evidence provenance and audit metadata rather than separate competing findings.
+Scanner output, deterministic verification, optional controlled validation and optional advisory analysis are consolidated into one finding record. Tool and provider details remain available as evidence provenance and audit metadata rather than separate competing findings.
 
 ## Default safety state
 
@@ -47,6 +49,7 @@ The repository does not automatically:
 - activate Groq or store its API key;
 - execute an uploaded APK;
 - start an emulator or dynamic Android laboratory;
+- enable the controlled validation worker in production;
 - deploy PostgreSQL, TLS, DNS or a reverse proxy;
 - publish a finding without human review.
 
@@ -80,6 +83,14 @@ APK upload validates and stores an artifact without executing it. The static wor
 
 See `docs/product/MOBILE_APPLICATION_SECURITY.md`.
 
+## Controlled active validation
+
+A persisted finding can open a nested Active Validation workspace. The built-in worker uses reviewed synthetic scenarios, generated test data, no network egress, independent approval, password re-authentication, clean-snapshot retries, a hard maximum of ten trials, evidence hashes, cancellation checkpoints and verified cleanup.
+
+The workspace displays genuine persisted activity such as policy checks, snapshot restoration, trial state, evidence processing and cleanup. It does not display hidden reasoning or fabricated progress.
+
+See `docs/product/ACTIVE_VALIDATION.md`.
+
 ## Advisory analysis
 
 Groq is the only optional remote advisory provider. It is disabled by default, receives sanitized bounded content only, has no tools, cannot authorize or verify a finding, and returns non-authoritative proposals or `ABSTAIN`.
@@ -88,6 +99,6 @@ Deterministic verification and human review continue when Groq is unavailable.
 
 ## Production preparation
 
-`deploy/production/compose.example.yaml` is a reviewed deployment example, not an active deployment. It keeps the web service on loopback, uses an internal database network, external secret files, a read-only application filesystem, dropped capabilities and resource limits.
+`deploy/production/compose.example.yaml` is a reviewed deployment example, not an active deployment. It keeps the web service on loopback, uses an internal database network, mounted secret files, a read-only application filesystem, dropped capabilities and resource limits. The controlled validation worker remains disabled and has no network namespace in the example.
 
 Complete the separate TLS, DNS, PostgreSQL, backup, restore, monitoring and independent security-review gates in `docs/setup/DEPLOYMENT_READINESS.md` before production use.

@@ -7,36 +7,9 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  apply-operational-validation-ui:
-    if: github.event_name == 'pull_request' && github.head_ref == 'milestone32/unified-verification-worker-pilot'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out implementation branch
-        uses: actions/checkout@v7
-        with:
-          ref: milestone32/unified-verification-worker-pilot
-      - name: Apply governed permissions and UI wiring
-        run: |
-          python scripts/patch_validation_permissions.py
-          python scripts/patch_assessment_validation_ui.py
-          python scripts/patch_operational_activity_ui.py
-          python scripts/patch_operational_assets.py
-      - name: Format and commit wiring
-        shell: bash
-        run: |
-          set -eu
-          python -m pip install ruff
-          python -m ruff format vulnhunter/web/views.py vulnhunter/web/lab_views.py
-          python -m ruff check vulnhunter/web/views.py vulnhunter/web/lab_views.py --fix || true
-          git config user.name "VulnHunter CI"
-          git config user.email "actions@users.noreply.github.com"
-          git add vulnhunter/web/views.py vulnhunter/web/lab_views.py vulnhunter/web/templates/web/agent_run_detail.html vulnhunter/web/templates/web/base.html vulnhunter/web/static/web/app.js
-          git commit -m "Wire live validation workspace into assessments"
-          git push origin HEAD:milestone32/unified-verification-worker-pilot
-
   verify:
     runs-on: ubuntu-latest
     strategy:

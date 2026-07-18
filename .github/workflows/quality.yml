@@ -7,9 +7,33 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
+  apply-fake-runner-fix:
+    if: github.event_name == 'pull_request' && github.head_ref == 'milestone32/unified-verification-worker-pilot'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out implementation branch
+        uses: actions/checkout@v7
+        with:
+          ref: milestone32/unified-verification-worker-pilot
+      - name: Apply fake runner correction
+        run: python scripts/fix_milestone32_fake_nuclei.py
+      - name: Format and commit correction
+        shell: bash
+        run: |
+          set -eu
+          python -m pip install ruff
+          python -m ruff format .
+          python -m ruff check . --fix || true
+          python -m ruff format .
+          git config user.name "VulnHunter CI"
+          git config user.email "actions@users.noreply.github.com"
+          git add .
+          git commit -m "Fix the isolated worker acceptance test executable"
+          git push origin HEAD:milestone32/unified-verification-worker-pilot
+
   verify:
     runs-on: ubuntu-latest
     strategy:

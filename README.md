@@ -65,6 +65,12 @@ Public Internet scanning and destructive testing remain prohibited.
 
 Follow [`docs/product/WEB_APPLICATION.md`](docs/product/WEB_APPLICATION.md). The local development surface binds to loopback and uses Django’s development server only for local testing.
 
+## Phone preview with Codespaces
+
+A private GitHub Codespace can prepare the project automatically and expose the local web preview to an authenticated phone browser. Termux can create, connect to, start, stop and delete the Codespace through GitHub CLI.
+
+Follow [`docs/setup/CODESPACES_PHONE.md`](docs/setup/CODESPACES_PHONE.md).
+
 ## Worker pilot
 
 The manager/worker architecture is documented in:

@@ -31,34 +31,34 @@ def main() -> None:
     )
     replace_once(
         "tests/unit/test_security_tool_governance.py",
-        '''        "bearer",
+        """        "bearer",
         "greenbone",
         "amass",
-''',
-        '''        "bearer",
+""",
+        """        "bearer",
         "amass",
-''',
+""",
     )
     replace_once(
         "tests/unit/test_web_settings.py",
-        '''def test_resource_safe_local_model_defaults():
+        """def test_resource_safe_local_model_defaults():
     assert settings.VULNHUNTER_OLLAMA_MODEL == "qwen3.5:2b-q4_k_m"
     assert settings.VULNHUNTER_OLLAMA_CONTEXT_TOKENS == 1_024
     assert settings.VULNHUNTER_OLLAMA_TIMEOUT_SECONDS == 600
 
 
-''',
-        '''def test_local_model_runtime_has_been_removed():
+""",
+        """def test_local_model_runtime_has_been_removed():
     assert not hasattr(settings, "VULNHUNTER_OLLAMA_MODEL")
     assert not hasattr(settings, "VULNHUNTER_OLLAMA_CONTEXT_TOKENS")
     assert not hasattr(settings, "VULNHUNTER_OLLAMA_TIMEOUT_SECONDS")
 
 
-''',
+""",
     )
     replace_once(
         "vulnhunter/security_tools/nuclei_pilot_service.py",
-        '''        harness = NucleiPilotExecutionHarness(
+        """        harness = NucleiPilotExecutionHarness(
             policy=self.policy,
             store=self.execution_store,
             runner=runner,
@@ -67,8 +67,8 @@ def main() -> None:
             compatibility_manifest=self.compatibility_manifest,
         )
         self._activity(job.job_id, "scanner_starting", "Starting isolated passive scan.", "running")
-''',
-        '''        harness = NucleiPilotExecutionHarness(
+""",
+        """        harness = NucleiPilotExecutionHarness(
             policy=self.policy,
             store=self.execution_store,
             runner=runner,
@@ -83,81 +83,81 @@ def main() -> None:
             "Starting isolated passive scan.",
             "executing",
         )
-''',
+""",
     )
     replace_once(
         "vulnhunter/security_tools/nuclei_pilot_service.py",
-        '''            "scanner_completed" if record.state is ScannerJobState.COMPLETED else "scanner_failed",
-''',
-        '''            (
+        """            "scanner_completed" if record.state is ScannerJobState.COMPLETED else "scanner_failed",
+""",
+        """            (
                 "tool_execution_completed"
                 if record.state is ScannerJobState.COMPLETED
                 else "tool_execution_failed"
             ),
-''',
+""",
     )
     replace_once(
         "vulnhunter/security_tools/nuclei_pilot_service.py",
-        '''        workflow = task.memory.get("assessment_workflow")
+        """        workflow = task.memory.get("assessment_workflow")
         if not isinstance(workflow, dict):
             return
         if state is ScannerJobState.COMPLETED:
-''',
-        '''        workflow = task.memory.get("assessment_workflow")
+""",
+        """        workflow = task.memory.get("assessment_workflow")
         if not isinstance(workflow, dict):
             return
         if task.status is TaskStatus.CANCELLED and state is not ScannerJobState.CANCELLED:
             state = ScannerJobState.CANCELLED
             finding_count = 0
         if state is ScannerJobState.COMPLETED:
-''',
+""",
     )
     replace_once(
         "vulnhunter/security_tools/nuclei_pilot_service.py",
-        '''            source="isolated-nuclei-worker",
-''',
-        '''            source="tool",
-''',
+        """            source="isolated-nuclei-worker",
+""",
+        """            source="tool",
+""",
     )
     replace_once(
         "tests/unit/test_milestone32_worker_pilot.py",
-        '''    assert [event.event_type for event in feed.events] == [
+        """    assert [event.event_type for event in feed.events] == [
         "scanner_starting",
         "scanner_completed",
     ]
-''',
-        '''    assert [event.event_type for event in feed.events] == [
+""",
+        """    assert [event.event_type for event in feed.events] == [
         "tool_execution_started",
         "tool_execution_completed",
     ]
-''',
+""",
     )
     replace_once(
         "tests/unit/test_milestone32_worker_pilot.py",
-        '''    assert records[0].metadata["verification_status"] in {"verified", "abstain"}
-''',
-        '''    assert records[0].metadata["verification_status"] in {"verified", "abstain"}
+        """    assert records[0].metadata["verification_status"] in {"verified", "abstain"}
+""",
+        """    assert records[0].metadata["verification_status"] in {"verified", "abstain"}
     assert records[0].finding_status.value in {"candidate", "validated"}
-''',
+""",
     )
 
     replace_once(
         "vulnhunter/security_tools/worker_spool.py",
-        '''        self.completed = self._directory("completed")
+        """        self.completed = self._directory("completed")
         self.failed = self._directory("failed")
-''',
-        '''        self.completed = self._directory("completed")
+""",
+        """        self.completed = self._directory("completed")
         self.failed = self._directory("failed")
         self.cancellations = self._directory("cancellations")
-''',
+""",
     )
     replace_once(
         "vulnhunter/security_tools/worker_spool.py",
-        '''    def load_claimed(
+        """    def load_claimed(
         self,
         path: Path,
-''',
-        '''    def request_cancellation(self, job_id: str, *, reason: str, now: datetime) -> str:
+""",
+        """    def request_cancellation(self, job_id: str, *, reason: str, now: datetime) -> str:
         if self.cancel_pending(job_id, reason=reason, now=now):
             return "pending_cancelled"
         marker = self.cancellations / f"{job_id}.json"
@@ -198,26 +198,26 @@ def main() -> None:
     def load_claimed(
         self,
         path: Path,
-''',
+""",
     )
     replace_once(
         "vulnhunter/security_tools/worker_spool.py",
-        '''        self._write_exclusive(receipt_path, receipt.model_dump_json(indent=2) + "\\n")
+        """        self._write_exclusive(receipt_path, receipt.model_dump_json(indent=2) + "\\n")
         os.replace(claimed_path, destination)
         return destination
-''',
-        '''        self._write_exclusive(receipt_path, receipt.model_dump_json(indent=2) + "\\n")
+""",
+        """        self._write_exclusive(receipt_path, receipt.model_dump_json(indent=2) + "\\n")
         os.replace(claimed_path, destination)
         (self.cancellations / f"{claimed_path.stem}.json").unlink(missing_ok=True)
         return destination
-''',
+""",
     )
 
     replace_once(
         "vulnhunter/security_tools/nuclei_worker_pilot.py",
-        '''class NucleiPilotExecutionHarness(NucleiExecutionHarness):
-''',
-        '''class _PilotRunControl(_StoreAwareRunControl):
+        """class NucleiPilotExecutionHarness(NucleiExecutionHarness):
+""",
+        """class _PilotRunControl(_StoreAwareRunControl):
     def __init__(self, *, external_cancellation: Callable[[], bool], **kwargs) -> None:
         super().__init__(**kwargs)
         self._external_cancellation = external_cancellation
@@ -229,38 +229,38 @@ def main() -> None:
 
 
 class NucleiPilotExecutionHarness(NucleiExecutionHarness):
-''',
+""",
     )
     replace_once(
         "vulnhunter/security_tools/nuclei_worker_pilot.py",
-        '''        policy: NucleiPilotPolicy,
+        """        policy: NucleiPilotPolicy,
         clock: Callable[[], datetime] = lambda: datetime.now(UTC),
         **kwargs,
     ) -> None:
-''',
-        '''        policy: NucleiPilotPolicy,
+""",
+        """        policy: NucleiPilotPolicy,
         clock: Callable[[], datetime] = lambda: datetime.now(UTC),
         external_cancellation: Callable[[], bool] = lambda: False,
         **kwargs,
     ) -> None:
-''',
+""",
     )
     replace_once(
         "vulnhunter/security_tools/nuclei_worker_pilot.py",
-        '''        self.policy = policy
+        """        self.policy = policy
         self.clock = clock
-''',
-        '''        self.policy = policy
+""",
+        """        self.policy = policy
         self.clock = clock
         self.external_cancellation = external_cancellation
-''',
+""",
     )
     replace_once(
         "vulnhunter/security_tools/nuclei_worker_pilot.py",
-        '''        if not self.policy.enabled:
+        """        if not self.policy.enabled:
             return self.store.transition(
-''',
-        '''        if self.external_cancellation():
+""",
+        """        if self.external_cancellation():
             return self.store.transition(
                 request.execution_id,
                 ScannerJobState.CANCELLED,
@@ -270,13 +270,13 @@ class NucleiPilotExecutionHarness(NucleiExecutionHarness):
             )
         if not self.policy.enabled:
             return self.store.transition(
-''',
+""",
     )
     replace_once(
         "vulnhunter/security_tools/nuclei_worker_pilot.py",
-        '''        acquired = self._slots.acquire(blocking=False)
-''',
-        '''        if self.external_cancellation():
+        """        acquired = self._slots.acquire(blocking=False)
+""",
+        """        if self.external_cancellation():
             return self.store.transition(
                 request.execution_id,
                 ScannerJobState.CANCELLED,
@@ -285,34 +285,34 @@ class NucleiPilotExecutionHarness(NucleiExecutionHarness):
                 now=self.clock(),
             )
         acquired = self._slots.acquire(blocking=False)
-''',
+""",
     )
     replace_once(
         "vulnhunter/security_tools/nuclei_worker_pilot.py",
-        '''        control = _StoreAwareRunControl(
-''',
-        '''        control = _PilotRunControl(
+        """        control = _StoreAwareRunControl(
+""",
+        """        control = _PilotRunControl(
             external_cancellation=self.external_cancellation,
-''',
+""",
     )
 
     replace_once(
         "vulnhunter/web/services.py",
-        '''from vulnhunter.repository_graph import GraphifyAdapter, GraphifyAdapterError
+        """from vulnhunter.repository_graph import GraphifyAdapter, GraphifyAdapterError
 from vulnhunter.roles import RoleRegistry
-''',
-        '''from vulnhunter.repository_graph import GraphifyAdapter, GraphifyAdapterError
+""",
+        """from vulnhunter.repository_graph import GraphifyAdapter, GraphifyAdapterError
 from vulnhunter.roles import RoleRegistry
 from vulnhunter.security_tools.nuclei_execution import (
     NucleiExecutionError,
     NucleiExecutionStore,
 )
 from vulnhunter.security_tools.worker_spool import SignedWorkerSpool, WorkerSpoolError
-''',
+""",
     )
     replace_once(
         "vulnhunter/web/services.py",
-        '''    activity = activity_service()
+        """    activity = activity_service()
     stop_request = activity.request_stop(
         run_id=run_id,
         timestamp=datetime.now(UTC),
@@ -323,8 +323,8 @@ from vulnhunter.security_tools.worker_spool import SignedWorkerSpool, WorkerSpoo
         AgentRuntime(
             config=load_runtime_config(Path(settings.VULNHUNTER_RUNTIME_CONFIG)),
             store=AgentStore.open_existing(Path(settings.VULNHUNTER_AGENT_DATABASE)),
-''',
-        '''    now = datetime.now(UTC)
+""",
+        """    now = datetime.now(UTC)
     activity = activity_service()
     stop_request = activity.request_stop(
         run_id=run_id,
@@ -364,43 +364,43 @@ from vulnhunter.security_tools.worker_spool import SignedWorkerSpool, WorkerSpoo
         AgentRuntime(
             config=load_runtime_config(Path(settings.VULNHUNTER_RUNTIME_CONFIG)),
             store=agent_store,
-''',
+""",
     )
 
     replace_once(
         "vulnhunter/web/management/commands/vh_run_nuclei_worker.py",
-        '''from pathlib import Path
-''',
-        '''from datetime import UTC, datetime
+        """from pathlib import Path
+""",
+        """from datetime import UTC, datetime
 from pathlib import Path
-''',
+""",
     )
     replace_once(
         "vulnhunter/web/management/commands/vh_run_nuclei_worker.py",
-        '''            service = NucleiPilotWorkerService(
+        """            service = NucleiPilotWorkerService(
                 spool=SignedWorkerSpool(spool_root),
-''',
-        '''            now = datetime.now(UTC)
+""",
+        """            now = datetime.now(UTC)
             spool = SignedWorkerSpool(spool_root)
             execution_store = NucleiExecutionStore(execution_root)
             spool.recover_processing(now=now)
             execution_store.recover_unfinished(actor_id=policy.worker_id, now=now)
             service = NucleiPilotWorkerService(
                 spool=spool,
-''',
+""",
     )
     replace_once(
         "vulnhunter/web/management/commands/vh_run_nuclei_worker.py",
-        '''                execution_store=NucleiExecutionStore(execution_root),
-''',
-        '''                execution_store=execution_store,
-''',
+        """                execution_store=NucleiExecutionStore(execution_root),
+""",
+        """                execution_store=execution_store,
+""",
     )
 
     append_once(
         "tests/unit/test_milestone32_worker_pilot.py",
         "def test_mobile_static_worker_uses_read_only_copy_and_fixed_tool",
-        '''
+        """
 
 
 def test_worker_spool_cancels_pending_and_recovers_claimed_jobs(tmp_path):
@@ -444,7 +444,7 @@ def test_worker_spool_cancels_pending_and_recovers_claimed_jobs(tmp_path):
     assert len(recovered) == 1
     assert recovered[0].parent == spool.failed
     assert not spool.cancellation_requested("assessment-recovery")
-''',
+""",
     )
 
 

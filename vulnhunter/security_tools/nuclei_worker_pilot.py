@@ -354,6 +354,17 @@ class PassiveNucleiProcessRunner:
         return tuple(observations)
 
 
+class _PilotRunControl(_StoreAwareRunControl):
+    def __init__(self, *, external_cancellation: Callable[[], bool], **kwargs) -> None:
+        super().__init__(**kwargs)
+        self._external_cancellation = external_cancellation
+
+    def checkpoint(self, *, process_group_id: int | None = None) -> None:
+        if self._external_cancellation():
+            self.cancel("External worker cancellation requested.")
+        super().checkpoint(process_group_id=process_group_id)
+
+
 class NucleiPilotExecutionHarness(NucleiExecutionHarness):
     """Run the real process only when the worker-local passive pilot policy is enabled."""
 
@@ -362,15 +373,25 @@ class NucleiPilotExecutionHarness(NucleiExecutionHarness):
         *,
         policy: NucleiPilotPolicy,
         clock: Callable[[], datetime] = lambda: datetime.now(UTC),
+        external_cancellation: Callable[[], bool] = lambda: False,
         **kwargs,
     ) -> None:
         super().__init__(maximum_concurrency=1, terminator=ProcessGroupTerminatorImpl(), **kwargs)
         self.policy = policy
         self.clock = clock
+        self.external_cancellation = external_cancellation
 
     def execute_pilot(self, invocation: NucleiExecutionInvocation) -> NucleiExecutionRecord:
         request = invocation.request
         self.store.prepare(request, actor_id=invocation.actor_id, now=invocation.now)
+        if self.external_cancellation():
+            return self.store.transition(
+                request.execution_id,
+                ScannerJobState.CANCELLED,
+                actor_id=invocation.actor_id,
+                reason="External worker cancellation was already requested.",
+                now=self.clock(),
+            )
         if not self.policy.enabled:
             return self.store.transition(
                 request.execution_id,
@@ -397,6 +418,14 @@ class NucleiPilotExecutionHarness(NucleiExecutionHarness):
             reason="Authorization, approval, target, templates, and version pins revalidated.",
             now=self.clock(),
         )
+        if self.external_cancellation():
+            return self.store.transition(
+                request.execution_id,
+                ScannerJobState.CANCELLED,
+                actor_id=invocation.actor_id,
+                reason="External worker cancellation was requested before process start.",
+                now=self.clock(),
+            )
         acquired = self._slots.acquire(blocking=False)
         if not acquired:
             return self.store.transition(
@@ -420,7 +449,8 @@ class NucleiPilotExecutionHarness(NucleiExecutionHarness):
             reason="The isolated passive scanner process is running.",
             now=self.clock(),
         )
-        control = _StoreAwareRunControl(
+        control = _PilotRunControl(
+            external_cancellation=self.external_cancellation,
             store=self.store,
             execution_id=request.execution_id,
             timeout_seconds=request.limits.timeout_seconds,

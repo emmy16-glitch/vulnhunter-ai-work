@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from pathlib import Path
 
 from django.conf import settings
@@ -77,13 +78,18 @@ class Command(BaseCommand):
             template_manifest = NucleiTemplateManifest.model_validate_json(
                 Path(settings.VULNHUNTER_NUCLEI_TEMPLATE_MANIFEST).read_text(encoding="utf-8")
             )
+            now = datetime.now(UTC)
+            spool = SignedWorkerSpool(spool_root)
+            execution_store = NucleiExecutionStore(execution_root)
+            spool.recover_processing(now=now)
+            execution_store.recover_unfinished(actor_id=policy.worker_id, now=now)
             service = NucleiPilotWorkerService(
-                spool=SignedWorkerSpool(spool_root),
+                spool=spool,
                 signing_key=signing_key,
                 policy=policy,
                 compatibility_manifest=compatibility,
                 template_manifest=template_manifest,
-                execution_store=NucleiExecutionStore(execution_root),
+                execution_store=execution_store,
                 evidence_store=EvidenceStore(Path(settings.VULNHUNTER_SECURITY_EVIDENCE_ROOT)),
                 verification_store=OracleStore(verification_root),
                 agent_store=AgentStore(Path(settings.VULNHUNTER_AGENT_DATABASE)),

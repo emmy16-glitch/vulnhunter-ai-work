@@ -195,7 +195,11 @@ def test_provider_runtime_validates_sanitized_input_binding():
     )
     runtime = ProviderRuntime(
         registry=ProviderRegistry(groq_enabled=True),
-        connectors={ProviderKind.GROQ_ADVISORY: GroqProvider(transport=_groq_transport())},
+        connectors={
+            ProviderKind.GROQ_ADVISORY: GroqProvider(
+                api_key="test-key", transport=_groq_transport()
+            )
+        },
     )
     assert runtime.invoke(request, _invocation(content)).trusted is False
     with pytest.raises(ProviderRuntimeError, match="input binding"):

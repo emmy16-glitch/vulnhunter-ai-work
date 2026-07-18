@@ -27,6 +27,11 @@ from vulnhunter.product_spec.registry import ProductInterfaceSpec
 from vulnhunter.providers import GroqProvider, GroqProviderError
 from vulnhunter.repository_graph import GraphifyAdapter, GraphifyAdapterError
 from vulnhunter.roles import RoleRegistry
+from vulnhunter.security_tools.nuclei_execution import (
+    NucleiExecutionError,
+    NucleiExecutionStore,
+)
+from vulnhunter.security_tools.worker_spool import SignedWorkerSpool, WorkerSpoolError
 from vulnhunter.web.models import WebUserMapping
 
 
@@ -256,17 +261,46 @@ def stop_agent_run(user: Any, *, run_id: str, reason: str) -> None:
     if run.current_state in {"completed", "failed", "cancelled", "stopped", "blocked"}:
         raise WebCapabilityUnavailable("The run is already in a terminal state.")
 
+    now = datetime.now(UTC)
     activity = activity_service()
     stop_request = activity.request_stop(
         run_id=run_id,
-        timestamp=datetime.now(UTC),
+        timestamp=now,
         actor_id=actor.governance_identity.reviewer_id,
         reason=reason,
     )
+    agent_store = AgentStore.open_existing(Path(settings.VULNHUNTER_AGENT_DATABASE))
+    try:
+        task = agent_store.get_task(run_id)
+    except AgentStoreError as exc:
+        raise WebCapabilityUnavailable("The run could not be loaded for cancellation.") from exc
+    workflow = task.memory.get("assessment_workflow")
+    if isinstance(workflow, dict):
+        try:
+            SignedWorkerSpool(
+                Path(settings.VULNHUNTER_NUCLEI_WORKER_SPOOL_ROOT)
+            ).request_cancellation(run_id, reason=reason, now=now)
+        except WorkerSpoolError as exc:
+            raise WebCapabilityUnavailable(
+                "The worker cancellation request could not be recorded safely."
+            ) from exc
+        execution_id = workflow.get("execution_id")
+        if isinstance(execution_id, str) and execution_id:
+            try:
+                NucleiExecutionStore(
+                    Path(settings.VULNHUNTER_NUCLEI_EXECUTION_ROOT)
+                ).request_cancellation(
+                    execution_id,
+                    reason=reason,
+                    actor_id=actor.governance_identity.reviewer_id,
+                    now=now,
+                )
+            except NucleiExecutionError:
+                pass
     controller = AgentController(
         AgentRuntime(
             config=load_runtime_config(Path(settings.VULNHUNTER_RUNTIME_CONFIG)),
-            store=AgentStore.open_existing(Path(settings.VULNHUNTER_AGENT_DATABASE)),
+            store=agent_store,
             planner=_UnusedPlanner(),
             tools=ToolRegistry(),
             evaluator=ResultEvaluator(),

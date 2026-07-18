@@ -271,12 +271,13 @@ def test_passive_private_lab_worker_runs_and_creates_one_unified_finding(tmp_pat
     assert records[0].title == "Passive Security Header Review"
     assert records[0].metadata["scanner"] == "nuclei"
     assert records[0].metadata["verification_status"] in {"verified", "abstain"}
+    assert records[0].finding_status.value in {"candidate", "validated"}
     task = agent_store.get_task("assessment-pilot")
     assert task.status is TaskStatus.COMPLETED
     feed = activity.feed("assessment-pilot")
     assert [event.event_type for event in feed.events] == [
-        "scanner_starting",
-        "scanner_completed",
+        "tool_execution_started",
+        "tool_execution_completed",
     ]
     assert all("secret" not in event.summary.lower() for event in feed.events)
 
@@ -309,3 +310,46 @@ def test_mobile_static_worker_uses_read_only_copy_and_fixed_tool(tmp_path):
     copied = policy.workspace_root / record.artifact_id / f"{record.artifact_id}.apk"
     assert copied.stat().st_mode & 0o222 == 0
     assert os.path.exists(policy.workspace_root / record.artifact_id / "static-analysis.json")
+
+
+def test_worker_spool_cancels_pending_and_recovers_claimed_jobs(tmp_path):
+    invocation = _invocation(tmp_path)
+    key = b"r" * 32
+    spool = SignedWorkerSpool(tmp_path / "recovery-spool")
+    pending = SignedNucleiWorkerJob.create(
+        job_id="assessment-pending",
+        invocation=invocation,
+        key=key,
+        created_at=NOW,
+    )
+    spool.enqueue(pending)
+    assert (
+        spool.request_cancellation(
+            "assessment-pending",
+            reason="Operator requested stop.",
+            now=NOW + timedelta(seconds=1),
+        )
+        == "pending_cancelled"
+    )
+    assert not (spool.pending / "assessment-pending.json").exists()
+    assert (spool.failed / "assessment-pending.receipt.json").is_file()
+
+    claimed_job = SignedNucleiWorkerJob.create(
+        job_id="assessment-recovery",
+        invocation=invocation,
+        key=key,
+        created_at=NOW,
+    )
+    spool.enqueue(claimed_job)
+    claimed = spool.claim_next()
+    assert claimed is not None
+    spool.request_cancellation(
+        "assessment-recovery",
+        reason="Stop claimed job.",
+        now=NOW + timedelta(seconds=2),
+    )
+    assert spool.cancellation_requested("assessment-recovery") is True
+    recovered = spool.recover_processing(now=NOW + timedelta(seconds=3))
+    assert len(recovered) == 1
+    assert recovered[0].parent == spool.failed
+    assert not spool.cancellation_requested("assessment-recovery")

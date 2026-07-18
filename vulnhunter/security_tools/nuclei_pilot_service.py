@@ -241,8 +241,14 @@ class NucleiPilotWorkerService:
             resolver=resolver,
             approved_output_root=self.evidence_store.root,
             compatibility_manifest=self.compatibility_manifest,
+            external_cancellation=lambda: self.spool.cancellation_requested(job.job_id),
         )
-        self._activity(job.job_id, "scanner_starting", "Starting isolated passive scan.", "running")
+        self._activity(
+            job.job_id,
+            "tool_execution_started",
+            "Starting isolated passive scan.",
+            "executing",
+        )
         record = harness.execute_pilot(invocation)
         adapter_result = ScannerAdapterResult(
             execution_id=record.request.execution_id,
@@ -278,7 +284,11 @@ class NucleiPilotWorkerService:
         )
         self._activity(
             job.job_id,
-            "scanner_completed" if record.state is ScannerJobState.COMPLETED else "scanner_failed",
+            (
+                "tool_execution_completed"
+                if record.state is ScannerJobState.COMPLETED
+                else "tool_execution_failed"
+            ),
             (
                 f"Passive scan completed with {len(record.observations)} candidate observation(s)."
                 if record.state is ScannerJobState.COMPLETED
@@ -311,6 +321,9 @@ class NucleiPilotWorkerService:
         workflow = task.memory.get("assessment_workflow")
         if not isinstance(workflow, dict):
             return
+        if task.status is TaskStatus.CANCELLED and state is not ScannerJobState.CANCELLED:
+            state = ScannerJobState.CANCELLED
+            finding_count = 0
         if state is ScannerJobState.COMPLETED:
             task_status = TaskStatus.COMPLETED
             workflow_state = "completed"
@@ -369,7 +382,7 @@ class NucleiPilotWorkerService:
             event_type=event_type,
             summary=summary,
             run_state=run_state,
-            source="isolated-nuclei-worker",
+            source="tool",
             metadata=metadata or {},
         )
 

@@ -177,6 +177,7 @@ class SignedWorkerSpool:
         self.processing = self._directory("processing")
         self.completed = self._directory("completed")
         self.failed = self._directory("failed")
+        self.cancellations = self._directory("cancellations")
 
     def _directory(self, name: str) -> Path:
         path = self.root / name
@@ -242,6 +243,44 @@ class SignedWorkerSpool:
         )
         return True
 
+    def request_cancellation(self, job_id: str, *, reason: str, now: datetime) -> str:
+        if self.cancel_pending(job_id, reason=reason, now=now):
+            return "pending_cancelled"
+        marker = self.cancellations / f"{job_id}.json"
+        if marker.exists():
+            if marker.is_symlink():
+                raise WorkerSpoolError("worker cancellation marker is unsafe")
+            return "requested"
+        safe_reason = " ".join(reason.split())[:500] or "Worker cancellation requested."
+        payload = json.dumps(
+            {
+                "job_id": job_id,
+                "reason": safe_reason,
+                "requested_at": _utc(now, field="now").isoformat(),
+            },
+            sort_keys=True,
+        )
+        self._write_exclusive(marker, payload + "\n")
+        return "requested"
+
+    def cancellation_requested(self, job_id: str) -> bool:
+        marker = self.cancellations / f"{job_id}.json"
+        if marker.is_symlink():
+            raise WorkerSpoolError("worker cancellation marker is unsafe")
+        return marker.is_file()
+
+    def recover_processing(self, *, now: datetime) -> tuple[Path, ...]:
+        recovered: list[Path] = []
+        for claimed in sorted(self.processing.glob("*.json")):
+            recovered.append(
+                self.reject(
+                    claimed,
+                    reason="Claimed worker job recovered fail-closed after restart.",
+                    now=now,
+                )
+            )
+        return tuple(recovered)
+
     def load_claimed(
         self,
         path: Path,
@@ -275,6 +314,7 @@ class SignedWorkerSpool:
         receipt_path = target_root / f"{claimed_path.stem}.receipt.json"
         self._write_exclusive(receipt_path, receipt.model_dump_json(indent=2) + "\n")
         os.replace(claimed_path, destination)
+        (self.cancellations / f"{claimed_path.stem}.json").unlink(missing_ok=True)
         return destination
 
     def reject(self, claimed_path: Path, *, reason: str, now: datetime) -> Path:

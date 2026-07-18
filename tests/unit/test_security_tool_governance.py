@@ -42,7 +42,6 @@ def test_catalog_contains_free_assessment_stack():
         "testssl",
         "trivy",
         "bearer",
-        "greenbone",
         "amass",
         "ffuf",
         "sqlmap",

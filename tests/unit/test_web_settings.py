@@ -42,10 +42,10 @@ def test_default_agent_store_is_not_required_in_repository_root():
     )
 
 
-def test_resource_safe_local_model_defaults():
-    assert settings.VULNHUNTER_OLLAMA_MODEL == "qwen3.5:2b-q4_k_m"
-    assert settings.VULNHUNTER_OLLAMA_CONTEXT_TOKENS == 1_024
-    assert settings.VULNHUNTER_OLLAMA_TIMEOUT_SECONDS == 600
+def test_local_model_runtime_has_been_removed():
+    assert not hasattr(settings, "VULNHUNTER_OLLAMA_MODEL")
+    assert not hasattr(settings, "VULNHUNTER_OLLAMA_CONTEXT_TOKENS")
+    assert not hasattr(settings, "VULNHUNTER_OLLAMA_TIMEOUT_SECONDS")
 
 
 def test_control_store_defaults_are_outside_repository_root_files():

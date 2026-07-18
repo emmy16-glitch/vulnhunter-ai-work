@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from pathlib import Path
 
 from django.conf import settings
@@ -13,13 +14,17 @@ from vulnhunter.agent_activity.store import AppendOnlyActivityStore
 
 
 class Command(BaseCommand):
-    help = "Process one queued controlled adversary-lab simulation."
+    help = "Process queued controlled validation simulations."
 
     def add_arguments(self, parser) -> None:
-        parser.add_argument("--once", action="store_true", default=True)
+        parser.add_argument("--once", action="store_true")
+        parser.add_argument("--poll-seconds", type=float, default=2.0)
 
     def handle(self, *args, **options) -> None:
-        del args, options
+        del args
+        poll_seconds = float(options["poll_seconds"])
+        if not 0.2 <= poll_seconds <= 60:
+            raise CommandError("--poll-seconds must be between 0.2 and 60")
         try:
             policy = LabWorkerPolicy(
                 enabled=settings.VULNHUNTER_ADVERSARY_LAB_ENABLED,
@@ -36,7 +41,6 @@ class Command(BaseCommand):
                 ),
                 runner=SyntheticScenarioRunner(policy),
             )
-            record = service.run_next()
         except (
             OSError,
             ValueError,
@@ -44,11 +48,21 @@ class Command(BaseCommand):
             AdversaryLabServiceError,
         ) as exc:
             raise CommandError(str(exc)) from exc
-        if record is None:
-            self.stdout.write("No controlled adversary-lab run is queued.")
-            return
-        self.stdout.write(
-            self.style.SUCCESS(
-                f"Lab run {record.plan.lab_id} finished with state {record.state.value}."
-            )
-        )
+
+        while True:
+            try:
+                record = service.run_next()
+            except (AdversaryLabStoreError, AdversaryLabServiceError) as exc:
+                raise CommandError(str(exc)) from exc
+            if record is not None:
+                self.stdout.write(
+                    self.style.SUCCESS(
+                        f"Lab run {record.plan.lab_id} finished with state {record.state.value}."
+                    )
+                )
+            elif options["once"]:
+                self.stdout.write("No controlled validation run is queued.")
+                return
+            if options["once"]:
+                return
+            time.sleep(poll_seconds)

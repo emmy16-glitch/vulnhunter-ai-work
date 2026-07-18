@@ -10,6 +10,25 @@ permissions:
   contents: read
 
 jobs:
+  reference-inventory:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+      - name: Capture remaining retired-architecture references
+        shell: bash
+        run: |
+          set -eu
+          grep -RInE 'Qwen|qwen|Ollama|ollama|OpenVAS|openvas|Greenbone|greenbone|Machine Oracle|machine-oracle' \
+            --exclude-dir=.git . > "$RUNNER_TEMP/retired-references.txt" || true
+      - name: Upload reference inventory
+        uses: actions/upload-artifact@v4
+        with:
+          name: retired-reference-inventory
+          path: ${{ runner.temp }}/retired-references.txt
+          if-no-files-found: warn
+          retention-days: 1
+
   verify:
     runs-on: ubuntu-latest
     strategy:

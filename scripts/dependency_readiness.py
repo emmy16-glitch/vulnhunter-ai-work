@@ -34,7 +34,6 @@ TOOLS: dict[str, tuple[str, ...]] = {
     "capa": ("capa", "--version"),
     "rabin2": ("rabin2", "-v"),
     "graphify": ("graphify", "--version"),
-    "ollama": ("ollama", "--version"),
     "docker": ("docker", "--version"),
     "podman": ("podman", "--version"),
 }

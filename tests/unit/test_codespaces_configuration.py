@@ -10,8 +10,11 @@ DEVCONTAINER = ROOT / ".devcontainer"
 
 def test_codespaces_configuration_is_private_and_phone_ready() -> None:
     config = json.loads((DEVCONTAINER / "devcontainer.json").read_text(encoding="utf-8"))
+    dockerfile = (DEVCONTAINER / "Dockerfile").read_text(encoding="utf-8")
 
-    assert config["image"].endswith("python:1-3.12-bookworm")
+    assert config["build"]["dockerfile"] == "Dockerfile"
+    assert "mcr.microsoft.com/devcontainers/python:1-3.12-bookworm" in dockerfile
+    assert "/etc/apt/sources.list.d/yarn.list" in dockerfile
     assert config["remoteUser"] == "vscode"
     assert config["postCreateCommand"] == "bash .devcontainer/post-create.sh"
     assert 8002 in config["forwardPorts"]

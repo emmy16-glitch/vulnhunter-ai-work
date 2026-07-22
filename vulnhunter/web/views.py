@@ -892,16 +892,34 @@ def settings_overview_view(request: HttpRequest) -> HttpResponse:
         },
     )
     enabled_count = sum(1 for row in activation_rows if row["enabled"])
-    healthy_count = sum(
-        1 for row in capability_rows if row["state"] in {"available", "empty"}
-    )
+    healthy_count = sum(1 for row in capability_rows if row["state"] in {"available", "empty"})
     security_rows = (
-        {"name": "Django debug", "safe": not settings.DEBUG, "value": "Off" if not settings.DEBUG else "On"},
-        {"name": "HTTPS enforcement", "safe": bool(settings.SECURE_SSL_REDIRECT), "value": "Required" if settings.SECURE_SSL_REDIRECT else "Local-only"},
-        {"name": "Session cookie", "safe": bool(settings.SESSION_COOKIE_HTTPONLY), "value": "HttpOnly"},
+        {
+            "name": "Django debug",
+            "safe": not settings.DEBUG,
+            "value": "Off" if not settings.DEBUG else "On",
+        },
+        {
+            "name": "HTTPS enforcement",
+            "safe": bool(settings.SECURE_SSL_REDIRECT),
+            "value": "Required" if settings.SECURE_SSL_REDIRECT else "Local-only",
+        },
+        {
+            "name": "Session cookie",
+            "safe": bool(settings.SESSION_COOKIE_HTTPONLY),
+            "value": "HttpOnly",
+        },
         {"name": "CSRF cookie", "safe": bool(settings.CSRF_COOKIE_HTTPONLY), "value": "HttpOnly"},
-        {"name": "Frame embedding", "safe": settings.X_FRAME_OPTIONS == "DENY", "value": settings.X_FRAME_OPTIONS},
-        {"name": "Content Security Policy", "safe": bool(settings.VULNHUNTER_CSP), "value": "Same-origin"},
+        {
+            "name": "Frame embedding",
+            "safe": settings.X_FRAME_OPTIONS == "DENY",
+            "value": settings.X_FRAME_OPTIONS,
+        },
+        {
+            "name": "Content Security Policy",
+            "safe": bool(settings.VULNHUNTER_CSP),
+            "value": "Same-origin",
+        },
     )
     identity = actor.governance_identity
     return _render(

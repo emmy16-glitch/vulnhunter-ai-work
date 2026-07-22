@@ -9,7 +9,7 @@ from django.shortcuts import render
 from django.views.decorators.cache import cache_control
 from django.views.decorators.http import require_GET
 
-from vulnhunter.reports import ReportExportError, ReportExporter
+from vulnhunter.reports import ReportExporter, ReportExportError
 from vulnhunter.web.services import (
     WebPermissionDenied,
     authorized_actor,

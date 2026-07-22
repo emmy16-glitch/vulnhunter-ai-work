@@ -20,7 +20,6 @@ django.setup()
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
-
 from governance_test_support import (
     REVIEWER_ONE_SECRET,
     REVIEWER_TWO_SECRET,
@@ -103,10 +102,7 @@ def main() -> int:
     controller = _controller(runtime_root)
     task = controller.create_task(
         task_id="ui-reference-run",
-        objective=(
-            "Inspect a bounded local application and preserve evidence "
-            "for human review."
-        ),
+        objective=("Inspect a bounded local application and preserve evidence for human review."),
         permission_manifest=PermissionManifest(
             manifest_id="ui-reference-manifest",
             role_id="orchestrator",
@@ -173,9 +169,7 @@ def main() -> int:
             action_manifest_sha256="b" * 64,
             requested_by="reviewer-a",
             summary="Approve one bounded local validation action.",
-            risk_summary=(
-                "The action is restricted to synthetic local evidence."
-            ),
+            risk_summary=("The action is restricted to synthetic local evidence."),
             requested_at=now,
             expires_at=now + timedelta(hours=2),
         )

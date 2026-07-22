@@ -6,7 +6,6 @@ from unittest.mock import patch
 
 import pytest
 from django.contrib.auth import get_user_model
-
 from test_web_app import _bootstrap_identity, _mapped_user
 
 from vulnhunter.agent.store import AgentStore
@@ -17,7 +16,19 @@ from vulnhunter.web.services import intelligence_status, navigation_for
 @pytest.mark.django_db
 def test_navigation_exposes_real_workspaces_and_highlights_every_detail_route(web_paths) -> None:
     user = get_user_model().objects.create_user(username="navigation-audit")
-    WebUserMapping.objects.create(user=user, governance_identity_id="admin-a", product_roles=["system-administrator", "campaign-operator", "campaign-approver", "reviewer", "adjudicator", "security-auditor", "model-analyst"])
+    WebUserMapping.objects.create(
+        user=user,
+        governance_identity_id="admin-a",
+        product_roles=[
+            "system-administrator",
+            "campaign-operator",
+            "campaign-approver",
+            "reviewer",
+            "adjudicator",
+            "security-auditor",
+            "model-analyst",
+        ],
+    )
     entries = {str(item["label"]): item for item in navigation_for(user)}
     assert "Approval Centre" in entries
     assert "Mobile Analysis" in entries
@@ -32,14 +43,28 @@ def test_navigation_exposes_real_workspaces_and_highlights_every_detail_route(we
 
 
 @pytest.mark.django_db
-def test_settings_page_renders_real_posture_without_exposing_secret_paths(client, web_paths, settings) -> None:
+def test_settings_page_renders_real_posture_without_exposing_secret_paths(
+    client, web_paths, settings
+) -> None:
     _bootstrap_identity(web_paths)
     AgentStore.initialize_database(web_paths / "agent.db")
-    user = _mapped_user(username="settings-audit", password="password-1234", product_roles=["system-administrator", "security-auditor"], governance_identity="admin-a")
+    user = _mapped_user(
+        username="settings-audit",
+        password="password-1234",
+        product_roles=["system-administrator", "security-auditor"],
+        governance_identity="admin-a",
+    )
     client.force_login(user)
     response = client.get("/settings/")
     assert response.status_code == 200
-    for marker in (b"Settings &amp; readiness", b"Operator identity", b"Activation gates", b"Core capability health", b"Browser security posture", b"Configuration workspaces"):
+    for marker in (
+        b"Settings &amp; readiness",
+        b"Operator identity",
+        b"Activation gates",
+        b"Core capability health",
+        b"Browser security posture",
+        b"Configuration workspaces",
+    ):
         assert marker in response.content
     assert str(Path(settings.VULNHUNTER_GROQ_API_KEY_FILE)).encode() not in response.content
     assert b"password-1234" not in response.content
@@ -49,10 +74,22 @@ def test_settings_page_renders_real_posture_without_exposing_secret_paths(client
 @pytest.mark.django_db
 def test_pilot_report_downloads_use_existing_safe_exporter(client, web_paths) -> None:
     _bootstrap_identity(web_paths)
-    user = _mapped_user(username="report-audit", password="password-1234", product_roles=["security-auditor"], governance_identity="admin-a")
+    user = _mapped_user(
+        username="report-audit",
+        password="password-1234",
+        product_roles=["security-auditor"],
+        governance_identity="admin-a",
+    )
     client.force_login(user)
-    plan = SimpleNamespace(title="Local pilot", model_dump=lambda mode: {"plan_id": "local-pilot", "title": "Local pilot"})
-    report = SimpleNamespace(plan_sha256="a" * 64, report_sha256="b" * 64, model_dump=lambda mode: {"valid": True, "plan_sha256": "a" * 64})
+    plan = SimpleNamespace(
+        title="Local pilot",
+        model_dump=lambda mode: {"plan_id": "local-pilot", "title": "Local pilot"},
+    )
+    report = SimpleNamespace(
+        plan_sha256="a" * 64,
+        report_sha256="b" * 64,
+        model_dump=lambda mode: {"valid": True, "plan_sha256": "a" * 64},
+    )
     record = SimpleNamespace(plan_id="local-pilot", plan=plan, report=report)
     with patch("vulnhunter.web.report_views.get_pilot_plan_record", return_value=record):
         json_response = client.get("/reports/plans/local-pilot/download/json/")
@@ -72,9 +109,14 @@ def test_graphify_status_honours_explicit_execution_flag(settings) -> None:
     settings.VULNHUNTER_GRAPHIFY_EXECUTION_ENABLED = True
     settings.VULNHUNTER_GROQ_ENABLED = False
     observed: dict[str, object] = {}
+
     class FakeGraphify:
-        def __init__(self, **kwargs): observed.update(kwargs)
-        def load_artifact(self, path, *, repository_root): return SimpleNamespace(graph_sha256="c" * 64, nodes=())
+        def __init__(self, **kwargs):
+            observed.update(kwargs)
+
+        def load_artifact(self, path, *, repository_root):
+            return SimpleNamespace(graph_sha256="c" * 64, nodes=())
+
     with patch("vulnhunter.web.services.GraphifyAdapter", FakeGraphify):
         rows = intelligence_status()
     assert observed["execution_enabled"] is True

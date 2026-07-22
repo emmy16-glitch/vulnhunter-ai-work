@@ -160,13 +160,19 @@ def assessment_list_view(request: HttpRequest) -> HttpResponse:
     cross_scope = _can_view_cross_scope(actor)
     try:
         all_runs = product_service().list_agent_runs()
-        runs = tuple(all_runs if cross_scope else (run for run in all_runs if run_visible_to_actor(run, actor)))
+        visible_runs = (
+            all_runs
+            if cross_scope
+            else (run for run in all_runs if run_visible_to_actor(run, actor))
+        )
+        runs = tuple(visible_runs)
     except ProductServiceError as exc:
         runs = ()
         error = str(exc)
     else:
         error = None
-    pending = tuple(item for item in _pending_approvals() if any(run.run_id == item.run_id for run in runs))
+    run_ids = {run.run_id for run in runs}
+    pending = tuple(item for item in _pending_approvals() if item.run_id in run_ids)
     return _render(
         request,
         "web/agent_runs.html",
@@ -213,7 +219,8 @@ def assessment_detail_view(request: HttpRequest, run_id: str) -> HttpResponse:
     except (OSError, AdversaryLabStoreError):
         lab_runs = ()
     latest_lab = lab_runs[0] if lab_runs else None
-    can_request_lab = can_decide_approval and bool(request.user.is_staff or request.user.is_superuser)
+    is_staff = bool(request.user.is_staff or request.user.is_superuser)
+    can_request_lab = can_decide_approval and is_staff
     return _render(
         request,
         "web/agent_run_detail.html",

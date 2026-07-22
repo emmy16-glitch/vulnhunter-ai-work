@@ -1,20 +1,21 @@
 {
   "schema_version": "1.0",
-  "execution_enabled": false,
-  "active_assessment_enabled": false,
-  "validation_enabled": false,
+  "execution_enabled": true,
+  "active_assessment_enabled": true,
+  "validation_enabled": true,
   "privileged_broker_enabled": false,
-  "connectors_enabled": false,
+  "connectors_enabled": true,
   "approved_output_root": ".local/security-evidence",
   "maximum_parallel_tools": 1,
   "default_timeout_seconds": 300,
   "maximum_output_bytes": 2000000,
   "notes": [
-    "The installer does not install tools, execute scans, enable connectors, or store credentials.",
+    "Execution is limited to exact approved private-laboratory plans and signed workers.",
+    "Browser requests cannot bypass authorization, approval, version, template, target, or worker-policy checks.",
+    "Public scanning, automatic updates, cloud upload, public OAST, arbitrary arguments, generated templates, code templates, file templates, and unrestricted local-file access remain disabled.",
     "APK uploads are content-addressed and validated before any analysis plan is created.",
-    "Uploaded APKs are never executed on the VulnHunter host.",
-    "Dynamic MobSF, ADB, and Frida operations require a disposable isolated runtime and exact approval.",
-    "Activation requires a separate reviewed configuration change and human approval."
+    "Uploaded APKs are never executed on the VulnHunter web host.",
+    "Dynamic mobile analysis requires a disposable isolated runtime and exact approval."
   ],
   "mobile_static_enabled": false,
   "mobile_dynamic_enabled": false,
@@ -22,7 +23,7 @@
   "mobile_artifact_root": ".local/mobile-artifacts",
   "mobile_isolated_runtime_required": true,
   "nuclei": {
-    "enabled": false,
+    "enabled": true,
     "engine_version": "v3.8.0",
     "templates_version": "v10.4.5",
     "automatic_updates_enabled": false,
@@ -39,15 +40,15 @@
     "maximum_bulk_size": 2,
     "isolated_intrusive_runtime_required": true,
     "execution_harness_prepared": true,
-    "real_runner_enabled": false
+    "real_runner_enabled": true
   },
   "scanner_worker": {
     "protocol_version": "1.0",
     "execution_harness_prepared": true,
-    "execution_enabled": false,
-    "transport_enabled": false,
+    "execution_enabled": true,
+    "transport_enabled": true,
     "deployment_mode": "isolated_container",
-    "maximum_concurrency": 2,
+    "maximum_concurrency": 1,
     "compatibility_manifest": "config/security_tools/scanner_compatibility.json",
     "network_listener_enabled": false
   }

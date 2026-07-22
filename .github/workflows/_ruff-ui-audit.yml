@@ -1,35 +1,29 @@
-name: Canonicalize UI audit Python
+name: Diagnose UI audit Python
 
 on:
   pull_request:
     branches: [main]
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  format:
+  diagnose:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-        with:
-          ref: agent/full-ui-audit-and-wiring
-          fetch-depth: 0
       - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
-      - name: Apply Ruff fixes and formatting
+      - name: Capture Ruff diagnostics
         run: |
-          if [ "$(git log -1 --pretty=%s)" = "Apply Ruff UI audit fixes" ]; then exit 0; fi
           python -m pip install ruff
-          python -m ruff check --fix .
-          python -m ruff format .
-          git diff --check
-      - name: Commit canonical Python
-        run: |
-          if git diff --quiet; then exit 0; fi
-          git config user.name 'OpenAI Agent'
-          git config user.email 'agent@openai.com'
-          git add -A
-          git commit -m 'Apply Ruff UI audit fixes'
-          git push origin HEAD:agent/full-ui-audit-and-wiring
+          python -m ruff check . > "$RUNNER_TEMP/ruff.txt" 2>&1 || true
+          python -m ruff format --check . >> "$RUNNER_TEMP/ruff.txt" 2>&1 || true
+          cat "$RUNNER_TEMP/ruff.txt"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ui-audit-ruff-diagnostics
+          path: ${{ runner.temp }}/ruff.txt
+          if-no-files-found: error
+          retention-days: 1

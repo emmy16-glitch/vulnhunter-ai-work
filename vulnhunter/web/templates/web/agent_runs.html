@@ -61,7 +61,7 @@
     {% if runs %}
       <div class="vh-table-wrap"><table class="vh-table vh-assessment-table"><thead><tr><th>Assessment</th><th>State</th><th>Scanner</th><th>Profile</th><th>Approval</th><th>Updated</th><th></th></tr></thead><tbody>{% for run in runs %}<tr><td data-label="Assessment"><strong>{{ run.objective }}</strong><code>{{ run.run_id }}</code></td><td data-label="State"><span class="vh-status-chip">{{ run.current_state }}</span>{% if run.execution_blocking_reason %}<small>{{ run.execution_blocking_reason|truncatechars:80 }}</small>{% endif %}</td><td data-label="Scanner">{{ run.requested_tool|default:"Not selected" }}</td><td data-label="Profile">{{ run.risk_classification|default:run.selected_skill|default:"Not set" }}</td><td data-label="Approval">{{ run.approval_state }}</td><td data-label="Updated">{{ run.updated_at }}</td><td data-label="Action"><a class="vh-table-action" href="{% url 'web-scan-run-detail' run.run_id %}">{% if can_decide_approval and run.approval_state.value == 'pending' %}Review plan →{% else %}Open assessment →{% endif %}</a></td></tr>{% endfor %}</tbody></table></div>
     {% else %}
-      <div class="vh-empty-panel"><svg aria-hidden="true"><use href="#vh-i-assessment"></use></svg><h3>No assessments yet</h3>{% if can_create_assessment %}<p>Create a bounded plan from an active authorization. Nothing executes until an independent approval is recorded.</p><button class="vh-button-primary" type="button" data-assessment-open>New Assessment</button>{% elif can_decide_approval %}<p>No assessment currently needs your approval. New operator-created plans will appear here automatically.</p>{% else %}<p>No assessment is visible to this account.</p>{% endif %}</div>
+      <div class="vh-empty-panel"><svg aria-hidden="true"><use href="#vh-i-assessment"></use></svg><h3>No Active Assessment</h3>{% if can_create_assessment %}<p>Create a bounded plan from an active authorization. Nothing executes until an independent approval is recorded.</p><button class="vh-button-primary" type="button" data-assessment-open>New Assessment</button>{% elif can_decide_approval %}<p>No assessment currently needs your approval. New operator-created plans will appear here automatically.</p>{% else %}<p>No assessment is visible to this account.</p>{% endif %}</div>
     {% endif %}
   </section>
 
@@ -80,7 +80,7 @@
         <label class="vh-engine-field">Scanning engine<select name="scanner_engine" data-engine-select required><option value="automatic" selected>Automatic — Recommended</option><option value="nuclei">Nuclei</option></select><span class="vh-engine-state"><i></i>{% if activation.configured %}Nuclei planning and the signed worker queue are enabled by policy.{% else %}Nuclei execution is gated by configuration.{% endif %}</span></label>
       </div>
       <footer class="vh-assessment-dialog-actions"><button type="button" class="vh-button-secondary" data-assessment-close>Cancel</button><button type="submit" class="vh-button-primary" disabled data-assessment-submit>Create plan</button></footer>
-      <p class="vh-form-note">The backend revalidates every value. Exact approval and worker-readiness checks are required before queueing.</p>
+      <p class="vh-form-note">Creating a plan records scope and approval requirements. Exact approval and worker-readiness checks are required before queueing.</p>
     </form>
   </dialog>
   {% endif %}

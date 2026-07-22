@@ -4,19 +4,27 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Sign In | VulnHunter</title>
-  <link rel="stylesheet" href="{% static 'web/app.css' %}">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#0b0f14">
+  <title>Sign In | VulnHunter AI</title>
+  <link rel="stylesheet" href="{% static 'web/app.css' %}?v=20260722-console">
+  <link rel="stylesheet" href="{% static 'web/console.css' %}?v=20260722-console">
 </head>
 <body class="vh-login-body">
   <main class="vh-login-main">
-    <section class="vh-login-card">
-      <p class="vh-eyebrow">Loopback Only</p>
-      <h1>Sign in</h1>
-      <p>Authenticate to inspect local governed campaigns, bounded runs, pilot plans, and immutable audit evidence.</p>
+    <section class="vh-login-card" aria-labelledby="login-title">
+      <div class="vh-login-brand">
+        <span class="vh-login-brand-mark" aria-hidden="true">V</span>
+        <div>
+          <h1 id="login-title">VulnHunter AI</h1>
+          <span class="vh-environment-pill">Private Lab</span>
+        </div>
+      </div>
+      <p>Authorized, laboratory-only and evidence-driven security operations. Sign in with the local account mapped to your governed identity.</p>
       <form method="post" novalidate>
         {% csrf_token %}
         {% if form.non_field_errors %}
-          <div class="vh-panel vh-panel-danger">{{ form.non_field_errors }}</div>
+          <div class="vh-panel vh-panel-danger" role="alert">{{ form.non_field_errors }}</div>
         {% endif %}
         <div class="vh-form-field">
           {{ form.username.label_tag }}
@@ -28,8 +36,9 @@
           {{ form.password }}
           {{ form.password.errors }}
         </div>
-        <button type="submit">Sign in</button>
+        <button type="submit">Sign in securely</button>
       </form>
+      <p class="vh-login-note">Advisory analysis may propose. Authorization, policy, deterministic verification and human decisions remain authoritative.</p>
     </section>
   </main>
 </body>

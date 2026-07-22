@@ -2,16 +2,16 @@
 {% block content %}
 <section class="vh-page-shell">
   <header class="vh-page-header">
-    <div><p class="vh-eyebrow">Review</p><h1>Review Queue</h1><p>Items assigned to your governed identity.</p></div>
+    <div><p class="vh-eyebrow">Independent review</p><h1>Review queue</h1><p>Evidence-backed observations assigned to your governed identity. Other reviewers’ decisions remain hidden until your independent decision is submitted.</p></div>
     <div class="vh-page-actions"><a class="vh-button-secondary" href="{% url 'web-findings-overview' %}">Findings</a><a class="vh-button-secondary" href="{% url 'web-adjudication-queue' %}">Adjudications</a></div>
   </header>
 
-  <section class="vh-summary-strip"><article class="vh-summary-item"><small>Assigned</small><strong>{{ assignments|length }}</strong><span>Current queue</span></article><article class="vh-summary-item"><small>Access</small><strong>Role scoped</strong><span>Only your assignments are shown</span></article></section>
+  <section class="vh-summary-strip"><article class="vh-summary-item"><small>Assigned</small><strong>{{ assignments|length }}</strong><span>Current queue</span></article><article class="vh-summary-item"><small>Access</small><strong>Identity scoped</strong><span>Only your assignments are shown</span></article><article class="vh-summary-item"><small>Decision</small><strong>Immutable</strong><span>One primary decision per reviewer</span></article><article class="vh-summary-item"><small>Bias control</small><strong>Enforced</strong><span>Peer decisions initially hidden</span></article></section>
 
   <section class="vh-surface">
-    <header class="vh-surface-header"><div><h2>Assigned reviews</h2><p>Open the campaign for the full evidence context.</p></div><span class="vh-panel-count">{{ assignments|length }}</span></header>
+    <header class="vh-surface-header"><div><h2>Assigned reviews</h2><p>Open the evidence workspace to inspect the observation and submit a governed decision.</p></div><span class="vh-panel-count">{{ assignments|length }}</span></header>
     {% if error_message %}<div class="vh-operational-notice is-danger"><strong>Queue unavailable</strong><p>{{ error_message }}</p></div>
-    {% elif assignments %}<div class="vh-table-wrap"><table class="vh-table"><thead><tr><th>Campaign</th><th>Application</th><th>Observation</th><th>Assigned</th><th></th></tr></thead><tbody>{% for campaign, assignment in assignments %}<tr><td><strong>{{ campaign.title }}</strong><code>{{ campaign.campaign_id }}</code></td><td>{{ assignment.application_id }}</td><td>#{{ assignment.observation_id }}</td><td>{{ assignment.assigned_at }}</td><td><a href="{% url 'web-campaign-detail' campaign.campaign_id %}">Open campaign →</a></td></tr>{% endfor %}</tbody></table></div>
+    {% elif assignments %}<div class="vh-table-wrap"><table class="vh-table"><thead><tr><th>Campaign</th><th>Application</th><th>Observation</th><th>Assigned</th><th>Reference</th><th></th></tr></thead><tbody>{% for campaign, assignment in assignments %}{% with reference=assignment.record_sha256|slice:":24" %}<tr><td><strong>{{ campaign.title }}</strong><code>{{ campaign.campaign_id }}</code></td><td>{{ assignment.application_id }}</td><td>#{{ assignment.observation_id }}</td><td>{{ assignment.assigned_at }}</td><td><code>{{ reference }}…</code></td><td><a class="vh-row-link" href="{% url 'web-review-detail' reference %}">Open review →</a></td></tr>{% endwith %}{% endfor %}</tbody></table></div>
     {% else %}<div class="vh-empty-panel"><svg aria-hidden="true"><use href="#vh-i-review"></use></svg><h3>No assigned reviews</h3><p>Your review queue is clear.</p></div>{% endif %}
   </section>
 </section>

@@ -1,14 +1,31 @@
 {% extends "web/base.html" %}
+{% load static %}
 {% block content %}
+<link rel="stylesheet" href="{% static 'web/intelligence.css' %}?v=20260722-console">
 <section class="vh-page-shell">
   <header class="vh-page-header">
-    <div><p class="vh-eyebrow">Intelligence</p><h1>Models</h1><p>Current advisory-provider and graph state.</p></div>
-    <div class="vh-page-actions"><a class="vh-button-secondary" href="{% url 'web-scan-run-list' %}">Assessment Verification</a><a class="vh-button-secondary" href="{% url 'web-dataset-list' %}">Datasets</a></div>
+    <div><p class="vh-eyebrow">Intelligence</p><h1>Intelligence components</h1><p>Model-neutral graph, advisory and deterministic verification state. Opening these pages never starts training, inference or tool execution.</p></div>
+    <div class="vh-page-actions"><a class="vh-button-secondary" href="{% url 'web-scan-run-list' %}">Assessment verification</a><a class="vh-button-secondary" href="{% url 'web-dataset-list' %}">Datasets</a></div>
   </header>
 
+  <section class="vh-summary-strip"><article class="vh-summary-item"><small>Authority</small><strong>Bounded</strong><span>Policy remains deterministic</span></article><article class="vh-summary-item"><small>Private data</small><strong>Local by default</strong><span>Remote routing is denied</span></article><article class="vh-summary-item"><small>Tool access</small><strong>None</strong><span>No shell, scanner or connector</span></article><article class="vh-summary-item"><small>Publication</small><strong>Human governed</strong><span>No provider release rights</span></article></section>
+
   <section class="vh-surface">
-    <header class="vh-surface-header"><div><h2>Provider status</h2><p>No training or inference action is started from this page.</p></div><span class="vh-panel-count">{{ intelligence_status|length }}</span></header>
-    {% if intelligence_status %}<ul class="vh-compact-list">{% for item in intelligence_status %}<li><span>{{ item.name }}<small>{{ item.detail }}</small></span><strong class="{% if 'READY' in item.state %}vh-state-safe{% else %}vh-state-warning{% endif %}">{{ item.state }}</strong></li>{% endfor %}</ul>{% else %}<div class="vh-empty-panel"><svg aria-hidden="true"><use href="#vh-i-model"></use></svg><h3>No provider status</h3><p>No advisory provider or graph state is available.</p></div>{% endif %}
+    <header class="vh-surface-header"><div><h2>Component status</h2><p>Each component has a separate authority and privacy contract.</p></div><span class="vh-panel-count">{{ intelligence_status|length }}</span></header>
+    {% if intelligence_status %}
+      <div class="vh-component-grid">
+        {% for item in intelligence_status %}
+          <article class="vh-component-card">
+            <span class="vh-record-kicker">{% if forloop.counter0 == 0 %}Context{% elif forloop.counter0 == 1 %}Advisory{% else %}Verification{% endif %}</span>
+            <div class="vh-component-card-head"><h3>{{ item.name }}</h3><span class="vh-status-chip {% if 'READY' in item.state %}vh-status-safe{% else %}vh-status-warning{% endif %}">{{ item.state }}</span></div>
+            <p>{{ item.detail }}</p>
+            {% if forloop.counter0 == 0 %}<a class="vh-button-secondary" href="{% url 'web-model-detail' 'graph-context' %}">Open contract</a>{% elif forloop.counter0 == 1 %}<a class="vh-button-secondary" href="{% url 'web-model-detail' 'advisory-analysis' %}">Open contract</a>{% else %}<a class="vh-button-secondary" href="{% url 'web-model-detail' 'deterministic-verification' %}">Open contract</a>{% endif %}
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="vh-empty-panel"><svg aria-hidden="true"><use href="#vh-i-model"></use></svg><h3>No component status</h3><p>No advisory, graph or deterministic verification status is available.</p></div>
+    {% endif %}
   </section>
 </section>
 {% endblock %}

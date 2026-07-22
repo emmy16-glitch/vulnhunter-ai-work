@@ -1,0 +1,77 @@
+{% extends "web/base.html" %}
+{% block content %}
+<section class="vh-governed-workspace">
+  <header class="vh-workspace-hero">
+    <div>
+      <p class="vh-crumb"><a href="{% url 'web-release-list' %}">Releases</a><span aria-hidden="true">/</span>{{ campaign.campaign_id }}</p>
+      <p class="vh-eyebrow">Governed release assessment</p>
+      <h1>{{ campaign.title }}</h1>
+      <p>Release eligibility is derived from persisted campaign, review, adjudication and readiness evidence. This page does not infer publication from scan completion.</p>
+    </div>
+    <div class="vh-page-actions"><a class="vh-button-secondary" href="{% url 'web-campaign-detail' campaign.campaign_id %}">Campaign</a><a class="vh-button-secondary" href="{% url 'web-reports-overview' %}">Reports</a></div>
+  </header>
+
+  <section class="vh-summary-strip" aria-label="Release assessment">
+    <article class="vh-summary-item"><small>Release state</small><strong>{{ release_state }}</strong><span>{% if manifest %}Manifest present{% else %}No publication action exposed{% endif %}</span></article>
+    <article class="vh-summary-item"><small>Applications</small><strong>{{ campaign.applications|length }}</strong><span>Governed campaign scope</span></article>
+    <article class="vh-summary-item"><small>Linked scans</small><strong>{{ campaign.scans|length }}</strong><span>Validated provenance</span></article>
+    <article class="vh-summary-item"><small>Hard blockers</small><strong>{{ blockers|length }}</strong><span>Must be cleared before release</span></article>
+  </section>
+
+  <div class="vh-detail-grid">
+    <section class="vh-surface vh-detail-main">
+      <header class="vh-surface-header"><div><h2>Release gate</h2><p>Deterministic readiness and immutable manifest state.</p></div><span class="vh-status-chip {% if release_state == 'published' %}vh-status-safe{% else %}vh-status-warning{% endif %}">{{ release_state }}</span></header>
+      {% if blockers %}
+        <ul class="vh-blocker-list">{% for blocker in blockers %}<li><svg aria-hidden="true"><use href="#vh-i-shield"></use></svg><span>{{ blocker }}</span></li>{% endfor %}</ul>
+      {% else %}
+        <div class="vh-locked-state"><svg aria-hidden="true"><use href="#vh-i-checkdoc"></use></svg><h3>Deterministic checks are clear</h3><p>A separate authorized publication action is still required. Eligibility alone does not create a release.</p></div>
+      {% endif %}
+    </section>
+
+    <aside class="vh-surface vh-detail-side vh-sticky-inspector">
+      <header class="vh-surface-header"><div><h2>Control boundary</h2><p>Read-only browser assessment.</p></div></header>
+      <ul class="vh-checklist">
+        <li><span>01</span><strong>Campaign completion is not publication.</strong></li>
+        <li><span>02</span><strong>Review consensus or adjudication must be attested.</strong></li>
+        <li><span>03</span><strong>A release manifest must bind the exact dataset.</strong></li>
+        <li><span>04</span><strong>No AI provider can authorize or publish.</strong></li>
+      </ul>
+      <div class="vh-boundary-note"><strong>No decorative action</strong><p>The interface intentionally omits a Release button because the current backend does not expose a safe browser publication contract.</p></div>
+    </aside>
+
+    <section class="vh-surface vh-detail-full">
+      <header class="vh-surface-header"><div><h2>Campaign evidence</h2><p>Counts and readiness data used by the release gate.</p></div></header>
+      <div class="vh-metric-card-grid">
+        <article><span>Assignments</span><strong>{{ campaign.assignments|length }}</strong></article>
+        <article><span>Review states</span><strong>{{ campaign.review_state|length }}</strong></article>
+        <article><span>Adjudication states</span><strong>{{ campaign.adjudication_state|length }}</strong></article>
+        <article><span>Readiness</span><strong>{% if campaign.readiness.pilot_ready %}Pilot ready{% else %}Blocked{% endif %}</strong></article>
+      </div>
+      {% if campaign.readiness %}
+        <div class="vh-key-value-list">
+          <div><span>Dataset SHA-256</span><code>{{ campaign.readiness.dataset_sha256 }}</code></div>
+          <div><span>Readiness report SHA-256</span><code>{{ campaign.readiness.report_sha256 }}</code></div>
+          <div><span>Application-family diversity</span><code>{{ campaign.readiness.application_family_diversity|default:"Not available" }}</code></div>
+          <div><span>Review agreement</span><code>{{ campaign.readiness.review_agreement_count|default:"Not available" }}</code></div>
+          <div><span>Review disagreement</span><code>{{ campaign.readiness.review_disagreement_count|default:"Not available" }}</code></div>
+          <div><span>Adjudications</span><code>{{ campaign.readiness.adjudication_count|default:"Not available" }}</code></div>
+        </div>
+      {% endif %}
+    </section>
+
+    <section class="vh-surface vh-detail-full">
+      <header class="vh-surface-header"><div><h2>Release manifest</h2><p>Immutable provenance record when a governed release exists.</p></div></header>
+      {% if manifest %}
+        <div class="vh-record-body"><dl class="vh-definition-grid"><div><dt>Release ID</dt><dd>{{ manifest.release_id }}</dd></div><div><dt>Released by</dt><dd>{{ manifest.released_by }}</dd></div><div><dt>Released at</dt><dd>{{ manifest.released_at }}</dd></div><div><dt>Applications</dt><dd>{{ manifest.application_ids|length }}</dd></div><div class="vh-definition-span"><dt>Manifest SHA-256</dt><dd class="vh-mono-compact">{{ manifest.manifest_sha256 }}</dd></div><div class="vh-definition-span"><dt>Campaign manifest SHA-256</dt><dd class="vh-mono-compact">{{ manifest.campaign_manifest_sha256 }}</dd></div></dl></div>
+      {% else %}
+        <div class="vh-empty-panel"><svg aria-hidden="true"><use href="#vh-i-release"></use></svg><h3>No release manifest</h3><p>This campaign has not produced a governed dataset release manifest.</p></div>
+      {% endif %}
+    </section>
+
+    <section class="vh-surface vh-detail-full">
+      <header class="vh-surface-header"><div><h2>Governance timeline</h2><p>Recent hash-chained events for this campaign.</p></div><span class="vh-panel-count">{{ events|length }}</span></header>
+      {% if events %}<div class="vh-audit-stack">{% for event in events %}<article><time>{{ event.occurred_at }}</time><strong>{{ event.event_type }}</strong><span>{{ event.actor_id }}</span><code>{{ event.event_sha256 }}</code></article>{% endfor %}</div>{% else %}<div class="vh-empty-panel"><svg aria-hidden="true"><use href="#vh-i-audit"></use></svg><h3>No governance events</h3><p>No campaign event is currently available.</p></div>{% endif %}
+    </section>
+  </div>
+</section>
+{% endblock %}

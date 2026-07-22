@@ -1,0 +1,79 @@
+{% extends "web/base.html" %}
+{% block content %}
+<section class="vh-governed-workspace">
+  {% if workspace_error %}
+    <header class="vh-workspace-hero"><div><p class="vh-eyebrow">Independent review</p><h1>Review unavailable</h1><p>{{ workspace_error }}</p></div><div class="vh-page-actions"><a class="vh-button-secondary" href="{% url 'web-review-queue' %}">Back to queue</a></div></header>
+    <div class="vh-surface"><div class="vh-locked-state"><svg aria-hidden="true"><use href="#vh-i-review"></use></svg><h3>Evidence could not be loaded safely</h3><p>No decision control is available while the linked evidence boundary is unavailable.</p></div></div>
+  {% else %}
+    <header class="vh-workspace-hero">
+      <div>
+        <p class="vh-crumb"><a href="{% url 'web-review-queue' %}">Review queue</a><span aria-hidden="true">/</span>{{ assignment_reference }}</p>
+        <p class="vh-eyebrow">Independent primary review</p>
+        <h1>{{ observation.title }}</h1>
+        <p>Inspect the persisted observation and submit one immutable evidence-based decision. Other reviewers’ decisions remain hidden until your decision is recorded.</p>
+      </div>
+      <div class="vh-page-actions"><a class="vh-button-secondary" href="{% url 'web-campaign-detail' campaign.campaign_id %}">Campaign</a><a class="vh-button-secondary" href="{% url 'web-review-queue' %}">Back to queue</a></div>
+    </header>
+
+    <section class="vh-summary-strip" aria-label="Review status">
+      <article class="vh-summary-item"><small>Severity</small><strong class="vh-severity-{{ observation.severity }}">{{ observation.severity }}</strong><span>{{ observation.category }}</span></article>
+      <article class="vh-summary-item"><small>Case state</small><strong>{{ review_case.state }}</strong><span>{{ review_case.effective_label }}</span></article>
+      <article class="vh-summary-item"><small>Your decision</small><strong>{% if submitted %}Recorded{% else %}Pending{% endif %}</strong><span>Identity {{ actor_id }}</span></article>
+      <article class="vh-summary-item"><small>Attestations</small><strong>{{ attestations|length }}</strong><span>Governance store</span></article>
+    </section>
+
+    <div class="vh-detail-grid">
+      <section class="vh-surface vh-detail-main">
+        <header class="vh-surface-header"><div><h2>Observation</h2><p>Sanitized evidence from the linked scan repository.</p></div><span class="vh-status-chip vh-status-warning">{{ observation.review_label }}</span></header>
+        <div class="vh-record-body">
+          <p class="vh-lead-copy">{{ observation.description }}</p>
+          <dl class="vh-definition-grid">
+            <div><dt>Observation</dt><dd>#{{ observation.id }}</dd></div>
+            <div><dt>Scan</dt><dd>#{{ observation.scan_id }}</dd></div>
+            <div><dt>Application</dt><dd class="vh-mono-compact">{{ application.application_id }}</dd></div>
+            <div><dt>Target</dt><dd>{{ observation.url }}</dd></div>
+            <div class="vh-definition-span"><dt>Fingerprint</dt><dd class="vh-mono-compact">{{ observation.fingerprint }}</dd></div>
+          </dl>
+        </div>
+      </section>
+
+      <aside class="vh-surface vh-detail-side vh-sticky-inspector">
+        <header class="vh-surface-header"><div><h2>Decision</h2><p>Authenticated separately by the governance registry.</p></div></header>
+        {% if submitted %}
+          <div class="vh-locked-state"><svg aria-hidden="true"><use href="#vh-i-checkdoc"></use></svg><h3>Decision locked</h3><p>Your immutable review attestation has been recorded. A later disagreement, when present, must be resolved by the assigned adjudicator.</p></div>
+        {% else %}
+          <form method="post" class="vh-workspace-form" novalidate>
+            {% csrf_token %}
+            <div class="vh-form-field"><label for="{{ form.outcome.id_for_label }}">Outcome</label>{{ form.outcome }}{% for error in form.outcome.errors %}<span class="vh-field-error">{{ error }}</span>{% endfor %}<small>{{ form.outcome.help_text }}</small></div>
+            <div class="vh-form-field"><label for="{{ form.note.id_for_label }}">Evidence note</label>{{ form.note }}{% for error in form.note.errors %}<span class="vh-field-error">{{ error }}</span>{% endfor %}<small>{{ form.note.help_text }}</small></div>
+            <div class="vh-form-field"><label for="{{ form.governance_secret.id_for_label }}">Governance credential</label>{{ form.governance_secret }}{% for error in form.governance_secret.errors %}<span class="vh-field-error">{{ error }}</span>{% endfor %}<small>{{ form.governance_secret.help_text }}</small></div>
+            <button class="vh-button-primary" type="submit">Record immutable decision</button>
+          </form>
+        {% endif %}
+        <div class="vh-boundary-note"><strong>Bias control</strong><p>{% if other_decisions_hidden %}Another primary decision exists but is intentionally hidden until you submit yours.{% else %}No undisclosed primary decision is exposed on this screen.{% endif %}</p></div>
+      </aside>
+
+      <section class="vh-surface vh-detail-full">
+        <header class="vh-surface-header"><div><h2>Evidence fields</h2><p>Structured, redacted evidence associated with this observation.</p></div><span class="vh-panel-count">{{ observation.evidence|length }}</span></header>
+        {% if observation.evidence %}
+          <div class="vh-key-value-list">{% for key, value in observation.evidence.items %}<div><span>{{ key }}</span><code>{{ value }}</code></div>{% endfor %}</div>
+        {% else %}
+          <div class="vh-empty-panel"><svg aria-hidden="true"><use href="#vh-i-audit"></use></svg><h3>No structured fields</h3><p>The observation contains narrative evidence only.</p></div>
+        {% endif %}
+      </section>
+
+      <section class="vh-surface vh-detail-full">
+        <header class="vh-surface-header"><div><h2>Visible decisions and attestations</h2><p>Your own decision becomes visible immediately; independent decisions are revealed only after submission.</p></div></header>
+        {% if visible_decisions %}
+          <div class="vh-decision-grid">{% for decision in visible_decisions %}<article class="vh-decision-card"><span>Primary reviewer</span><strong>{{ decision.outcome }}</strong><p>{{ decision.note|default:"No note recorded." }}</p><time>{{ decision.created_at }}</time><code>{{ decision.reviewer_id }}</code></article>{% endfor %}</div>
+        {% else %}
+          <div class="vh-empty-panel"><svg aria-hidden="true"><use href="#vh-i-review"></use></svg><h3>No visible decision</h3><p>Submit your independent decision before other primary decisions are disclosed.</p></div>
+        {% endif %}
+        {% if attestations %}
+          <div class="vh-audit-stack">{% for attestation in attestations %}<article><time>{{ attestation.created_at }}</time><strong>{{ attestation.role }} · {{ attestation.outcome }}</strong><span>{{ attestation.actor_id }}</span><code>{{ attestation.record_sha256 }}</code></article>{% endfor %}</div>
+        {% endif %}
+      </section>
+    </div>
+  {% endif %}
+</section>
+{% endblock %}

@@ -6,15 +6,18 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark">
-  <meta name="theme-color" content="#020b14">
+  <meta name="theme-color" content="#0b0f14">
   <title>{{ page_title }} | VulnHunter AI</title>
-  <link rel="stylesheet" href="{% static 'web/app.css' %}?v=20260718-operational">
-  <link rel="stylesheet" href="{% static 'web/activity.css' %}?v=20260718-operational">
-  <link rel="stylesheet" href="{% static 'web/product.css' %}?v=20260718-operational">
-  <link rel="stylesheet" href="{% static 'web/operational.css' %}?v=20260718-operational">
-  <script src="{% static 'web/app.js' %}?v=20260718-operational" defer></script>
-  <script src="{% static 'web/activity.js' %}?v=20260718-operational" defer></script>
-  <script src="{% static 'web/assessment-modal.js' %}?v=20260718-operational" defer></script>
+  <link rel="stylesheet" href="{% static 'web/app.css' %}?v=20260722-console">
+  <link rel="stylesheet" href="{% static 'web/activity.css' %}?v=20260722-console">
+  <link rel="stylesheet" href="{% static 'web/product.css' %}?v=20260722-console">
+  <link rel="stylesheet" href="{% static 'web/operational.css' %}?v=20260722-console">
+  <link rel="stylesheet" href="{% static 'web/workspaces.css' %}?v=20260722-console">
+  <link rel="stylesheet" href="{% static 'web/intelligence.css' %}?v=20260722-console">
+  <link rel="stylesheet" href="{% static 'web/console.css' %}?v=20260722-console">
+  <script src="{% static 'web/app.js' %}?v=20260722-console" defer></script>
+  <script src="{% static 'web/activity.js' %}?v=20260722-console" defer></script>
+  <script src="{% static 'web/assessment-modal.js' %}?v=20260722-console" defer></script>
 </head>
 <body data-route="{{ current_route }}">
   <svg class="vh-icon-sprite" aria-hidden="true">
@@ -68,7 +71,7 @@
         {% endif %}
       </nav>
       {% if request.user.is_authenticated %}
-        <div class="vh-sidebar-footer"><div class="vh-organisation"><span class="vh-organisation-mark" aria-hidden="true"><svg><use href="#vh-i-shield"></use></svg></span><span><strong>VulnHunter Lab</strong><small>Controlled workspace</small></span></div></div>
+        <div class="vh-sidebar-footer"><div class="vh-organisation"><span class="vh-organisation-mark" aria-hidden="true"><svg><use href="#vh-i-shield"></use></svg></span><span><strong>VulnHunter Lab</strong><small>Controlled workspace</small></span><span class="vh-environment-pill">Private Lab</span></div></div>
       {% endif %}
     </aside>
 
@@ -88,6 +91,7 @@
           <div class="vh-topbar-page"><small>VulnHunter AI</small><strong>{{ page_title }}</strong></div>
         {% endif %}
         <div class="vh-top-actions">
+          <span class="vh-environment-pill is-topbar">Private Lab</span>
           <button class="vh-search-trigger" type="button" data-search-toggle aria-haspopup="dialog" aria-controls="vh-command-dialog" aria-expanded="false"><svg aria-hidden="true"><use href="#vh-i-search"></use></svg><span>Search</span><kbd>⌘ K</kbd></button>
           {% if pending_approval %}
             <button class="vh-icon-control vh-notification-control" type="button" data-approval-open aria-haspopup="dialog" aria-controls="vh-approval-dialog" aria-label="Review pending approval"><svg aria-hidden="true"><use href="#vh-i-bell"></use></svg><span class="vh-notification-dot" aria-label="1 pending approval">1</span></button>

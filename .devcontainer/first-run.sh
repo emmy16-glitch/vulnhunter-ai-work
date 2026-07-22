@@ -5,6 +5,10 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 source "$ROOT/.codespaces/vulnhunter.env"
 
+# Account creation depends on Django's auth and mapping tables. Running this
+# here makes first-run resilient when Codespaces post-create was interrupted.
+python manage.py migrate --noinput
+
 read -r -p "Approver governance identity [phone-approver]: " APPROVER_ID
 APPROVER_ID="${APPROVER_ID:-phone-approver}"
 read -r -p "Approver display name [Phone Approver]: " APPROVER_DISPLAY
@@ -47,7 +51,7 @@ elif grep -Fq "No governance identities found." <<<"$IDENTITIES"; then
 else
   EXISTING_ADMIN="$(awk '/roles=.*campaign_admin/ {print $1; exit}' <<<"$IDENTITIES")"
   if [[ -z "$EXISTING_ADMIN" ]]; then
-    printf 'No active campaign administrator is available to create the phone approver.\n' >&2
+    printf 'No active campaign administrator is available to create the assessment approver.\n' >&2
     exit 2
   fi
   read -r -p "Existing campaign administrator [$EXISTING_ADMIN]: " ADMIN_ID
@@ -112,7 +116,7 @@ export VULNHUNTER_PHONE_LAB_OPERATOR_USERNAME="$OPERATOR_USERNAME"
 EOF2
 chmod 600 "$USERS_FILE"
 
-printf '\nPhone-lab setup is complete. Start everything with:\n'
+printf '\nAssessment-lab setup is complete. Start everything with:\n'
 printf '  bash .devcontainer/start-phone-lab.sh\n\n'
-printf 'Create assessments as: %s\n' "$OPERATOR_USERNAME"
+printf 'Create assessment plans as: %s\n' "$OPERATOR_USERNAME"
 printf 'Approve exact plans as: %s\n' "$APPROVER_USERNAME"

@@ -106,6 +106,7 @@ awaiting approval → queued → running → completed
 
 ## Logs and shutdown
 
-Runtime logs are stored below ignored `.codespaces/phone-lab/`. Stop the foreground
+Runtime logs are stored below ignored `.codespaces/phone-lab/`. Wait until the
+assessment displays a terminal state before stopping the lab. Stop the foreground
 command with `Ctrl+C`; its cleanup trap stops the worker and target. Stop or delete
 the Codespace when finished.

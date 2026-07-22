@@ -285,6 +285,9 @@ def test_passive_private_lab_worker_runs_and_creates_one_unified_finding(tmp_pat
     feed = activity.feed("assessment-pilot")
     assert [event.event_type for event in feed.events] == [
         "tool_execution_started",
+        "tool_progress",
+        "evaluation_started",
+        "evaluation_completed",
         "tool_execution_completed",
     ]
     assert all("secret" not in event.summary.lower() for event in feed.events)

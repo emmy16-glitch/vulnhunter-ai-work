@@ -1,0 +1,69 @@
+name: VulnHunter browser UI quality
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  visual-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      VULNHUNTER_WEB_DEBUG: "true"
+      VULNHUNTER_WEB_DATABASE: ${{ runner.temp }}/vh-ui/web.sqlite3
+      VULNHUNTER_AUTHORIZATION_DATABASE: ${{ runner.temp }}/vh-ui/auth.db
+      VULNHUNTER_GOVERNANCE_DATABASE: ${{ runner.temp }}/vh-ui/governance.db
+      VULNHUNTER_AGENT_DATABASE: ${{ runner.temp }}/vh-ui/agent.db
+      VULNHUNTER_APPROVAL_DATABASE: ${{ runner.temp }}/vh-ui/approvals.sqlite3
+      VULNHUNTER_AGENT_ACTIVITY_ROOT: ${{ runner.temp }}/vh-ui/activity
+      VULNHUNTER_SECURITY_EVIDENCE_ROOT: ${{ runner.temp }}/vh-ui/evidence
+      VULNHUNTER_MOBILE_ARTIFACT_ROOT: ${{ runner.temp }}/vh-ui/mobile
+      VULNHUNTER_ADVERSARY_LAB_DATABASE: ${{ runner.temp }}/vh-ui/lab.sqlite3
+      VULNHUNTER_UI_MANIFEST: ${{ runner.temp }}/vh-ui/ui-manifest.json
+      VULNHUNTER_UI_OUTPUT: ${{ runner.temp }}/vh-ui/screenshots
+      VULNHUNTER_UI_BASE_URL: http://127.0.0.1:8767
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+      - name: Install application and audit tools
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .
+          python -m pip install pytest pytest-asyncio pytest-django
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Prepare deterministic local audit data
+        run: |
+          mkdir -p "${{ runner.temp }}/vh-ui"
+          python manage.py migrate --noinput
+          python tests/ui/prepare_visual_audit.py
+      - name: Start local web application
+        run: |
+          python manage.py runserver 127.0.0.1:8767 --noreload > "${{ runner.temp }}/vh-ui/server.log" 2>&1 &
+          for attempt in $(seq 1 40); do
+            if curl --fail --silent http://127.0.0.1:8767/health/ > /dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat "${{ runner.temp }}/vh-ui/server.log"
+          exit 1
+      - name: Capture and validate responsive product UI
+        run: node .playwright-validate.cjs
+      - name: Upload visual audit evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vulnhunter-ui-audit
+          path: |
+            ${{ runner.temp }}/vh-ui/screenshots
+            ${{ runner.temp }}/vh-ui/server.log
+          if-no-files-found: error
+          retention-days: 7

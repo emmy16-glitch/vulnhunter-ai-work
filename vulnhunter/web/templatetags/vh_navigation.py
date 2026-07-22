@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Iterable, Mapping
 from typing import Any
 
 from django import template
@@ -8,6 +9,13 @@ from vulnhunter.web.models import WebUserMapping
 from vulnhunter.web.services import role_policy
 
 register = template.Library()
+
+
+@register.filter
+def navigation_has(entries: Iterable[Mapping[str, object]] | None, url_name: str) -> bool:
+    """Return whether the current role-aware navigation exposes one destination."""
+
+    return any(str(item.get("url_name", "")) == url_name for item in entries or ())
 
 
 @register.simple_tag
@@ -51,6 +59,12 @@ def canonical_navigation(user: Any) -> tuple[dict[str, object], ...]:
                 "web-new-scan",
                 "web-advanced-profiles",
                 "web-oracle-overview",
+                "web-lab-create",
+                "web-lab-detail",
+                "web-lab-approve",
+                "web-lab-queue",
+                "web-lab-stop",
+                "web-lab-activity-stream",
             ),
         },
         {
@@ -120,7 +134,7 @@ def canonical_navigation(user: Any) -> tuple[dict[str, object], ...]:
             "label": "Reports",
             "url_name": "web-reports-overview",
             "icon": "report",
-            "actions": ("report.read", "report.read_own", "report.read_public"),
+            "actions": ("campaign.read", "report.read"),
             "active_routes": ("web-reports-overview",),
         },
         {

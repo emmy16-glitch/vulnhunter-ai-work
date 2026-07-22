@@ -63,6 +63,7 @@ function safeName(value) {
       const context = await contextFor(viewport, pageDefinition.persona);
       const page = await context.newPage();
       const routeKey = `${pageDefinition.name}:${viewport.name}`;
+      console.log(`Auditing ${routeKey}`);
       page.on("console", (message) => {
         if (message.type() === "error") {
           report.consoleErrors.push({ routeKey, text: message.text() });
@@ -146,14 +147,6 @@ function safeName(value) {
         if (!modalAudit.contentScrollable) {
           report.failures.push(`${routeKey} has clipped modal content`);
         }
-        await page.screenshot({
-          path: path.join(
-            outputRoot,
-            `${safeName(pageDefinition.name)}-${viewport.name}-modal.png`,
-          ),
-          fullPage: false,
-          animations: "disabled",
-        });
         await openDialog.evaluate((dialog) => dialog.close());
         await page.waitForTimeout(75);
         if (await openDialog.evaluate((dialog) => dialog.open)) {

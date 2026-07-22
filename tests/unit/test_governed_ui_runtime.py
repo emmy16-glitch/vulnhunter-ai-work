@@ -224,6 +224,10 @@ def test_finding_detail_renders_critical_evidence_and_provenance(
     summary = SimpleNamespace(run_id="run-ui-one", assessment_owner="admin-a")
     run = SimpleNamespace(
         run_id="run-ui-one",
+        objective="Review bounded evidence.",
+        selected_skill=None,
+        risk_classification=None,
+        created_at=None,
         findings=(
             {
                 "evidence_id": finding_id,
@@ -330,11 +334,14 @@ def test_all_web_templates_compile_and_reference_defined_icons() -> None:
         get_template(f"web/{path.name}")
 
     base = (_TEMPLATES / "base.html").read_text(encoding="utf-8")
-    defined = set(re.findall(r'id="(vh-i-[^"]+)"', base))
+    defined = set(re.findall(r'id="(vh-i-[a-z0-9-]+)"', base))
     referenced: set[str] = set()
     for path in _TEMPLATES.glob("*.html"):
         referenced.update(
-            re.findall(r'href="#(vh-i-[^"]+)"', path.read_text(encoding="utf-8"))
+            re.findall(
+                r'href="#(vh-i-[a-z0-9-]+)"',
+                path.read_text(encoding="utf-8"),
+            )
         )
     assert referenced <= defined
 

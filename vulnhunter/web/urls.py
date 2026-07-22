@@ -12,6 +12,7 @@ from vulnhunter.web import (
     lab_views,
     operations_views,
     report_views,
+    stream_views,
     unified_assessment_views,
     views,
 )
@@ -36,6 +37,16 @@ urlpatterns = [
         "scans/<str:run_id>/",
         unified_assessment_views.assessment_detail_view,
         name="web-scan-run-detail",
+    ),
+    path(
+        "scans/<str:run_id>/activity/",
+        unified_assessment_views.assessment_activity_view,
+        name="web-scan-run-activity",
+    ),
+    path(
+        "scans/<str:run_id>/activity/stream/",
+        unified_assessment_views.assessment_activity_stream_view,
+        name="web-scan-run-activity-stream",
     ),
     path(
         "scans/<str:assessment_id>/active-validation/new/",
@@ -123,20 +134,16 @@ urlpatterns = [
     path("roles/<str:role_id>/", views.role_detail_view, name="web-role-detail"),
     path("skills/", views.skill_list_view, name="web-skill-list"),
     path("skills/<str:skill_id>/", views.skill_detail_view, name="web-skill-detail"),
-    path("agent/runs/", unified_assessment_views.assessment_list_view, name="web-agent-run-list"),
-    path(
-        "agent/runs/<str:run_id>/",
-        unified_assessment_views.assessment_detail_view,
-        name="web-agent-run-detail",
-    ),
+    path("agent/runs/", views.agent_run_list_view, name="web-agent-run-list"),
+    path("agent/runs/<str:run_id>/", views.agent_run_detail_view, name="web-agent-run-detail"),
     path(
         "agent/runs/<str:run_id>/activity/",
-        unified_assessment_views.assessment_activity_view,
+        views.agent_activity_view,
         name="web-agent-run-activity",
     ),
     path(
         "agent/runs/<str:run_id>/activity/stream/",
-        unified_assessment_views.assessment_activity_stream_view,
+        stream_views.agent_activity_stream_view,
         name="web-agent-run-activity-stream",
     ),
     path("agent/runs/<str:run_id>/stop/", views.stop_run_view, name="web-agent-run-stop"),

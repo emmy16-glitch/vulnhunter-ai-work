@@ -2,16 +2,16 @@
 {% block content %}
 <section class="vh-page-shell">
   <header class="vh-page-header">
-    <div><p class="vh-eyebrow">Intelligence</p><h1>Datasets</h1><p>Campaign data and readiness evidence.</p></div>
-    <div class="vh-page-actions"><a class="vh-button-secondary" href="{% url 'web-campaign-list' %}">Campaigns</a><a class="vh-button-secondary" href="{% url 'web-model-list' %}">Models</a></div>
+    <div><p class="vh-eyebrow">Intelligence</p><h1>Datasets</h1><p>Governed campaign data, review quality, class balance and immutable readiness evidence.</p></div>
+    <div class="vh-page-actions"><a class="vh-button-secondary" href="{% url 'web-campaign-list' %}">Campaigns</a><a class="vh-button-secondary" href="{% url 'web-model-list' %}">Intelligence components</a></div>
   </header>
 
-  <section class="vh-summary-strip"><article class="vh-summary-item"><small>Campaigns</small><strong>{{ campaigns|length }}</strong><span>Available dataset sources</span></article><article class="vh-summary-item"><small>Release dependency</small><strong>Required</strong><span>Training data remains governed</span></article></section>
+  <section class="vh-summary-strip"><article class="vh-summary-item"><small>Campaigns</small><strong>{{ campaigns|length }}</strong><span>Available dataset sources</span></article><article class="vh-summary-item"><small>Release dependency</small><strong>Required</strong><span>Training data remains governed</span></article><article class="vh-summary-item"><small>Labels</small><strong>Human reviewed</strong><span>Consensus or adjudication</span></article><article class="vh-summary-item"><small>Actions</small><strong>Read only</strong><span>No training starts here</span></article></section>
 
   <section class="vh-surface">
-    <header class="vh-surface-header"><div><h2>Dataset readiness</h2><p>Readiness is taken from each campaign record.</p></div><span class="vh-panel-count">{{ campaigns|length }}</span></header>
+    <header class="vh-surface-header"><div><h2>Dataset readiness</h2><p>Open a quality workspace for sources, review metrics, blockers and integrity hashes.</p></div><span class="vh-panel-count">{{ campaigns|length }}</span></header>
     {% if error_message %}<div class="vh-operational-notice is-danger"><strong>Dataset evidence unavailable</strong><p>{{ error_message }}</p></div>
-    {% elif campaigns %}<div class="vh-table-wrap"><table class="vh-table"><thead><tr><th>Campaign</th><th>Applications</th><th>Scans</th><th>Release</th><th>Readiness</th><th></th></tr></thead><tbody>{% for item in campaigns %}<tr><td><strong>{{ item.title }}</strong><code>{{ item.campaign_id }}</code></td><td>{{ item.application_count }}</td><td>{{ item.scan_count }}</td><td>{{ item.release_manifest_state }}</td><td><span class="vh-status-chip {% if item.readiness_state == 'pilot_ready' %}vh-status-safe{% else %}vh-status-warning{% endif %}">{{ item.readiness_state }}</span></td><td><a href="{% url 'web-campaign-detail' item.campaign_id %}">Open campaign →</a></td></tr>{% endfor %}</tbody></table></div>
+    {% elif campaigns %}<div class="vh-table-wrap"><table class="vh-table"><thead><tr><th>Campaign</th><th>Applications</th><th>Scans</th><th>Release</th><th>Readiness</th><th></th></tr></thead><tbody>{% for item in campaigns %}<tr><td><strong>{{ item.title }}</strong><code>{{ item.campaign_id }}</code></td><td>{{ item.application_count }}</td><td>{{ item.scan_count }}</td><td>{{ item.release_manifest_state }}</td><td><span class="vh-status-chip {% if item.readiness_state == 'pilot_ready' %}vh-status-safe{% else %}vh-status-warning{% endif %}">{{ item.readiness_state }}</span></td><td><a class="vh-row-link" href="{% url 'web-dataset-detail' item.campaign_id %}">Inspect quality →</a></td></tr>{% endfor %}</tbody></table></div>
     {% else %}<div class="vh-empty-panel"><svg aria-hidden="true"><use href="#vh-i-database"></use></svg><h3>No dataset evidence</h3><p>No governed campaign data is available.</p></div>{% endif %}
   </section>
 </section>

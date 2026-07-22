@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Expand the deterministic UI manifest to every stable read-only workspace."""
+"""Expand the deterministic UI manifest to every stable HTML workspace."""
 
 from __future__ import annotations
 
@@ -34,11 +34,6 @@ def main() -> int:
         {
             "name": "authorizations",
             "path": "/authorizations/",
-            "persona": "admin",
-        },
-        {
-            "name": "active-authorizations",
-            "path": "/scans/authorizations/",
             "persona": "admin",
         },
         {"name": "review-queue", "path": "/reviews/", "persona": "reviewer"},

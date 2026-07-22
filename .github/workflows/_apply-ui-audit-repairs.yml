@@ -3,6 +3,8 @@ name: Apply UI audit repairs
 on:
   push:
     branches: [agent/full-ui-audit-and-wiring]
+  pull_request:
+    branches: [main]
 
 permissions:
   contents: write

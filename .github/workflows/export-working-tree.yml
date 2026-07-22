@@ -57,13 +57,18 @@ jobs:
           test "$(git rev-parse FETCH_HEAD)" = "a655dfa8dd5a432d78dffd982e209d9ee7fb1a41"
           test "$(git rev-parse FETCH_HEAD^{tree})" = "cea43d3f0a72a993cd2a00921efbc92b077d4b0c"
 
-      - name: Publish reviewed implementation tree
+      - name: Commit non-workflow implementation changes
         shell: bash
-        env:
-          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
-          git push \
-            --force-with-lease=refs/heads/work/phone-only-private-lab:${EXPECTED_HEAD} \
-            origin \
-            FETCH_HEAD:refs/heads/work/phone-only-private-lab
+          git checkout FETCH_HEAD -- .
+          git checkout HEAD -- .github/workflows
+          git rm -r .codex/phone-bundle
+          if git diff --cached --name-only | grep -q '^\.github/workflows/'; then
+            echo 'Refusing to modify workflow files with the Actions token.' >&2
+            exit 1
+          fi
+          git config user.name "OpenAI Codex"
+          git config user.email "codex@openai.com"
+          git commit -m "Implement phone-only private lab"
+          git push origin HEAD:refs/heads/work/phone-only-private-lab

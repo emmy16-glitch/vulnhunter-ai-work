@@ -147,6 +147,11 @@ pre::-webkit-scrollbar-thumb:hover,
   white-space: nowrap;
 }
 
+.vh-approval-dialog {
+  box-sizing: border-box;
+  overscroll-behavior: contain;
+}
+
 @media (max-width: 1023px) {
   html {
     scrollbar-gutter: auto;
@@ -177,6 +182,40 @@ pre::-webkit-scrollbar-thumb:hover,
   .vh-product-span-9,
   .vh-product-span-12 {
     grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 680px) {
+  .vh-approval-dialog {
+    position: fixed;
+    inset: 0;
+    width: calc(100vw - 16px);
+    max-width: calc(100vw - 16px);
+    max-height: calc(100dvh - 16px);
+    margin: auto;
+  }
+
+  .vh-approval-modal-shell {
+    padding: 12px;
+  }
+
+  .vh-approval-modal-header {
+    grid-template-columns: 36px minmax(0, 1fr) 32px;
+    gap: 10px;
+  }
+
+  .vh-approval-modal-icon {
+    width: 36px;
+    height: 36px;
+  }
+
+  .vh-approval-modal-facts {
+    max-height: 34dvh;
+    overflow-y: auto;
+  }
+
+  .vh-approval-decision-form textarea {
+    min-height: 72px;
   }
 }
 

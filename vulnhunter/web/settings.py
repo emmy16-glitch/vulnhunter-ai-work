@@ -235,7 +235,6 @@ SECURE_CROSS_ORIGIN_OPENER_POLICY = "same-origin"
 X_FRAME_OPTIONS = "DENY"
 USE_X_FORWARDED_HOST = TRUST_PROXY
 if TRUST_PROXY:
-    # Enable only behind a trusted proxy that strips inbound forwarding headers.
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 LOG_LEVEL = os.environ.get("VULNHUNTER_WEB_LOG_LEVEL", "INFO").strip().upper()
@@ -273,36 +272,29 @@ VULNHUNTER_AGENT_DATABASE = os.environ.get(
     str(BASE_DIR / ".local" / "runtime" / "agent" / "agent.db"),
 )
 VULNHUNTER_ROLE_REGISTRY_ROOT = os.environ.get(
-    "VULNHUNTER_ROLE_REGISTRY_ROOT",
-    str(BASE_DIR / "config" / "roles"),
+    "VULNHUNTER_ROLE_REGISTRY_ROOT", str(BASE_DIR / "config" / "roles")
 )
 VULNHUNTER_RUNTIME_CONFIG = os.environ.get(
-    "VULNHUNTER_RUNTIME_CONFIG",
-    str(BASE_DIR / "config" / "agent_runtime" / "runtime.json"),
+    "VULNHUNTER_RUNTIME_CONFIG", str(BASE_DIR / "config" / "agent_runtime" / "runtime.json")
 )
 VULNHUNTER_PRODUCT_SPEC_ROOT = os.environ.get(
-    "VULNHUNTER_PRODUCT_SPEC_ROOT",
-    str(BASE_DIR / "config" / "product_interface"),
+    "VULNHUNTER_PRODUCT_SPEC_ROOT", str(BASE_DIR / "config" / "product_interface")
 )
 VULNHUNTER_PILOT_PLAN_ROOT = os.environ.get(
-    "VULNHUNTER_PILOT_PLAN_ROOT",
-    str(BASE_DIR / "config" / "pilot"),
+    "VULNHUNTER_PILOT_PLAN_ROOT", str(BASE_DIR / "config" / "pilot")
 )
 VULNHUNTER_AGENT_ACTIVITY_ROOT = os.environ.get(
-    "VULNHUNTER_AGENT_ACTIVITY_ROOT",
-    str(BASE_DIR / ".local" / "agent-activity"),
+    "VULNHUNTER_AGENT_ACTIVITY_ROOT", str(BASE_DIR / ".local" / "agent-activity")
 )
 VULNHUNTER_APPROVAL_DATABASE = os.environ.get(
-    "VULNHUNTER_APPROVAL_DATABASE",
-    str(BASE_DIR / ".local" / "approvals.sqlite3"),
+    "VULNHUNTER_APPROVAL_DATABASE", str(BASE_DIR / ".local" / "approvals.sqlite3")
 )
 VULNHUNTER_SECURITY_TOOL_CONFIG = os.environ.get(
     "VULNHUNTER_SECURITY_TOOL_CONFIG",
     str(BASE_DIR / "config" / "security_tools" / "runtime.json"),
 )
 VULNHUNTER_SECURITY_EVIDENCE_ROOT = os.environ.get(
-    "VULNHUNTER_SECURITY_EVIDENCE_ROOT",
-    str(BASE_DIR / ".local" / "security-evidence"),
+    "VULNHUNTER_SECURITY_EVIDENCE_ROOT", str(BASE_DIR / ".local" / "security-evidence")
 )
 VULNHUNTER_NUCLEI_PROFILE_CONFIG = os.environ.get(
     "VULNHUNTER_NUCLEI_PROFILE_CONFIG",
@@ -313,45 +305,39 @@ VULNHUNTER_NUCLEI_TEMPLATE_MANIFEST = os.environ.get(
     str(BASE_DIR / "config" / "security_tools" / "nuclei_template_manifest.json"),
 )
 VULNHUNTER_NUCLEI_TEMPLATE_ROOT = os.environ.get(
-    "VULNHUNTER_NUCLEI_TEMPLATE_ROOT",
-    str(BASE_DIR / ".local" / "nuclei-templates"),
+    "VULNHUNTER_NUCLEI_TEMPLATE_ROOT", str(BASE_DIR / ".local" / "nuclei-templates")
 )
 VULNHUNTER_NUCLEI_READINESS_REPORT = os.environ.get(
     "VULNHUNTER_NUCLEI_READINESS_REPORT",
     str(BASE_DIR / ".local" / "nuclei-readiness" / "readiness.json"),
 )
-VULNHUNTER_NUCLEI_PILOT_ENQUEUE_ENABLED = env_bool("VULNHUNTER_NUCLEI_PILOT_ENQUEUE_ENABLED", False)
+VULNHUNTER_NUCLEI_PILOT_ENQUEUE_ENABLED = env_bool("VULNHUNTER_NUCLEI_PILOT_ENQUEUE_ENABLED", True)
 VULNHUNTER_NUCLEI_WORKER_SIGNING_KEY_FILE = os.environ.get(
     "VULNHUNTER_NUCLEI_WORKER_SIGNING_KEY_FILE",
     str(Path.home() / ".vulnhunter-nuclei-worker-key"),
 )
 VULNHUNTER_NUCLEI_WORKER_SPOOL_ROOT = os.environ.get(
-    "VULNHUNTER_NUCLEI_WORKER_SPOOL_ROOT",
-    str(BASE_DIR / ".local" / "nuclei-worker-spool"),
+    "VULNHUNTER_NUCLEI_WORKER_SPOOL_ROOT", str(BASE_DIR / ".local" / "nuclei-worker-spool")
 )
 VULNHUNTER_NUCLEI_WORKER_POLICY = os.environ.get(
     "VULNHUNTER_NUCLEI_WORKER_POLICY",
     str(BASE_DIR / "config" / "security_tools" / "nuclei_worker_pilot.json"),
 )
 VULNHUNTER_NUCLEI_EXECUTION_ROOT = os.environ.get(
-    "VULNHUNTER_NUCLEI_EXECUTION_ROOT",
-    str(BASE_DIR / ".local" / "nuclei-executions"),
+    "VULNHUNTER_NUCLEI_EXECUTION_ROOT", str(BASE_DIR / ".local" / "nuclei-executions")
 )
 VULNHUNTER_VERIFICATION_ROOT = os.environ.get(
-    "VULNHUNTER_VERIFICATION_ROOT",
-    str(BASE_DIR / ".local" / "verification"),
+    "VULNHUNTER_VERIFICATION_ROOT", str(BASE_DIR / ".local" / "verification")
 )
 VULNHUNTER_SCANNER_COMPATIBILITY_MANIFEST = os.environ.get(
     "VULNHUNTER_SCANNER_COMPATIBILITY_MANIFEST",
     str(BASE_DIR / "config" / "security_tools" / "scanner_compatibility.json"),
 )
 VULNHUNTER_TASK_GRAPH_ROOT = os.environ.get(
-    "VULNHUNTER_TASK_GRAPH_ROOT",
-    str(BASE_DIR / ".local" / "task-graphs"),
+    "VULNHUNTER_TASK_GRAPH_ROOT", str(BASE_DIR / ".local" / "task-graphs")
 )
 VULNHUNTER_ADVERSARY_LAB_DATABASE = os.environ.get(
-    "VULNHUNTER_ADVERSARY_LAB_DATABASE",
-    str(BASE_DIR / ".local" / "adversary-lab" / "lab.sqlite3"),
+    "VULNHUNTER_ADVERSARY_LAB_DATABASE", str(BASE_DIR / ".local" / "adversary-lab" / "lab.sqlite3")
 )
 VULNHUNTER_ADVERSARY_LAB_WORKSPACE_ROOT = os.environ.get(
     "VULNHUNTER_ADVERSARY_LAB_WORKSPACE_ROOT",
@@ -362,44 +348,29 @@ VULNHUNTER_ADVERSARY_LAB_EVIDENCE_ROOT = os.environ.get(
     str(BASE_DIR / ".local" / "adversary-lab" / "evidence"),
 )
 VULNHUNTER_ADVERSARY_LAB_MAX_TRIALS = env_int(
-    "VULNHUNTER_ADVERSARY_LAB_MAX_TRIALS",
-    10,
-    minimum=1,
-    maximum=10,
+    "VULNHUNTER_ADVERSARY_LAB_MAX_TRIALS", 10, minimum=1, maximum=10
 )
 VULNHUNTER_ADVERSARY_LAB_STEP_UP_SECONDS = env_int(
-    "VULNHUNTER_ADVERSARY_LAB_STEP_UP_SECONDS",
-    600,
-    minimum=60,
-    maximum=1_800,
+    "VULNHUNTER_ADVERSARY_LAB_STEP_UP_SECONDS", 600, minimum=60, maximum=1_800
 )
-VULNHUNTER_ADVERSARY_LAB_ENABLED = env_bool(
-    "VULNHUNTER_ADVERSARY_LAB_ENABLED",
-    DEBUG or TESTING,
-)
+VULNHUNTER_ADVERSARY_LAB_ENABLED = env_bool("VULNHUNTER_ADVERSARY_LAB_ENABLED", True)
 
 VULNHUNTER_MOBILE_ARTIFACT_ROOT = os.environ.get(
-    "VULNHUNTER_MOBILE_ARTIFACT_ROOT",
-    str(BASE_DIR / ".local" / "mobile-artifacts"),
+    "VULNHUNTER_MOBILE_ARTIFACT_ROOT", str(BASE_DIR / ".local" / "mobile-artifacts")
 )
 VULNHUNTER_MOBILE_STATIC_WORKER_POLICY = os.environ.get(
     "VULNHUNTER_MOBILE_STATIC_WORKER_POLICY",
     str(BASE_DIR / "config" / "security_tools" / "mobile_static_worker.json"),
 )
 VULNHUNTER_MOBILE_MAX_APK_BYTES = env_int(
-    "VULNHUNTER_MOBILE_MAX_APK_BYTES",
-    1_000_000_000,
-    minimum=1_024,
-    maximum=10_000_000_000,
+    "VULNHUNTER_MOBILE_MAX_APK_BYTES", 1_000_000_000, minimum=1_024, maximum=10_000_000_000
 )
 
 VULNHUNTER_GRAPHIFY_EXECUTABLE = os.environ.get(
-    "VULNHUNTER_GRAPHIFY_EXECUTABLE",
-    "/mnt/vulnhunter-data/tools/uv/tool-bin/graphify",
+    "VULNHUNTER_GRAPHIFY_EXECUTABLE", "/mnt/vulnhunter-data/tools/uv/tool-bin/graphify"
 )
 VULNHUNTER_GRAPHIFY_OUTPUT_ROOT = os.environ.get(
-    "VULNHUNTER_GRAPHIFY_OUTPUT_ROOT",
-    str(BASE_DIR / "graphify-out"),
+    "VULNHUNTER_GRAPHIFY_OUTPUT_ROOT", str(BASE_DIR / "graphify-out")
 )
 VULNHUNTER_GRAPHIFY_EXECUTION_ENABLED = env_bool("VULNHUNTER_GRAPHIFY_EXECUTION_ENABLED", False)
 VULNHUNTER_GROQ_ENABLED = env_bool("VULNHUNTER_GROQ_ENABLED", False)

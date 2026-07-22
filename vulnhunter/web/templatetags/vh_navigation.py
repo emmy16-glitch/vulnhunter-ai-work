@@ -1,13 +1,94 @@
 from __future__ import annotations
 
+import json
+from pathlib import Path
 from typing import Any
 
 from django import template
+from django.conf import settings
 
 from vulnhunter.web.models import WebUserMapping
 from vulnhunter.web.services import role_policy
 
 register = template.Library()
+
+
+@register.simple_tag
+def professional_title(page_title: object) -> str:
+    """Return concise product terminology for legacy route titles."""
+
+    value = str(page_title)
+    exact = {
+        "Agent Runs": "Assessments",
+        "Machine Oracle": "Verification",
+        "Models": "Analysis Services",
+        "Intelligence components": "Analysis Services",
+        "New Bounded Scan": "New Assessment",
+    }
+    if value.startswith("Agent Run "):
+        return "Assessment " + value.removeprefix("Agent Run ")
+    return exact.get(value, value)
+
+
+@register.simple_tag
+def security_runtime() -> dict[str, object]:
+    """Return fail-closed, non-secret activation state for UI status copy."""
+
+    try:
+        runtime = json.loads(
+            Path(settings.VULNHUNTER_SECURITY_TOOL_CONFIG).read_text(encoding="utf-8")
+        )
+        worker = json.loads(
+            Path(settings.VULNHUNTER_NUCLEI_WORKER_POLICY).read_text(encoding="utf-8")
+        )
+    except (OSError, TypeError, json.JSONDecodeError):
+        return {
+            "configured": False,
+            "state": "Unavailable",
+            "detail": "The governed security-tool configuration could not be validated.",
+            "engine_version": "Unknown",
+            "templates_version": "Unknown",
+            "connectors_enabled": False,
+            "validation_enabled": False,
+            "worker_enabled": False,
+        }
+
+    nuclei = runtime.get("nuclei") if isinstance(runtime.get("nuclei"), dict) else {}
+    scanner_worker = (
+        runtime.get("scanner_worker") if isinstance(runtime.get("scanner_worker"), dict) else {}
+    )
+    flags = (
+        runtime.get("execution_enabled") is True,
+        runtime.get("active_assessment_enabled") is True,
+        runtime.get("validation_enabled") is True,
+        runtime.get("connectors_enabled") is True,
+        nuclei.get("enabled") is True,
+        nuclei.get("real_runner_enabled") is True,
+        scanner_worker.get("execution_enabled") is True,
+        scanner_worker.get("transport_enabled") is True,
+        bool(settings.VULNHUNTER_NUCLEI_PILOT_ENQUEUE_ENABLED),
+        worker.get("enabled") is True,
+    )
+    configured = all(flags)
+    engine = str(nuclei.get("engine_version", "Unknown"))
+    templates = str(nuclei.get("templates_version", "Unknown"))
+    return {
+        "configured": configured,
+        "state": "Enabled by policy" if configured else "Gated",
+        "detail": (
+            f"Approved passive assessments may enter the signed worker queue with Nuclei "
+            f"{engine} and templates {templates}. The worker verifies the signing key, "
+            "pinned binary, reviewed templates, private target and exact approval before execution."
+            if configured
+            else "One or more governed runtime, queue or worker-policy gates are disabled."
+        ),
+        "engine_version": engine,
+        "templates_version": templates,
+        "connectors_enabled": runtime.get("connectors_enabled") is True,
+        "validation_enabled": runtime.get("validation_enabled") is True,
+        "worker_enabled": scanner_worker.get("execution_enabled") is True
+        and scanner_worker.get("transport_enabled") is True,
+    }
 
 
 @register.simple_tag
@@ -140,7 +221,7 @@ def canonical_navigation(user: Any) -> tuple[dict[str, object], ...]:
         },
         {
             "section_id": "intelligence",
-            "section_label": "Intelligence",
+            "section_label": "Analysis",
             "label": "Datasets",
             "url_name": "web-dataset-list",
             "icon": "database",
@@ -149,8 +230,8 @@ def canonical_navigation(user: Any) -> tuple[dict[str, object], ...]:
         },
         {
             "section_id": "intelligence",
-            "section_label": "Intelligence",
-            "label": "Models",
+            "section_label": "Analysis",
+            "label": "Analysis Services",
             "url_name": "web-model-list",
             "icon": "model",
             "actions": ("model.read", "audit.read"),
@@ -158,7 +239,7 @@ def canonical_navigation(user: Any) -> tuple[dict[str, object], ...]:
         },
         {
             "section_id": "intelligence",
-            "section_label": "Intelligence",
+            "section_label": "Analysis",
             "label": "Mobile APK Analysis",
             "url_name": "web-mobile-analysis",
             "icon": "mobile",

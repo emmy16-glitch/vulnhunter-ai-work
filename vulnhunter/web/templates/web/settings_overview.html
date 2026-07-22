@@ -1,7 +1,8 @@
 {% extends "web/base.html" %}
-{% load static vh_remote_nuclei %}
+{% load static vh_remote_nuclei vh_navigation %}
 {% block content %}
 {% remote_nuclei_status as remote_worker %}
+{% security_runtime as scanner_activation %}
 <link rel="stylesheet" href="{% static 'web/settings.css' %}?v=20260722-m33">
 <section class="vh-page-shell vh-settings-page">
   <header class="vh-page-header vh-settings-hero">
@@ -29,9 +30,11 @@
     </section>
 
     <section class="vh-surface vh-settings-activation">
-      <header class="vh-surface-header"><div><h2>Activation gates</h2><p>Capabilities become active only after their required policy and local dependencies are present.</p></div><span class="vh-panel-count">{{ activation_rows|length|add:'1' }}</span></header>
+      <header class="vh-surface-header"><div><h2>Activation gates</h2><p>Capabilities become active only after their required policy and local dependencies are present.</p></div><span class="vh-panel-count">{{ activation_rows|length|add:'3' }}</span></header>
       <div class="vh-activation-list">
         <article class="vh-activation-row {% if remote_worker.enabled %}is-enabled{% else %}is-gated{% endif %}"><span class="vh-activation-indicator" aria-hidden="true"></span><div><strong>Restricted remote Nuclei worker</strong><p>{{ remote_worker.detail }}</p></div><div class="vh-activation-action"><span class="vh-status-chip {% if remote_worker.enabled %}vh-status-safe{% else %}vh-status-warning{% endif %}">{{ remote_worker.state }}</span><a href="{% url 'web-security-tool-registry' %}">Inspect →</a></div></article>
+        <article class="vh-activation-row {% if scanner_activation.configured %}is-enabled{% else %}is-gated{% endif %}"><span class="vh-activation-indicator" aria-hidden="true"></span><div><strong>Governed assessment runtime</strong><p>{{ scanner_activation.detail }}</p></div><div class="vh-activation-action"><span class="vh-status-chip {% if scanner_activation.configured %}vh-status-safe{% else %}vh-status-warning{% endif %}">{{ scanner_activation.state }}</span><a href="{% url 'web-security-tool-registry' %}">Inspect →</a></div></article>
+        <article class="vh-activation-row {% if scanner_activation.connectors_enabled %}is-enabled{% else %}is-gated{% endif %}"><span class="vh-activation-indicator" aria-hidden="true"></span><div><strong>Security-tool connectors</strong><p>Governed scanner connectors are enabled; arbitrary connector activation remains denied.</p></div><div class="vh-activation-action"><span class="vh-status-chip {% if scanner_activation.connectors_enabled %}vh-status-safe{% else %}vh-status-warning{% endif %}">{% if scanner_activation.connectors_enabled %}configured{% else %}gated{% endif %}</span><a href="{% url 'web-security-tool-registry' %}">Inspect →</a></div></article>
         {% for item in activation_rows %}<article class="vh-activation-row {% if item.enabled %}is-enabled{% else %}is-gated{% endif %}"><span class="vh-activation-indicator" aria-hidden="true"></span><div><strong>{{ item.name }}</strong><p>{{ item.detail }}</p></div><div class="vh-activation-action"><span class="vh-status-chip {% if item.enabled %}vh-status-safe{% else %}vh-status-warning{% endif %}">{% if item.enabled %}configured{% else %}gated{% endif %}</span><a href="{% url item.link %}">Inspect →</a></div></article>{% endfor %}
       </div>
     </section>
@@ -48,7 +51,7 @@
     </section>
 
     <section class="vh-surface vh-settings-providers">
-      <header class="vh-surface-header"><div><h2>Intelligence components</h2><p>Health and authority state only. Opening this page never starts inference or graph generation.</p></div><span class="vh-panel-count">{{ intelligence_status|length }}</span></header>
+      <header class="vh-surface-header"><div><h2>Analysis services</h2><p>Health and authority state only. Opening this page does not start processing or graph generation.</p></div><span class="vh-panel-count">{{ intelligence_status|length }}</span></header>
       {% if intelligence_status %}<ul class="vh-provider-list">{% for item in intelligence_status %}<li><div><strong>{{ item.name }}</strong><p>{{ item.detail }}</p></div><span class="vh-status-chip {% if 'READY' in item.state %}vh-status-safe{% else %}vh-status-warning{% endif %}">{{ item.state }}</span></li>{% endfor %}</ul>{% else %}<div class="vh-empty-panel"><svg aria-hidden="true"><use href="#vh-i-settings"></use></svg><h3>No provider state</h3><p>No advisory component status is available.</p></div>{% endif %}
     </section>
 

@@ -450,21 +450,35 @@ def test_activation_controls_never_start_network_or_external_process(tmp_path, m
     assert decision.execution_enabled is False
 
 
-def test_repository_configuration_keeps_nuclei_execution_disabled():
+def test_repository_configuration_enables_controlled_nuclei_execution():
     root = Path(__file__).resolve().parents[2]
     runtime = json.loads((root / "config/security_tools/runtime.json").read_text(encoding="utf-8"))
     profiles = json.loads(
         (root / "config/security_tools/nuclei_profiles.json").read_text(encoding="utf-8")
     )
+    worker = json.loads(
+        (root / "config/security_tools/nuclei_worker_pilot.json").read_text(encoding="utf-8")
+    )
     manifest = NucleiTemplateManifest.model_validate_json(
         (root / "config/security_tools/nuclei_template_manifest.json").read_text(encoding="utf-8")
     )
 
-    assert runtime["execution_enabled"] is False
-    assert runtime["nuclei"]["enabled"] is False
+    assert runtime["execution_enabled"] is True
+    assert runtime["active_assessment_enabled"] is True
+    assert runtime["validation_enabled"] is True
+    assert runtime["connectors_enabled"] is True
+    assert runtime["nuclei"]["enabled"] is True
+    assert runtime["nuclei"]["real_runner_enabled"] is True
+    assert runtime["scanner_worker"]["execution_enabled"] is True
+    assert runtime["scanner_worker"]["transport_enabled"] is True
+    assert runtime["scanner_worker"]["network_listener_enabled"] is False
     assert runtime["nuclei"]["engine_version"] == profiles["engine_pin"] == "v3.8.0"
-    assert profiles["execution_enabled"] is False
+    assert runtime["nuclei"]["templates_version"] == profiles["templates_pin"] == "v10.4.5"
+    assert profiles["execution_enabled"] is True
     assert profiles["automatic_updates_enabled"] is False
+    assert worker["enabled"] is True
+    assert worker["private_targets_only"] is True
+    assert worker["maximum_rate_limit"] == worker["maximum_concurrency"] == 1
     assert len(manifest.entries) == 1
     entry = manifest.entries[0]
     assert entry.template_id == "vulnhunter-passive-security-headers"

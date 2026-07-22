@@ -24,6 +24,7 @@ function safeName(value) {
   const browser = await chromium.launch({ headless: true });
   const report = {
     pages: [],
+    modals: [],
     consoleErrors: [],
     pageErrors: [],
     assetFailures: [],
@@ -62,6 +63,7 @@ function safeName(value) {
       const context = await contextFor(viewport, pageDefinition.persona);
       const page = await context.newPage();
       const routeKey = `${pageDefinition.name}:${viewport.name}`;
+      console.log(`Auditing ${routeKey}`);
       page.on("console", (message) => {
         if (message.type() === "error") {
           report.consoleErrors.push({ routeKey, text: message.text() });
@@ -84,6 +86,77 @@ function safeName(value) {
         waitUntil: "networkidle",
       });
       await page.waitForTimeout(150);
+
+      const openDialog = page.locator("dialog[open]").first();
+      if ((await openDialog.count()) > 0) {
+        const modalAudit = await openDialog.evaluate((dialog) => {
+          const style = getComputedStyle(dialog);
+          const rect = dialog.getBoundingClientRect();
+          const controls = [
+            ...dialog.querySelectorAll("button, a, input, select, textarea, summary"),
+          ].filter((element) => {
+            const elementStyle = getComputedStyle(element);
+            const elementRect = element.getBoundingClientRect();
+            return (
+              elementStyle.display !== "none" &&
+              elementStyle.visibility !== "hidden" &&
+              elementRect.width > 0 &&
+              elementRect.height > 0
+            );
+          });
+          return {
+            id: dialog.id || null,
+            heading: dialog.querySelector("h1, h2, h3")?.textContent.trim() || "",
+            visible:
+              style.display !== "none" &&
+              style.visibility !== "hidden" &&
+              rect.width > 0 &&
+              rect.height > 0,
+            fitsViewport:
+              rect.left >= -1 &&
+              rect.top >= -1 &&
+              rect.right <= window.innerWidth + 1 &&
+              rect.bottom <= window.innerHeight + 1,
+            width: Math.round(rect.width),
+            height: Math.round(rect.height),
+            viewportWidth: window.innerWidth,
+            viewportHeight: window.innerHeight,
+            controlCount: controls.length,
+            closeControlVisible: Boolean(
+              controls.find((element) => element.matches("[data-approval-close]")),
+            ),
+            overflowY: style.overflowY,
+            contentScrollable:
+              dialog.scrollHeight <= dialog.clientHeight + 1 ||
+              ["auto", "scroll"].includes(style.overflowY),
+          };
+        });
+        report.modals.push({ routeKey, ...modalAudit });
+        if (!modalAudit.visible) {
+          report.failures.push(`${routeKey} has an open modal that is not visible`);
+        }
+        if (!modalAudit.fitsViewport) {
+          report.failures.push(`${routeKey} has an open modal outside the viewport`);
+        }
+        if (!modalAudit.heading) {
+          report.failures.push(`${routeKey} has an open modal without a visible heading`);
+        }
+        if (modalAudit.controlCount < 1 || !modalAudit.closeControlVisible) {
+          report.failures.push(`${routeKey} has an open modal without usable controls`);
+        }
+        if (!modalAudit.contentScrollable) {
+          report.failures.push(`${routeKey} has clipped modal content`);
+        }
+        await openDialog.evaluate((dialog) => dialog.close());
+        await page.waitForTimeout(75);
+        const modalStillOpen = await page.evaluate(() =>
+          Boolean(document.querySelector("dialog[open]")),
+        );
+        if (modalStillOpen) {
+          report.failures.push(`${routeKey} modal could not be closed`);
+        }
+      }
+
       const audit = await page.evaluate(async () => {
         const visible = (element) => {
           const style = getComputedStyle(element);
@@ -122,9 +195,7 @@ function safeName(value) {
         const activeNavigation = [
           ...document.querySelectorAll('.vh-nav-list a[aria-current="page"]'),
         ];
-        const primaryLinks = [
-          ...document.querySelectorAll(".vh-nav-list a[href]"),
-        ];
+        const primaryLinks = [...document.querySelectorAll(".vh-nav-list a[href]")];
         const linkSignatures = primaryLinks.map(
           (link) => `${link.getAttribute("href")}::${link.textContent.trim()}`,
         );
@@ -262,7 +333,11 @@ function safeName(value) {
     JSON.stringify(report, null, 2),
   );
   console.log(
-    JSON.stringify({ pages: report.pages.length, failures: report.failures }, null, 2),
+    JSON.stringify(
+      { pages: report.pages.length, modals: report.modals.length, failures: report.failures },
+      null,
+      2,
+    ),
   );
   if (report.failures.length) process.exitCode = 1;
 })().catch((error) => {

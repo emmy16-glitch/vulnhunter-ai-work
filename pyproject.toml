@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "vulnhunter-ai"
 version = "0.1.0"
-description = "Authorised laboratory-only AI-assisted vulnerability testing research platform"
+description = "Authorised laboratory security assessment and verification platform"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
@@ -26,7 +26,7 @@ dev = [
     "ruff>=0.9,<1",
 ]
 production = [
-    "gunicorn>=23,<24",
+    "gunicorn>=23,<27",
     "psycopg[binary]>=3.2,<4",
 ]
 

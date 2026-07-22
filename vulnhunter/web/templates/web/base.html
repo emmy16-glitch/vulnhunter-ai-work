@@ -1,5 +1,6 @@
 {% load static vh_navigation %}
 {% canonical_navigation request.user as navigation %}
+{% professional_title page_title as display_title %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,7 +8,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark">
   <meta name="theme-color" content="#0b0f14">
-  <title>{{ page_title }} | VulnHunter AI</title>
+  <title>{{ display_title }} | VulnHunter</title>
   <link rel="stylesheet" href="{% static 'web/app.css' %}?v=20260722-console">
   <link rel="stylesheet" href="{% static 'web/activity.css' %}?v=20260722-console">
   <link rel="stylesheet" href="{% static 'web/product.css' %}?v=20260722-console">
@@ -55,9 +56,9 @@
   <a class="vh-skip-link" href="#main-content">Skip to content</a>
   <div class="vh-app">
     <aside id="vh-sidebar" class="vh-sidebar" data-sidebar aria-label="Application sidebar">
-      <a class="vh-brand" href="{% url 'web-dashboard' %}" aria-label="VulnHunter AI dashboard">
+      <a class="vh-brand" href="{% url 'web-dashboard' %}" aria-label="VulnHunter dashboard">
         <span class="vh-brand-mark" aria-hidden="true"><svg><use href="#vh-i-shield"></use></svg></span>
-        <span><strong>VulnHunter AI</strong><small>Security operations</small></span>
+        <span><strong>VulnHunter</strong><small>Security operations</small></span>
       </a>
       <nav aria-label="Primary" class="vh-nav">
         {% if navigation %}
@@ -89,7 +90,7 @@
             <div class="vh-context-card vh-context-run" aria-label="Current run status"><span><small>Run</small><strong class="vh-live-text"><i></i><span>{{ run.current_state }}</span><time class="vh-run-clock" datetime="{{ run.created_at|date:'c' }}" data-run-clock>00:00:00</time></strong></span></div>
           </div>
         {% else %}
-          <div class="vh-topbar-page"><small>VulnHunter AI</small><strong>{{ page_title }}</strong></div>
+          <div class="vh-topbar-page"><small>VulnHunter</small><strong>{{ display_title }}</strong></div>
         {% endif %}
         <div class="vh-top-actions">
           <span class="vh-environment-pill is-topbar">Private Lab</span>

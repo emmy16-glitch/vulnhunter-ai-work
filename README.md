@@ -1,6 +1,6 @@
-# VulnHunter AI
+# VulnHunter
 
-VulnHunter AI is an authorised, laboratory-only security assessment and verification platform.
+VulnHunter is an authorised, laboratory-only security assessment and verification platform.
 
 ## Current milestone
 

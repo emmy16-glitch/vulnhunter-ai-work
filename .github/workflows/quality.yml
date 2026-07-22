@@ -62,3 +62,85 @@ jobs:
 
       - name: Repository audit
         run: python scripts/project_audit.py --strict
+
+  visual-smoke:
+    name: Browser UI audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      VULNHUNTER_WEB_DEBUG: "true"
+      VULNHUNTER_WEB_DATABASE: /tmp/vh-ui/web.sqlite3
+      VULNHUNTER_AUTHORIZATION_DATABASE: /tmp/vh-ui/auth.db
+      VULNHUNTER_GOVERNANCE_DATABASE: /tmp/vh-ui/governance.db
+      VULNHUNTER_AGENT_DATABASE: /tmp/vh-ui/agent.db
+      VULNHUNTER_APPROVAL_DATABASE: /tmp/vh-ui/approvals.sqlite3
+      VULNHUNTER_AGENT_ACTIVITY_ROOT: /tmp/vh-ui/activity
+      VULNHUNTER_SECURITY_EVIDENCE_ROOT: /tmp/vh-ui/evidence
+      VULNHUNTER_MOBILE_ARTIFACT_ROOT: /tmp/vh-ui/mobile
+      VULNHUNTER_ADVERSARY_LAB_DATABASE: /tmp/vh-ui/lab.sqlite3
+      VULNHUNTER_UI_MANIFEST: /tmp/vh-ui/ui-manifest.json
+      VULNHUNTER_UI_OUTPUT: /tmp/vh-ui/screenshots
+      VULNHUNTER_UI_BASE_URL: http://127.0.0.1:8767
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Set up Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+
+      - name: Check browser JavaScript syntax
+        run: |
+          node --check vulnhunter/web/static/web/app.js
+          node --check vulnhunter/web/static/web/activity.js
+          node --check vulnhunter/web/static/web/assessment-modal.js
+          node --check .playwright-validate.cjs
+
+      - name: Install application and browser audit tools
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .
+          python -m pip install pytest pytest-asyncio pytest-django
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Prepare deterministic local audit data
+        run: |
+          rm -rf /tmp/vh-ui
+          mkdir -p /tmp/vh-ui
+          python manage.py migrate --noinput
+          python tests/ui/prepare_visual_audit.py
+
+      - name: Start local web application
+        run: |
+          python manage.py runserver 127.0.0.1:8767 --noreload > /tmp/vh-ui/server.log 2>&1 &
+          for attempt in $(seq 1 40); do
+            if curl --fail --silent http://127.0.0.1:8767/health/ > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/vh-ui/server.log
+          exit 1
+
+      - name: Capture and validate responsive product UI
+        run: node .playwright-validate.cjs
+
+      - name: Upload visual audit evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vulnhunter-ui-audit
+          path: |
+            /tmp/vh-ui/screenshots
+            /tmp/vh-ui/server.log
+          if-no-files-found: error
+          retention-days: 7

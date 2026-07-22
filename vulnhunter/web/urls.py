@@ -105,6 +105,11 @@ urlpatterns = [
         name="web-oracle-overview",
     ),
     path("reports/", report_views.reports_overview_view, name="web-reports-overview"),
+    path(
+        "reports/plans/<str:plan_id>/download/<slug:export_format>/",
+        report_views.pilot_plan_download_view,
+        name="web-pilot-plan-download",
+    ),
     path("governance/", views.governance_overview_view, name="web-governance-overview"),
     path("settings/", views.settings_overview_view, name="web-settings-overview"),
     path("campaigns/", views.campaign_list_view, name="web-campaign-list"),

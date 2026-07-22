@@ -382,6 +382,10 @@ VULNHUNTER_MOBILE_ARTIFACT_ROOT = os.environ.get(
     "VULNHUNTER_MOBILE_ARTIFACT_ROOT",
     str(BASE_DIR / ".local" / "mobile-artifacts"),
 )
+VULNHUNTER_MOBILE_STATIC_WORKER_POLICY = os.environ.get(
+    "VULNHUNTER_MOBILE_STATIC_WORKER_POLICY",
+    str(BASE_DIR / "config" / "security_tools" / "mobile_static_worker.json"),
+)
 VULNHUNTER_MOBILE_MAX_APK_BYTES = env_int(
     "VULNHUNTER_MOBILE_MAX_APK_BYTES",
     1_000_000_000,

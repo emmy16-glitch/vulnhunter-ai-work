@@ -1,0 +1,93 @@
+/* Browser-audit corrections that must win after the console refinement layer. */
+
+.vh-summary-item small,
+.vh-summary-item strong,
+.vh-summary-item span {
+  display: block;
+}
+
+.vh-summary-item strong {
+  overflow-wrap: anywhere;
+}
+
+.vh-status-chip {
+  white-space: nowrap;
+}
+
+.vh-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.vh-row-actions a {
+  display: inline-flex;
+  min-height: 32px;
+  align-items: center;
+  padding: 5px 9px;
+  border: 1px solid var(--vh-border-strong);
+  border-radius: var(--vh-radius-sm);
+  background: var(--vh-bg-soft);
+  color: var(--vh-accent-hover);
+  text-decoration: none;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.vh-row-actions a:hover,
+.vh-row-actions a:focus-visible {
+  border-color: var(--vh-accent);
+  background: var(--vh-panel-2);
+}
+
+.vh-topbar-page {
+  min-width: 0;
+}
+
+.vh-topbar-page strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 1023px) {
+  .vh-app {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .vh-main-shell {
+    width: 100%;
+    min-width: 0;
+    grid-column: 1;
+  }
+}
+
+@media (max-width: 860px) {
+  .vh-product-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .vh-product-span-3,
+  .vh-product-span-4,
+  .vh-product-span-5,
+  .vh-product-span-6,
+  .vh-product-span-7,
+  .vh-product-span-8,
+  .vh-product-span-9,
+  .vh-product-span-12 {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 639px) {
+  .vh-environment-pill.is-topbar,
+  .vh-topbar-page small {
+    display: none;
+  }
+
+  .vh-topbar-page strong {
+    font-size: 12px;
+  }
+}

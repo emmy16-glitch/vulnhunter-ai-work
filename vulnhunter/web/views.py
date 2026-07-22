@@ -810,11 +810,145 @@ def governance_overview_view(request: HttpRequest) -> HttpResponse:
 @require_GET
 def settings_overview_view(request: HttpRequest) -> HttpResponse:
     try:
-        _protected(request, required_actions=("audit.read", "dashboard.read"))
+        actor = _protected(request, required_actions=("audit.read", "dashboard.read"))
     except WebPermissionDenied as exc:
         return _denied(request, str(exc))
+
+    status = product_service().load_status()
+    state_copy = {
+        "available": "Validated and available.",
+        "empty": "Configured and healthy; no records exist yet.",
+        "missing": "Required local state has not been created.",
+        "invalid": "Configuration or integrity validation failed.",
+        "unavailable": "A required dependency is not available.",
+    }
+    capability_rows = tuple(
+        {
+            "name": name,
+            "state": capability.state.value,
+            "detail": state_copy.get(capability.state.value, "State reported by the backend."),
+        }
+        for name, capability in (
+            ("Authorization store", status.authorization_store),
+            ("Governance store", status.governance_store),
+            ("Role and skill registry", status.role_registry),
+            ("Bounded agent runtime", status.agent_runtime),
+            ("Dataset readiness", status.readiness),
+            ("Audit evidence", status.audit_evidence),
+        )
+    )
+
+    mobile_policy = Path(settings.VULNHUNTER_MOBILE_STATIC_WORKER_POLICY)
+    activation_rows = (
+        {
+            "name": "Passive Nuclei enqueue",
+            "enabled": bool(settings.VULNHUNTER_NUCLEI_PILOT_ENQUEUE_ENABLED),
+            "detail": (
+                "Approved plans may be written to the signed worker spool."
+                if settings.VULNHUNTER_NUCLEI_PILOT_ENQUEUE_ENABLED
+                else (
+                    "Gated until the reviewed worker policy, signing key "
+                    "and local target are ready."
+                )
+            ),
+            "link": "web-security-tool-registry",
+        },
+        {
+            "name": "Controlled active validation",
+            "enabled": bool(settings.VULNHUNTER_ADVERSARY_LAB_ENABLED),
+            "detail": (
+                "Synthetic isolated validation workspaces are available."
+                if settings.VULNHUNTER_ADVERSARY_LAB_ENABLED
+                else "Gated in this environment; existing evidence remains readable."
+            ),
+            "link": "web-scan-run-list",
+        },
+        {
+            "name": "Repository graph refresh",
+            "enabled": bool(settings.VULNHUNTER_GRAPHIFY_EXECUTION_ENABLED),
+            "detail": (
+                "Explicit repository graph generation is enabled."
+                if settings.VULNHUNTER_GRAPHIFY_EXECUTION_ENABLED
+                else (
+                    "Validated graph loading is available; explicit rebuild "
+                    "execution remains gated."
+                )
+            ),
+            "link": "web-model-list",
+        },
+        {
+            "name": "Sanitized advisory analysis",
+            "enabled": bool(settings.VULNHUNTER_GROQ_ENABLED),
+            "detail": (
+                "Bounded advisory health checks are enabled; the provider "
+                "remains non-authoritative."
+                if settings.VULNHUNTER_GROQ_ENABLED
+                else (
+                    "Optional remote advisory routing is gated; deterministic workflows continue."
+                )
+            ),
+            "link": "web-model-list",
+        },
+        {
+            "name": "Mobile static worker policy",
+            "enabled": mobile_policy.is_file(),
+            "detail": (
+                "A local networkless static-analysis policy is present."
+                if mobile_policy.is_file()
+                else "Upload is available, but no reviewed static worker policy is present."
+            ),
+            "link": "web-mobile-analysis",
+        },
+    )
+    enabled_count = sum(1 for row in activation_rows if row["enabled"])
+    healthy_count = sum(1 for row in capability_rows if row["state"] in {"available", "empty"})
+    security_rows = (
+        {
+            "name": "Django debug",
+            "safe": not settings.DEBUG,
+            "value": "Off" if not settings.DEBUG else "On",
+        },
+        {
+            "name": "HTTPS enforcement",
+            "safe": bool(settings.SECURE_SSL_REDIRECT),
+            "value": "Required" if settings.SECURE_SSL_REDIRECT else "Local-only",
+        },
+        {
+            "name": "Session cookie",
+            "safe": bool(settings.SESSION_COOKIE_HTTPONLY),
+            "value": "HttpOnly",
+        },
+        {
+            "name": "CSRF cookie",
+            "safe": bool(settings.CSRF_COOKIE_HTTPONLY),
+            "value": "HttpOnly",
+        },
+        {
+            "name": "Frame embedding",
+            "safe": settings.X_FRAME_OPTIONS == "DENY",
+            "value": settings.X_FRAME_OPTIONS,
+        },
+        {
+            "name": "Content Security Policy",
+            "safe": bool(settings.VULNHUNTER_CSP),
+            "value": "Same-origin",
+        },
+    )
+    identity = actor.governance_identity
     return _render(
         request,
         "web/settings_overview.html",
-        {"page_title": "Settings", "intelligence_status": intelligence_status()},
+        {
+            "page_title": "Settings",
+            "intelligence_status": intelligence_status(),
+            "capability_rows": capability_rows,
+            "activation_rows": activation_rows,
+            "enabled_count": enabled_count,
+            "healthy_count": healthy_count,
+            "security_rows": security_rows,
+            "identity": identity,
+            "product_roles": actor.product_roles,
+            "database_engine": settings.DATABASES["default"]["ENGINE"].rsplit(".", 1)[-1],
+            "environment_label": "Local debug" if settings.DEBUG else "Hardened runtime",
+        },
     )

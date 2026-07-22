@@ -191,7 +191,6 @@
   if (approvalDialog?.dataset.autoOpen === "true") {
     window.requestAnimationFrame(openApprovalDialog);
   }
-}
 
   const disclosureRoute = document.body.dataset.route || "page";
   const disclosures = [...document.querySelectorAll(".vh-stage-disclosure, [data-persist-disclosure]")];

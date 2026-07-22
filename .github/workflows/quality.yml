@@ -39,7 +39,7 @@ jobs:
         run: python -m ruff check .
 
       - name: Compile
-        run: python -m compileall -q vulnhunter scripts
+        run: python -m compileall -q vulnhunter scripts tests/ui
 
       - name: Validate scanner compatibility
         run: python scripts/validate_scanner_compatibility.py
@@ -77,7 +77,7 @@ jobs:
   visual-smoke:
     name: Browser UI audit
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 35
     env:
       VULNHUNTER_WEB_DEBUG: "true"
       VULNHUNTER_WEB_DATABASE: /tmp/vh-ui/web.sqlite3
@@ -129,6 +129,7 @@ jobs:
           mkdir -p /tmp/vh-ui
           python manage.py migrate --noinput
           python tests/ui/prepare_visual_audit.py
+          python tests/ui/extend_visual_audit.py
 
       - name: Start local web application
         run: |
@@ -153,5 +154,6 @@ jobs:
           path: |
             /tmp/vh-ui/screenshots
             /tmp/vh-ui/server.log
+            /tmp/vh-ui/ui-manifest.json
           if-no-files-found: error
           retention-days: 7

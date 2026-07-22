@@ -258,3 +258,35 @@ jobs:
             /tmp/vulnhunter-phone-acceptance
           if-no-files-found: warn
           retention-days: 3
+
+  apply-final-formatting:
+    name: Apply final formatting
+    if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'work/phone-only-private-lab' && github.actor != 'github-actions[bot]' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Check out implementation branch
+        uses: actions/checkout@v7
+        with:
+          ref: work/phone-only-private-lab
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Format and publish
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install ruff
+          python -m ruff format .
+          python -m ruff check .
+          git diff --check
+          git config user.name "OpenAI Codex"
+          git config user.email "codex@openai.com"
+          git add -u
+          git commit -m "Format final phone-lab implementation"
+          git push origin HEAD:refs/heads/work/phone-only-private-lab

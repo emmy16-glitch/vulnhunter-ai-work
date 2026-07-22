@@ -95,7 +95,7 @@ def _service(tmp_path: Path, *, ready: bool = True) -> AssessmentWorkflowService
     readiness = {
         "ready": ready,
         "installed": ready,
-        "expected_engine": "v3.11.0",
+        "expected_engine": "v3.8.0",
         "expected_templates": "v10.4.5",
         "engine_pin_matches": ready,
         "templates_pin_matches": ready,

@@ -5,6 +5,12 @@ production release.
 
 ## Unreleased
 
+- corrected the supported Nuclei engine pin to the official `v3.8.0` release
+  across runtime policy, compatibility records, readiness validation, remote
+  worker examples, tests, and operator documentation;
+- added exact version-token parsing and cross-manifest pin consistency checks
+  without enabling scanner execution or signed-job enqueue.
+
 ### Milestone 31 — Controlled Nuclei Execution Harness
 
 - added scanner protocol `1.0` shared by Nuclei, planned OpenVAS, and planned

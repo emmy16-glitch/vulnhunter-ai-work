@@ -581,6 +581,11 @@ USER_COUNT=1
 
 ### Security-tool readiness
 
+> Correction (2026-07-22): this dated output captured a Nuclei version string
+> that does not correspond to an official ProjectDiscovery release. It is
+> preserved as historical evidence only. Current operational policy pins
+> official Nuclei `v3.8.0`.
+
 - Exit code: `0`
 
 ```text

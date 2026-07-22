@@ -20,7 +20,7 @@
         "scanner_id": "nuclei",
         "adapter_id": "nuclei-controlled-harness",
         "adapter_version": "1.1.0",
-        "engine_version": "v3.11.0",
+        "engine_version": "v3.8.0",
         "protocol_version": "1.0",
         "feed": {
           "feed_id": "nuclei-templates",

@@ -35,7 +35,7 @@ sides independently bind the request to:
 - one worker identity;
 - one logical private-lab target;
 - one loopback transport target;
-- Nuclei `v3.11.0`;
+- Nuclei `v3.8.0`;
 - one reviewed passive template and SHA-256 digest;
 - rate limit `1` and concurrency `1`;
 - retries `0`, no redirects, no Interactsh, no update check, and no stdin;

@@ -70,6 +70,7 @@ _PROFILE_RISK = {
     "intrusive": TemplateRiskClass.INTRUSIVE,
     "retest": TemplateRiskClass.STANDARD,
 }
+SUPPORTED_NUCLEI_ENGINE_VERSION = "v3.8.0"
 
 
 class AssessmentWorkflowError(RuntimeError):
@@ -83,7 +84,7 @@ class NucleiReadiness(BaseModel):
 
     ready: bool = False
     installed: bool = False
-    expected_engine: str = "v3.11.0"
+    expected_engine: str = SUPPORTED_NUCLEI_ENGINE_VERSION
     expected_templates: str = "v10.4.5"
     engine_pin_matches: bool = False
     templates_pin_matches: bool = False
@@ -97,7 +98,7 @@ class NucleiReadiness(BaseModel):
             and self.installed
             and self.engine_pin_matches
             and self.templates_pin_matches
-            and self.expected_engine == "v3.11.0"
+            and self.expected_engine == SUPPORTED_NUCLEI_ENGINE_VERSION
             and self.expected_templates == "v10.4.5"
         )
 
@@ -881,6 +882,7 @@ __all__ = [
     "AssessmentWorkflowService",
     "AuthorizationChoice",
     "NucleiReadiness",
+    "SUPPORTED_NUCLEI_ENGINE_VERSION",
     "bind_nuclei_authorization",
     "load_nuclei_authorization",
 ]

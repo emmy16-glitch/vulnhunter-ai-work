@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "engine_pin": "v3.11.0",
+  "engine_pin": "v3.8.0",
   "templates_pin": "v10.4.5",
   "execution_enabled": false,
   "automatic_updates_enabled": false,

@@ -9,7 +9,7 @@ intentional blockers, not requests to install the latest release.
 | Scanner | Adapter | Adapter version | Engine | Feed | Status | Deployment |
 |---|---|---:|---:|---:|---|---|
 | mobile_analysis | mobile-analysis-planned-adapter | 0.1.0 | not selected | not selected | planned | disabled |
-| nuclei | nuclei-controlled-harness | 1.1.0 | v3.11.0 | v10.4.5 | harness_only | isolated_container |
+| nuclei | nuclei-controlled-harness | 1.1.0 | v3.8.0 | v10.4.5 | harness_only | isolated_container |
 
 <!-- scanner-compatibility:end -->
 

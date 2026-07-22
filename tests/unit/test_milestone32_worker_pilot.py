@@ -139,7 +139,7 @@ def _invocation(tmp_path: Path) -> NucleiExecutionInvocation:
         compatibility_manifest_sha256=compatibility.fingerprint(),
     )
     readiness = NucleiRuntimeReadiness(
-        engine_version="v3.11.0",
+        engine_version="v3.8.0",
         template_release="v10.4.5",
         template_manifest_hashes=plan.template_manifest_hashes,
         compatibility_manifest_sha256=compatibility.fingerprint(),

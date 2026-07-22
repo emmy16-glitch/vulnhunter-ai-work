@@ -10,7 +10,7 @@
   "known_hosts_file": "/home/replace-with-guest-user/.ssh/vulnhunter_remote_known_hosts",
   "logical_target": "http://10.0.2.15:8002",
   "transport_target": "http://127.0.0.1:18002",
-  "engine_version": "v3.11.0",
+  "engine_version": "v3.8.0",
   "template_manifest_hash": "0000000000000000000000000000000000000000000000000000000000000000",
   "template_sha256": "6ec1f633dccb5ee580693af3396e369ed799397587fc6ddb28db613b494dea20",
   "connect_timeout_seconds": 10,

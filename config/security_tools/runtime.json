@@ -23,7 +23,7 @@
   "mobile_isolated_runtime_required": true,
   "nuclei": {
     "enabled": false,
-    "engine_version": "v3.11.0",
+    "engine_version": "v3.8.0",
     "templates_version": "v10.4.5",
     "automatic_updates_enabled": false,
     "cloud_upload_enabled": false,

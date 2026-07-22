@@ -55,7 +55,7 @@ Django manager
 → guest worker revalidation
 → dedicated SSH identity with strict host-key pinning
 → forced host command
-→ fixed Nuclei v3.11.0 invocation against a loopback transport target
+→ fixed Nuclei v3.8.0 invocation against a loopback transport target
 → bounded structured response with genuine digests
 → guest evidence and verification pipeline
 ```

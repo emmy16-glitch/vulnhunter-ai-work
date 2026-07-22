@@ -42,7 +42,7 @@ def _enabled_policy(tmp_path: Path) -> RemoteNucleiWorkerPolicy:
         known_hosts_file=known_hosts,
         logical_target="http://10.0.2.15:8002",
         transport_target="http://127.0.0.1:18002",
-        engine_version="v3.11.0",
+        engine_version="v3.8.0",
         template_manifest_hash="1" * 64,
         template_sha256="2" * 64,
     )
@@ -56,7 +56,7 @@ def _request(operation: str, template_sha256: str) -> dict[str, object]:
         "worker_id": "remote-worker-01",
         "logical_target": "http://10.0.2.15:8002",
         "transport_target": "http://127.0.0.1:18002",
-        "engine_version": "v3.11.0",
+        "engine_version": "v3.8.0",
         "template_sha256": template_sha256,
         "timeout_seconds": 10,
         "maximum_candidates": 0 if operation == "readiness" else 5,
@@ -124,7 +124,7 @@ def test_request_and_result_digests_detect_tampering() -> None:
         worker_id="remote-worker-01",
         logical_target="http://10.0.2.15:8002",
         transport_target="http://127.0.0.1:18002",
-        engine_version="v3.11.0",
+        engine_version="v3.8.0",
         template_sha256="2" * 64,
         timeout_seconds=10,
         maximum_candidates=0,
@@ -142,7 +142,7 @@ def test_request_and_result_digests_detect_tampering() -> None:
         "request_digest": request.request_digest,
         "execution_state": "ready",
         "reason": "Restricted worker is ready.",
-        "engine_version": "v3.11.0",
+        "engine_version": "v3.8.0",
         "template_sha256": "2" * 64,
         "candidate_count": 0,
         "candidates": (),
@@ -175,7 +175,7 @@ def test_host_forced_command_returns_genuine_bounded_results_and_blocks_replay(
         (
             "#!/bin/sh\n"
             'if [ "$1" = "-version" ]; then\n'
-            '  echo "Nuclei Engine Version: v3.11.0"\n'
+            '  echo "Nuclei Engine Version: v3.8.0"\n'
             "  exit 0\n"
             "fi\n"
             "printf '%s\\n' "
@@ -199,7 +199,7 @@ def test_host_forced_command_returns_genuine_bounded_results_and_blocks_replay(
         "template_path": str(template),
         "logical_target": "http://10.0.2.15:8002",
         "transport_target": "http://127.0.0.1:18002",
-        "engine_version": "v3.11.0",
+        "engine_version": "v3.8.0",
         "template_sha256": template_sha256,
         "replay_root": str(replay_root),
         "maximum_timeout_seconds": 30,

@@ -114,6 +114,11 @@ All of the following remain blockers:
 - no Nuclei binary, template collection, credentials, or local readiness
   evidence is committed.
 
+> Correction (2026-07-22): the engine version recorded by this historical
+> milestone was based on an invalid release assumption. Current operational
+> policy pins official Nuclei `v3.8.0`; the following old value remains only as
+> historical evidence.
+
 Readiness means only that separately generated local version evidence matches
 engine `v3.11.0` and template release `v10.4.5`. It never grants execution
 permission. No external target scanning, Interactsh, ProjectDiscovery Cloud,

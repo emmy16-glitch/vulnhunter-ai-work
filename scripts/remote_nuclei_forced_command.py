@@ -30,6 +30,7 @@ MAX_REQUEST_BYTES = 65_536
 SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 IDENTIFIER_PATTERN = re.compile(r"^[a-z0-9][a-z0-9._-]{1,127}$")
 SEVERITY_PATTERN = re.compile(r"^[a-z][a-z0-9_-]{1,31}$")
+VERSION_TOKEN_PATTERN = re.compile(r"(?<![0-9A-Za-z.+-])v?(\d+\.\d+\.\d+)(?![0-9A-Za-z.+-])")
 _ACTIVE_PROCESS_GROUP: int | None = None
 
 
@@ -259,7 +260,8 @@ def read_engine_version(policy: dict[str, object]) -> str:
         fail("Nuclei readiness check failed")
     text = (result.stdout + result.stderr).decode("utf-8", errors="replace")
     expected = str(policy.get("engine_version", ""))
-    if result.returncode != 0 or expected not in text:
+    normalized = expected.removeprefix("v")
+    if result.returncode != 0 or normalized not in VERSION_TOKEN_PATTERN.findall(text):
         fail("installed Nuclei engine does not match the reviewed version")
     return expected
 

@@ -9,13 +9,20 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import shutil
 import subprocess
 from datetime import UTC, datetime
 from pathlib import Path
 
-EXPECTED_ENGINE = "v3.11.0"
+EXPECTED_ENGINE = "v3.8.0"
 EXPECTED_TEMPLATES = "v10.4.5"
+_VERSION_TOKEN = re.compile(r"(?<![0-9A-Za-z.+-])v?(\d+\.\d+\.\d+)(?![0-9A-Za-z.+-])")
+
+
+def _version_matches(expected: str, output: str) -> bool:
+    normalized = expected.removeprefix("v")
+    return normalized in _VERSION_TOKEN.findall(output)
 
 
 def _probe(executable: str, *arguments: str) -> dict[str, object]:
@@ -72,8 +79,8 @@ def main() -> int:
         report["templates_probe"] = templates
         engine_text = str(engine.get("summary", ""))
         template_text = str(templates.get("summary", ""))
-        report["engine_pin_matches"] = EXPECTED_ENGINE.lstrip("v") in engine_text
-        report["templates_pin_matches"] = EXPECTED_TEMPLATES.lstrip("v") in template_text
+        report["engine_pin_matches"] = _version_matches(EXPECTED_ENGINE, engine_text)
+        report["templates_pin_matches"] = _version_matches(EXPECTED_TEMPLATES, template_text)
         report["ready"] = bool(
             engine["ok"]
             and templates["ok"]

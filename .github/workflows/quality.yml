@@ -69,17 +69,17 @@ jobs:
     timeout-minutes: 20
     env:
       VULNHUNTER_WEB_DEBUG: "true"
-      VULNHUNTER_WEB_DATABASE: ${{ runner.temp }}/vh-ui/web.sqlite3
-      VULNHUNTER_AUTHORIZATION_DATABASE: ${{ runner.temp }}/vh-ui/auth.db
-      VULNHUNTER_GOVERNANCE_DATABASE: ${{ runner.temp }}/vh-ui/governance.db
-      VULNHUNTER_AGENT_DATABASE: ${{ runner.temp }}/vh-ui/agent.db
-      VULNHUNTER_APPROVAL_DATABASE: ${{ runner.temp }}/vh-ui/approvals.sqlite3
-      VULNHUNTER_AGENT_ACTIVITY_ROOT: ${{ runner.temp }}/vh-ui/activity
-      VULNHUNTER_SECURITY_EVIDENCE_ROOT: ${{ runner.temp }}/vh-ui/evidence
-      VULNHUNTER_MOBILE_ARTIFACT_ROOT: ${{ runner.temp }}/vh-ui/mobile
-      VULNHUNTER_ADVERSARY_LAB_DATABASE: ${{ runner.temp }}/vh-ui/lab.sqlite3
-      VULNHUNTER_UI_MANIFEST: ${{ runner.temp }}/vh-ui/ui-manifest.json
-      VULNHUNTER_UI_OUTPUT: ${{ runner.temp }}/vh-ui/screenshots
+      VULNHUNTER_WEB_DATABASE: /tmp/vh-ui/web.sqlite3
+      VULNHUNTER_AUTHORIZATION_DATABASE: /tmp/vh-ui/auth.db
+      VULNHUNTER_GOVERNANCE_DATABASE: /tmp/vh-ui/governance.db
+      VULNHUNTER_AGENT_DATABASE: /tmp/vh-ui/agent.db
+      VULNHUNTER_APPROVAL_DATABASE: /tmp/vh-ui/approvals.sqlite3
+      VULNHUNTER_AGENT_ACTIVITY_ROOT: /tmp/vh-ui/activity
+      VULNHUNTER_SECURITY_EVIDENCE_ROOT: /tmp/vh-ui/evidence
+      VULNHUNTER_MOBILE_ARTIFACT_ROOT: /tmp/vh-ui/mobile
+      VULNHUNTER_ADVERSARY_LAB_DATABASE: /tmp/vh-ui/lab.sqlite3
+      VULNHUNTER_UI_MANIFEST: /tmp/vh-ui/ui-manifest.json
+      VULNHUNTER_UI_OUTPUT: /tmp/vh-ui/screenshots
       VULNHUNTER_UI_BASE_URL: http://127.0.0.1:8767
 
     steps:
@@ -107,20 +107,21 @@ jobs:
 
       - name: Prepare deterministic local audit data
         run: |
-          mkdir -p "${{ runner.temp }}/vh-ui"
+          rm -rf /tmp/vh-ui
+          mkdir -p /tmp/vh-ui
           python manage.py migrate --noinput
           python tests/ui/prepare_visual_audit.py
 
       - name: Start local web application
         run: |
-          python manage.py runserver 127.0.0.1:8767 --noreload > "${{ runner.temp }}/vh-ui/server.log" 2>&1 &
+          python manage.py runserver 127.0.0.1:8767 --noreload > /tmp/vh-ui/server.log 2>&1 &
           for attempt in $(seq 1 40); do
             if curl --fail --silent http://127.0.0.1:8767/health/ > /dev/null; then
               exit 0
             fi
             sleep 1
           done
-          cat "${{ runner.temp }}/vh-ui/server.log"
+          cat /tmp/vh-ui/server.log
           exit 1
 
       - name: Capture and validate responsive product UI
@@ -132,7 +133,7 @@ jobs:
         with:
           name: vulnhunter-ui-audit
           path: |
-            ${{ runner.temp }}/vh-ui/screenshots
-            ${{ runner.temp }}/vh-ui/server.log
+            /tmp/vh-ui/screenshots
+            /tmp/vh-ui/server.log
           if-no-files-found: error
           retention-days: 7

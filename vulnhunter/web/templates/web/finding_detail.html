@@ -15,7 +15,7 @@
   </header>
 
   <section class="vh-summary-strip" aria-label="Finding status">
-    <article class="vh-summary-item"><small>Severity</small><strong class="vh-severity-{{ finding.severity|default:'info' }}">{{ finding.severity|default:"Unclassified" }}</strong><span>Recorded assessment value</span></article>
+    <article class="vh-summary-item"><small>Severity</small><strong class="vh-severity-{{ finding.severity|default:'info'|lower }}">{{ finding.severity|default:"Unclassified" }}</strong><span>Recorded assessment value</span></article>
     <article class="vh-summary-item"><small>Confidence</small><strong>{{ finding.confidence|default:"Not recorded" }}</strong><span>Not a publication decision</span></article>
     <article class="vh-summary-item"><small>Verification</small><strong>{{ finding.verification|default:run.evaluation_result|default:"Pending" }}</strong><span>Deterministic state</span></article>
     <article class="vh-summary-item"><small>Release</small><strong>{{ finding.release_state|default:"Not released" }}</strong><span>Separate governance gate</span></article>

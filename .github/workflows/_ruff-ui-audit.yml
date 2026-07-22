@@ -1,4 +1,4 @@
-name: Canonicalize UI audit Python
+name: Finish UI audit lint cleanup
 
 on:
   pull_request:
@@ -8,7 +8,7 @@ permissions:
   contents: write
 
 jobs:
-  format:
+  lint-cleanup:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -18,18 +18,67 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
-      - name: Apply Ruff fixes and formatting
+      - name: Shorten remaining generated lines
         run: |
-          if [ "$(git log -1 --pretty=%s)" = "Apply Ruff UI audit fixes" ]; then exit 0; fi
+          if [ "$(git log -1 --pretty=%s)" = "Finish UI audit lint cleanup" ]; then exit 0; fi
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("vulnhunter/web/views.py")
+          text = path.read_text(encoding="utf-8")
+          replacements = {
+              'else "Gated until the reviewed worker policy, signing key and local target are ready."': (
+                  'else (\n'
+                  '                    "Gated until the reviewed worker policy, signing key "\n'
+                  '                    "and local target are ready."\n'
+                  '                )'
+              ),
+              'else "Read-only validated graph loading is available; rebuild execution is gated."': (
+                  'else (\n'
+                  '                    "Validated graph loading is available; explicit rebuild "\n'
+                  '                    "execution remains gated."\n'
+                  '                )'
+              ),
+              '"Bounded advisory health checks are enabled; the provider remains non-authoritative."': (
+                  '"Bounded advisory health checks are enabled; the provider "\n'
+                  '                    "remains non-authoritative."'
+              ),
+              'else "Optional remote advisory routing is gated; deterministic workflows continue."': (
+                  'else (\n'
+                  '                    "Optional remote advisory routing is gated; deterministic "\n'
+                  '                    "workflows continue."\n'
+                  '                )'
+              ),
+              '{"name": "CSRF cookie", "safe": bool(settings.CSRF_COOKIE_HTTPONLY), "value": "HttpOnly"},': (
+                  '{\n'
+                  '            "name": "CSRF cookie",\n'
+                  '            "safe": bool(settings.CSRF_COOKIE_HTTPONLY),\n'
+                  '            "value": "HttpOnly",\n'
+                  '        },'
+              ),
+              '"database_engine": settings.DATABASES["default"]["ENGINE"].rsplit(".", 1)[-1],': (
+                  '"database_engine": settings.DATABASES["default"]["ENGINE"].rsplit(\n'
+                  '                ".", 1\n'
+                  '            )[-1],'
+              ),
+          }
+          for old, new in replacements.items():
+              if old not in text:
+                  raise SystemExit(f"missing expected text: {old}")
+              text = text.replace(old, new, 1)
+          path.write_text(text, encoding="utf-8")
+          PY
           python -m pip install ruff
-          python -m ruff check --fix . || true
+          python -m ruff check --fix .
           python -m ruff format .
+          python -m ruff check .
+          python -m ruff format --check .
           git diff --check
-      - name: Commit canonical Python
+      - name: Commit final lint cleanup
         run: |
           if git diff --quiet; then exit 0; fi
           git config user.name 'OpenAI Agent'
           git config user.email 'agent@openai.com'
           git add -A
-          git commit -m 'Apply Ruff UI audit fixes'
+          git commit -m 'Finish UI audit lint cleanup'
           git push origin HEAD:agent/full-ui-audit-and-wiring

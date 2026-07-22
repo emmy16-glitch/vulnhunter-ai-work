@@ -123,9 +123,7 @@ def model_detail_view(request: HttpRequest, component_id: str) -> HttpResponse:
     if definition is None:
         raise Http404("Intelligence component does not exist.")
 
-    status_row = next(
-        item for item in _component_rows() if item["component_id"] == component_id
-    )
+    status_row = next(item for item in _component_rows() if item["component_id"] == component_id)
     return render(
         request,
         "web/model_detail.html",

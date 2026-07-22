@@ -26,9 +26,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options) -> None:
         policy_value = str(options["policy"] or "").strip()
         if not policy_value:
-            raise CommandError(
-                "--policy or VULNHUNTER_REMOTE_NUCLEI_WORKER_POLICY is required"
-            )
+            raise CommandError("--policy or VULNHUNTER_REMOTE_NUCLEI_WORKER_POLICY is required")
         try:
             policy = RemoteNucleiWorkerPolicy.from_path(Path(policy_value))
             result = RestrictedSshNucleiRunner(policy=policy).verify_readiness()

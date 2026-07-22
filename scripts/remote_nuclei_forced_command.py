@@ -189,9 +189,7 @@ def read_request() -> dict[str, object]:
         issued_at = datetime.fromisoformat(str(request["issued_at"]).replace("Z", "+00:00"))
     except ValueError:
         fail("issued_at is invalid")
-    age_seconds = abs(
-        (datetime.now(UTC) - issued_at.astimezone(UTC)).total_seconds()
-    )
+    age_seconds = abs((datetime.now(UTC) - issued_at.astimezone(UTC)).total_seconds())
     if issued_at.tzinfo is None or age_seconds > 300:
         fail("remote worker request is stale")
     return request

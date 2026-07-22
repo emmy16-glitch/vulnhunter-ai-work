@@ -89,8 +89,7 @@ def test_enabled_policy_requires_fixed_private_and_loopback_targets(tmp_path: Pa
     assert policy.enabled is True
     with pytest.raises(ValidationError):
         RemoteNucleiWorkerPolicy.model_validate(
-            policy.model_dump(mode="python")
-            | {"transport_target": "http://10.0.2.2:18002"}
+            policy.model_dump(mode="python") | {"transport_target": "http://10.0.2.2:18002"}
         )
 
 
@@ -180,11 +179,11 @@ def test_host_forced_command_returns_genuine_bounded_results_and_blocks_replay(
             "  exit 0\n"
             "fi\n"
             "printf '%s\\n' "
-            "'{\"template-id\":\"missing-security-header\","
-            "\"info\":{\"name\":\"Missing security header\","
-            "\"severity\":\"info\"},"
-            "\"matcher-name\":\"header-check\","
-            "\"type\":\"http\"}'\n"
+            '\'{"template-id":"missing-security-header",'
+            '"info":{"name":"Missing security header",'
+            '"severity":"info"},'
+            '"matcher-name":"header-check",'
+            '"type":"http"}\'\n'
         ),
         0o700,
     )

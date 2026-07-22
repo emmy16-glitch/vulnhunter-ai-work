@@ -127,10 +127,7 @@ class RestrictedSshNucleiRunner:
             "LC_ALL": "C.UTF-8",
         }
         deadline = (
-            time.monotonic()
-            + request.timeout_seconds
-            + self.policy.connect_timeout_seconds
-            + 5
+            time.monotonic() + request.timeout_seconds + self.policy.connect_timeout_seconds + 5
         )
         with tempfile.TemporaryFile() as stdout_file, tempfile.TemporaryFile() as stderr_file:
             process = subprocess.Popen(
@@ -263,8 +260,7 @@ class RestrictedSshNucleiRunner:
     ) -> ScannerCandidateObservation:
         fingerprint = hashlib.sha256(
             (
-                f"{candidate.template_id}\0{self.policy.logical_target}\0"
-                f"{candidate.matcher_name}"
+                f"{candidate.template_id}\0{self.policy.logical_target}\0{candidate.matcher_name}"
             ).encode()
         ).hexdigest()[:24]
         return ScannerCandidateObservation(

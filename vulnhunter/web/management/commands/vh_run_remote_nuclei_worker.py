@@ -47,9 +47,7 @@ class Command(BaseCommand):
         base = Path(settings.BASE_DIR)
         policy_value = str(options["policy"] or "").strip()
         if not policy_value:
-            raise CommandError(
-                "--policy or VULNHUNTER_REMOTE_NUCLEI_WORKER_POLICY is required"
-            )
+            raise CommandError("--policy or VULNHUNTER_REMOTE_NUCLEI_WORKER_POLICY is required")
         policy_path = Path(policy_value)
         key_path = Path(settings.VULNHUNTER_NUCLEI_WORKER_SIGNING_KEY_FILE)
         spool_root = Path(settings.VULNHUNTER_NUCLEI_WORKER_SPOOL_ROOT)
@@ -65,9 +63,7 @@ class Command(BaseCommand):
             compatibility = ScannerCompatibilityManifest.load(compatibility_path)
             compatibility.verify_repository_manifests(base)
             template_manifest = NucleiTemplateManifest.model_validate_json(
-                Path(settings.VULNHUNTER_NUCLEI_TEMPLATE_MANIFEST).read_text(
-                    encoding="utf-8"
-                )
+                Path(settings.VULNHUNTER_NUCLEI_TEMPLATE_MANIFEST).read_text(encoding="utf-8")
             )
             now = datetime.now(UTC)
             spool = SignedWorkerSpool(spool_root)
@@ -81,15 +77,11 @@ class Command(BaseCommand):
                 compatibility_manifest=compatibility,
                 template_manifest=template_manifest,
                 execution_store=execution_store,
-                evidence_store=EvidenceStore(
-                    Path(settings.VULNHUNTER_SECURITY_EVIDENCE_ROOT)
-                ),
+                evidence_store=EvidenceStore(Path(settings.VULNHUNTER_SECURITY_EVIDENCE_ROOT)),
                 verification_store=OracleStore(verification_root),
                 agent_store=AgentStore(Path(settings.VULNHUNTER_AGENT_DATABASE)),
                 activity_service=AgentActivityService(
-                    AppendOnlyActivityStore(
-                        Path(settings.VULNHUNTER_AGENT_ACTIVITY_ROOT)
-                    )
+                    AppendOnlyActivityStore(Path(settings.VULNHUNTER_AGENT_ACTIVITY_ROOT))
                 ),
             )
             receipt = service.run_once()

@@ -1,0 +1,17 @@
+{
+  "schema_version": "1.0",
+  "enabled": false,
+  "worker_id": "remote-worker-01",
+  "nuclei_executable": "/home/replace-with-host-user/.local/bin/nuclei",
+  "template_path": "/home/replace-with-host-user/.local/share/vulnhunter/templates/passive-security-headers.yaml",
+  "logical_target": "http://10.0.2.15:8002",
+  "transport_target": "http://127.0.0.1:18002",
+  "engine_version": "v3.11.0",
+  "template_sha256": "6ec1f633dccb5ee580693af3396e369ed799397587fc6ddb28db613b494dea20",
+  "replay_root": "/home/replace-with-host-user/.local/share/vulnhunter-main-worker/replay",
+  "maximum_timeout_seconds": 300,
+  "maximum_candidates": 250,
+  "maximum_stdout_bytes": 200000,
+  "maximum_stderr_bytes": 100000,
+  "maximum_response_bytes": 131072
+}

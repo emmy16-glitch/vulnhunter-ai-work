@@ -81,11 +81,7 @@ def _pending_approvals() -> tuple[object, ...]:
     now = datetime.now(UTC)
     return tuple(
         sorted(
-            (
-                item
-                for item in records
-                if item.status in actionable and item.expires_at > now
-            ),
+            (item for item in records if item.status in actionable and item.expires_at > now),
             key=lambda item: item.requested_at,
             reverse=True,
         )

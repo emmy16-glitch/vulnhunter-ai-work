@@ -14,6 +14,7 @@ from vulnhunter.web.services import (
     PilotPlanRecord,
     WebPermissionDenied,
     authorized_actor,
+    get_pilot_plan_record,
     list_pilot_plan_records,
     navigation_for,
     role_policy,
@@ -43,26 +44,31 @@ def _assigned_identity_ids(record: PilotPlanRecord) -> set[str]:
     }
 
 
+def _can_view_record(actor, record: PilotPlanRecord) -> bool:
+    policy = role_policy()
+    if policy.any_role_allows(actor.product_roles, "report.read"):
+        return True
+    if policy.any_role_allows(actor.product_roles, "report.read_own"):
+        return actor.governance_identity.reviewer_id in _assigned_identity_ids(record)
+    # Pilot-plan reports have no public-release contract. Public-summary roles
+    # never receive unreleased governance records through this surface.
+    return False
+
+
 def _visible_records(actor) -> tuple[PilotPlanRecord, ...]:
     """Apply report.read, report.read_own and report.read_public without widening access."""
 
-    records = list_pilot_plan_records()
-    policy = role_policy()
-    if policy.any_role_allows(actor.product_roles, "report.read"):
-        return records
-    if policy.any_role_allows(actor.product_roles, "report.read_own"):
-        identity_id = actor.governance_identity.reviewer_id
-        return tuple(record for record in records if identity_id in _assigned_identity_ids(record))
-    # Pilot-plan reports do not have a public-release contract. A public-summary
-    # role sees the truthful empty state instead of unreleased governance data.
-    return ()
+    return tuple(record for record in list_pilot_plan_records() if _can_view_record(actor, record))
 
 
 def _visible_record(actor, plan_id: str) -> PilotPlanRecord:
-    for record in _visible_records(actor):
-        if record.plan_id == plan_id:
-            return record
-    raise Http404("Pilot plan report does not exist or is not visible to this identity.")
+    try:
+        record = get_pilot_plan_record(plan_id)
+    except FileNotFoundError as exc:
+        raise Http404("Pilot plan report does not exist.") from exc
+    if not _can_view_record(actor, record):
+        raise Http404("Pilot plan report does not exist or is not visible to this identity.")
+    return record
 
 
 def _formats() -> tuple[dict[str, str | None], ...]:

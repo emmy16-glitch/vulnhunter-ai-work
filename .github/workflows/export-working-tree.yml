@@ -15,14 +15,20 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - name: Create source snapshot
-        run: tar --exclude=.git -czf "$RUNNER_TEMP/vulnhunter-source.tar.gz" .
+        run: |
+          tar --exclude=.git -czf "$RUNNER_TEMP/vulnhunter-source.tar.gz" .
+          tar -czf "$RUNNER_TEMP/vulnhunter-git.tar.gz" .git
 
       - name: Upload source snapshot
         uses: actions/upload-artifact@v7
         with:
           name: vulnhunter-source
-          path: ${{ runner.temp }}/vulnhunter-source.tar.gz
+          path: |
+            ${{ runner.temp }}/vulnhunter-source.tar.gz
+            ${{ runner.temp }}/vulnhunter-git.tar.gz
           if-no-files-found: error
           retention-days: 1

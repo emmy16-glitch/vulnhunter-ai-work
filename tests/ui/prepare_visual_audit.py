@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """Seed a deterministic, local-only UI audit workspace with no external actions."""
 
+# Django must be configured before importing project models in this standalone seed.
+# ruff: noqa: E402
+
 from __future__ import annotations
 
 import json
@@ -102,7 +105,9 @@ def main() -> int:
     controller = _controller(runtime_root)
     task = controller.create_task(
         task_id="ui-reference-run",
-        objective=("Inspect a bounded local application and preserve evidence for human review."),
+        objective=(
+            "Inspect a bounded local application and preserve evidence for human review."
+        ),
         permission_manifest=PermissionManifest(
             manifest_id="ui-reference-manifest",
             role_id="orchestrator",
@@ -169,7 +174,7 @@ def main() -> int:
             action_manifest_sha256="b" * 64,
             requested_by="reviewer-a",
             summary="Approve one bounded local validation action.",
-            risk_summary=("The action is restricted to synthetic local evidence."),
+            risk_summary="The action is restricted to synthetic local evidence.",
             requested_at=now,
             expires_at=now + timedelta(hours=2),
         )

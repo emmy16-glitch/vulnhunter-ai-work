@@ -1,5 +1,7 @@
 {% extends "web/base.html" %}
+{% load static %}
 {% block content %}
+<link rel="stylesheet" href="{% static 'web/intelligence.css' %}?v=20260722-console">
 <section class="vh-page-shell">
   <header class="vh-page-header">
     <div><p class="vh-eyebrow">Intelligence</p><h1>Intelligence components</h1><p>Model-neutral graph, advisory and deterministic verification state. Opening these pages never starts training, inference or tool execution.</p></div>

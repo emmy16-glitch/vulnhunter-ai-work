@@ -1,6 +1,7 @@
 {% extends "web/base.html" %}
-{% load static %}
+{% load static vh_navigation %}
 {% block content %}
+{% security_runtime as activation %}
 <section class="vh-product-page">
   <header class="vh-product-heading">
     <div><p class="vh-eyebrow">Local readiness</p><h1>Security tool registry</h1><p>Inspect real local availability, supported profiles and activation gates. Detection never grants execution authority.</p></div>
@@ -13,7 +14,7 @@
   </section>
 
   <div class="vh-product-grid">
-    <section class="vh-product-panel vh-product-span-7"><header class="vh-product-panel-header"><div><h2>Activation rules</h2><p>What the registry can and cannot do.</p></div></header><ul class="vh-fact-list"><li><span>Executable detection<small>Shows local readiness only.</small></span><strong>Read only</strong></li><li><span>Profile selection<small>Must remain inside an exact authorization.</small></span><strong>Server checked</strong></li><li><span>Nuclei execution harness<small>Milestone 31 production execution remains blocked.</small></span><strong class="vh-state-warning">Disabled</strong></li><li><span>Mobile dynamic analysis<small>Requires an isolated disposable Android runtime and approval.</small></span><strong>Not activated</strong></li></ul></section>
+    <section class="vh-product-panel vh-product-span-7"><header class="vh-product-panel-header"><div><h2>Activation rules</h2><p>What the registry can and cannot do.</p></div></header><ul class="vh-fact-list"><li><span>Executable detection<small>Shows local readiness only.</small></span><strong>Read only</strong></li><li><span>Profile selection<small>Must remain inside an exact authorization.</small></span><strong>Server checked</strong></li><li><span>Controlled Nuclei runner<small>{{ activation.detail }}</small></span><strong class="{% if activation.configured %}vh-state-safe{% else %}vh-state-warning{% endif %}">{{ activation.state }}</strong></li><li><span>Mobile dynamic analysis<small>Requires an isolated disposable Android runtime and approval.</small></span><strong>Not activated</strong></li></ul></section>
     <aside class="vh-product-panel vh-product-span-5 vh-boundary-card"><span class="vh-boundary-icon"><svg><use href="#vh-i-shield"></use></svg></span><div><p class="vh-eyebrow">Connected pages</p><h2>Use tools through governed workflows</h2></div><p>Open the appropriate authenticated surface rather than invoking a tool directly from this registry.</p><div class="vh-card-actions"><a class="vh-button-secondary" href="{% url 'web-agent-run-list' %}">Assessments</a><a class="vh-button-secondary" href="{% url 'web-mobile-analysis' %}">Mobile analysis</a><a class="vh-button-secondary" href="{% url 'web-approval-list' %}">Approval Centre</a></div></aside>
   </div>
 </section>

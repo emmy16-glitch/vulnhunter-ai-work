@@ -32,7 +32,7 @@ def test_canonical_navigation_has_one_destination_per_capability():
         "Operations",
         "Review",
         "Governance",
-        "Intelligence",
+        "Analysis",
         "System",
     ):
         assert f'"section_label": "{section}"' in navigation
@@ -49,7 +49,7 @@ def test_canonical_navigation_has_one_destination_per_capability():
         "Reports",
         "Policies",
         "Datasets",
-        "Models",
+        "Analysis Services",
         "Mobile APK Analysis",
         "Integrations & Tools",
         "Audit Log",
@@ -60,6 +60,14 @@ def test_canonical_navigation_has_one_destination_per_capability():
     assert '"label": "Machine Oracle"' not in navigation
     assert '"label": "New Scan"' not in navigation
     assert '"label": "Scan Runs"' not in navigation
+    for stale in (
+        "VulnHunter AI",
+        "execution remains disabled",
+        "production runner remains blocked",
+        "Milestone 31",
+    ):
+        assert stale not in _text(TEMPLATES / "base.html")
+        assert stale not in _text(NEW_ASSESSMENT)
 
 
 def test_canonical_routes_and_legacy_aliases_are_explicit():

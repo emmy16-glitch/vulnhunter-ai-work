@@ -154,4 +154,4 @@ def test_empty_state_and_modal_are_real_query_backed(client, settings, tmp_path)
     assert "data-assessment-open" in content
     assert '<select name="target"' in content
     assert '<input name="target"' not in content
-    assert "execution remains globally disabled" in content
+    assert "worker-readiness checks are required before queueing" in content

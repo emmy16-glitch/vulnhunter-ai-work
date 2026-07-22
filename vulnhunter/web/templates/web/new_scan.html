@@ -1,5 +1,7 @@
 {% extends "web/base.html" %}
+{% load vh_navigation %}
 {% block content %}
+{% security_runtime as activation %}
 <section class="vh-page-shell">
   <header class="vh-page-header">
     <div><p class="vh-eyebrow">Assessments</p><h1>New Assessment</h1><p>Select values from an active authorization. The backend checks the complete combination before creating a plan.</p></div>
@@ -10,7 +12,7 @@
 
   <div class="vh-surface-grid">
     <section class="vh-surface vh-surface-span-8">
-      <header class="vh-surface-header"><div><h2>Assessment plan</h2><p>Only authorization-bound values are accepted.</p></div><span class="vh-status-chip vh-status-warning">Planning only</span></header>
+      <header class="vh-surface-header"><div><h2>Assessment plan</h2><p>Only authorization-bound values are accepted.</p></div><span class="vh-status-chip {% if activation.configured %}vh-status-safe{% else %}vh-status-warning{% endif %}">{% if activation.configured %}Approval gated{% else %}Configuration gated{% endif %}</span></header>
       <div class="vh-surface-body">
         {% if authorizations %}
           <form method="post" class="vh-form">
@@ -21,7 +23,7 @@
               <label>Protocol<select name="protocol" required>{% for item in authorizations %}{% for protocol in item.approved_protocols %}<option value="{{ protocol }}">{{ protocol }}</option>{% endfor %}{% endfor %}</select></label>
               <label>Port<select name="port" required>{% for item in authorizations %}{% for port in item.approved_ports %}<option value="{{ port }}">{{ port }}</option>{% endfor %}{% endfor %}</select></label>
               <label>Assessment profile<select name="profile" required>{% for item in authorizations %}{% for profile in item.approved_profiles %}<option value="{{ profile }}">{{ profile }}</option>{% endfor %}{% endfor %}</select></label>
-              <label class="vh-engine-field">Scanning engine<select name="scanner_engine" required><option value="automatic" selected>Automatic — Recommended</option><option value="nuclei">Nuclei</option></select><span class="vh-engine-state"><i></i>Nuclei is wired for governed planning; execution remains disabled.</span></label>
+              <label class="vh-engine-field">Scanning engine<select name="scanner_engine" required><option value="automatic" selected>Automatic — Recommended</option><option value="nuclei">Nuclei</option></select><span class="vh-engine-state"><i></i>{% if activation.configured %}Nuclei planning and the signed worker queue are enabled by policy.{% else %}Nuclei execution is gated by configuration.{% endif %}</span></label>
             </div>
             <div class="vh-card-actions"><button class="vh-button-primary" type="submit">Create plan</button></div>
           </form>
@@ -33,7 +35,7 @@
 
     <aside class="vh-surface vh-surface-span-4">
       <header class="vh-surface-header"><div><h2>Current boundary</h2><p>Creating a plan does not start a scan.</p></div></header>
-      <ul class="vh-compact-list"><li><span>Target and port<small>Must match one authorization.</small></span><strong>Server checked</strong></li><li><span>Scanner<small>Automatic currently resolves to Nuclei.</small></span><strong>Nuclei</strong></li><li><span>Approval<small>Bound to the exact plan digest.</small></span><strong>Required</strong></li><li><span>Execution<small>The production runner remains blocked.</small></span><strong class="vh-state-warning">Disabled</strong></li></ul>
+      <ul class="vh-compact-list"><li><span>Target and port<small>Must match one authorization.</small></span><strong>Server checked</strong></li><li><span>Scanner<small>Automatic currently resolves to Nuclei.</small></span><strong>Nuclei</strong></li><li><span>Approval<small>Bound to the exact plan digest.</small></span><strong>Required</strong></li><li><span>Execution<small>Starts only after exact approval and worker-readiness checks.</small></span><strong class="{% if activation.configured %}vh-state-safe{% else %}vh-state-warning{% endif %}">{{ activation.state }}</strong></li></ul>
     </aside>
   </div>
 </section>

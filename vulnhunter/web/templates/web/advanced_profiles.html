@@ -22,7 +22,7 @@
 
   <section class="vh-product-panel">
     <header class="vh-product-panel-header"><div><h2>How profiles connect to the backend</h2><p>The browser cannot create its own target, port or risk scope.</p></div></header>
-    <ul class="vh-fact-list"><li><span>Authorization selection<small>Only active, actor-owned records are returned.</small></span><strong>Backend filtered</strong></li><li><span>Target and profile values<small>Every submitted value is reloaded and revalidated.</small></span><strong>Exact match</strong></li><li><span>Command planning<small>The stored plan contains structured fields, not arbitrary shell commands.</small></span><strong>Immutable digest</strong></li><li><span>Approval result<small>An approval still leaves real execution blocked while the global gate is disabled.</small></span><strong class="vh-state-warning">Planning only</strong></li></ul>
+    <ul class="vh-fact-list"><li><span>Authorization selection<small>Only active, actor-owned records are returned.</small></span><strong>Backend filtered</strong></li><li><span>Target and profile values<small>Every submitted value is reloaded and revalidated.</small></span><strong>Exact match</strong></li><li><span>Command planning<small>The stored plan contains structured fields, not arbitrary shell commands.</small></span><strong>Immutable digest</strong></li><li><span>Approval result<small>Eligible passive plans enter the signed worker queue after exact approval.</small></span><strong>Profile dependent</strong></li></ul>
   </section>
 </section>
 {% endblock %}

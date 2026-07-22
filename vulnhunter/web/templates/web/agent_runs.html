@@ -1,5 +1,7 @@
 {% extends "web/base.html" %}
+{% load vh_navigation %}
 {% block content %}
+{% security_runtime as activation %}
 <section class="vh-page-shell" aria-labelledby="assessment-page-title">
   <header class="vh-page-header">
     <div><p class="vh-eyebrow">Operations</p><h1 id="assessment-page-title">Assessments</h1><p>Governed plans and their current backend state.</p></div>
@@ -11,7 +13,7 @@
   <section class="vh-summary-strip" aria-label="Assessment summary">
     <article class="vh-summary-item"><small>Runs</small><strong>{{ runs|length }}</strong><span>Visible to this account</span></article>
     <article class="vh-summary-item"><small>Scanner</small><strong>Nuclei</strong><span>Governed planning only</span></article>
-    <article class="vh-summary-item"><small>Execution</small><strong>Disabled</strong><span>Milestone 31 boundary</span></article>
+    <article class="vh-summary-item"><small>Execution</small><strong>{{ activation.state }}</strong><span>Exact approval and worker readiness required</span></article>
     <article class="vh-summary-item"><small>Approval</small><strong>Plan bound</strong><span>Exact digest required</span></article>
   </section>
 
@@ -35,10 +37,10 @@
         <label>Protocol<select name="protocol" data-protocol-select required disabled><option value="">Select protocol</option></select></label>
         <label>Port<select name="port" data-port-select required disabled><option value="">Select port</option></select></label>
         <label>Assessment profile<select name="profile" data-profile-select required disabled><option value="">Select profile</option></select></label>
-        <label class="vh-engine-field">Scanning engine<select name="scanner_engine" data-engine-select required><option value="automatic" selected>Automatic — Recommended</option><option value="nuclei">Nuclei</option></select><span class="vh-engine-state"><i></i>Nuclei planning is available. Execution is disabled.</span></label>
+        <label class="vh-engine-field">Scanning engine<select name="scanner_engine" data-engine-select required><option value="automatic" selected>Automatic — Recommended</option><option value="nuclei">Nuclei</option></select><span class="vh-engine-state"><i></i>{% if activation.configured %}Nuclei planning and the signed worker queue are enabled by policy.{% else %}Nuclei execution is gated by configuration.{% endif %}</span></label>
       </div>
       <footer class="vh-assessment-dialog-actions"><button type="button" class="vh-button-secondary" data-assessment-close>Cancel</button><button type="submit" class="vh-button-primary" disabled data-assessment-submit>Create plan</button></footer>
-      <p class="vh-form-note">Creating a plan records scope and approval requirements. Nuclei execution remains globally disabled.</p>
+      <p class="vh-form-note">Creating a plan records scope and approval requirements. Exact approval and worker-readiness checks are required before queueing.</p>
     </form>
   </dialog>
 </section>

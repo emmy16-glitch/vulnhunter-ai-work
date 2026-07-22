@@ -1,0 +1,79 @@
+{% extends "web/base.html" %}
+{% block content %}
+<section class="vh-governed-workspace">
+  <header class="vh-workspace-hero">
+    <div>
+      <p class="vh-crumb"><a href="{% url 'web-findings-overview' %}">Findings</a><span aria-hidden="true">/</span>{{ finding_id }}</p>
+      <p class="vh-eyebrow">Evidence-backed finding</p>
+      <h1>{{ finding.title|default:finding_id }}</h1>
+      <p>{{ finding.description|default:finding.summary|default:"No additional description was recorded for this finding." }}</p>
+    </div>
+    <div class="vh-page-actions">
+      <a class="vh-button-secondary" href="{% url 'web-agent-run-detail' run.run_id %}">Source assessment</a>
+      <a class="vh-button-secondary" href="{% url 'web-review-queue' %}">Review queue</a>
+    </div>
+  </header>
+
+  <section class="vh-summary-strip" aria-label="Finding status">
+    <article class="vh-summary-item"><small>Severity</small><strong class="vh-severity-{{ finding.severity|default:'info' }}">{{ finding.severity|default:"Unclassified" }}</strong><span>Recorded assessment value</span></article>
+    <article class="vh-summary-item"><small>Confidence</small><strong>{{ finding.confidence|default:"Not recorded" }}</strong><span>Not a publication decision</span></article>
+    <article class="vh-summary-item"><small>Verification</small><strong>{{ finding.verification|default:run.evaluation_result|default:"Pending" }}</strong><span>Deterministic state</span></article>
+    <article class="vh-summary-item"><small>Release</small><strong>{{ finding.release_state|default:"Not released" }}</strong><span>Separate governance gate</span></article>
+  </section>
+
+  <div class="vh-detail-grid">
+    <section class="vh-surface vh-detail-main">
+      <header class="vh-surface-header"><div><h2>Finding record</h2><p>Sanitized facts persisted by the assessment pipeline.</p></div><span class="vh-status-chip {% if finding.verification == 'verified' %}vh-status-safe{% else %}vh-status-warning{% endif %}">{{ finding.verification|default:"candidate" }}</span></header>
+      <div class="vh-record-body">
+        <dl class="vh-definition-grid">
+          <div><dt>Evidence ID</dt><dd class="vh-mono-compact">{{ finding_id }}</dd></div>
+          <div><dt>Scanner</dt><dd>{{ run.requested_tool|default:"Not recorded" }}</dd></div>
+          <div><dt>Target</dt><dd>{{ finding.target_reference|default:run.scope_summary|default:"Not recorded" }}</dd></div>
+          <div><dt>Assessment state</dt><dd>{{ run.workflow_state|default:run.current_state }}</dd></div>
+          <div><dt>Category</dt><dd>{{ finding.category|default:finding.classification|default:"Not recorded" }}</dd></div>
+          <div><dt>Review state</dt><dd>{{ finding.review_state|default:"Not reviewed" }}</dd></div>
+          <div class="vh-definition-span"><dt>Evidence summary</dt><dd>{{ finding.evidence_summary|default:finding.summary|default:finding.description|default:"No narrative evidence summary was recorded." }}</dd></div>
+        </dl>
+      </div>
+    </section>
+
+    <aside class="vh-surface vh-detail-side vh-sticky-inspector">
+      <header class="vh-surface-header"><div><h2>Lifecycle</h2><p>Completion does not imply publication.</p></div></header>
+      <ol class="vh-lifecycle-list">
+        {% for label, complete in lifecycle %}
+          <li{% if complete %} class="is-complete"{% endif %}><span>{% if complete %}✓{% else %}{{ forloop.counter|stringformat:"02d" }}{% endif %}</span><strong>{{ label }}</strong></li>
+        {% endfor %}
+      </ol>
+      <div class="vh-boundary-note"><strong>Authority boundary</strong><p>Scanner output and advisory analysis remain candidate evidence. Deterministic verification, independent review and governed release are separate controls.</p></div>
+    </aside>
+
+    <section class="vh-surface vh-detail-full">
+      <header class="vh-surface-header"><div><h2>Evidence artifacts</h2><p>Artifacts exposed by the authenticated product read model.</p></div><span class="vh-panel-count">{{ run.artifacts|length }}</span></header>
+      {% if run.artifacts %}
+        <div class="vh-evidence-grid">
+          {% for artifact in run.artifacts %}
+            <article class="vh-evidence-card">
+              <span class="vh-record-kicker">Artifact {{ forloop.counter }}</span>
+              <strong>{{ artifact.title|default:artifact.name|default:artifact.artifact_id|default:"Evidence artifact" }}</strong>
+              <p>{{ artifact.summary|default:artifact.type|default:"Persisted assessment evidence" }}</p>
+              <code class="vh-hash-block">{{ artifact.sha256|default:artifact.artifact_sha256|default:artifact.evidence_sha256|default:"Hash not recorded" }}</code>
+            </article>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="vh-empty-panel"><svg aria-hidden="true"><use href="#vh-i-audit"></use></svg><h3>No exposed artifacts</h3><p>The finding record exists, but no artifact is exposed by the current authenticated read model.</p></div>
+      {% endif %}
+    </section>
+
+    <section class="vh-surface vh-detail-full">
+      <header class="vh-surface-header"><div><h2>Assessment provenance</h2><p>Identifiers and immutable references connecting this finding to its source run.</p></div></header>
+      <div class="vh-key-value-list">
+        <div><span>Run ID</span><code>{{ run.run_id }}</code></div>
+        <div><span>Authorization</span><code>{{ run.authorization_id|default:"Not recorded" }}</code></div>
+        <div><span>Plan digest</span><code>{{ run.plan_digest|default:"Not generated" }}</code></div>
+        <div><span>Final audit event</span><code>{{ run.final_event_sha256|default:"Not recorded" }}</code></div>
+      </div>
+    </section>
+  </div>
+</section>
+{% endblock %}

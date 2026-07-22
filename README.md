@@ -4,12 +4,16 @@ VulnHunter AI is an authorised, laboratory-only security assessment and verifica
 
 ## Current milestone
 
-Milestone 32 provides:
+Milestone 33 provides:
 
+- everything delivered through Milestone 32;
 - exact target, protocol, port, address and profile authorization;
 - immutable Nuclei plans and digest-bound human approval;
-- a signed local manager-to-worker spool;
+- a signed manager-to-worker spool with replay and expiry protection;
 - a passive-only isolated Nuclei worker pilot;
+- a restricted SSH bridge for running the pinned Nuclei process on an owned host;
+- fixed logical-to-transport target mapping without public exposure;
+- genuine request and result digests across the remote worker boundary;
 - bounded timeout, cancellation, redaction and restart recovery;
 - evidence normalization into candidate findings;
 - deterministic verification and proof capsules inside each assessment;
@@ -18,6 +22,7 @@ Milestone 32 provides:
 - a networkless, read-only mobile static-analysis worker;
 - a controlled synthetic Active Validation workspace with up to ten clean-snapshot trials;
 - responsive operational pages for assessments, findings, approvals, review, reports and audit;
+- automated desktop, tablet and mobile browser-quality checks;
 - loopback-only production deployment examples with mounted secret files.
 
 The active assessment path is:
@@ -27,7 +32,7 @@ Authorization
 → immutable plan
 → exact human approval
 → signed worker job
-→ passive private-lab scan
+→ passive private-lab scan through a local or restricted remote worker
 → bounded evidence
 → candidate finding
 → deterministic verification
@@ -38,14 +43,21 @@ Authorization
 
 Scanner output, deterministic verification, optional controlled validation and optional advisory analysis are consolidated into one finding record. Tool and provider details remain available as evidence provenance and audit metadata rather than separate competing findings.
 
+## Model-provider decision
+
+VulnHunter is model-provider neutral. Qwen is not a runtime, frontend, scanner, authority, or required dependency. Historical model research does not grant an implementation requirement. Optional advisory providers remain non-authoritative and the platform continues to operate through deterministic tools and human review when no model is configured.
+
+See `docs/intelligence/ADR_003_MODEL_PROVIDER_NEUTRALITY.md`.
+
 ## Default safety state
 
 The repository does not automatically:
 
-- enable the Nuclei worker pilot;
+- activate a local or remote Nuclei worker policy;
 - install or start a Nuclei binary;
 - contact a target;
-- provision a signing key;
+- provision a signing key or SSH identity;
+- alter `authorized_keys` without an explicit operator command;
 - activate Groq or store its API key;
 - execute an uploaded APK;
 - start an emulator or dynamic Android laboratory;
@@ -57,7 +69,7 @@ The default manager harness remains fail-closed. A browser request cannot enable
 
 ## Scope boundary
 
-The passive worker pilot accepts exactly one approved literal RFC1918 address, one reviewed passive template, rate limit `1`, concurrency `1`, and no redirects, public OAST, cloud upload, automatic updates, headless execution, code templates or file templates.
+The passive worker pilot accepts exactly one approved literal RFC1918 address, one reviewed passive template, rate limit `1`, concurrency `1`, and no redirects, public OAST, cloud upload, automatic updates, stdin, headless execution, code templates or file templates.
 
 Public Internet scanning and destructive testing remain prohibited.
 
@@ -78,10 +90,13 @@ The manager/worker architecture is documented in:
 - `docs/product/SCANNER_ARCHITECTURE.md`
 - `docs/product/SCANNER_COMPATIBILITY.md`
 - `docs/setup/NUCLEI_WORKER_PILOT.md`
+- `docs/setup/REMOTE_NUCLEI_WORKER.md`
 - `config/security_tools/nuclei_worker_pilot.example.json`
+- `config/security_tools/remote_nuclei_worker.example.json`
+- `config/security_tools/remote_nuclei_host.example.json`
 - `deploy/scanner-worker/`
 
-The operator must provide the pinned Nuclei executable, reviewed worker policy, owner-private signing key and authorized private laboratory target before activation.
+The operator must provide the pinned Nuclei executable, reviewed policy, owner-private signing key, dedicated restricted SSH identity when remote transport is used, and an authorized private laboratory target before activation.
 
 ## Mobile analysis
 
@@ -99,7 +114,7 @@ See `docs/product/ACTIVE_VALIDATION.md`.
 
 ## Advisory analysis
 
-Groq is the only optional remote advisory provider. It is disabled by default, receives sanitized bounded content only, has no tools, cannot authorize or verify a finding, and returns non-authoritative proposals or `ABSTAIN`.
+Groq is the only currently implemented optional remote advisory provider. It is disabled by default, receives sanitized bounded content only, has no tools, cannot authorize or verify a finding, and returns non-authoritative proposals or `ABSTAIN`.
 
 Deterministic verification and human review continue when Groq is unavailable.
 

@@ -1,9 +1,10 @@
 {% extends "web/base.html" %}
+{% load vh_navigation %}
 {% block content %}
 <section class="vh-page-shell">
   <header class="vh-page-header">
     <div><p class="vh-eyebrow">Independent review</p><h1>Review queue</h1><p>Evidence-backed observations assigned to your governed identity. Other reviewers’ decisions remain hidden until your independent decision is submitted.</p></div>
-    <div class="vh-page-actions"><a class="vh-button-secondary" href="{% url 'web-findings-overview' %}">Findings</a><a class="vh-button-secondary" href="{% url 'web-adjudication-queue' %}">Adjudications</a></div>
+    <div class="vh-page-actions"><a class="vh-button-secondary" href="{% url 'web-findings-overview' %}">Findings</a>{% if navigation|navigation_has:"web-adjudication-queue" %}<a class="vh-button-secondary" href="{% url 'web-adjudication-queue' %}">Adjudications</a>{% endif %}</div>
   </header>
 
   <section class="vh-summary-strip"><article class="vh-summary-item"><small>Assigned</small><strong>{{ assignments|length }}</strong><span>Current queue</span></article><article class="vh-summary-item"><small>Access</small><strong>Identity scoped</strong><span>Only your assignments are shown</span></article><article class="vh-summary-item"><small>Decision</small><strong>Immutable</strong><span>One primary decision per reviewer</span></article><article class="vh-summary-item"><small>Bias control</small><strong>Enforced</strong><span>Peer decisions initially hidden</span></article></section>

@@ -1,49 +1,48 @@
 # Governed Security Tool Integration
 
-This integration registers the installed VulnHunter toolchain without enabling unrestricted execution.
+The security-tool registry reports four separate facts: local installation,
+adapter support, required safety gate and current operational readiness.
+Detection never grants execution authority.
 
-## Registered direct adapters
+## Registered catalog
 
-- Network and web: Nmap, ProjectDiscovery httpx, Nuclei, ffuf, testssl.sh.
-- Source and secrets: Bearer CLI, Bandit, detect-secrets, Gitleaks.
-- Dependencies and SBOM: Trivy, Syft, Grype, OSV-Scanner.
-- Binary capability analysis: capa.
-- Existing Android static adapters remain available under their original gates.
+The catalog includes network, source, secret, dependency, SBOM, binary and
+Android tools. Most entries are registrations or connector contracts. They are
+not automatically installed by the Python package and do not become runnable web
+workflows merely because a binary is found on `PATH`.
 
-Semgrep is no longer part of the active catalog because the installed binary cannot run on the current QEMU CPU model. Bearer is the primary multi-language SAST adapter.
+The controlled Nuclei passive worker is the currently operational network-scanner
+workflow when every private-lab gate is verified. Other tools remain installed-only,
+registry-only or connector-required until their own reviewed workflow exists.
 
-## Activation boundary
+## Nuclei activation boundary
 
-`config/security_tools/runtime.json` deliberately keeps `execution_enabled` false. Installation and registration do not authorize scans. A later reviewed activation must supply:
+`config/security_tools/runtime.json` permits the reviewed private-lab path, but a
+job still fails closed unless all of these are present:
 
-- an execution authorizer;
-- approved input and evidence roots;
-- exact scope and role/skill validation;
-- consumed approvals for network, image-pull, or sensitive actions;
-- isolated runtime confirmation where required.
+- pinned Nuclei `v3.8.0`;
+- reviewed template release `v10.4.5` with matching SHA-256 files;
+- owner-private worker policy and signing key;
+- signed manager-to-worker spool;
+- exact active RFC1918 authorization;
+- passive profile and fixed resource limits;
+- independent approval of the immutable plan digest.
 
-## Environment
+Public targets and unrestricted execution remain disabled.
 
-Start VulnHunter from a shell that loads the tools path:
+## Readiness probes
 
-```bash
-. .local/vulnhunter-web.env
-. .local/vulnhunter-tools.env
-.venv/bin/python manage.py runserver --insecure 127.0.0.1:8000
-```
+The registry performs bounded shell-free version probes. Missing, timed-out,
+misidentified or non-zero probes are never reported as ready. ProjectDiscovery
+`httpx` is checked with its own identity output and the detector tries
+`httpx-toolkit` before `httpx`, avoiding the Python HTTPX command-name collision.
 
-The registry page performs only bounded version probes and reports `ready`, `unusable`, `timed_out`, `detected_unverified`, or `not_detected`.
+Bulk probes use at most two workers to match the supported small VM.
 
-## Readiness probe policy
+## Codespaces
 
-Bulk version checks use one ordered, CPU-aware policy shared by the catalog,
-standard-tool report, and dependency report. The worker count is always at least
-one and never exceeds two. This deliberate limit matches the two-core VM and avoids
-resource-contention timeouts observed with the previous eight-worker fan-out.
-
-The default version-probe timeout remains 20 seconds. Existing documented
-exceptions remain bounded for tools with slower startup; measured `capa` startup
-exceeded 20 seconds even in the two-worker batch. Bearer has no timeout exception.
-Every probe remains shell-free, non-interactive, output-captured, and restricted to
-the probe environment. Missing, timed-out, or non-zero probes are never reported as
-ready, and readiness does not change `execution_enabled`.
+The phone-only Codespaces environment installs and checksum-verifies the pinned
+Nuclei release, copies the reviewed passive templates into an ignored runtime
+directory, creates an owner-private signing key and worker policy, and writes a
+strict readiness report. Use `docs/setup/PHONE_ONLY_PRIVATE_LAB.md` for the full
+operator flow.

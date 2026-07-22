@@ -41,3 +41,41 @@ def test_nuclei_version_parser_rejects_non_exact_engine_versions(output):
     module = _module()
 
     assert module._version_matches(module.EXPECTED_ENGINE, output) is False
+
+
+def test_reviewed_template_manifest_requires_matching_release_and_digest(tmp_path):
+    import hashlib
+    import json
+
+    module = _module()
+    root = tmp_path / "templates"
+    root.mkdir()
+    template = root / "passive.yaml"
+    template.write_text("id: reviewed-passive\n", encoding="utf-8")
+    manifest = tmp_path / "manifest.json"
+    manifest.write_text(
+        json.dumps(
+            {
+                "template_release": "v10.4.5",
+                "entries": [
+                    {
+                        "template_id": "reviewed-passive",
+                        "relative_path": "passive.yaml",
+                        "sha256": hashlib.sha256(template.read_bytes()).hexdigest(),
+                        "template_release": "v10.4.5",
+                        "enabled": True,
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    verified = module.verify_template_manifest(manifest, root)
+    assert verified["ok"] is True
+    assert verified["enabled_template_count"] == 1
+
+    template.write_text("id: tampered\n", encoding="utf-8")
+    rejected = module.verify_template_manifest(manifest, root)
+    assert rejected["ok"] is False
+    assert rejected["mismatches"] == ["passive.yaml"]

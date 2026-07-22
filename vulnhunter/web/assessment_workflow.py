@@ -88,7 +88,7 @@ class NucleiReadiness(BaseModel):
     expected_templates: str = "v10.4.5"
     engine_pin_matches: bool = False
     templates_pin_matches: bool = False
-    execution_enabled: Literal[False] = False
+    execution_enabled: bool = False
     reason: str = "A verified local readiness report is not available."
 
     @property
@@ -100,6 +100,7 @@ class NucleiReadiness(BaseModel):
             and self.templates_pin_matches
             and self.expected_engine == SUPPORTED_NUCLEI_ENGINE_VERSION
             and self.expected_templates == "v10.4.5"
+            and self.execution_enabled
         )
 
 
@@ -423,9 +424,12 @@ class AssessmentWorkflowService:
             requested_by=identity_id,
             summary="Approve the exact governed Nuclei command plan.",
             risk_summary=(
-                "Intrusive isolated plan; external execution remains globally disabled."
+                "Intrusive execution is not available in the phone-only passive worker pilot."
                 if profile == "intrusive"
-                else "Reviewed plan; external execution remains globally disabled."
+                else (
+                    "After exact approval, this reviewed passive plan may enter the signed "
+                    "private-lab worker queue."
+                )
             ),
             requested_at=now,
             expires_at=plan.expires_at,
@@ -548,7 +552,9 @@ class AssessmentWorkflowService:
                     "workflow_state": new_state,
                     "approval_state": "approved" if approved else "denied",
                     "decision_actor": actor_id,
-                    "execution_enabled": False,
+                    "execution_enabled": bool(workflow.get("execution_enabled")),
+                    "execution_authorized": approved,
+                    "execution_queued": queued_job is not None,
                     "execution_id": (
                         queued_job.invocation.request.execution_id if queued_job else None
                     ),
@@ -566,7 +572,8 @@ class AssessmentWorkflowService:
                 "plan_digest": plan.plan_digest,
                 "decision": request.decision.value if request.decision else "unknown",
                 "actor": actor_id,
-                "execution_enabled": False,
+                "execution_enabled": bool(workflow.get("execution_enabled")),
+                "execution_authorized": approved,
                 "pilot_queued": queued_job is not None,
                 "queue_error": queue_error,
             },
@@ -667,7 +674,10 @@ class AssessmentWorkflowService:
             "command_plan": plan.model_dump(mode="json") if plan else None,
             "plan_digest": plan.plan_digest if plan else None,
             "readiness": readiness.model_dump(mode="json"),
-            "execution_enabled": False,
+            "execution_enabled": readiness.execution_enabled,
+            "execution_authorized": False,
+            "execution_queued": False,
+            "execution_state": "not_started",
             "blocking_reason": redact_text(blocking_reason)[:500],
             "correlation_id": correlation_id,
             "requested_by": identity_id,
@@ -709,7 +719,7 @@ class AssessmentWorkflowService:
                 "authorization_id": engagement.authorization_id,
                 "workflow_state": workflow_state,
                 "correlation_id": correlation_id,
-                "execution_enabled": False,
+                "execution_enabled": readiness.execution_enabled,
             },
             created_at=now,
         )
@@ -826,7 +836,21 @@ class AssessmentWorkflowService:
                 "correlation_id": (
                     workflow.get("correlation_id") if isinstance(workflow, dict) else None
                 ),
-                "execution_enabled": False,
+                "execution_enabled": (
+                    bool(workflow.get("execution_enabled"))
+                    if isinstance(workflow, dict)
+                    else False
+                ),
+                "execution_authorized": (
+                    bool(workflow.get("execution_authorized"))
+                    if isinstance(workflow, dict)
+                    else False
+                ),
+                "execution_queued": (
+                    bool(workflow.get("execution_queued"))
+                    if isinstance(workflow, dict)
+                    else False
+                ),
             },
         )
 
@@ -863,14 +887,20 @@ class AssessmentWorkflowService:
             approval_requirement="required" if plan_digest else "not_required",
             approval_state=(
                 "granted"
-                if new_state == "execution_blocked"
+                if new_state in {"queued", "execution_blocked"}
                 else "rejected"
                 if new_state == "denied"
                 else "pending"
                 if new_state == "awaiting_approval"
                 else "not_applicable"
             ),
-            execution_state="blocked" if run_state in {"blocked", "cancelled"} else "not_started",
+            execution_state=(
+                "queued"
+                if run_state == "queued"
+                else "blocked"
+                if run_state in {"blocked", "cancelled"}
+                else "not_started"
+            ),
             audit_reference=audit_reference or event.event_sha256,
             metadata={"plan_digest": plan_digest, "correlation_id": correlation_id},
         )

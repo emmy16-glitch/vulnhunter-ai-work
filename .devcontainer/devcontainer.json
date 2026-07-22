@@ -1,5 +1,5 @@
 {
-  "name": "VulnHunter AI Codespace",
+  "name": "VulnHunter phone-only private lab",
   "build": {
     "dockerfile": "Dockerfile"
   },
@@ -11,8 +11,14 @@
   "forwardPorts": [8002],
   "portsAttributes": {
     "8002": {
-      "label": "VulnHunter web preview",
+      "label": "VulnHunter private phone UI",
       "onAutoForward": "notify",
+      "protocol": "http",
+      "visibility": "private"
+    },
+    "8010": {
+      "label": "Internal authorized lab target",
+      "onAutoForward": "ignore",
       "protocol": "http",
       "visibility": "private"
     }

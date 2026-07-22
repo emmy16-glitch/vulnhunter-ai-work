@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from django.conf import settings
@@ -50,6 +51,102 @@ def _render(
     }
     base.update(context)
     return render(request, template_name, base, status=status)
+
+
+def _load_json_object(path: Path) -> dict[str, object]:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def _tool_gate_label(definition) -> str:
+    parts = [
+        "connector"
+        if definition.connector_only
+        else "approval"
+        if definition.approval_required
+        else "policy"
+    ]
+    if definition.requires_isolation:
+        parts.append("isolation")
+    return " + ".join(parts)
+
+
+def _nuclei_operational_projection(availability) -> tuple[str, str, str]:
+    runtime = _load_json_object(Path(settings.VULNHUNTER_SECURITY_TOOL_CONFIG))
+    nuclei = runtime.get("nuclei") if isinstance(runtime.get("nuclei"), dict) else {}
+    worker = (
+        runtime.get("scanner_worker")
+        if isinstance(runtime.get("scanner_worker"), dict)
+        else {}
+    )
+    readiness = _load_json_object(Path(settings.VULNHUNTER_NUCLEI_READINESS_REPORT))
+    policy = _load_json_object(Path(settings.VULNHUNTER_NUCLEI_WORKER_POLICY))
+    key_path = Path(settings.VULNHUNTER_NUCLEI_WORKER_SIGNING_KEY_FILE)
+    gates = {
+        "local_binary": availability.usable,
+        "readiness": readiness.get("ready") is True,
+        "runtime": runtime.get("execution_enabled") is True,
+        "nuclei": nuclei.get("enabled") is True and nuclei.get("real_runner_enabled") is True,
+        "worker": (
+            worker.get("execution_enabled") is True
+            and worker.get("transport_enabled") is True
+        ),
+        "worker_policy": policy.get("enabled") is True,
+        "signing_key": key_path.is_file(),
+        "enqueue": bool(settings.VULNHUNTER_NUCLEI_PILOT_ENQUEUE_ENABLED),
+    }
+    if all(gates.values()):
+        return (
+            "operational",
+            "Passive private-lab worker ready",
+            "Exact authorization, independent approval and a signed worker job are still required.",
+        )
+    missing = ", ".join(name.replace("_", " ") for name, enabled in gates.items() if not enabled)
+    return (
+        "gated",
+        "Private-lab worker gated",
+        f"Missing or unverified gates: {missing}.",
+    )
+
+
+def _tool_projection(definition, availability) -> dict[str, object]:
+    if definition.tool_id == "nuclei":
+        operational_state, operational_label, operational_detail = _nuclei_operational_projection(
+            availability
+        )
+        adapter_label = "Connected worker adapter"
+    elif definition.connector_only:
+        operational_state = "connector_required"
+        operational_label = "Connector required"
+        operational_detail = "This catalog entry has no direct web-host execution path."
+        adapter_label = "Connector contract"
+    elif availability.usable:
+        operational_state = "registered_only"
+        operational_label = "Installed; not activated here"
+        operational_detail = (
+            "The local executable passed its version probe, but this registry does not grant "
+            "execution authority or create a runnable web workflow."
+        )
+        adapter_label = "Catalog adapter"
+    else:
+        operational_state = "unavailable"
+        operational_label = "Unavailable locally"
+        operational_detail = (
+            "Install and verify the exact tool before any governed adapter can use it."
+        )
+        adapter_label = "Catalog registration"
+    return {
+        "definition": definition,
+        "availability": availability,
+        "adapter_label": adapter_label,
+        "gate_label": _tool_gate_label(definition),
+        "operational_state": operational_state,
+        "operational_label": operational_label,
+        "operational_detail": operational_detail,
+    }
 
 
 def _approval_store() -> ApprovalStore:
@@ -187,16 +284,18 @@ def security_tool_registry_view(request: HttpRequest) -> HttpResponse:
     catalog = default_catalog()
     availability = {item.tool_id: item for item in catalog.detect_all()}
     rows = tuple(
-        {
-            "definition": definition,
-            "availability": availability[definition.tool_id],
-        }
+        _tool_projection(definition, availability[definition.tool_id])
         for definition in catalog.list()
     )
+    summary = {
+        "registered": len(rows),
+        "locally_ready": sum(1 for row in rows if row["availability"].usable),
+        "operational": sum(1 for row in rows if row["operational_state"] == "operational"),
+    }
     return _render(
         request,
         "web/security_tools.html",
-        {"page_title": "Security Tool Registry", "tool_rows": rows},
+        {"page_title": "Security Tool Registry", "tool_rows": rows, "summary": summary},
     )
 
 
@@ -282,7 +381,10 @@ def new_scan_view(request: HttpRequest) -> HttpResponse:
         else:
             messages.success(
                 request,
-                "The governed assessment was created. Nuclei execution remains disabled.",
+                (
+                    "The governed assessment was created. Exact independent approval is required; "
+                    "an approved passive plan can enter the signed private-lab worker queue."
+                ),
             )
             return redirect("web-agent-run-detail", run_id=result.task.task_id)
     return _render(
@@ -392,7 +494,7 @@ def mobile_analysis_view(request: HttpRequest) -> HttpResponse:
             "id": MobileAnalysisProfile.STATIC.value,
             "name": "Static APK Analysis",
             "description": "Signature, package, manifest, smali, bytecode, and packer analysis.",
-            "gate": "Local read-only tools; execution remains disabled until enabled by policy.",
+            "gate": "Local read-only tools require a separately verified static-worker policy.",
         },
         {
             "id": MobileAnalysisProfile.STATIC_AND_NATIVE.value,

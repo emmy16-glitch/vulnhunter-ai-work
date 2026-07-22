@@ -51,7 +51,7 @@ See `docs/intelligence/ADR_003_MODEL_PROVIDER_NEUTRALITY.md`.
 
 ## Default safety state
 
-The repository does not automatically:
+A normal repository checkout does not automatically:
 
 - activate a local or remote Nuclei worker policy;
 - install or start a Nuclei binary;
@@ -65,7 +65,7 @@ The repository does not automatically:
 - deploy PostgreSQL, TLS, DNS or a reverse proxy;
 - publish a finding without human review.
 
-The default manager harness remains fail-closed. A browser request cannot enable scanner execution.
+The manager remains fail-closed. A browser request cannot install a scanner, enable a worker, change template trust or expand scope. The reviewed Codespaces devcontainer is an explicit operator-selected private-lab deployment and prepares those local prerequisites outside the browser.
 
 ## Scope boundary
 
@@ -77,11 +77,13 @@ Public Internet scanning and destructive testing remain prohibited.
 
 Follow [`docs/product/WEB_APPLICATION.md`](docs/product/WEB_APPLICATION.md). The local development surface binds to loopback and uses Django’s development server only for local testing.
 
-## Phone preview with Codespaces
+## Phone-only private laboratory with Codespaces
 
-A private GitHub Codespace can prepare the project automatically and expose the local web preview to an authenticated phone browser. Termux can create, connect to, start, stop and delete the Codespace through GitHub CLI.
+A private GitHub Codespace can prepare the complete passive private-lab path for an authenticated phone browser. The environment checksum-verifies Nuclei `v3.8.0`, prepares the reviewed template set, owner-private signing key, signed spool, separate worker process, deliberate RFC1918 test target and real evidence pipeline. Termux is used only to control the private Codespace; no desktop is required.
 
-Follow [`docs/setup/CODESPACES_PHONE.md`](docs/setup/CODESPACES_PHONE.md).
+The operator and approver use separate identities, and a scan begins only after exact authorization and independent approval. Public Internet scanning remains prohibited.
+
+Follow [`docs/setup/PHONE_ONLY_PRIVATE_LAB.md`](docs/setup/PHONE_ONLY_PRIVATE_LAB.md) and [`docs/setup/CODESPACES_PHONE.md`](docs/setup/CODESPACES_PHONE.md).
 
 ## Worker pilot
 

@@ -194,7 +194,9 @@ def _task_store(tmp_path: Path, invocation: NucleiExecutionInvocation) -> AgentS
                     "workflow_state": "queued",
                     "command_plan": invocation.plan.model_dump(mode="json"),
                     "execution_id": invocation.request.execution_id,
-                    "execution_enabled": False,
+                    "execution_enabled": True,
+                    "execution_authorized": True,
+                    "execution_queued": True,
                 }
             },
         )
@@ -275,6 +277,11 @@ def test_passive_private_lab_worker_runs_and_creates_one_unified_finding(tmp_pat
     assert records[0].finding_status.value in {"candidate", "validated"}
     task = agent_store.get_task("assessment-pilot")
     assert task.status is TaskStatus.COMPLETED
+    workflow = task.memory["assessment_workflow"]
+    assert workflow["execution_enabled"] is True
+    assert workflow["execution_authorized"] is True
+    assert workflow["execution_queued"] is False
+    assert workflow["execution_state"] == ScannerJobState.COMPLETED.value
     feed = activity.feed("assessment-pilot")
     assert [event.event_type for event in feed.events] == [
         "tool_execution_started",

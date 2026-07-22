@@ -34,24 +34,25 @@ VulnHunter currently includes:
   `python -m vulnhunter.product`;
 - an authenticated Django operational surface connected to governed assessment,
   approval, activity, evidence, and candidate-finding state;
-- a versioned scanner-manager protocol shared by a controlled Nuclei harness and
-  planned OpenVAS/mobile adapters;
+- a versioned scanner-manager protocol shared by a controlled Nuclei worker and
+  planned mobile adapters;
 - a file-backed Nuclei execution lifecycle with hash-linked audit transitions,
-  bounded redacted capture, fail-closed recovery, and production execution
-  blocked;
-- a central scanner compatibility manifest and a disabled isolated-container
-  worker boundary.
+  bounded redacted capture, fail-closed recovery, and one activated passive
+  RFC1918 private-lab path;
+- a central scanner compatibility manifest, signed worker spool, restricted remote
+  bridge and phone-only Codespaces laboratory.
 
 ## Current interpretation
 
-The platform is a secure research pipeline and decision-support prototype. It is not an autonomous vulnerability scanner, exploit framework, or production-grade vulnerability classifier.
+The platform is a secure research pipeline and decision-support prototype with a narrowly controlled passive private-lab scanner path. It is not an autonomous public-Internet scanner, exploit framework, or production-grade vulnerability classifier.
 
 The governed collection and authenticated-review control plane is implemented. That implementation proves workflow enforcement; it does not mean a diverse real dataset has already been collected.
 
-The product blueprint now includes an authenticated Django browser surface with
-session, CSRF, route authorization, approval, and operational read models. The
-scanner worker remains separate and disabled: no real Nuclei, OpenVAS, or mobile
-scanner process is connected.
+The product includes an authenticated Django browser surface with session, CSRF,
+route authorization, exact approval, operational read models and a separate signed
+Nuclei worker. The reviewed passive pilot can run one pinned template against one
+exact authorized RFC1918 target. Public scanning, intrusive execution and dynamic
+mobile analysis remain unavailable.
 
 ## Current model status
 

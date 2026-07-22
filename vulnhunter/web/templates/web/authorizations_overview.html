@@ -4,7 +4,6 @@
 <section class="vh-product-page">
   <header class="vh-product-heading">
     <div><p class="vh-eyebrow">Collection</p><h1>Authorizations</h1><p>Inspect the real permission records that bound assessment targets, expiry and request limits.</p></div>
-    <div class="vh-product-heading-actions"><a class="vh-button-secondary" href="{% url 'web-governance-overview' %}">Governance</a><a class="vh-button-primary" href="{% url 'web-agent-run-list' %}">Start from assessments</a></div>
   </header>
 
   <section class="vh-ops-metric-grid" aria-label="Authorization summary">
@@ -21,7 +20,7 @@
     {% elif authorizations %}
       <div class="vh-table-wrap"><table class="vh-table"><thead><tr><th>Authorization</th><th>Target boundary</th><th>Status</th><th>Expires</th><th>Limits</th></tr></thead><tbody>{% for item in authorizations %}<tr><td><strong>{{ item.authorization_id }}</strong><code>{{ item.record_sha256|slice:":18" }}…</code></td><td><strong>{{ item.hostname }}:{{ item.port }}</strong><small>{{ item.path_boundary }}</small></td><td><span class="vh-status-chip {% if item.status == 'active' %}vh-status-safe{% else %}vh-status-danger{% endif %}">{{ item.status }}</span></td><td>{{ item.expires_at }}</td><td><small>{{ item.limits.maximum_requests }} requests · {{ item.limits.maximum_pages }} pages</small></td></tr>{% endfor %}</tbody></table></div>
     {% else %}
-      <div class="vh-product-empty"><svg aria-hidden="true"><use href="#vh-i-authorization"></use></svg><h3>No authorization records</h3><p>Create permission records through the governed authorization workflow before attempting an assessment.</p><a class="vh-button-secondary" href="{% url 'web-governance-overview' %}">Open governance</a></div>
+      <div class="vh-product-empty"><svg aria-hidden="true"><use href="#vh-i-authorization"></use></svg><h3>No authorization records</h3><p>Create permission records through the governed authorization workflow before attempting an assessment.</p></div>
     {% endif %}
   </section>
 </section>

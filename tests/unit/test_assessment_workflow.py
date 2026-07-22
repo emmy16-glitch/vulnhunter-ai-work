@@ -99,7 +99,7 @@ def _service(tmp_path: Path, *, ready: bool = True) -> AssessmentWorkflowService
         "expected_templates": "v10.4.5",
         "engine_pin_matches": ready,
         "templates_pin_matches": ready,
-        "execution_enabled": False,
+        "execution_enabled": ready,
         "reason": "Pinned local readiness is unavailable." if not ready else "Pins verified.",
     }
     readiness_path = tmp_path / "readiness.json"
@@ -217,7 +217,7 @@ def test_creation_builds_exact_plan_and_never_starts_process_or_network(tmp_path
     assert plan["exact_profile"] == "passive"
     assert "argv" not in plan
     assert "command" not in plan
-    assert workflow["execution_enabled"] is False
+    assert workflow["execution_enabled"] is True
 
 
 def test_changed_plan_digest_is_rejected_and_approved_plan_stays_execution_blocked(tmp_path):
@@ -252,7 +252,7 @@ def test_changed_plan_digest_is_rejected_and_approved_plan_stays_execution_block
     assert updated is not None
     assert updated.status.value == "blocked"
     assert updated.memory["assessment_workflow"]["workflow_state"] == "execution_blocked"
-    assert updated.memory["assessment_workflow"]["execution_enabled"] is False
+    assert updated.memory["assessment_workflow"]["execution_enabled"] is True
 
 
 def test_readiness_false_records_blocked_state_without_an_approval(tmp_path):
@@ -318,7 +318,7 @@ def test_assessment_cancellation_and_timeout_project_into_workflow_state(tmp_pat
     assert timed_out.status.value == "timed_out"
     assert timed_out.memory["assessment_workflow"]["workflow_state"] == "timed_out"
     assert all(
-        task.memory["assessment_workflow"]["execution_enabled"] is False
+        task.memory["assessment_workflow"]["execution_enabled"] is True
         for task in (cancelled, timed_out)
     )
 

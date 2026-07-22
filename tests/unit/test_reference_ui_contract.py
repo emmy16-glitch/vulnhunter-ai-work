@@ -392,3 +392,33 @@ def test_navigation_is_filtered_by_product_role():
     assert "Assessments" not in labels
     assert "Approval Centre" not in labels
     assert "Machine Oracle" not in labels
+
+
+def test_overview_pages_do_not_repeat_sidebar_navigation():
+    overview_pages = (
+        "security_tools.html",
+        "status.html",
+        "approvals.html",
+        "authorizations_overview.html",
+        "mobile_analysis.html",
+        "dashboard.html",
+        "audit_overview.html",
+        "campaigns.html",
+        "datasets_overview.html",
+        "findings_overview.html",
+        "governance_overview.html",
+        "models_overview.html",
+        "releases_overview.html",
+        "reports_overview.html",
+        "review_queue.html",
+        "roles.html",
+        "settings_overview.html",
+        "skills.html",
+    )
+    for name in overview_pages:
+        text = _text(TEMPLATES / name)
+        assert "vh-product-heading-actions" not in text, name
+        assert "vh-page-actions" not in text, name
+        assert "Connected pages" not in text, name
+        assert "Connected controls" not in text, name
+        assert "Connected work areas" not in text, name

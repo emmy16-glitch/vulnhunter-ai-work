@@ -384,3 +384,50 @@ def test_execution_artifacts_are_connected_to_normalization(tmp_path):
     assert len(findings) == 1
     assert findings[0].tool_id == "bandit"
     assert findings[0].evidence["test_id"] == "B105"
+
+
+def test_httpx_detector_skips_python_cli_name_collision_and_uses_toolkit(monkeypatch):
+    definition = next(item for item in default_catalog().list() if item.tool_id == "httpx")
+    resolved = {
+        "httpx-toolkit": "/opt/projectdiscovery/httpx-toolkit",
+        "httpx": "/opt/python/httpx",
+    }
+    monkeypatch.setattr(catalog_module.shutil, "which", resolved.get)
+
+    def run_probe(argv, **_kwargs):
+        if argv[0] == "/opt/projectdiscovery/httpx-toolkit":
+            return subprocess.CompletedProcess(argv, 0, "[INF] Current Version: v1.7.2\n", "")
+        return subprocess.CompletedProcess(
+            argv,
+            2,
+            "",
+            (
+                "The httpx command line client could not run because optional "
+                "dependencies are missing."
+            ),
+        )
+
+    monkeypatch.setattr(catalog_module.subprocess, "run", run_probe)
+    detected = SecurityToolCatalog((definition,)).detect("httpx")
+
+    assert detected.status is ToolAvailabilityStatus.READY
+    assert detected.executable_path == "/opt/projectdiscovery/httpx-toolkit"
+
+
+def test_httpx_detector_reports_identity_collision_when_only_python_cli_exists(monkeypatch):
+    definition = next(item for item in default_catalog().list() if item.tool_id == "httpx")
+    monkeypatch.setattr(
+        catalog_module.shutil,
+        "which",
+        lambda candidate: "/opt/python/httpx" if candidate == "httpx" else None,
+    )
+    monkeypatch.setattr(
+        catalog_module.subprocess,
+        "run",
+        lambda argv, **_kwargs: subprocess.CompletedProcess(argv, 0, "httpx 0.28.1\n", ""),
+    )
+
+    detected = SecurityToolCatalog((definition,)).detect("httpx")
+
+    assert detected.status is ToolAvailabilityStatus.UNUSABLE
+    assert "name collision" in (detected.error_summary or "").lower()

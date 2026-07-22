@@ -81,9 +81,9 @@ def test_settings_page_renders_real_posture_without_exposing_secret_paths(
         b"Activation gates",
         b"Core capability health",
         b"Browser security posture",
-        b"Configuration workspaces",
     ):
         assert marker in response.content
+    assert b"Configuration workspaces" not in response.content
     assert str(Path(settings.VULNHUNTER_GROQ_API_KEY_FILE)).encode() not in response.content
     assert b"password-1234" not in response.content
     assert b"Traceback" not in response.content

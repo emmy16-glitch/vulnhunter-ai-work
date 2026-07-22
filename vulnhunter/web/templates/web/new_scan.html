@@ -5,7 +5,6 @@
 <section class="vh-page-shell">
   <header class="vh-page-header">
     <div><p class="vh-eyebrow">Assessments</p><h1>New Assessment</h1><p>Select values from an active authorization. The backend checks the complete combination before creating a plan.</p></div>
-    <div class="vh-page-actions"><a class="vh-button-secondary" href="{% url 'web-scan-run-list' %}">Assessment runs</a><a class="vh-button-secondary" href="{% url 'web-advanced-profiles' %}">Profiles</a></div>
   </header>
 
   {% if error_message %}<section class="vh-operational-notice is-danger"><strong>Assessment not created</strong><p>{{ error_message }}</p></section>{% endif %}
@@ -28,7 +27,7 @@
             <div class="vh-card-actions"><button class="vh-button-primary" type="submit">Create plan</button></div>
           </form>
         {% else %}
-          <div class="vh-empty-panel"><svg aria-hidden="true"><use href="#vh-i-authorization"></use></svg><h3>No active authorization</h3><p>A current Nuclei activation binding is required before a plan can be created.</p><a class="vh-button-secondary" href="{% url 'web-authorization-list' %}">Authorizations</a></div>
+          <div class="vh-empty-panel"><svg aria-hidden="true"><use href="#vh-i-authorization"></use></svg><h3>No active authorization</h3><p>A current Nuclei activation binding is required before a plan can be created.</p></div>
         {% endif %}
       </div>
     </section>

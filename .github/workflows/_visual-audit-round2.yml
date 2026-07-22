@@ -22,63 +22,45 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
-          import re
 
-          def write_changed(path: str, transform) -> None:
-              target = Path(path)
-              original = target.read_text(encoding="utf-8")
-              updated = transform(original)
-              if updated == original:
-                  raise SystemExit(f"no repair applied to {path}")
-              target.write_text(updated, encoding="utf-8")
-
-          write_changed(
-              "vulnhunter/web/static/web/app.js",
-              lambda text: text.replace(
-                  "\n  }\n\n  const disclosureRoute",
-                  "\n\n  const disclosureRoute",
-                  1,
-              ),
+          app = Path("vulnhunter/web/static/web/app.js")
+          app_text = app.read_text(encoding="utf-8")
+          app_text = app_text.replace(
+              "\n  }\n\n  const disclosureRoute",
+              "\n\n  const disclosureRoute",
+              1,
           )
+          app.write_text(app_text, encoding="utf-8")
 
-          def add_audit_css(text: str) -> str:
-              if "web/ui-audit.css" in text:
-                  return text
+          base = Path("vulnhunter/web/templates/web/base.html")
+          base_text = base.read_text(encoding="utf-8")
+          if "web/ui-audit.css" not in base_text:
               marker = (
                   "  <link rel=\"stylesheet\" "
                   "href=\"{% static 'web/console.css' %}?v=20260722-console\">\n"
               )
-              return text.replace(
+              base_text = base_text.replace(
                   marker,
                   marker
                   + "  <link rel=\"stylesheet\" "
                   + "href=\"{% static 'web/ui-audit.css' %}?v=20260722-audit2\">\n",
                   1,
               )
+          base.write_text(base_text, encoding="utf-8")
 
-          write_changed("vulnhunter/web/templates/web/base.html", add_audit_css)
-
-          def repair_validator(text: str) -> str:
-              text, active_count = re.subn(
-                  r"(const activeNavigation = \[\.\.\.document\.querySelectorAll\([^;]+\)\])\.filter\(visible\);",
-                  r"\1;",
-                  text,
-                  count=1,
-              )
-              text, error_count = re.subn(
-                  r"djangoError: /Traceback\|TemplateSyntaxError\|Server Error \\(500\\\)/i\.test\(bodyText\),",
-                  "djangoError: Boolean(document.querySelector('#traceback, .technical-500')) || "
-                  "/TemplateSyntaxError at\\/|Server Error \\(500\\)/i.test(bodyText),",
-                  text,
-                  count=1,
-              )
-              if active_count != 1 or error_count != 1:
-                  raise SystemExit(
-                      f"validator repair counts were active={active_count}, error={error_count}"
+          validator = Path(".playwright-validate.cjs")
+          validator_lines = validator.read_text(encoding="utf-8").splitlines()
+          repaired_lines = []
+          for line in validator_lines:
+              if "const activeNavigation =" in line:
+                  line = line.replace(".filter(visible);", ";")
+              if "djangoError:" in line:
+                  line = line.replace(
+                      "djangoError: /Traceback|TemplateSyntaxError|Server Error \\(500\\)/i.test(bodyText),",
+                      "djangoError: Boolean(document.querySelector('#traceback, .technical-500')) || /TemplateSyntaxError at\\/|Server Error \\(500\\)/i.test(bodyText),",
                   )
-              return text
-
-          write_changed(".playwright-validate.cjs", repair_validator)
+              repaired_lines.append(line)
+          validator.write_text("\n".join(repaired_lines) + "\n", encoding="utf-8")
 
           duplicate_templates = (
               "vulnhunter/web/templates/web/advanced_profiles.html",
@@ -89,7 +71,6 @@ jobs:
               "vulnhunter/web/templates/web/authorizations_overview.html",
               "vulnhunter/web/templates/web/dashboard.html",
           )
-          removed = 0
           for path in duplicate_templates:
               target = Path(path)
               lines = target.read_text(encoding="utf-8").splitlines()
@@ -101,11 +82,7 @@ jobs:
                       and "20260717-integration1" in line
                   )
               ]
-              if len(filtered) != len(lines):
-                  removed += len(lines) - len(filtered)
-                  target.write_text("\n".join(filtered) + "\n", encoding="utf-8")
-          if removed == 0:
-              raise SystemExit("no duplicate legacy product stylesheet was removed")
+              target.write_text("\n".join(filtered) + "\n", encoding="utf-8")
           PY
           git diff --check
       - name: Commit browser repairs

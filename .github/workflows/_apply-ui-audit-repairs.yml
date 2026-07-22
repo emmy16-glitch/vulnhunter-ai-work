@@ -1,0 +1,32 @@
+name: Apply UI audit repairs
+
+on:
+  push:
+    branches: [agent/full-ui-audit-and-wiring]
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.event.head_commit.message != 'Apply full UI audit repairs'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: agent/full-ui-audit-and-wiring
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Apply deterministic repository patch
+        run: python scripts/_apply_ui_audit_repairs.py
+      - name: Remove temporary patch machinery
+        run: rm scripts/_apply_ui_audit_repairs.py .github/workflows/_apply-ui-audit-repairs.yml
+      - name: Commit repaired product surface
+        run: |
+          git config user.name 'OpenAI Agent'
+          git config user.email 'agent@openai.com'
+          git add -A
+          git commit -m 'Apply full UI audit repairs'
+          git push origin HEAD:agent/full-ui-audit-and-wiring

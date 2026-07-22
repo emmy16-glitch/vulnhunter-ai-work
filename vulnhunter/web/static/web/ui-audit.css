@@ -1,3 +1,5 @@
+@import url("scroll-integrity.css?v=20260722-final-audit");
+
 /* Browser-audit corrections that must win after the console refinement layer. */
 
 .vh-summary-item small,

@@ -276,7 +276,10 @@ class NucleiPilotWorkerService:
             self._activity(
                 job.job_id,
                 "evaluation_started",
-                "Scanner observations are being normalized and verified against persisted evidence.",
+                (
+                    "Scanner observations are being normalized and verified "
+                    "against persisted evidence."
+                ),
                 "evaluating",
                 metadata={"candidate_observations": len(record.observations)},
             )
@@ -301,7 +304,10 @@ class NucleiPilotWorkerService:
             self._activity(
                 job.job_id,
                 "evaluation_completed",
-                f"Evidence verification completed with {len(outcomes)} persisted finding outcome(s).",
+                (
+                    "Evidence verification completed with "
+                    f"{len(outcomes)} persisted finding outcome(s)."
+                ),
                 "evaluating",
                 metadata={"unified_findings": len(outcomes)},
             )

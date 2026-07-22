@@ -1,0 +1,26 @@
+name: Export working tree
+
+on:
+  push:
+    branches: [work/phone-only-private-lab]
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Create source snapshot
+        run: tar --exclude=.git -czf "$RUNNER_TEMP/vulnhunter-source.tar.gz" .
+
+      - name: Upload source snapshot
+        uses: actions/upload-artifact@v7
+        with:
+          name: vulnhunter-source
+          path: ${{ runner.temp }}/vulnhunter-source.tar.gz
+          if-no-files-found: error
+          retention-days: 1

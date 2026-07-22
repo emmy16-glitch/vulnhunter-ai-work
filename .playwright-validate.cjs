@@ -56,9 +56,9 @@ function safeName(value) { return value.replace(/[^a-zA-Z0-9._-]+/g, "-"); }
         const duplicateIds = ids.filter((id, index) => ids.indexOf(id) !== index);
         const sidebar = document.querySelector(".vh-sidebar");
         const navToggle = document.querySelector("[data-nav-toggle]");
-        const activeNavigation = [...document.querySelectorAll('.vh-nav-list a[aria-current="page"]')].filter(visible);
+        const activeNavigation = [...document.querySelectorAll('.vh-nav-list a[aria-current="page"]')];
         const bodyText = document.body.innerText;
-        return { title: document.title, h1Count: [...document.querySelectorAll("h1")].filter(visible).length, overflowX: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1, bodyScrollWidth: document.documentElement.scrollWidth, bodyClientWidth: document.documentElement.clientWidth, unnamedControls, duplicateIds: [...new Set(duplicateIds)], activeNavigation: activeNavigation.map((item) => item.textContent.trim()), djangoError: /Traceback|TemplateSyntaxError|Server Error \(500\)/i.test(bodyText), sidebarVisible: sidebar ? visible(sidebar) : false, navToggleVisible: navToggle ? visible(navToggle) : false };
+        return { title: document.title, h1Count: [...document.querySelectorAll("h1")].filter(visible).length, overflowX: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1, bodyScrollWidth: document.documentElement.scrollWidth, bodyClientWidth: document.documentElement.clientWidth, unnamedControls, duplicateIds: [...new Set(duplicateIds)], activeNavigation: activeNavigation.map((item) => item.textContent.trim()), djangoError: Boolean(document.querySelector('#traceback, .technical-500')) || /TemplateSyntaxError at\/|Server Error \(500\)/i.test(bodyText), sidebarVisible: sidebar ? visible(sidebar) : false, navToggleVisible: navToggle ? visible(navToggle) : false };
       });
       const status = response ? response.status() : 0;
       report.pages.push({ ...pageDefinition, viewport: viewport.name, status, ...audit });

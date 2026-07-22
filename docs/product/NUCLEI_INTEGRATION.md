@@ -88,7 +88,7 @@ occurred.
 
 ## Operational pins
 
-- Engine candidate: `v3.11.0`
+- Engine candidate: `v3.8.0`
 - Template release candidate: `v10.4.5`
 
 The pins are activation prerequisites, not automatic downloads. The readiness

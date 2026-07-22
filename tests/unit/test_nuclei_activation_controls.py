@@ -462,6 +462,7 @@ def test_repository_configuration_keeps_nuclei_execution_disabled():
 
     assert runtime["execution_enabled"] is False
     assert runtime["nuclei"]["enabled"] is False
+    assert runtime["nuclei"]["engine_version"] == profiles["engine_pin"] == "v3.8.0"
     assert profiles["execution_enabled"] is False
     assert profiles["automatic_updates_enabled"] is False
     assert len(manifest.entries) == 1

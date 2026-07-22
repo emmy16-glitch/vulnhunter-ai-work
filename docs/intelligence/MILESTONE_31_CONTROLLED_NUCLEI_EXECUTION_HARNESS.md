@@ -73,6 +73,11 @@ manifest. It records:
 - adapter status;
 - intended deployment mode.
 
+> Correction (2026-07-22): the engine version recorded by this historical
+> milestone was later found not to correspond to an official ProjectDiscovery
+> release. Current operational policy pins official Nuclei `v3.8.0`; the value
+> below is retained only to preserve the milestone record.
+
 The Nuclei record pins engine `v3.11.0`, template release `v10.4.5`, and the
 SHA-256 of the reviewed repository template manifest. The OpenVAS and mobile
 records deliberately show that engine and feed versions have not yet been

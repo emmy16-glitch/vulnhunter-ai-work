@@ -151,7 +151,7 @@ def _bundle(tmp_path, *, runner=None, allow_test_runner=False, resolver=_resolve
         compatibility_manifest_sha256=compatibility.fingerprint(),
     )
     readiness = NucleiRuntimeReadiness(
-        engine_version="v3.11.0",
+        engine_version="v3.8.0",
         template_release="v10.4.5",
         template_manifest_hashes=plan.template_manifest_hashes,
         compatibility_manifest_sha256=compatibility.fingerprint(),
@@ -269,7 +269,7 @@ def test_expired_plan_is_rejected(tmp_path):
         compatibility_manifest_sha256=compatibility.fingerprint(),
     )
     readiness = NucleiRuntimeReadiness(
-        engine_version="v3.11.0",
+        engine_version="v3.8.0",
         template_release="v10.4.5",
         template_manifest_hashes=plan.template_manifest_hashes,
         compatibility_manifest_sha256=compatibility.fingerprint(),
@@ -621,7 +621,7 @@ def test_compatibility_manifest_tracks_versions_feeds_checksums_and_deployment()
 
     manifest.verify_repository_manifests(root)
     nuclei = manifest.get("nuclei")
-    assert nuclei.version_pin.engine_version == "v3.11.0"
+    assert nuclei.version_pin.engine_version == "v3.8.0"
     assert nuclei.version_pin.feed is not None
     assert nuclei.version_pin.feed.release == "v10.4.5"
     assert nuclei.version_pin.feed.manifest_sha256

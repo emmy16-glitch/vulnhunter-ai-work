@@ -29,11 +29,13 @@ def validate(repository_root: Path, *, write: bool = False) -> str:
     root = repository_root.expanduser().resolve(strict=True)
     manifest_path = root / "config/security_tools/scanner_compatibility.json"
     runtime_path = root / "config/security_tools/runtime.json"
+    profiles_path = root / "config/security_tools/nuclei_profiles.json"
     document_path = root / "docs/product/SCANNER_COMPATIBILITY.md"
 
     manifest = ScannerCompatibilityManifest.load(manifest_path)
     manifest.verify_repository_manifests(root)
     runtime = json.loads(runtime_path.read_text(encoding="utf-8"))
+    profiles = json.loads(profiles_path.read_text(encoding="utf-8"))
 
     if runtime.get("execution_enabled") is not False:
         raise ValueError("global security-tool execution must remain disabled")
@@ -49,6 +51,18 @@ def validate(repository_root: Path, *, write: bool = False) -> str:
     nuclei_record = manifest.get("nuclei")
     if nuclei_record.descriptor.status is not ScannerAdapterStatus.HARNESS_ONLY:
         raise ValueError("Nuclei compatibility status must remain harness_only")
+    engine_pin = nuclei_record.version_pin.engine_version
+    feed = nuclei_record.version_pin.feed
+    if engine_pin is None or feed is None or feed.release is None:
+        raise ValueError("Nuclei compatibility requires explicit engine and template pins")
+    if nuclei.get("engine_version") != engine_pin:
+        raise ValueError("Nuclei runtime engine version differs from compatibility policy")
+    if profiles.get("engine_pin") != engine_pin:
+        raise ValueError("Nuclei profile engine version differs from compatibility policy")
+    if nuclei.get("templates_version") != feed.release:
+        raise ValueError("Nuclei runtime template version differs from compatibility policy")
+    if profiles.get("templates_pin") != feed.release:
+        raise ValueError("Nuclei profile template version differs from compatibility policy")
     mobile_record = manifest.get("mobile_analysis")
     if mobile_record.descriptor.status is not ScannerAdapterStatus.PLANNED:
         raise ValueError("mobile analysis must remain planned")

@@ -32,10 +32,11 @@ Use a user-owned layout:
 ~/.local/share/nuclei-templates-v10.4.5/
 ```
 
-The engine candidate is `v3.11.0` and the template candidate is `v10.4.5`.
-Download the matching Linux architecture release assets from the official
-ProjectDiscovery GitHub releases page, verify the published checksums, and only
-then place the executable in `~/.local/bin`.
+The engine candidate is `v3.8.0` and the template candidate is `v10.4.5`.
+Download the matching Linux architecture assets from the official
+[ProjectDiscovery v3.8.0 release](https://github.com/projectdiscovery/nuclei/releases/tag/v3.8.0),
+verify the published checksums, and only then place the executable in
+`~/.local/bin`.
 
 Do not use `@latest`, automatic self-update, or an unpinned template checkout
 for governed activation.

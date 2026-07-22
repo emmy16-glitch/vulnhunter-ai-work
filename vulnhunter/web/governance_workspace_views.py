@@ -39,32 +39,24 @@ _MODEL_COMPONENTS = {
     "graph-context": {
         "index": 0,
         "title": "Repository graph context",
-        "authority": (
-            "Context only. It cannot authorize, scope, execute, or modify policy."
-        ),
+        "authority": ("Context only. It cannot authorize, scope, execute, or modify policy."),
         "inputs": "Validated graph artifacts and bounded source excerpts.",
     },
     "advisory-analysis": {
         "index": 1,
         "title": "Advisory analysis",
         "authority": (
-            "Proposal only. Deterministic verification and human review "
-            "remain authoritative."
+            "Proposal only. Deterministic verification and human review remain authoritative."
         ),
-        "inputs": (
-            "Sanitized, bounded, non-secret evidence only when explicitly enabled."
-        ),
+        "inputs": ("Sanitized, bounded, non-secret evidence only when explicitly enabled."),
     },
     "deterministic-verification": {
         "index": 2,
         "title": "Deterministic verification",
         "authority": (
-            "Evidence-backed verification inside an assessment; it cannot publish "
-            "a finding."
+            "Evidence-backed verification inside an assessment; it cannot publish a finding."
         ),
-        "inputs": (
-            "Persisted scanner evidence, reviewed recipes, and proof-capsule state."
-        ),
+        "inputs": ("Persisted scanner evidence, reviewed recipes, and proof-capsule state."),
     },
 }
 
@@ -207,8 +199,7 @@ def finding_detail_view(request: HttpRequest, finding_id: str) -> HttpResponse:
                     ("Deterministic verification", bool(run.evaluation_result)),
                     (
                         "Independent review",
-                        review_state
-                        in {"reviewed", "confirmed", "rejected", "complete"},
+                        review_state in {"reviewed", "confirmed", "rejected", "complete"},
                     ),
                     (
                         "Governed release",
@@ -247,9 +238,7 @@ def review_workspace_view(
         store, campaign, assignment = _resolve_assignment(assignment_reference)
         actor_id = actor.governance_identity.reviewer_id
         if actor_id not in assignment.primary_reviewers:
-            raise WebPermissionDenied(
-                "This review is not assigned to your governed identity."
-            )
+            raise WebPermissionDenied("This review is not assigned to your governed identity.")
         context = _review_workspace_context(store, campaign, assignment)
     except WebPermissionDenied as exc:
         return _denied(request, str(exc), parent_route="web-review-queue")
@@ -321,9 +310,7 @@ def review_workspace_view(
             "form": form,
             "submitted": submitted,
             "visible_decisions": visible_decisions,
-            "other_decisions_hidden": (
-                not submitted and len(decisions) > len(visible_decisions)
-            ),
+            "other_decisions_hidden": (not submitted and len(decisions) > len(visible_decisions)),
             "actor_id": actor_id,
         }
     )
@@ -378,9 +365,7 @@ def adjudication_workspace_view(
 
     case = context["review_case"]
     decisions = tuple(case.decisions)
-    disputed = (
-        len(decisions) == 2 and decisions[0].outcome != decisions[1].outcome
-    )
+    disputed = len(decisions) == 2 and decisions[0].outcome != decisions[1].outcome
     submitted = case.adjudication is not None
     form = GovernedAdjudicationForm(request.POST or None)
 
@@ -421,9 +406,7 @@ def adjudication_workspace_view(
         {
             "page_title": f"Adjudicate observation {assignment.observation_id}",
             "form": form,
-            "decisions": tuple(
-                sorted(decisions, key=lambda item: item.reviewer_id)
-            ),
+            "decisions": tuple(sorted(decisions, key=lambda item: item.reviewer_id)),
             "disputed": disputed,
             "submitted": submitted,
         }
@@ -468,11 +451,7 @@ def release_detail_view(request: HttpRequest, campaign_id: str) -> HttpResponse:
         raise Http404(str(exc)) from exc
 
     readiness = campaign.readiness
-    blockers = (
-        readiness.hard_release_blockers
-        if readiness
-        else ("Readiness report unavailable.",)
-    )
+    blockers = readiness.hard_release_blockers if readiness else ("Readiness report unavailable.",)
     state = "published" if manifest else "blocked" if blockers else "eligible"
     return _render(
         request,

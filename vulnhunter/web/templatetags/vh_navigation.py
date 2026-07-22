@@ -134,7 +134,7 @@ def canonical_navigation(user: Any) -> tuple[dict[str, object], ...]:
             "label": "Reports",
             "url_name": "web-reports-overview",
             "icon": "report",
-            "actions": ("campaign.read", "report.read"),
+            "actions": ("report.read", "report.read_own", "report.read_public"),
             "active_routes": ("web-reports-overview",),
         },
         {

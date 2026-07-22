@@ -3,7 +3,7 @@
 <section class="vh-page-shell">
   <header class="vh-page-header">
     <div><p class="vh-eyebrow">Role</p><h1>{{ role.display_name }}</h1><p>{{ role.purpose }}</p></div>
-    <div class="vh-page-actions"><a class="vh-button-secondary" href="{% url 'web-role-list' %}">All Roles</a><a class="vh-button-secondary" href="{% url 'web-skill-list' %}">Skills</a></div>
+    <div class="vh-page-actions"><a class="vh-button-secondary" href="{% url 'web-role-list' %}">All Roles</a></div>
   </header>
 
   <section class="vh-summary-strip"><article class="vh-summary-item"><small>Identifier</small><strong>{{ role.role_id }}</strong><span>Version {{ role.version }}</span></article><article class="vh-summary-item"><small>Status</small><strong>{{ role.operational_state }}</strong><span>{{ role.status }}</span></article><article class="vh-summary-item"><small>Risk</small><strong>{{ role.risk_level }}</strong><span>{{ role.trust_assumption }}</span></article><article class="vh-summary-item"><small>Reviewed</small><strong>{{ role.last_reviewed_on }}</strong><span>{{ role.connector_policy }}</span></article></section>

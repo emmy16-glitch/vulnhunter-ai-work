@@ -4,18 +4,28 @@
 {% security_runtime as activation %}
 <section class="vh-product-page">
   <header class="vh-product-heading">
-    <div><p class="vh-eyebrow">Local readiness</p><h1>Security tool registry</h1><p>Inspect real local availability, supported profiles and activation gates. Detection never grants execution authority.</p></div>
-    <div class="vh-product-heading-actions"><a class="vh-button-secondary" href="{% url 'web-status' %}">System status</a><a class="vh-button-primary" href="{% url 'web-advanced-profiles' %}">Assessment profiles</a></div>
+    <div><p class="vh-eyebrow">Local installation and governed activation</p><h1>Security tool registry</h1><p>Installation, adapter support, policy and operational readiness are separate states. A detected executable never grants permission to run it.</p></div>
   </header>
 
-  <section class="vh-product-panel">
-    <div class="vh-table-toolbar"><div><h2>Registered tools</h2><p>Read-only diagnostics from the backend catalog.</p></div><span class="vh-panel-count">{{ tool_rows|length }}</span></div>
-    <div class="vh-table-wrap"><table class="vh-table"><thead><tr><th>Tool</th><th>Profiles</th><th>Targets</th><th>Safety gate</th><th>Readiness</th><th>Version / diagnostic</th></tr></thead><tbody>{% for row in tool_rows %}<tr><td><strong>{{ row.definition.display_name }}</strong><small>{{ row.definition.description }}</small></td><td>{% for profile in row.definition.profiles %}{{ profile.value }}{% if not forloop.last %}, {% endif %}{% endfor %}</td><td>{% for kind in row.definition.target_kinds %}{{ kind.value }}{% if not forloop.last %}, {% endif %}{% endfor %}</td><td>{% if row.definition.connector_only %}connector{% elif row.definition.approval_required %}approval{% else %}policy{% endif %}{% if row.definition.requires_isolation %} + isolation{% endif %}</td><td><strong>{{ row.availability.status.value }}</strong>{% if row.availability.executable_path %}<small>{{ row.availability.executable_path }}</small>{% endif %}</td><td>{% if row.availability.version_summary %}{{ row.availability.version_summary }}{% elif row.availability.error_summary %}{{ row.availability.error_summary }}{% else %}—{% endif %}</td></tr>{% endfor %}</tbody></table></div>
+  <section class="vh-ops-metric-grid" aria-label="Security tool summary">
+    <article class="vh-ops-metric"><span class="vh-ops-metric-icon"><svg><use href="#vh-i-link"></use></svg></span><div class="vh-ops-metric-copy"><span>Registered</span><strong>{{ summary.registered }}</strong><small>Definitions in the backend catalog</small></div></article>
+    <article class="vh-ops-metric"><span class="vh-ops-metric-icon"><svg><use href="#vh-i-checkdoc"></use></svg></span><div class="vh-ops-metric-copy"><span>Locally ready</span><strong>{{ summary.locally_ready }}</strong><small>Executable and version probe passed</small></div></article>
+    <article class="vh-ops-metric"><span class="vh-ops-metric-icon"><svg><use href="#vh-i-assessment"></use></svg></span><div class="vh-ops-metric-copy"><span>Operational workflows</span><strong>{{ summary.operational }}</strong><small>All worker and policy gates verified</small></div></article>
   </section>
 
-  <div class="vh-product-grid">
-    <section class="vh-product-panel vh-product-span-7"><header class="vh-product-panel-header"><div><h2>Activation rules</h2><p>What the registry can and cannot do.</p></div></header><ul class="vh-fact-list"><li><span>Executable detection<small>Shows local readiness only.</small></span><strong>Read only</strong></li><li><span>Profile selection<small>Must remain inside an exact authorization.</small></span><strong>Server checked</strong></li><li><span>Controlled Nuclei runner<small>{{ activation.detail }}</small></span><strong class="{% if activation.configured %}vh-state-safe{% else %}vh-state-warning{% endif %}">{{ activation.state }}</strong></li><li><span>Mobile dynamic analysis<small>Requires an isolated disposable Android runtime and approval.</small></span><strong>Not activated</strong></li></ul></section>
-    <aside class="vh-product-panel vh-product-span-5 vh-boundary-card"><span class="vh-boundary-icon"><svg><use href="#vh-i-shield"></use></svg></span><div><p class="vh-eyebrow">Connected pages</p><h2>Use tools through governed workflows</h2></div><p>Open the appropriate authenticated surface rather than invoking a tool directly from this registry.</p><div class="vh-card-actions"><a class="vh-button-secondary" href="{% url 'web-agent-run-list' %}">Assessments</a><a class="vh-button-secondary" href="{% url 'web-mobile-analysis' %}">Mobile analysis</a><a class="vh-button-secondary" href="{% url 'web-approval-list' %}">Approval Centre</a></div></aside>
-  </div>
+  <section class="vh-product-panel">
+    <div class="vh-table-toolbar"><div><h2>Registered tools</h2><p>Read-only diagnostics from the running environment and governed catalog.</p></div><span class="vh-panel-count">{{ tool_rows|length }}</span></div>
+    <div class="vh-table-wrap"><table class="vh-table"><thead><tr><th>Tool</th><th>Local installation</th><th>Adapter</th><th>Safety gate</th><th>Operational state</th><th>Diagnostic</th></tr></thead><tbody>{% for row in tool_rows %}<tr><td><strong>{{ row.definition.display_name }}</strong><small>{{ row.definition.description }}</small><small>{% for profile in row.definition.profiles %}{{ profile.value }}{% if not forloop.last %}, {% endif %}{% endfor %}</small></td><td><strong>{{ row.availability.status.value }}</strong>{% if row.availability.executable_path %}<small>{{ row.availability.executable_path }}</small>{% endif %}</td><td><strong>{{ row.adapter_label }}</strong><small>Targets: {% for kind in row.definition.target_kinds %}{{ kind.value }}{% if not forloop.last %}, {% endif %}{% endfor %}</small></td><td><strong>{{ row.gate_label }}</strong></td><td><span class="vh-status-chip {% if row.operational_state == 'operational' %}vh-status-safe{% elif row.operational_state == 'gated' %}vh-status-warning{% endif %}">{{ row.operational_label }}</span><small>{{ row.operational_detail }}</small></td><td>{% if row.availability.version_summary %}{{ row.availability.version_summary }}{% elif row.availability.error_summary %}{{ row.availability.error_summary }}{% else %}—{% endif %}</td></tr>{% endfor %}</tbody></table></div>
+  </section>
+
+  <section class="vh-product-panel">
+    <header class="vh-product-panel-header"><div><h2>How to read this registry</h2><p>Each column answers a different question.</p></div></header>
+    <ul class="vh-fact-list">
+      <li><span>Local installation<small>Is the executable present, identifiable and usable?</small></span><strong>Read only</strong></li>
+      <li><span>Adapter<small>Does VulnHunter have a bounded contract for the tool?</small></span><strong>Code capability</strong></li>
+      <li><span>Safety gate<small>What authorization, approval, connector or isolation is required?</small></span><strong>Server enforced</strong></li>
+      <li><span>Operational state<small>Can a governed workflow currently reach a verified worker?</small></span><strong class="{% if activation.configured %}vh-state-safe{% else %}vh-state-warning{% endif %}">{{ activation.state }}</strong></li>
+    </ul>
+  </section>
 </section>
 {% endblock %}

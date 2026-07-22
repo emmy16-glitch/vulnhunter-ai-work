@@ -931,8 +931,11 @@ class NucleiExecutionHarness:
         except KeyError as exc:
             raise NucleiExecutionError("Nuclei compatibility record is missing") from exc
         pin = compatibility.version_pin
-        if compatibility.descriptor.status is not ScannerAdapterStatus.HARNESS_ONLY:
-            raise NucleiExecutionError("Nuclei adapter has not passed harness review")
+        if compatibility.descriptor.status not in {
+            ScannerAdapterStatus.HARNESS_ONLY,
+            ScannerAdapterStatus.PILOT_READY,
+        }:
+            raise NucleiExecutionError("Nuclei adapter has not passed harness or pilot review")
         if pin.engine_version != readiness.engine_version:
             raise NucleiExecutionError("Nuclei engine version does not match the reviewed pin")
         if pin.feed is None or pin.feed.release != readiness.template_release:

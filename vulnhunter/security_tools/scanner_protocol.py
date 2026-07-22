@@ -167,7 +167,7 @@ class ScannerAdapterDescriptor(BaseModel):
     deployment_mode: ScannerDeploymentMode
     supported_profiles: tuple[str, ...] = ()
     protocol_version: Literal[SCANNER_PROTOCOL_VERSION] = SCANNER_PROTOCOL_VERSION
-    execution_enabled: Literal[False] = False
+    execution_enabled: bool = False
 
     @field_validator("adapter_id")
     @classmethod

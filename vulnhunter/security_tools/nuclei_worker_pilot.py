@@ -13,6 +13,7 @@ import ipaddress
 import json
 import os
 import resource
+import shutil
 import signal
 import stat
 import subprocess
@@ -233,14 +234,18 @@ class PassiveNucleiProcessRunner:
         for template in templates:
             command.extend(("-templates", str(template)))
 
+        request = specification.request
+        output_root = request.output_directory
+        runtime_home = output_root / f".{request.execution_id}.home"
+        runtime_home.mkdir(mode=0o700, exist_ok=False)
         environment = {
             "PATH": str(executable.parent),
-            "HOME": "/nonexistent",
+            "HOME": str(runtime_home),
+            "XDG_CONFIG_HOME": str(runtime_home / ".config"),
+            "XDG_CACHE_HOME": str(runtime_home / ".cache"),
             "LANG": "C.UTF-8",
             "LC_ALL": "C.UTF-8",
         }
-        request = specification.request
-        output_root = request.output_directory
         stdout_path = output_root / f".{request.execution_id}.stdout"
         stderr_path = output_root / f".{request.execution_id}.stderr"
         maximum_file_bytes = max(
@@ -292,6 +297,7 @@ class PassiveNucleiProcessRunner:
         finally:
             stdout_path.unlink(missing_ok=True)
             stderr_path.unlink(missing_ok=True)
+            shutil.rmtree(runtime_home, ignore_errors=True)
 
         stdout = stdout_bytes.decode("utf-8", errors="replace")
         stderr = stderr_bytes.decode("utf-8", errors="replace")

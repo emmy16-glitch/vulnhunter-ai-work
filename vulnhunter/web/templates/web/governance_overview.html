@@ -2,17 +2,26 @@
 {% block content %}
 <section class="vh-page-shell">
   <header class="vh-page-header">
-    <div><p class="vh-eyebrow">Governance</p><h1>Policies</h1><p>Roles, skills, tools and campaign controls.</p></div>
-    <div class="vh-page-actions"><a class="vh-button-secondary" href="{% url 'web-audit-overview' %}">Audit Log</a></div>
+    <div><p class="vh-eyebrow">Governance</p><h1>Policies</h1><p>Review the authority boundaries that apply across authorizations, assessments, tools, evidence and releases.</p></div>
   </header>
 
-  <section class="vh-link-grid">
-    <a class="vh-link-card" href="{% url 'web-campaign-list' %}"><strong>Campaigns</strong><span>Scope, applications, scans and review state</span></a>
-    <a class="vh-link-card" href="{% url 'web-role-list' %}"><strong>Roles</strong><span>Permissions and approval points</span></a>
-    <a class="vh-link-card" href="{% url 'web-skill-list' %}"><strong>Skills</strong><span>Bounded capability definitions</span></a>
-    <a class="vh-link-card" href="{% url 'web-security-tool-registry' %}"><strong>Integrations &amp; Tools</strong><span>Readiness and safety gates</span></a>
-    <a class="vh-link-card" href="{% url 'web-release-list' %}"><strong>Releases</strong><span>Manifest and release state</span></a>
-    <a class="vh-link-card" href="{% url 'web-authorization-list' %}"><strong>Authorizations</strong><span>Approved scope and expiry</span></a>
+  <section class="vh-summary-strip" aria-label="Policy summary">
+    <article class="vh-summary-item"><small>Target scope</small><strong>Exact</strong><span>Protocol, port, address and path bound</span></article>
+    <article class="vh-summary-item"><small>Consequential work</small><strong>Human gated</strong><span>Decision bound to an immutable digest</span></article>
+    <article class="vh-summary-item"><small>Worker authority</small><strong>Separate</strong><span>Installation never grants execution</span></article>
+    <article class="vh-summary-item"><small>Publication</small><strong>Reviewed</strong><span>No automatic finding release</span></article>
+  </section>
+
+  <section class="vh-surface">
+    <header class="vh-surface-header"><div><h2>Enforced operating boundaries</h2><p>These controls are validated by backend records and worker policy rather than page navigation or browser state.</p></div></header>
+    <ul class="vh-fact-list">
+      <li><span>Authorization<small>An active actor-owned record must match the exact target.</small></span><strong>Required</strong></li>
+      <li><span>Plan integrity<small>Profiles, templates, target pins and resource limits are hash bound.</small></span><strong>Immutable</strong></li>
+      <li><span>Approval separation<small>The requester cannot decide the same approval request.</small></span><strong>Independent</strong></li>
+      <li><span>Private-lab execution<small>The current real Nuclei path accepts one reviewed passive RFC1918 target only.</small></span><strong>Restricted</strong></li>
+      <li><span>Evidence lifecycle<small>Scanner matches remain candidates until verification and human review.</small></span><strong>Governed</strong></li>
+      <li><span>Public Internet scanning<small>The private-lab pilot rejects public target addresses.</small></span><strong>Prohibited</strong></li>
+    </ul>
   </section>
 </section>
 {% endblock %}

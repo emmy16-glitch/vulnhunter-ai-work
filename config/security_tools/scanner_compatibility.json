@@ -5,21 +5,18 @@
       "descriptor": {
         "adapter_id": "nuclei-controlled-harness",
         "scanner_kind": "nuclei",
-        "status": "harness_only",
+        "status": "pilot_ready",
         "deployment_mode": "isolated_container",
         "supported_profiles": [
-          "intrusive",
-          "passive",
-          "retest",
-          "standard"
+          "passive"
         ],
         "protocol_version": "1.0",
-        "execution_enabled": false
+        "execution_enabled": true
       },
       "version_pin": {
         "scanner_id": "nuclei",
         "adapter_id": "nuclei-controlled-harness",
-        "adapter_version": "1.1.0",
+        "adapter_version": "1.2.0",
         "engine_version": "v3.8.0",
         "protocol_version": "1.0",
         "feed": {
@@ -30,8 +27,8 @@
         }
       },
       "notes": [
-        "The default manager harness remains execution-disabled.",
-        "A worker-local passive pilot can run one reviewed private-lab template only after separate activation."
+        "The controlled passive worker may execute one signed, approved RFC1918 private-lab job.",
+        "Public targets, intrusive templates, arbitrary scanner arguments, updates, upload and public OAST remain disabled."
       ]
     },
     {

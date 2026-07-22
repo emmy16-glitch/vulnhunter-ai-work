@@ -5,7 +5,7 @@
 <section class="vh-page-shell" aria-labelledby="assessment-page-title">
   <header class="vh-page-header">
     <div><p class="vh-eyebrow">Operations</p><h1 id="assessment-page-title">Assessments</h1><p>Governed plans and their current backend state.</p></div>
-    <div class="vh-page-actions"><a class="vh-button-secondary" href="{% url 'web-authorization-list' %}">Authorizations</a><button class="vh-button-primary" type="button" data-assessment-open>New Assessment</button></div>
+    <div class="vh-page-actions"><button class="vh-button-primary" type="button" data-assessment-open>New Assessment</button></div>
   </header>
 
   {% if error_message %}<section class="vh-operational-notice is-danger"><strong>Assessment store unavailable</strong><p>{{ error_message }}</p></section>{% endif %}

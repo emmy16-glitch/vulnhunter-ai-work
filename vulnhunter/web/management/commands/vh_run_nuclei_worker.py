@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -30,7 +31,10 @@ class Command(BaseCommand):
     help = "Process one signed passive Nuclei pilot job in the isolated worker boundary."
 
     def add_arguments(self, parser) -> None:
-        parser.add_argument("--once", action="store_true", default=True)
+        mode = parser.add_mutually_exclusive_group()
+        mode.add_argument("--once", action="store_true", help="Process at most one job and exit.")
+        mode.add_argument("--watch", action="store_true", help="Keep polling for signed jobs.")
+        parser.add_argument("--poll-seconds", type=float, default=1.0)
 
     def handle(self, *args, **options) -> None:
         base = Path(settings.BASE_DIR)
@@ -97,7 +101,26 @@ class Command(BaseCommand):
                     AppendOnlyActivityStore(Path(settings.VULNHUNTER_AGENT_ACTIVITY_ROOT))
                 ),
             )
-            receipt = service.run_once()
+            poll_seconds = float(options["poll_seconds"])
+            if not 0.1 <= poll_seconds <= 60:
+                raise CommandError("poll-seconds must be between 0.1 and 60")
+            watch = bool(options["watch"])
+            while True:
+                receipt = service.run_once()
+                if receipt is not None:
+                    self.stdout.write(
+                        self.style.SUCCESS(
+                            f"Worker job {receipt.job_id} finished with state {receipt.state}."
+                        )
+                    )
+                elif not watch:
+                    self.stdout.write("No signed Nuclei pilot job is pending.")
+                    return
+                if not watch:
+                    return
+                time.sleep(poll_seconds)
+        except KeyboardInterrupt:
+            self.stdout.write(self.style.WARNING("Nuclei worker watch stopped."))
         except (
             OSError,
             ValueError,
@@ -105,9 +128,3 @@ class Command(BaseCommand):
             NucleiPilotServiceError,
         ) as exc:
             raise CommandError(str(exc)) from exc
-        if receipt is None:
-            self.stdout.write("No signed Nuclei pilot job is pending.")
-            return
-        self.stdout.write(
-            self.style.SUCCESS(f"Worker job {receipt.job_id} finished with state {receipt.state}.")
-        )

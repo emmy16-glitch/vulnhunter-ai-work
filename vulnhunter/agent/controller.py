@@ -692,7 +692,6 @@ class AgentController:
                     **workflow,
                     "workflow_state": "cancelled",
                     "blocking_reason": reason,
-                    "execution_enabled": False,
                 },
             }
         cancelled_task = self._save(
@@ -849,7 +848,6 @@ class AgentController:
                     **workflow,
                     "workflow_state": "timed_out",
                     "blocking_reason": "Immutable task runtime deadline expired.",
-                    "execution_enabled": False,
                 },
             }
         return self._save(

@@ -20,7 +20,7 @@ from vulnhunter.security_tools.models import (
 
 _VERSION_PROBES: dict[str, tuple[str, ...]] = {
     "nmap": ("--version",),
-    "httpx": ("--version",),
+    "httpx": ("-version",),
     "nuclei": ("-version",),
     "ffuf": ("-V",),
     "testssl": ("--version",),
@@ -112,19 +112,41 @@ class SecurityToolCatalog:
 
     def detect(self, tool_id: str) -> ToolAvailability:
         definition = self.get(tool_id)
-        executable_path = None
+        detected: list[ToolAvailability] = []
+        seen_paths: set[str] = set()
         for candidate in definition.executable_candidates:
             executable_path = shutil.which(candidate)
-            if executable_path:
-                break
-        if executable_path is None:
-            return ToolAvailability(
-                tool_id=tool_id,
-                available=False,
-                usable=False,
-                status=ToolAvailabilityStatus.NOT_DETECTED,
+            if not executable_path or executable_path in seen_paths:
+                continue
+            seen_paths.add(executable_path)
+            result = self._probe_candidate(definition, executable_path)
+            if result.usable:
+                return result
+            detected.append(result)
+        if detected:
+            preferred = next(
+                (item for item in detected if item.status is ToolAvailabilityStatus.TIMED_OUT),
+                detected[-1],
             )
+            diagnostics = "; ".join(
+                f"{item.executable_path}: "
+                f"{item.error_summary or item.version_summary or item.status.value}"
+                for item in detected
+            )
+            return preferred.model_copy(update={"error_summary": diagnostics[:500]})
+        return ToolAvailability(
+            tool_id=tool_id,
+            available=False,
+            usable=False,
+            status=ToolAvailabilityStatus.NOT_DETECTED,
+        )
 
+    def _probe_candidate(
+        self,
+        definition: SecurityToolDefinition,
+        executable_path: str,
+    ) -> ToolAvailability:
+        tool_id = definition.tool_id
         probe = _VERSION_PROBES.get(tool_id)
         if probe is None:
             return ToolAvailability(
@@ -170,7 +192,7 @@ class SecurityToolCatalog:
             part.strip() for part in (completed.stdout, completed.stderr) if part.strip()
         )
         summary = next((line.strip() for line in text.splitlines() if line.strip()), None)
-        if completed.returncode == 0:
+        if completed.returncode == 0 and self._probe_identity_matches(tool_id, text):
             return ToolAvailability(
                 tool_id=tool_id,
                 available=True,
@@ -180,6 +202,13 @@ class SecurityToolCatalog:
                 version_summary=summary[:500] if summary else None,
                 return_code=completed.returncode,
             )
+        if tool_id == "httpx" and completed.returncode == 0:
+            error = (
+                "An executable named httpx was found, but its output did not identify the "
+                "ProjectDiscovery scanner. This is commonly the Python HTTPX CLI name collision."
+            )
+        else:
+            error = summary or "Version probe returned a non-zero status."
         return ToolAvailability(
             tool_id=tool_id,
             available=True,
@@ -188,8 +217,15 @@ class SecurityToolCatalog:
             executable_path=executable_path,
             version_summary=summary[:500] if summary else None,
             return_code=completed.returncode,
-            error_summary=(summary or "Version probe returned a non-zero status.")[:500],
+            error_summary=error[:500],
         )
+
+    @staticmethod
+    def _probe_identity_matches(tool_id: str, output: str) -> bool:
+        if tool_id != "httpx":
+            return True
+        normalized = output.casefold()
+        return "current version" in normalized or "projectdiscovery" in normalized
 
     def detect_all(self) -> tuple[ToolAvailability, ...]:
         return self.detect_many(item.tool_id for item in self.list())
@@ -220,7 +256,7 @@ def default_catalog() -> SecurityToolCatalog:
         SecurityToolDefinition(
             tool_id="httpx",
             display_name="ProjectDiscovery httpx",
-            executable_candidates=("httpx", "httpx-toolkit"),
+            executable_candidates=("httpx-toolkit", "httpx"),
             profiles=(
                 ToolProfile.DISCOVERY,
                 ToolProfile.SAFE_ASSESSMENT,

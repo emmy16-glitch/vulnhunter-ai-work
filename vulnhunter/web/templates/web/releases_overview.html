@@ -3,7 +3,6 @@
 <section class="vh-page-shell">
   <header class="vh-page-header">
     <div><p class="vh-eyebrow">Governance</p><h1>Releases</h1><p>Campaign release assessments, hard blockers and immutable manifest evidence.</p></div>
-    <div class="vh-page-actions"><a class="vh-button-secondary" href="{% url 'web-campaign-list' %}">Campaigns</a><a class="vh-button-secondary" href="{% url 'web-reports-overview' %}">Reports</a></div>
   </header>
 
   <section class="vh-summary-strip"><article class="vh-summary-item"><small>Campaigns</small><strong>{{ campaigns|length }}</strong><span>Loaded from governance</span></article><article class="vh-summary-item"><small>Release rule</small><strong>Manifest required</strong><span>No release inferred from completion</span></article><article class="vh-summary-item"><small>Authority</small><strong>Human governed</strong><span>No provider publication rights</span></article><article class="vh-summary-item"><small>Browser mode</small><strong>Assessment only</strong><span>No unsafe release button</span></article></section>

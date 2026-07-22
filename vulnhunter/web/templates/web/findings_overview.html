@@ -3,7 +3,6 @@
 <section class="vh-page-shell">
   <header class="vh-page-header">
     <div><p class="vh-eyebrow">Analysis</p><h1>Findings</h1><p>Evidence-backed records produced by governed assessments. Scanner matches remain candidates until deterministic verification and independent review complete.</p></div>
-    <div class="vh-page-actions"><a class="vh-button-secondary" href="{% url 'web-review-queue' %}">Review queue</a><a class="vh-button-primary" href="{% url 'web-scan-run-list' %}">Assessments</a></div>
   </header>
 
   <section class="vh-summary-strip" aria-label="Finding summary">
@@ -20,7 +19,7 @@
     {% elif findings %}
       <div class="vh-table-wrap"><table class="vh-table"><thead><tr><th>Finding</th><th>Severity</th><th>Confidence</th><th>Verification</th><th>Target</th><th>Assessment</th><th></th></tr></thead><tbody>{% for finding in findings %}<tr><td><strong>{{ finding.title }}</strong><code>{{ finding.evidence_id }}</code></td><td><span class="vh-severity-{{ finding.severity|default:'info'|lower }}">{{ finding.severity|default:"Unclassified" }}</span></td><td>{{ finding.confidence|default:"—" }}</td><td><span class="vh-status-chip {% if finding.verification == 'verified' %}vh-status-safe{% else %}vh-status-warning{% endif %}">{{ finding.verification|default:"candidate" }}</span></td><td>{{ finding.target_reference|default:"Not recorded" }}</td><td><strong>{{ finding.scanner|default:"Not recorded" }}</strong><small>{{ finding.run_state }}</small></td><td><a class="vh-row-link" href="{% url 'web-finding-detail' finding.evidence_id %}">Open finding →</a></td></tr>{% endfor %}</tbody></table></div>
     {% else %}
-      <div class="vh-empty-panel"><svg aria-hidden="true"><use href="#vh-i-finding"></use></svg><h3>No findings</h3><p>No assessment evidence has produced a stored finding.</p><a class="vh-button-secondary" href="{% url 'web-scan-run-list' %}">Assessments</a></div>
+      <div class="vh-empty-panel"><svg aria-hidden="true"><use href="#vh-i-finding"></use></svg><h3>No findings</h3><p>No assessment evidence has produced a stored finding.</p></div>
     {% endif %}
   </section>
 </section>

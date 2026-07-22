@@ -5,7 +5,6 @@
 <section class="vh-product-page">
   <header class="vh-product-heading">
     <div><p class="vh-eyebrow">Audit and readiness</p><h1>System status</h1><p>Real store, runtime and evidence states. Missing or stale capabilities fail closed instead of being presented as available.</p></div>
-    <div class="vh-product-heading-actions"><a class="vh-button-secondary" href="{% url 'web-deployment-readiness' %}">Readiness endpoint</a><a class="vh-button-primary" href="{% url 'web-settings-overview' %}">Open integrations</a></div>
   </header>
 
   <section class="vh-status-card-grid" aria-label="System capability status">
@@ -18,13 +17,10 @@
   </section>
 
   <div class="vh-product-grid">
-    <section class="vh-product-panel vh-product-span-7">
+    <section class="vh-product-panel vh-product-span-12">
       <header class="vh-product-panel-header"><div><h2>Operational safety rules</h2><p>Readiness, permission and release are separate backend decisions.</p></div></header>
       <ul class="vh-fact-list"><li><span>Authorization and exact scope<small>Required before a plan can be created.</small></span><strong>Server validated</strong></li><li><span>Consequential actions<small>Approval decisions are recorded against an immutable plan digest.</small></span><strong>Human gated</strong></li><li><span>Scanner execution<small>{{ activation.detail }}</small></span><strong class="{% if activation.configured %}vh-state-safe{% else %}vh-state-warning{% endif %}">{{ activation.state }}</strong></li><li><span>Evidence and publication<small>Only validated, redacted and reviewed records may progress.</small></span><strong>Separately gated</strong></li></ul>
     </section>
-    <aside class="vh-product-panel vh-product-span-5 vh-boundary-card">
-      <span class="vh-boundary-icon" aria-hidden="true"><svg><use href="#vh-i-shield"></use></svg></span><div><p class="vh-eyebrow">Connected controls</p><h2>Investigate the actual source</h2></div><p>Use the linked authenticated pages to inspect authorizations, tools, approvals and persisted activity instead of treating a status label as permission.</p><div class="vh-card-actions"><a class="vh-button-secondary" href="{% url 'web-security-tool-registry' %}">Tool registry</a><a class="vh-button-secondary" href="{% url 'web-approval-list' %}">Approval Centre</a><a class="vh-button-secondary" href="{% url 'web-audit-overview' %}">Audit</a></div>
-    </aside>
   </div>
 </section>
 {% endblock %}

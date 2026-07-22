@@ -3,7 +3,6 @@
 <section class="vh-page-shell">
   <header class="vh-page-header">
     <div><p class="vh-eyebrow">Data governance</p><h1>Datasets</h1><p>Governed campaign data, review quality, class balance and immutable readiness evidence.</p></div>
-    <div class="vh-page-actions"><a class="vh-button-secondary" href="{% url 'web-campaign-list' %}">Campaigns</a><a class="vh-button-secondary" href="{% url 'web-model-list' %}">Analysis services</a></div>
   </header>
 
   <section class="vh-summary-strip"><article class="vh-summary-item"><small>Campaigns</small><strong>{{ campaigns|length }}</strong><span>Available dataset sources</span></article><article class="vh-summary-item"><small>Release dependency</small><strong>Required</strong><span>Training data remains governed</span></article><article class="vh-summary-item"><small>Labels</small><strong>Human reviewed</strong><span>Consensus or adjudication</span></article><article class="vh-summary-item"><small>Actions</small><strong>Read only</strong><span>No training starts here</span></article></section>

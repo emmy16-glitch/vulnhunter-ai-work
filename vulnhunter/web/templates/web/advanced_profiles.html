@@ -4,7 +4,7 @@
 <section class="vh-product-page">
   <header class="vh-product-heading">
     <div><p class="vh-eyebrow">Deep multi-stage assessment</p><h1>Advanced assessment profiles</h1><p>Profiles describe governed planning paths. They never bypass authorization, approval, scope, evidence or stop controls.</p></div>
-    <div class="vh-product-heading-actions"><a class="vh-button-secondary" href="{% url 'web-security-tool-registry' %}">Tool registry</a><a class="vh-button-primary" href="{% url 'web-new-scan' %}">Create governed plan</a></div>
+    <div class="vh-product-heading-actions"><a class="vh-button-primary" href="{% url 'web-new-scan' %}">Create assessment</a></div>
   </header>
 
   <section class="vh-profile-grid" aria-label="Assessment profiles">
@@ -15,7 +15,6 @@
         <h2>{{ profile.name }}</h2>
         <p>{{ profile.description }}</p>
         <ul class="vh-rule-list"><li><span>Required gate</span><strong>{{ profile.gate }}</strong></li><li><span>Execution authority</span><strong>Not granted here</strong></li></ul>
-        <div class="vh-card-actions"><a class="vh-button-secondary" href="{% url 'web-new-scan' %}">Use through assessment form</a></div>
       </article>
     {% endfor %}
   </section>

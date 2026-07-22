@@ -41,6 +41,36 @@ def _after_sequence_or_error(request: HttpRequest) -> int:
     return max(values, default=0)
 
 
+def _active_summary(run) -> str:
+    """Return a safe operational explanation, never hidden chain-of-thought."""
+
+    state = getattr(run, "workflow_state", None) or run.current_state
+    summaries = {
+        "authorization_required": "Checking the active authorization boundary.",
+        "scope_validated": "Scope is valid; checking local scanner readiness.",
+        "readiness_checked": "Pinned scanner readiness passed; building the immutable plan.",
+        "plan_generated": "The plan is ready and waiting for an independent approval.",
+        "awaiting_approval": "Waiting for a separate approver to review the exact plan digest.",
+        "queued": "The approved job is queued for the isolated Nuclei worker.",
+        "running": "The isolated worker is processing the approved passive assessment.",
+        "executing": "Nuclei is running the reviewed passive template.",
+        "evaluating": "Scanner evidence is being normalized and verified.",
+        "completed": "The assessment completed and persisted its evidence-backed results.",
+        "failed": "The assessment failed closed; inspect the activity and audit evidence.",
+        "timed_out": "The worker reached its immutable timeout and stopped safely.",
+        "cancelled": "The assessment was cancelled and no further scanner work will run.",
+        "blocked": "A governance or readiness gate blocked execution.",
+        "execution_blocked": "Approval was recorded, but worker activation remains unavailable.",
+        "readiness_blocked": "Scanner readiness did not pass, so no job was created.",
+        "denied": "The exact plan was denied and will not execute.",
+    }
+    return summaries.get(
+        str(state),
+        getattr(run, "execution_blocking_reason", None)
+        or "Waiting for the next persisted assessment transition.",
+    )
+
+
 def _event_stream(*, sequence: int, payload: dict[str, object]) -> Iterator[str]:
     """Serialize one bounded SSE snapshot; EventSource reconnects automatically."""
 
@@ -81,7 +111,9 @@ def agent_activity_stream_view(request: HttpRequest, run_id: str):
     payload.update(
         {
             "run_id": run.run_id,
-            "run_state": run.current_state,
+            "task_state": run.current_state,
+            "run_state": payload.get("run_state") or run.current_state,
+            "active_summary": _active_summary(run),
             "approval_state": run.approval_state.value,
             "execution_state": run.execution_state,
             "workflow_state": getattr(run, "workflow_state", None),

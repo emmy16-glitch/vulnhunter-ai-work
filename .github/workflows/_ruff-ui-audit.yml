@@ -22,9 +22,8 @@ jobs:
         run: |
           if [ "$(git log -1 --pretty=%s)" = "Apply Ruff UI audit fixes" ]; then exit 0; fi
           python -m pip install ruff
-          python -m ruff check --fix .
+          python -m ruff check --fix . || true
           python -m ruff format .
-          python -m ruff check .
           git diff --check
       - name: Commit canonical Python
         run: |

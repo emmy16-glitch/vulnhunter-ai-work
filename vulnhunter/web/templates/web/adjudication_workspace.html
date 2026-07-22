@@ -1,0 +1,81 @@
+{% extends "web/base.html" %}
+{% block content %}
+<section class="vh-governed-workspace">
+  {% if workspace_error %}
+    <header class="vh-workspace-hero"><div><p class="vh-eyebrow">Independent adjudication</p><h1>Adjudication unavailable</h1><p>{{ workspace_error }}</p></div><div class="vh-page-actions"><a class="vh-button-secondary" href="{% url 'web-adjudication-queue' %}">Back to queue</a></div></header>
+    <div class="vh-surface"><div class="vh-locked-state"><svg aria-hidden="true"><use href="#vh-i-scale"></use></svg><h3>Evidence could not be loaded safely</h3><p>No adjudication control is available while the linked evidence boundary is unavailable.</p></div></div>
+  {% else %}
+    <header class="vh-workspace-hero">
+      <div>
+        <p class="vh-crumb"><a href="{% url 'web-adjudication-queue' %}">Adjudications</a><span aria-hidden="true">/</span>{{ assignment_reference }}</p>
+        <p class="vh-eyebrow">Independent resolution</p>
+        <h1>{{ observation.title }}</h1>
+        <p>Resolve a two-reviewer disagreement using the persisted evidence. The final outcome is immutable and independently attested.</p>
+      </div>
+      <div class="vh-page-actions"><a class="vh-button-secondary" href="{% url 'web-campaign-detail' campaign.campaign_id %}">Campaign</a><a class="vh-button-secondary" href="{% url 'web-adjudication-queue' %}">Back to queue</a></div>
+    </header>
+
+    <section class="vh-summary-strip" aria-label="Adjudication status">
+      <article class="vh-summary-item"><small>Severity</small><strong class="vh-severity-{{ observation.severity }}">{{ observation.severity }}</strong><span>{{ observation.category }}</span></article>
+      <article class="vh-summary-item"><small>Primary decisions</small><strong>{{ decisions|length }}</strong><span>{% if disputed %}Conflict confirmed{% else %}No eligible conflict{% endif %}</span></article>
+      <article class="vh-summary-item"><small>Final state</small><strong>{% if submitted %}Adjudicated{% elif disputed %}Decision required{% else %}Blocked{% endif %}</strong><span>{{ review_case.effective_label }}</span></article>
+      <article class="vh-summary-item"><small>Assignment</small><strong>{{ assignment_reference|slice:":12" }}…</strong><span>Digest-bound record</span></article>
+    </section>
+
+    <div class="vh-detail-grid">
+      <section class="vh-surface vh-detail-main">
+        <header class="vh-surface-header"><div><h2>Evidence under dispute</h2><p>Review the original observation independently of provider suggestions.</p></div><span class="vh-status-chip {% if disputed %}vh-status-warning{% else %}vh-status-safe{% endif %}">{{ review_case.state }}</span></header>
+        <div class="vh-record-body">
+          <p class="vh-lead-copy">{{ observation.description }}</p>
+          <dl class="vh-definition-grid">
+            <div><dt>Observation</dt><dd>#{{ observation.id }}</dd></div>
+            <div><dt>Scan</dt><dd>#{{ observation.scan_id }}</dd></div>
+            <div><dt>Application</dt><dd class="vh-mono-compact">{{ application.application_id }}</dd></div>
+            <div><dt>Target</dt><dd>{{ observation.url }}</dd></div>
+            <div class="vh-definition-span"><dt>Fingerprint</dt><dd class="vh-mono-compact">{{ observation.fingerprint }}</dd></div>
+          </dl>
+        </div>
+      </section>
+
+      <aside class="vh-surface vh-detail-side vh-sticky-inspector">
+        <header class="vh-surface-header"><div><h2>Final resolution</h2><p>Requires the assigned adjudicator’s governance credential.</p></div></header>
+        {% if submitted %}
+          <div class="vh-locked-state"><svg aria-hidden="true"><use href="#vh-i-checkdoc"></use></svg><h3>Adjudication locked</h3><p>{{ review_case.adjudication.outcome }} was recorded by {{ review_case.adjudication.adjudicator_id }}.</p></div>
+        {% elif not disputed %}
+          <div class="vh-locked-state"><svg aria-hidden="true"><use href="#vh-i-scale"></use></svg><h3>Not eligible</h3><p>Adjudication requires exactly two conflicting primary decisions. This case remains blocked until that condition is met.</p></div>
+        {% else %}
+          <form method="post" class="vh-workspace-form" novalidate>
+            {% csrf_token %}
+            <div class="vh-form-field"><label for="{{ form.outcome.id_for_label }}">Final outcome</label>{{ form.outcome }}{% for error in form.outcome.errors %}<span class="vh-field-error">{{ error }}</span>{% endfor %}</div>
+            <div class="vh-form-field"><label for="{{ form.rationale.id_for_label }}">Evidence rationale</label>{{ form.rationale }}{% for error in form.rationale.errors %}<span class="vh-field-error">{{ error }}</span>{% endfor %}<small>{{ form.rationale.help_text }}</small></div>
+            <div class="vh-form-field"><label for="{{ form.governance_secret.id_for_label }}">Governance credential</label>{{ form.governance_secret }}{% for error in form.governance_secret.errors %}<span class="vh-field-error">{{ error }}</span>{% endfor %}<small>{{ form.governance_secret.help_text }}</small></div>
+            <button class="vh-button-primary" type="submit">Record final adjudication</button>
+          </form>
+        {% endif %}
+        <div class="vh-boundary-note"><strong>Separation of duty</strong><p>The adjudicator must be distinct from both primary reviewers. The browser cannot alter that backend rule.</p></div>
+      </aside>
+
+      <section class="vh-surface vh-detail-full">
+        <header class="vh-surface-header"><div><h2>Primary decisions</h2><p>Both decisions are shown because the assigned adjudicator must resolve their disagreement.</p></div><span class="vh-panel-count">{{ decisions|length }}</span></header>
+        {% if decisions %}
+          <div class="vh-decision-grid">{% for decision in decisions %}<article class="vh-decision-card"><span>Reviewer {{ forloop.counter }}</span><strong>{{ decision.outcome }}</strong><p>{{ decision.note|default:"No note recorded." }}</p><time>{{ decision.created_at }}</time><code>{{ decision.reviewer_id }}</code></article>{% endfor %}</div>
+        {% else %}
+          <div class="vh-empty-panel"><svg aria-hidden="true"><use href="#vh-i-review"></use></svg><h3>No primary decisions</h3><p>This case cannot be adjudicated.</p></div>
+        {% endif %}
+      </section>
+
+      <section class="vh-surface vh-detail-full">
+        <header class="vh-surface-header"><div><h2>Structured evidence</h2><p>Redacted evidence persisted with the observation.</p></div><span class="vh-panel-count">{{ observation.evidence|length }}</span></header>
+        {% if observation.evidence %}<div class="vh-key-value-list">{% for key, value in observation.evidence.items %}<div><span>{{ key }}</span><code>{{ value }}</code></div>{% endfor %}</div>{% else %}<div class="vh-empty-panel"><svg aria-hidden="true"><use href="#vh-i-audit"></use></svg><h3>No structured fields</h3><p>The observation contains narrative evidence only.</p></div>{% endif %}
+      </section>
+
+      {% if review_case.adjudication %}
+        <section class="vh-surface vh-detail-full">
+          <header class="vh-surface-header"><div><h2>Final attestation</h2><p>Immutable adjudication outcome and rationale.</p></div></header>
+          <div class="vh-record-body"><dl class="vh-definition-grid"><div><dt>Outcome</dt><dd>{{ review_case.adjudication.outcome }}</dd></div><div><dt>Adjudicator</dt><dd>{{ review_case.adjudication.adjudicator_id }}</dd></div><div><dt>Recorded</dt><dd>{{ review_case.adjudication.created_at }}</dd></div><div class="vh-definition-span"><dt>Rationale</dt><dd>{{ review_case.adjudication.rationale }}</dd></div></dl></div>
+        </section>
+      {% endif %}
+    </div>
+  {% endif %}
+</section>
+{% endblock %}

@@ -19,7 +19,8 @@ def professional_title(page_title: object) -> str:
 
     value = str(page_title)
     exact = {
-        "Agent Runs": "Assessments",
+        "Agent Runs": "Assessment Control Centre",
+        "Assessments": "Assessment Control Centre",
         "Machine Oracle": "Verification",
         "Models": "Analysis Services",
         "Intelligence components": "Analysis Services",
@@ -28,6 +29,44 @@ def professional_title(page_title: object) -> str:
     if value.startswith("Agent Run "):
         return "Assessment " + value.removeprefix("Agent Run ")
     return exact.get(value, value)
+
+
+@register.simple_tag
+def user_can(user: Any, *actions: str) -> bool:
+    """Return whether any mapped product role permits one of the supplied actions."""
+
+    if not getattr(user, "is_authenticated", False) or not actions:
+        return False
+    try:
+        mapping = user.vulnhunter_mapping
+    except WebUserMapping.DoesNotExist:
+        return False
+    roles = tuple(str(item) for item in mapping.product_roles if isinstance(item, str))
+    return role_policy().any_role_allows(roles, *actions)
+
+
+@register.simple_tag
+def account_role_label(user: Any) -> str:
+    """Return a human-friendly account role without exposing internal setup wording."""
+
+    if not getattr(user, "is_authenticated", False):
+        return "Signed out"
+    try:
+        mapping = user.vulnhunter_mapping
+    except WebUserMapping.DoesNotExist:
+        return "Unmapped account"
+    labels = {
+        "system-administrator": "Plan approver",
+        "campaign-operator": "Assessment operator",
+        "campaign-approver": "Campaign approver",
+        "reviewer": "Evidence reviewer",
+        "adjudicator": "Adjudicator",
+        "security-auditor": "Security auditor",
+        "model-analyst": "Model analyst",
+        "read-only-observer": "Read-only observer",
+    }
+    roles = [labels.get(str(item), str(item).replace("-", " ").title()) for item in mapping.product_roles]
+    return " · ".join(roles) if roles else "Governed account"
 
 
 @register.simple_tag
@@ -117,7 +156,7 @@ def canonical_navigation(user: Any) -> tuple[dict[str, object], ...]:
         {
             "section_id": "operations",
             "section_label": "Operations",
-            "label": "Assessments",
+            "label": "Assessment Control Centre",
             "url_name": "web-scan-run-list",
             "icon": "assessment",
             "actions": ("scan.read", "scan.read_summary", "scan.create", "audit.read"),
@@ -132,6 +171,9 @@ def canonical_navigation(user: Any) -> tuple[dict[str, object], ...]:
                 "web-new-scan",
                 "web-advanced-profiles",
                 "web-oracle-overview",
+                "web-approval-list",
+                "web-approval-detail",
+                "web-approval-decision",
             ),
         },
         {
@@ -142,15 +184,6 @@ def canonical_navigation(user: Any) -> tuple[dict[str, object], ...]:
             "icon": "finding",
             "actions": ("finding.read", "scan.read", "audit.read"),
             "active_routes": ("web-findings-overview",),
-        },
-        {
-            "section_id": "review",
-            "section_label": "Review",
-            "label": "Approval Centre",
-            "url_name": "web-approval-list",
-            "icon": "shield",
-            "actions": ("audit.read", "settings.manage"),
-            "active_routes": ("web-approval-list", "web-approval-detail", "web-approval-decision"),
         },
         {
             "section_id": "review",

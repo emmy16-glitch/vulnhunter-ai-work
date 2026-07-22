@@ -40,7 +40,7 @@ class Command(BaseCommand):
         invocation = ProviderInvocation(
             invocation_id="groq-readiness",
             request_id="groq-readiness",
-            provider=ProviderKind.GROQ_QWEN,
+            provider=ProviderKind.GROQ_ADVISORY,
             model=model,
             capability=ProviderCapability.CLASSIFICATION,
             input_sha256=hashlib.sha256(raw).hexdigest(),

@@ -10,6 +10,10 @@
   overflow-wrap: anywhere;
 }
 
+.vh-status-chip {
+  white-space: nowrap;
+}
+
 .vh-row-actions {
   display: flex;
   flex-wrap: wrap;
@@ -57,6 +61,23 @@
     width: 100%;
     min-width: 0;
     grid-column: 1;
+  }
+}
+
+@media (max-width: 860px) {
+  .vh-product-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .vh-product-span-3,
+  .vh-product-span-4,
+  .vh-product-span-5,
+  .vh-product-span-6,
+  .vh-product-span-7,
+  .vh-product-span-8,
+  .vh-product-span-9,
+  .vh-product-span-12 {
+    grid-column: 1 / -1;
   }
 }
 

@@ -1,4 +1,5 @@
 {% extends "web/base.html" %}
+{% load vh_navigation %}
 {% block content %}
 <section class="vh-governed-workspace">
   {% if workspace_error %}
@@ -12,7 +13,7 @@
         <h1>{{ observation.title }}</h1>
         <p>Inspect the persisted observation and submit one immutable evidence-based decision. Other reviewers’ decisions remain hidden until your decision is recorded.</p>
       </div>
-      <div class="vh-page-actions"><a class="vh-button-secondary" href="{% url 'web-campaign-detail' campaign.campaign_id %}">Campaign</a><a class="vh-button-secondary" href="{% url 'web-review-queue' %}">Back to queue</a></div>
+      <div class="vh-page-actions">{% if navigation|navigation_has:"web-campaign-list" %}<a class="vh-button-secondary" href="{% url 'web-campaign-detail' campaign.campaign_id %}">Campaign</a>{% endif %}<a class="vh-button-secondary" href="{% url 'web-review-queue' %}">Back to queue</a></div>
     </header>
 
     <section class="vh-summary-strip" aria-label="Review status">

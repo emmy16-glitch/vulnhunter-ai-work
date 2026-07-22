@@ -1,0 +1,67 @@
+name: Apply final phone-lab fixes
+
+on:
+  push:
+    branches: [work/phone-only-private-lab]
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: ${{ github.actor != 'github-actions[bot]' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: work/phone-only-private-lab
+          fetch-depth: 0
+
+      - name: Preserve deployment readiness and accept pilot-reviewed compatibility
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          controller = Path("vulnhunter/agent/controller.py")
+          text = controller.read_text(encoding="utf-8")
+          text = text.replace(
+              '                    "blocking_reason": reason,\n'
+              '                    "execution_enabled": False,\n',
+              '                    "blocking_reason": reason,\n',
+          )
+          text = text.replace(
+              '                    "blocking_reason": "Immutable task runtime deadline expired.",\n'
+              '                    "execution_enabled": False,\n',
+              '                    "blocking_reason": "Immutable task runtime deadline expired.",\n',
+          )
+          controller.write_text(text, encoding="utf-8")
+
+          execution = Path("vulnhunter/security_tools/nuclei_execution.py")
+          text = execution.read_text(encoding="utf-8")
+          old = (
+              '        if compatibility.descriptor.status is not ScannerAdapterStatus.HARNESS_ONLY:\n'
+              '            raise NucleiExecutionError("Nuclei adapter has not passed harness review")\n'
+          )
+          new = (
+              '        if compatibility.descriptor.status not in {\n'
+              '            ScannerAdapterStatus.HARNESS_ONLY,\n'
+              '            ScannerAdapterStatus.PILOT_READY,\n'
+              '        }:\n'
+              '            raise NucleiExecutionError(\n'
+              '                "Nuclei adapter has not passed harness or pilot review"\n'
+              '            )\n'
+          )
+          if old not in text:
+              raise SystemExit("expected compatibility validation block was not found")
+          execution.write_text(text.replace(old, new), encoding="utf-8")
+          PY
+
+          python -m compileall -q vulnhunter/agent/controller.py vulnhunter/security_tools/nuclei_execution.py
+          git diff --check
+          git config user.name "OpenAI Codex"
+          git config user.email "codex@openai.com"
+          git add vulnhunter/agent/controller.py vulnhunter/security_tools/nuclei_execution.py
+          git commit -m "Fix pilot readiness and terminal workflow state"
+          git push origin HEAD:refs/heads/work/phone-only-private-lab

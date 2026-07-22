@@ -89,6 +89,11 @@ Keep port `8002` private.
 6. The separate worker claims the signed job and records genuine scanner evidence.
 7. Inspect the assessment, candidate finding, proof capsule, audit events and review state.
 
+The assessment screen streams persisted, redacted operational transitions such as
+planning, approval, queueing, scanner execution and evidence verification. It does
+not expose private model reasoning or fabricate activity that was not recorded by
+the backend.
+
 Expected flow:
 
 ```text

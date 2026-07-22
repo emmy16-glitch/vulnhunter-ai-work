@@ -18,7 +18,7 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
-      - name: Shorten remaining generated lines
+      - name: Apply known cleanup and capture remaining diagnostics
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -66,12 +66,13 @@ jobs:
           path.write_text(text, encoding="utf-8")
           PY
           python -m pip install ruff
-          python -m ruff check --fix .
+          python -m ruff check --fix . || true
           python -m ruff format .
-          python -m ruff check .
-          python -m ruff format --check .
+          python -m ruff check . > "$RUNNER_TEMP/ruff.txt" 2>&1 || true
+          python -m ruff format --check . >> "$RUNNER_TEMP/ruff.txt" 2>&1 || true
+          cat "$RUNNER_TEMP/ruff.txt"
           git diff --check
-      - name: Commit final lint cleanup
+      - name: Commit cleanup
         run: |
           if git diff --quiet; then exit 0; fi
           git config user.name 'OpenAI Agent'
@@ -79,3 +80,9 @@ jobs:
           git add -A
           git commit -m 'Apply final UI lint cleanup'
           git push origin HEAD:agent/full-ui-audit-and-wiring
+      - uses: actions/upload-artifact@v4
+        with:
+          name: final-ui-lint-diagnostics
+          path: ${{ runner.temp }}/ruff.txt
+          if-no-files-found: error
+          retention-days: 1

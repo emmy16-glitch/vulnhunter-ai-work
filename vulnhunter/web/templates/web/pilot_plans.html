@@ -1,27 +1,36 @@
 {% extends "web/base.html" %}
 {% block content %}
-<section class="vh-card">
-  <h3>Controlled pilot plans</h3>
-  <p>Plan validation ≠ pilot authorization ≠ pilot execution ≠ dataset release ≠ model-training approval.</p>
-  {% if records %}
-    <div class="vh-table-wrap">
-      <table class="vh-table">
-        <thead><tr><th>Plan</th><th>State</th><th>Applications</th><th>Families</th><th>Plan hash</th></tr></thead>
-        <tbody>
-          {% for record in records %}
-            <tr>
-              <td><a href="{% url 'web-pilot-plan-detail' record.plan_id %}">{{ record.plan_id }}</a></td>
-              <td>{% if record.report %}{% if record.report.valid %}valid{% else %}blocked{% endif %}{% else %}invalid{% endif %}</td>
-              <td>{% if record.plan %}{{ record.plan.applications|length }}{% else %}Unavailable{% endif %}</td>
-              <td>{% if record.report %}{{ record.report.informational_metrics.application_family_count }}{% else %}Unavailable{% endif %}</td>
-              <td>{% if record.report %}<code>{{ record.report.plan_sha256 }}</code>{% else %}Unavailable{% endif %}</td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+<section class="vh-page-shell">
+  <header class="vh-page-header">
+    <div>
+      <p class="vh-eyebrow">Governed pilot planning</p>
+      <h1>Controlled pilot plans</h1>
+      <p>Inspect validated plan inputs and their release boundaries. Plan validation is not pilot authorization, execution, dataset release, or model-training approval.</p>
     </div>
-  {% else %}
-    <p class="vh-empty-state">No pilot plans were found.</p>
-  {% endif %}
+  </header>
+
+  <section class="vh-surface">
+    <header class="vh-surface-header"><div><h2>Available plans</h2><p>Every plan remains bound to its persisted validation report and immutable digest.</p></div><span class="vh-panel-count">{{ records|length }}</span></header>
+    {% if records %}
+      <div class="vh-table-wrap">
+        <table class="vh-table">
+          <thead><tr><th>Plan</th><th>State</th><th>Applications</th><th>Families</th><th>Plan hash</th></tr></thead>
+          <tbody>
+            {% for record in records %}
+              <tr>
+                <td><a class="vh-row-link" href="{% url 'web-pilot-plan-detail' record.plan_id %}">{{ record.plan_id }}</a></td>
+                <td><span class="vh-status-chip {% if record.report and record.report.valid %}vh-status-safe{% else %}vh-status-warning{% endif %}">{% if record.report %}{% if record.report.valid %}valid{% else %}blocked{% endif %}{% else %}invalid{% endif %}</span></td>
+                <td>{% if record.plan %}{{ record.plan.applications|length }}{% else %}Unavailable{% endif %}</td>
+                <td>{% if record.report %}{{ record.report.informational_metrics.application_family_count }}{% else %}Unavailable{% endif %}</td>
+                <td>{% if record.report %}<code class="vh-mono-compact">{{ record.report.plan_sha256 }}</code>{% else %}Unavailable{% endif %}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="vh-empty-panel"><svg aria-hidden="true"><use href="#vh-i-layers"></use></svg><h3>No pilot plans</h3><p>No controlled pilot plan records were found in this deployment.</p></div>
+    {% endif %}
+  </section>
 </section>
 {% endblock %}

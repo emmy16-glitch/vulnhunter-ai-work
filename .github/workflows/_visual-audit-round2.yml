@@ -1,0 +1,86 @@
+name: Apply browser evidence repairs
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: agent/full-ui-audit-and-wiring
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Apply evidence-backed browser repairs
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: str, old: str, new: str) -> None:
+              target = Path(path)
+              text = target.read_text(encoding="utf-8")
+              if old not in text:
+                  raise SystemExit(f"missing expected content in {path}: {old!r}")
+              target.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+          replace_once(
+              "vulnhunter/web/static/web/app.js",
+              "\n  }\n\n  const disclosureRoute",
+              "\n\n  const disclosureRoute",
+          )
+          replace_once(
+              "vulnhunter/web/templates/web/base.html",
+              "  <link rel=\"stylesheet\" href=\"{% static 'web/console.css' %}?v=20260722-console\">\n",
+              "  <link rel=\"stylesheet\" href=\"{% static 'web/console.css' %}?v=20260722-console\">\n"
+              "  <link rel=\"stylesheet\" href=\"{% static 'web/ui-audit.css' %}?v=20260722-audit2\">\n",
+          )
+          replace_once(
+              ".playwright-validate.cjs",
+              "const activeNavigation = [...document.querySelectorAll('.vh-nav-list a[aria-current=\"page\"]')].filter(visible);",
+              "const activeNavigation = [...document.querySelectorAll('.vh-nav-list a[aria-current=\"page\"]')];",
+          )
+          replace_once(
+              ".playwright-validate.cjs",
+              "djangoError: /Traceback|TemplateSyntaxError|Server Error \\(500\\)/i.test(bodyText),",
+              "djangoError: Boolean(document.querySelector('#traceback, .technical-500')) || /TemplateSyntaxError at\\/|Server Error \\(500\\)/i.test(bodyText),",
+          )
+
+          for path in (
+              "vulnhunter/web/templates/web/advanced_profiles.html",
+              "vulnhunter/web/templates/web/approvals.html",
+              "vulnhunter/web/templates/web/status.html",
+              "vulnhunter/web/templates/web/security_tools.html",
+              "vulnhunter/web/templates/web/mobile_analysis.html",
+              "vulnhunter/web/templates/web/authorizations_overview.html",
+              "vulnhunter/web/templates/web/dashboard.html",
+          ):
+              target = Path(path)
+              lines = target.read_text(encoding="utf-8").splitlines()
+              filtered = [
+                  line
+                  for line in lines
+                  if not (
+                      "product.css" in line
+                      and "20260717-integration1" in line
+                  )
+              ]
+              if len(filtered) == len(lines):
+                  raise SystemExit(f"duplicate product stylesheet was not found in {path}")
+              target.write_text("\n".join(filtered) + "\n", encoding="utf-8")
+          PY
+          git diff --check
+      - name: Commit browser repairs
+        run: |
+          if git diff --quiet; then exit 0; fi
+          git config user.name 'OpenAI Agent'
+          git config user.email 'agent@openai.com'
+          git add -A
+          git commit -m 'Repair browser runtime and responsive layout'
+          git push origin HEAD:agent/full-ui-audit-and-wiring

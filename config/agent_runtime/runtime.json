@@ -4,14 +4,13 @@
   "max_controller_iterations": 25,
   "global_denied_actions": [
     "authorization.override",
-    "connector.enable",
     "deployment.execute",
     "git.push",
     "review.self_approve",
     "secrets.read"
   ],
   "require_hash_chained_audit": true,
-  "connectors_enabled": false,
+  "connectors_enabled": true,
   "unrestricted_shell_enabled": false,
   "public_scanning_enabled": false
 }

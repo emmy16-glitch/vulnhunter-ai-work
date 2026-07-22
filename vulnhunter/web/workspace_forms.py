@@ -22,16 +22,14 @@ class GovernedReviewForm(forms.Form):
         max_length=2_000,
         widget=forms.Textarea(attrs={"rows": 5}),
         help_text=(
-            "Record concise evidence-based reasoning. Do not include credentials "
-            "or secrets."
+            "Record concise evidence-based reasoning. Do not include credentials or secrets."
         ),
     )
     governance_secret = forms.CharField(
         strip=False,
         widget=_SECRET_WIDGET,
         help_text=(
-            "Used only to authenticate this governed decision; it is not stored "
-            "by the web app."
+            "Used only to authenticate this governed decision; it is not stored by the web app."
         ),
     )
 
@@ -52,8 +50,5 @@ class GovernedAdjudicationForm(forms.Form):
     governance_secret = forms.CharField(
         strip=False,
         widget=_SECRET_WIDGET,
-        help_text=(
-            "Used only to authenticate this adjudication; it is not stored by "
-            "the web app."
-        ),
+        help_text=("Used only to authenticate this adjudication; it is not stored by the web app."),
     )

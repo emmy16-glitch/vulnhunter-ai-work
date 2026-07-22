@@ -1,6 +1,5 @@
 from django import forms
 
-
 _SECRET_WIDGET = forms.PasswordInput(
     render_value=False,
     attrs={

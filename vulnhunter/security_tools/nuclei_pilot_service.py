@@ -246,8 +246,20 @@ class NucleiPilotWorkerService:
         self._activity(
             job.job_id,
             "tool_execution_started",
-            "Starting isolated passive scan.",
+            "The isolated worker accepted the signed job and is starting Nuclei.",
             "executing",
+            metadata={"profile": invocation.request.exact_profile},
+        )
+        self._activity(
+            job.job_id,
+            "tool_progress",
+            "Nuclei is evaluating the reviewed passive template against the approved target.",
+            "executing",
+            metadata={
+                "profile": invocation.request.exact_profile,
+                "target_count": len(invocation.request.exact_targets),
+                "template_count": len(invocation.request.template_manifest_hashes),
+            },
         )
         record = harness.execute_pilot(invocation)
         adapter_result = ScannerAdapterResult(
@@ -261,6 +273,13 @@ class NucleiPilotWorkerService:
         )
         outcomes = ()
         if record.state is ScannerJobState.COMPLETED:
+            self._activity(
+                job.job_id,
+                "evaluation_started",
+                "Scanner observations are being normalized and verified against persisted evidence.",
+                "evaluating",
+                metadata={"candidate_observations": len(record.observations)},
+            )
             pipeline = EvidenceVerificationPipeline(
                 evidence_store=self.evidence_store,
                 verification_store=self.verification_store,
@@ -278,6 +297,13 @@ class NucleiPilotWorkerService:
                 ),
                 tool_version=invocation.readiness.engine_version,
                 recorded_by=invocation.actor_id,
+            )
+            self._activity(
+                job.job_id,
+                "evaluation_completed",
+                f"Evidence verification completed with {len(outcomes)} persisted finding outcome(s).",
+                "evaluating",
+                metadata={"unified_findings": len(outcomes)},
             )
         self._project_run_state(
             job.job_id, record.state, len(outcomes), record.request.execution_id
@@ -378,6 +404,14 @@ class NucleiPilotWorkerService:
         *,
         metadata: dict[str, object] | None = None,
     ) -> None:
+        execution_state = {
+            "tool_execution_started": "running",
+            "tool_progress": "running",
+            "tool_execution_completed": "succeeded",
+            "tool_execution_failed": "failed",
+            "evaluation_started": "running",
+            "evaluation_completed": "succeeded",
+        }.get(event_type, "not_started")
         self.activity_service.record_transition(
             run_id=run_id,
             timestamp=self.clock(),
@@ -385,6 +419,8 @@ class NucleiPilotWorkerService:
             summary=summary,
             run_state=run_state,
             source="tool",
+            tool_id="nuclei",
+            execution_state=execution_state,
             metadata=metadata or {},
         )
 

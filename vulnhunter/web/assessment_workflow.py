@@ -584,14 +584,14 @@ class AssessmentWorkflowService:
             new_state=new_state,
             reason=reason,
             event_type=(
-                "scanner_queued"
+                "tool_progress"
                 if queued_job is not None
                 else "run_blocked"
                 if approved
                 else "approval_rejected"
             ),
             run_state=(
-                "queued" if queued_job is not None else "blocked" if approved else "cancelled"
+                "executing" if queued_job is not None else "blocked" if approved else "cancelled"
             ),
             audit_reference=event.event_sha256,
         )
@@ -837,9 +837,7 @@ class AssessmentWorkflowService:
                     workflow.get("correlation_id") if isinstance(workflow, dict) else None
                 ),
                 "execution_enabled": (
-                    bool(workflow.get("execution_enabled"))
-                    if isinstance(workflow, dict)
-                    else False
+                    bool(workflow.get("execution_enabled")) if isinstance(workflow, dict) else False
                 ),
                 "execution_authorized": (
                     bool(workflow.get("execution_authorized"))
@@ -847,9 +845,7 @@ class AssessmentWorkflowService:
                     else False
                 ),
                 "execution_queued": (
-                    bool(workflow.get("execution_queued"))
-                    if isinstance(workflow, dict)
-                    else False
+                    bool(workflow.get("execution_queued")) if isinstance(workflow, dict) else False
                 ),
             },
         )

@@ -96,12 +96,23 @@
       plan_generated: 48,
       awaiting_approval: 52,
       approved: 60,
+      queued: 68,
+      running: 74,
+      executing: 78,
+      evaluating: 88,
+      completed: 100,
+      failed: 100,
+      timed_out: 100,
+      cancelled: 100,
       execution_blocked: 60,
       readiness_blocked: 35,
       denied: 52,
     };
     if (payload.workflow_state in workflowProgress) return workflowProgress[payload.workflow_state];
-    if (payload.execution_state === "tool_executed") return 78;
+    if (["completed", "succeeded", "tool_executed"].includes(payload.execution_state)) {
+      return 100;
+    }
+    if (["running", "queued"].includes(payload.execution_state)) return 78;
     if (payload.approval_state === "pending") return 52;
     return 35;
   }

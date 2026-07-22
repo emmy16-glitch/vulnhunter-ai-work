@@ -58,10 +58,10 @@
           </details>
         </li>
 
-        <li class="vh-stage {% if run.execution_state == 'tool_executed' %}is-complete{% elif run.execution_state == 'tool_failed' %}is-danger{% elif run.execution_enabled %}is-active{% else %}is-warning{% endif %}">
-          <span class="vh-stage-marker">{% if run.execution_state == 'tool_executed' %}✓{% else %}04{% endif %}</span>
+        <li class="vh-stage {% if run.workflow_state == 'completed' or run.execution_state == 'tool_executed' %}is-complete{% elif run.workflow_state == 'failed' or run.workflow_state == 'timed_out' or run.execution_state == 'tool_failed' %}is-danger{% elif run.workflow_state == 'queued' or run.workflow_state == 'executing' or run.execution_enabled %}is-active{% else %}is-warning{% endif %}">
+          <span class="vh-stage-marker">{% if run.workflow_state == 'completed' or run.execution_state == 'tool_executed' %}✓{% else %}04{% endif %}</span>
           <details class="vh-stage-card vh-stage-disclosure vh-stage-tool" open>
-            <summary><span class="vh-stage-number">04</span><span class="vh-stage-copy"><strong>Scanner — {{ run.requested_tool|default:"Not selected" }}</strong><small>{{ run.execution_blocking_reason|default:"No scanner state recorded." }}</small></span><span class="vh-stage-state">{{ run.execution_state }}</span><svg class="vh-stage-chevron"><use href="#vh-i-chevron"></use></svg></summary>
+            <summary><span class="vh-stage-number">04</span><span class="vh-stage-copy"><strong>Scanner — {{ run.requested_tool|default:"Not selected" }}</strong><small>{{ run.execution_blocking_reason|default:"Live worker transitions appear below as they are persisted." }}</small></span><span class="vh-stage-state">{{ run.workflow_state|default:run.execution_state }}</span><svg class="vh-stage-chevron"><use href="#vh-i-chevron"></use></svg></summary>
             <div class="vh-stage-expanded-body">
               <div class="vh-output-panel" data-ui-tabs>
                 <div class="vh-output-tabs" role="tablist" aria-label="Scanner detail">

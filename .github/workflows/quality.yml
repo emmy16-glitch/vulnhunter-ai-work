@@ -224,14 +224,17 @@ jobs:
             --require-ready
 
       - name: Run genuine authorization-to-evidence acceptance
+        shell: bash
         run: |
+          set -o pipefail
           python scripts/phone_lab_acceptance.py \
             --runtime-root /tmp/vulnhunter-phone-acceptance \
             --executable /tmp/vulnhunter-nuclei-v3.8.0/bin/nuclei \
             --readiness-report /tmp/vulnhunter-phone-readiness.json \
-            --target-url "http://${{ steps.target.outputs.address }}:8010/"
+            --target-url "http://${{ steps.target.outputs.address }}:8010/" \
+            2>&1 | tee /tmp/vulnhunter-phone-acceptance.log
 
-      - name: Stop target and upload diagnostics on failure
+      - name: Stop target and print diagnostics on failure
         if: always()
         shell: bash
         run: |
@@ -242,3 +245,16 @@ jobs:
             cat /tmp/vulnhunter-phone-target.log || true
             cat /tmp/vulnhunter-phone-readiness.json || true
           fi
+
+      - name: Upload phone-lab diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: vulnhunter-phone-lab-diagnostics
+          path: |
+            /tmp/vulnhunter-phone-target.log
+            /tmp/vulnhunter-phone-readiness.json
+            /tmp/vulnhunter-phone-acceptance.log
+            /tmp/vulnhunter-phone-acceptance
+          if-no-files-found: warn
+          retention-days: 3

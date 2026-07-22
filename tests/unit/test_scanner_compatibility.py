@@ -34,6 +34,7 @@ def test_scanner_compatibility_validation_rejects_stale_document(tmp_path):
         "config/security_tools/runtime.json",
         "config/security_tools/nuclei_profiles.json",
         "config/security_tools/nuclei_template_manifest.json",
+        "config/security_tools/nuclei_worker_pilot.json",
         "docs/product/SCANNER_COMPATIBILITY.md",
     ):
         destination = root / relative
@@ -68,6 +69,7 @@ def test_scanner_compatibility_rejects_divergent_engine_pins(
         "config/security_tools/runtime.json",
         "config/security_tools/nuclei_profiles.json",
         "config/security_tools/nuclei_template_manifest.json",
+        "config/security_tools/nuclei_worker_pilot.json",
         "docs/product/SCANNER_COMPATIBILITY.md",
     ):
         destination = root / relative

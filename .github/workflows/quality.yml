@@ -36,7 +36,19 @@ jobs:
           python -m pip install pytest pytest-asyncio pytest-django ruff
 
       - name: Lint
-        run: python -m ruff check .
+        shell: bash
+        run: |
+          set -o pipefail
+          python -m ruff check . 2>&1 | tee "$RUNNER_TEMP/ruff-${{ matrix.python-version }}.log"
+
+      - name: Upload failed lint log
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ruff-log-${{ matrix.python-version }}
+          path: ${{ runner.temp }}/ruff-${{ matrix.python-version }}.log
+          if-no-files-found: ignore
+          retention-days: 3
 
       - name: Compile
         run: python -m compileall -q vulnhunter scripts
@@ -65,7 +77,7 @@ jobs:
         with:
           name: pytest-log-${{ matrix.python-version }}
           path: ${{ runner.temp }}/pytest-${{ matrix.python-version }}.log
-          if-no-files-found: error
+          if-no-files-found: ignore
           retention-days: 3
 
       - name: Verify formatting

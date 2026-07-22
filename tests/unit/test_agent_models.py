@@ -142,9 +142,11 @@ def test_task_deadline_is_bound_to_manifest_runtime() -> None:
         )
 
 
-def test_runtime_config_forbids_enabling_connectors() -> None:
-    with pytest.raises(ValidationError):
-        RuntimeConfig(connectors_enabled=True)
+def test_runtime_config_allows_governed_connectors() -> None:
+    config = RuntimeConfig(connectors_enabled=True)
+    assert config.connectors_enabled is True
+    assert config.unrestricted_shell_enabled is False
+    assert config.public_scanning_enabled is False
 
 
 def test_manifest_can_expire() -> None:

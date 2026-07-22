@@ -94,7 +94,8 @@ planning, approval, queueing, scanner execution and evidence verification. It do
 not expose private model reasoning or fabricate activity that was not recorded by
 the backend. The event stream reconnects automatically after normal phone-network
 interruptions and resumes from the last persisted sequence. Closing or refreshing
-the browser does not terminate a job already owned by the separate worker.
+the browser does not terminate a job already owned by the separate worker, but the
+Codespace itself must remain running until the worker reaches a terminal state.
 
 Expected flow:
 

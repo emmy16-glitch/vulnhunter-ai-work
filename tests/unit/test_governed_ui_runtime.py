@@ -161,7 +161,7 @@ def test_detail_workspaces_render_with_governed_campaign_data(
     _, world, assignment = governed_runtime
     admin = _mapped_user(
         username="governed-ui-admin",
-        identity="admin-a",
+        identity="reviewer-a",
         roles=_ALL_PRODUCT_ROLES,
     )
     client.force_login(admin)

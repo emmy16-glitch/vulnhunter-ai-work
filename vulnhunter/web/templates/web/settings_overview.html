@@ -1,7 +1,8 @@
 {% extends "web/base.html" %}
-{% load static %}
+{% load static vh_remote_nuclei %}
 {% block content %}
-<link rel="stylesheet" href="{% static 'web/settings.css' %}?v=20260722-audit">
+{% remote_nuclei_status as remote_worker %}
+<link rel="stylesheet" href="{% static 'web/settings.css' %}?v=20260722-m33">
 <section class="vh-page-shell vh-settings-page">
   <header class="vh-page-header vh-settings-hero">
     <div><p class="vh-eyebrow">System control plane</p><h1>Settings &amp; readiness</h1><p>Inspect the real identity, security posture, local capabilities and activation gates used by this deployment. This page never reveals secrets or enables a control without its backend contract.</p></div>
@@ -12,7 +13,7 @@
     <article class="vh-summary-item"><small>Environment</small><strong>{{ environment_label }}</strong><span>{{ database_engine }} database</span></article>
     <article class="vh-summary-item"><small>Governed identity</small><strong>{{ identity.status }}</strong><span>{{ identity.display_name }}</span></article>
     <article class="vh-summary-item"><small>Capabilities healthy</small><strong>{{ healthy_count }}/{{ capability_rows|length }}</strong><span>Backend-validated state</span></article>
-    <article class="vh-summary-item"><small>Activations ready</small><strong>{{ enabled_count }}/{{ activation_rows|length }}</strong><span>Explicit configuration only</span></article>
+    <article class="vh-summary-item"><small>Remote worker</small><strong>{{ remote_worker.state }}</strong><span>{{ remote_worker.worker_id }}</span></article>
   </section>
 
   <div class="vh-settings-layout">
@@ -28,8 +29,11 @@
     </section>
 
     <section class="vh-surface vh-settings-activation">
-      <header class="vh-surface-header"><div><h2>Activation gates</h2><p>Capabilities become active only after their required policy and local dependencies are present.</p></div><span class="vh-panel-count">{{ activation_rows|length }}</span></header>
-      <div class="vh-activation-list">{% for item in activation_rows %}<article class="vh-activation-row {% if item.enabled %}is-enabled{% else %}is-gated{% endif %}"><span class="vh-activation-indicator" aria-hidden="true"></span><div><strong>{{ item.name }}</strong><p>{{ item.detail }}</p></div><div class="vh-activation-action"><span class="vh-status-chip {% if item.enabled %}vh-status-safe{% else %}vh-status-warning{% endif %}">{% if item.enabled %}configured{% else %}gated{% endif %}</span><a href="{% url item.link %}">Inspect →</a></div></article>{% endfor %}</div>
+      <header class="vh-surface-header"><div><h2>Activation gates</h2><p>Capabilities become active only after their required policy and local dependencies are present.</p></div><span class="vh-panel-count">{{ activation_rows|length|add:'1' }}</span></header>
+      <div class="vh-activation-list">
+        <article class="vh-activation-row {% if remote_worker.enabled %}is-enabled{% else %}is-gated{% endif %}"><span class="vh-activation-indicator" aria-hidden="true"></span><div><strong>Restricted remote Nuclei worker</strong><p>{{ remote_worker.detail }}</p></div><div class="vh-activation-action"><span class="vh-status-chip {% if remote_worker.enabled %}vh-status-safe{% else %}vh-status-warning{% endif %}">{{ remote_worker.state }}</span><a href="{% url 'web-security-tool-registry' %}">Inspect →</a></div></article>
+        {% for item in activation_rows %}<article class="vh-activation-row {% if item.enabled %}is-enabled{% else %}is-gated{% endif %}"><span class="vh-activation-indicator" aria-hidden="true"></span><div><strong>{{ item.name }}</strong><p>{{ item.detail }}</p></div><div class="vh-activation-action"><span class="vh-status-chip {% if item.enabled %}vh-status-safe{% else %}vh-status-warning{% endif %}">{% if item.enabled %}configured{% else %}gated{% endif %}</span><a href="{% url item.link %}">Inspect →</a></div></article>{% endfor %}
+      </div>
     </section>
 
     <section class="vh-surface vh-settings-capabilities">

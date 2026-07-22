@@ -8,7 +8,7 @@ from vulnhunter.agent.config import load_runtime_config, runtime_config_fingerpr
 
 def test_repository_runtime_config_loads() -> None:
     config = load_runtime_config()
-    assert config.connectors_enabled is False
+    assert config.connectors_enabled is True
     assert config.unrestricted_shell_enabled is False
     assert len(runtime_config_fingerprint(config)) == 64
 

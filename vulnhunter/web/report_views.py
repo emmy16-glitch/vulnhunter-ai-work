@@ -11,16 +11,58 @@ from django.views.decorators.http import require_GET
 
 from vulnhunter.reports import ReportExporter, ReportExportError
 from vulnhunter.web.services import (
+    PilotPlanRecord,
     WebPermissionDenied,
     authorized_actor,
-    get_pilot_plan_record,
     list_pilot_plan_records,
     navigation_for,
+    role_policy,
 )
 
 
 def _authorize(request: HttpRequest):
-    return authorized_actor(request.user, required_actions=("campaign.read", "report.read"))
+    return authorized_actor(
+        request.user,
+        required_actions=("report.read", "report.read_own", "report.read_public"),
+    )
+
+
+def _assigned_identity_ids(record: PilotPlanRecord) -> set[str]:
+    if record.plan is None:
+        return set()
+    assignments = record.plan.assignments
+    return {
+        record.plan.accountable_owner_id,
+        *assignments.operator_ids,
+        *assignments.primary_reviewer_ids,
+        assignments.adjudicator_id,
+        assignments.dataset_quality_auditor_id,
+        assignments.test_verifier_id,
+        assignments.release_authority_id,
+        assignments.emergency_stop_owner_id,
+    }
+
+
+def _visible_records(actor) -> tuple[PilotPlanRecord, ...]:
+    """Apply report.read, report.read_own and report.read_public without widening access."""
+
+    records = list_pilot_plan_records()
+    policy = role_policy()
+    if policy.any_role_allows(actor.product_roles, "report.read"):
+        return records
+    if policy.any_role_allows(actor.product_roles, "report.read_own"):
+        identity_id = actor.governance_identity.reviewer_id
+        return tuple(record for record in records if identity_id in _assigned_identity_ids(record))
+    # Pilot-plan reports do not have a public-release contract. A public-summary
+    # role sees the truthful empty state instead of unreleased governance data.
+    return ()
+
+
+def _visible_record(actor, plan_id: str) -> PilotPlanRecord:
+    for record in _visible_records(actor):
+        if record.plan_id == plan_id:
+            return record
+    raise Http404("Pilot plan report does not exist or is not visible to this identity.")
 
 
 def _formats() -> tuple[dict[str, str | None], ...]:
@@ -38,9 +80,10 @@ def _formats() -> tuple[dict[str, str | None], ...]:
 @login_required
 @require_GET
 def reports_overview_view(request: HttpRequest) -> HttpResponse:
-    """Show real report inputs and renderer/export contract state."""
+    """Show only report inputs visible to the authenticated governed identity."""
+
     try:
-        _authorize(request)
+        actor = _authorize(request)
     except WebPermissionDenied as exc:
         return render(
             request,
@@ -60,7 +103,7 @@ def reports_overview_view(request: HttpRequest) -> HttpResponse:
             "page_title": "Reports",
             "current_route": "web-reports-overview",
             "navigation": navigation_for(request.user),
-            "records": list_pilot_plan_records(),
+            "records": _visible_records(actor),
             "report_formats": _formats(),
         },
     )
@@ -74,17 +117,15 @@ def pilot_plan_download_view(
     plan_id: str,
     export_format: str,
 ) -> HttpResponse:
-    """Generate one safe, temporary report artifact from a validated pilot plan."""
+    """Generate one safe report artifact after object-level visibility checks."""
+
     try:
-        _authorize(request)
+        actor = _authorize(request)
     except WebPermissionDenied as exc:
         return HttpResponse(str(exc), status=403, content_type="text/plain; charset=utf-8")
     if export_format not in {"json", "html"}:
         raise Http404("This report format is not available for pilot plans.")
-    try:
-        record = get_pilot_plan_record(plan_id)
-    except FileNotFoundError as exc:
-        raise Http404("Pilot plan does not exist.") from exc
+    record = _visible_record(actor, plan_id)
     if record.plan is None or record.report is None:
         raise Http404("Pilot plan report is not valid or available.")
 

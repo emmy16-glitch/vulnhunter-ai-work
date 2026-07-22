@@ -16,6 +16,7 @@
   let loaded = false;
 
   function replaceOptions(select, label, values) {
+    if (!(select instanceof HTMLSelectElement)) return;
     select.replaceChildren();
     const placeholder = document.createElement("option");
     placeholder.value = "";
@@ -31,10 +32,11 @@
   }
 
   function selectedRecord() {
-    return records.find((record) => record.authorization_id === authorizationSelect.value);
+    return records.find((record) => record.authorization_id === authorizationSelect?.value);
   }
 
   function updateSubmit() {
+    if (!(submit instanceof HTMLButtonElement)) return;
     submit.disabled = ![
       authorizationSelect,
       targetSelect,
@@ -42,7 +44,7 @@
       portSelect,
       profileSelect,
       engineSelect,
-    ].every((select) => select?.value);
+    ].every((select) => select instanceof HTMLSelectElement && select.value);
   }
 
   function updateChoices() {
@@ -51,41 +53,58 @@
     replaceOptions(protocolSelect, "Select protocol", record?.approved_protocols || []);
     replaceOptions(portSelect, "Select port", record?.approved_ports || []);
     replaceOptions(profileSelect, "Select profile", record?.approved_profiles || []);
-    status.textContent = record
-      ? `Authorization expires ${record.expires_at}. The backend will revalidate every value.`
-      : "Select an active authorization.";
+    if (status) {
+      status.textContent = record
+        ? `Authorization expires ${record.expires_at}. The backend will revalidate every value.`
+        : "Select an active authorization.";
+    }
     updateSubmit();
   }
 
   async function loadAuthorizations() {
     if (loaded) return;
-    status.textContent = "Loading active authorizations…";
+    if (status) status.textContent = "Loading active authorizations…";
+    if (authorizationSelect instanceof HTMLSelectElement) authorizationSelect.disabled = true;
     try {
       const response = await fetch(dialog.dataset.authorizationsUrl, {
         credentials: "same-origin",
         headers: { Accept: "application/json" },
         cache: "no-store",
       });
-      if (!response.ok) throw new Error("authorization endpoint unavailable");
+      if (response.status === 403) {
+        throw new Error("This account reviews existing assessments and cannot create new plans.");
+      }
+      if (!response.ok) {
+        throw new Error("The authorization service is temporarily unavailable.");
+      }
       const payload = await response.json();
       records = Array.isArray(payload.authorizations) ? payload.authorizations : [];
-      authorizationSelect.replaceChildren();
-      const placeholder = document.createElement("option");
-      placeholder.value = "";
-      placeholder.textContent = "Select authorization";
-      authorizationSelect.append(placeholder);
-      for (const record of records) {
-        const option = document.createElement("option");
-        option.value = String(record.authorization_id);
-        option.textContent = String(record.display_label);
-        authorizationSelect.append(option);
+      if (authorizationSelect instanceof HTMLSelectElement) {
+        authorizationSelect.replaceChildren();
+        const placeholder = document.createElement("option");
+        placeholder.value = "";
+        placeholder.textContent = "Select authorization";
+        authorizationSelect.append(placeholder);
+        for (const record of records) {
+          const option = document.createElement("option");
+          option.value = String(record.authorization_id);
+          option.textContent = String(record.display_label);
+          authorizationSelect.append(option);
+        }
+        authorizationSelect.disabled = records.length === 0;
       }
       loaded = true;
-      status.textContent = records.length
-        ? "Select an active authorization."
-        : "No active authorization is available for this account.";
-    } catch (_error) {
-      status.textContent = "Active authorizations could not be loaded safely.";
+      if (status) {
+        status.textContent = records.length
+          ? "Select an active authorization. Approval and execution will continue in this control centre."
+          : "No active authorization is available for this operator account.";
+      }
+    } catch (error) {
+      if (status) {
+        status.textContent = error instanceof Error
+          ? error.message
+          : "Active authorizations could not be loaded safely.";
+      }
     }
   }
 
@@ -103,7 +122,7 @@
   dialog.addEventListener("click", (event) => {
     if (event.target === dialog) dialog.close();
   });
-  authorizationSelect.addEventListener("change", updateChoices);
+  authorizationSelect?.addEventListener("change", updateChoices);
   [targetSelect, protocolSelect, portSelect, profileSelect, engineSelect].forEach((select) => {
     select?.addEventListener("change", updateSubmit);
   });

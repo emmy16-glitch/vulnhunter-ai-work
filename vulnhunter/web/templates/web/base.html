@@ -15,8 +15,8 @@
   <link rel="stylesheet" href="{% static 'web/workspaces.css' %}?v=20260722-console">
   <link rel="stylesheet" href="{% static 'web/intelligence.css' %}?v=20260722-console">
   <link rel="stylesheet" href="{% static 'web/console.css' %}?v=20260722-console">
-  <link rel="stylesheet" href="{% static 'web/ui-audit.css' %}?v=20260722-audit2">
-  <script src="{% static 'web/app.js' %}?v=20260722-console" defer></script>
+  <link rel="stylesheet" href="{% static 'web/ui-audit.css' %}?v=20260722-final-audit">
+  <script src="{% static 'web/app.js' %}?v=20260722-final-audit" defer></script>
   <script src="{% static 'web/activity.js' %}?v=20260722-console" defer></script>
   <script src="{% static 'web/assessment-modal.js' %}?v=20260722-console" defer></script>
 </head>
@@ -96,7 +96,7 @@
           <button class="vh-search-trigger" type="button" data-search-toggle aria-haspopup="dialog" aria-controls="vh-command-dialog" aria-expanded="false"><svg aria-hidden="true"><use href="#vh-i-search"></use></svg><span>Search</span><kbd>⌘ K</kbd></button>
           {% if pending_approval %}
             <button class="vh-icon-control vh-notification-control" type="button" data-approval-open aria-haspopup="dialog" aria-controls="vh-approval-dialog" aria-label="Review pending approval"><svg aria-hidden="true"><use href="#vh-i-bell"></use></svg><span class="vh-notification-dot" aria-label="1 pending approval">1</span></button>
-          {% else %}
+          {% elif navigation|navigation_has:"web-approval-list" %}
             <a class="vh-icon-control vh-notification-control" href="{% url 'web-approval-list' %}" aria-label="Open Approval Centre"><svg aria-hidden="true"><use href="#vh-i-bell"></use></svg></a>
           {% endif %}
           {% if request.user.is_authenticated %}

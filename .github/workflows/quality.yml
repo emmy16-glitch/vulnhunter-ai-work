@@ -12,28 +12,6 @@ permissions:
   contents: read
 
 jobs:
-  source-export:
-    name: Source snapshot
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v7
-      - name: Export coordinated source files
-        uses: actions/upload-artifact@v7
-        with:
-          name: coordinated-source-snapshot
-          path: |
-            tests/unit/test_nuclei_activation_controls.py
-            tests/unit/test_scanner_compatibility.py
-            tests/unit/test_agent_models.py
-            tests/unit/test_agent_config_cli.py
-            vulnhunter/web/settings.py
-            vulnhunter/web/views.py
-            vulnhunter/agent/models.py
-            config/agent_runtime/runtime.json
-          if-no-files-found: error
-          retention-days: 1
-
   verify:
     runs-on: ubuntu-latest
     strategy:

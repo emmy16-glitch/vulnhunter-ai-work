@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# ruff: noqa: E501
 """Apply the final reviewed phone-lab wiring repairs.
 
 This temporary script is executed once by the PR quality workflow and removed in

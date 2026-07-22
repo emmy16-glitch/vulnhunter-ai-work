@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "enabled": false,
+  "worker_id": "remote-worker-01",
+  "ssh_executable": "/usr/bin/ssh",
+  "remote_user": "replace-with-host-user",
+  "remote_host": "10.0.2.2",
+  "remote_port": 22,
+  "identity_file": "/home/replace-with-guest-user/.ssh/vulnhunter_guest_to_host_ed25519",
+  "known_hosts_file": "/home/replace-with-guest-user/.ssh/vulnhunter_remote_known_hosts",
+  "logical_target": "http://10.0.2.15:8002",
+  "transport_target": "http://127.0.0.1:18002",
+  "engine_version": "v3.11.0",
+  "template_manifest_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+  "template_sha256": "6ec1f633dccb5ee580693af3396e369ed799397587fc6ddb28db613b494dea20",
+  "connect_timeout_seconds": 10,
+  "maximum_response_bytes": 131072,
+  "maximum_candidates": 250,
+  "poll_interval_seconds": 0.1
+}

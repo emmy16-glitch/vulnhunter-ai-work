@@ -39,6 +39,11 @@ urlpatterns = [
         name="web-scan-run-detail",
     ),
     path(
+        "scans/<str:run_id>/",
+        unified_assessment_views.assessment_detail_view,
+        name="web-agent-run-detail",
+    ),
+    path(
         "scans/<str:run_id>/activity/",
         unified_assessment_views.assessment_activity_view,
         name="web-agent-run-activity",
@@ -135,11 +140,7 @@ urlpatterns = [
     path("skills/", views.skill_list_view, name="web-skill-list"),
     path("skills/<str:skill_id>/", views.skill_detail_view, name="web-skill-detail"),
     path("agent/runs/", views.agent_run_list_view, name="web-agent-run-list"),
-    path(
-        "agent/runs/<str:run_id>/",
-        unified_assessment_views.assessment_detail_view,
-        name="web-agent-run-detail",
-    ),
+    path("agent/runs/<str:run_id>/", views.agent_run_detail_view, name="web-legacy-agent-run-detail"),
     path(
         "agent/runs/<str:run_id>/activity/",
         views.agent_activity_view,

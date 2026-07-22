@@ -3,6 +3,8 @@ name: Export working tree
 on:
   push:
     branches: [work/phone-only-private-lab]
+  pull_request:
+    branches: [main]
 
 permissions:
   contents: read

@@ -13,8 +13,24 @@ from vulnhunter.web.models import WebUserMapping
 from vulnhunter.web.services import intelligence_status, navigation_for
 
 
+@pytest.fixture
+def web_paths(tmp_path: Path, settings) -> Path:
+    settings.PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
+    settings.VULNHUNTER_AUTHORIZATION_DATABASE = str(tmp_path / "auth.db")
+    settings.VULNHUNTER_GOVERNANCE_DATABASE = str(tmp_path / "governance.db")
+    settings.VULNHUNTER_AGENT_DATABASE = str(tmp_path / "agent.db")
+    settings.VULNHUNTER_APPROVAL_DATABASE = str(tmp_path / "approvals.sqlite3")
+    settings.VULNHUNTER_MOBILE_ARTIFACT_ROOT = str(tmp_path / "mobile-artifacts")
+    settings.VULNHUNTER_AGENT_ACTIVITY_ROOT = str(tmp_path / "activity")
+    settings.VULNHUNTER_PILOT_PLAN_ROOT = str(Path("config/pilot").resolve())
+    settings.ALLOWED_HOSTS = ["testserver", "localhost", "127.0.0.1"]
+    return tmp_path
+
+
 @pytest.mark.django_db
-def test_navigation_exposes_real_workspaces_and_highlights_every_detail_route(web_paths) -> None:
+def test_navigation_exposes_real_workspaces_and_highlights_every_detail_route(
+    web_paths,
+) -> None:
     user = get_user_model().objects.create_user(username="navigation-audit")
     WebUserMapping.objects.create(
         user=user,
@@ -44,7 +60,9 @@ def test_navigation_exposes_real_workspaces_and_highlights_every_detail_route(we
 
 @pytest.mark.django_db
 def test_settings_page_renders_real_posture_without_exposing_secret_paths(
-    client, web_paths, settings
+    client,
+    web_paths,
+    settings,
 ) -> None:
     _bootstrap_identity(web_paths)
     AgentStore.initialize_database(web_paths / "agent.db")
@@ -72,7 +90,10 @@ def test_settings_page_renders_real_posture_without_exposing_secret_paths(
 
 
 @pytest.mark.django_db
-def test_pilot_report_downloads_use_existing_safe_exporter(client, web_paths) -> None:
+def test_pilot_report_downloads_use_existing_safe_exporter(
+    client,
+    web_paths,
+) -> None:
     _bootstrap_identity(web_paths)
     user = _mapped_user(
         username="report-audit",
@@ -91,7 +112,10 @@ def test_pilot_report_downloads_use_existing_safe_exporter(client, web_paths) ->
         model_dump=lambda mode: {"valid": True, "plan_sha256": "a" * 64},
     )
     record = SimpleNamespace(plan_id="local-pilot", plan=plan, report=report)
-    with patch("vulnhunter.web.report_views.get_pilot_plan_record", return_value=record):
+    with patch(
+        "vulnhunter.web.report_views.get_pilot_plan_record",
+        return_value=record,
+    ):
         json_response = client.get("/reports/plans/local-pilot/download/json/")
         html_response = client.get("/reports/plans/local-pilot/download/html/")
     assert json_response.status_code == 200
@@ -125,10 +149,11 @@ def test_graphify_status_honours_explicit_execution_flag(settings) -> None:
 
 def test_browser_audit_configuration_has_no_stale_routes() -> None:
     script = Path(".playwright-validate.cjs").read_text(encoding="utf-8")
-    workflow = Path(".github/workflows/ui-quality.yml").read_text(encoding="utf-8")
+    workflow = Path(".github/workflows/quality.yml").read_text(encoding="utf-8")
     assert "/oracle/" not in script
     assert "ui-reference-run" not in script
     assert "VULNHUNTER_UI_MANIFEST" in script
     assert "overflowX" in script
     assert "unnamedControls" in script
     assert "playwright@1.55.0" in workflow
+    assert "Browser UI audit" in workflow

@@ -16,5 +16,13 @@ jobs:
         with:
           python-version: "3.12"
       - run: python -m pip install "ruff>=0.9,<1"
-      - name: Show required formatting changes
-        run: python -m ruff format --check --diff .
+      - name: Capture required formatting changes
+        run: |
+          python -m ruff format --check --diff . > ruff-format.diff || true
+          test -s ruff-format.diff
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ruff-format-diff
+          path: ruff-format.diff
+          if-no-files-found: error
+          retention-days: 1

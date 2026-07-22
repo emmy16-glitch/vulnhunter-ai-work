@@ -846,7 +846,10 @@ def settings_overview_view(request: HttpRequest) -> HttpResponse:
             "detail": (
                 "Approved plans may be written to the signed worker spool."
                 if settings.VULNHUNTER_NUCLEI_PILOT_ENQUEUE_ENABLED
-                else "Gated until the reviewed worker policy, signing key and local target are ready."
+                else (
+                    "Gated until the reviewed worker policy, signing key "
+                    "and local target are ready."
+                )
             ),
             "link": "web-security-tool-registry",
         },
@@ -866,7 +869,10 @@ def settings_overview_view(request: HttpRequest) -> HttpResponse:
             "detail": (
                 "Explicit repository graph generation is enabled."
                 if settings.VULNHUNTER_GRAPHIFY_EXECUTION_ENABLED
-                else "Read-only validated graph loading is available; rebuild execution is gated."
+                else (
+                    "Validated graph loading is available; explicit rebuild "
+                    "execution remains gated."
+                )
             ),
             "link": "web-model-list",
         },
@@ -874,9 +880,12 @@ def settings_overview_view(request: HttpRequest) -> HttpResponse:
             "name": "Sanitized advisory analysis",
             "enabled": bool(settings.VULNHUNTER_GROQ_ENABLED),
             "detail": (
-                "Bounded advisory health checks are enabled; the provider remains non-authoritative."
+                "Bounded advisory health checks are enabled; the provider "
+                "remains non-authoritative."
                 if settings.VULNHUNTER_GROQ_ENABLED
-                else "Optional remote advisory routing is gated; deterministic workflows continue."
+                else (
+                    "Optional remote advisory routing is gated; deterministic workflows continue."
+                )
             ),
             "link": "web-model-list",
         },
@@ -909,7 +918,11 @@ def settings_overview_view(request: HttpRequest) -> HttpResponse:
             "safe": bool(settings.SESSION_COOKIE_HTTPONLY),
             "value": "HttpOnly",
         },
-        {"name": "CSRF cookie", "safe": bool(settings.CSRF_COOKIE_HTTPONLY), "value": "HttpOnly"},
+        {
+            "name": "CSRF cookie",
+            "safe": bool(settings.CSRF_COOKIE_HTTPONLY),
+            "value": "HttpOnly",
+        },
         {
             "name": "Frame embedding",
             "safe": settings.X_FRAME_OPTIONS == "DENY",

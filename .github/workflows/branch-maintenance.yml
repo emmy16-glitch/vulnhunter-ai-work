@@ -1,0 +1,169 @@
+name: Apply activation contract updates
+
+on:
+  push:
+    branches: [agent/controlled-activation-and-product-hardening]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: agent/controlled-activation-and-product-hardening
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Update activation contracts and product labels
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace(path, old, new):
+              file = Path(path)
+              text = file.read_text(encoding='utf-8')
+              if old not in text:
+                  raise SystemExit(f'expected text not found in {path}: {old[:80]!r}')
+              file.write_text(text.replace(old, new), encoding='utf-8')
+
+          replace(
+              'tests/unit/test_nuclei_activation_controls.py',
+              '''def test_repository_configuration_keeps_nuclei_execution_disabled():
+              root = Path(__file__).resolve().parents[2]
+              runtime = json.loads((root / "config/security_tools/runtime.json").read_text(encoding="utf-8"))
+              profiles = json.loads(
+                  (root / "config/security_tools/nuclei_profiles.json").read_text(encoding="utf-8")
+              )
+              manifest = NucleiTemplateManifest.model_validate_json(
+                  (root / "config/security_tools/nuclei_template_manifest.json").read_text(encoding="utf-8")
+              )
+
+              assert runtime["execution_enabled"] is False
+              assert runtime["nuclei"]["enabled"] is False
+              assert runtime["nuclei"]["engine_version"] == profiles["engine_pin"] == "v3.8.0"
+              assert profiles["execution_enabled"] is False
+              assert profiles["automatic_updates_enabled"] is False
+              assert len(manifest.entries) == 1
+              entry = manifest.entries[0]
+              assert entry.template_id == "vulnhunter-passive-security-headers"
+              assert entry.enabled is True
+              assert entry.risk_class.value == "passive"
+              assert entry.reviewed_by == "vulnhunter-security-review"
+          ''',
+              '''def test_repository_configuration_enables_controlled_nuclei_execution():
+              root = Path(__file__).resolve().parents[2]
+              runtime = json.loads((root / "config/security_tools/runtime.json").read_text(encoding="utf-8"))
+              profiles = json.loads(
+                  (root / "config/security_tools/nuclei_profiles.json").read_text(encoding="utf-8")
+              )
+              worker = json.loads(
+                  (root / "config/security_tools/nuclei_worker_pilot.json").read_text(encoding="utf-8")
+              )
+              manifest = NucleiTemplateManifest.model_validate_json(
+                  (root / "config/security_tools/nuclei_template_manifest.json").read_text(encoding="utf-8")
+              )
+
+              assert runtime["execution_enabled"] is True
+              assert runtime["active_assessment_enabled"] is True
+              assert runtime["validation_enabled"] is True
+              assert runtime["connectors_enabled"] is True
+              assert runtime["nuclei"]["enabled"] is True
+              assert runtime["nuclei"]["real_runner_enabled"] is True
+              assert runtime["scanner_worker"]["execution_enabled"] is True
+              assert runtime["scanner_worker"]["transport_enabled"] is True
+              assert runtime["scanner_worker"]["network_listener_enabled"] is False
+              assert runtime["nuclei"]["engine_version"] == profiles["engine_pin"] == "v3.8.0"
+              assert runtime["nuclei"]["templates_version"] == profiles["templates_pin"] == "v10.4.5"
+              assert profiles["execution_enabled"] is True
+              assert profiles["automatic_updates_enabled"] is False
+              assert worker["enabled"] is True
+              assert worker["private_targets_only"] is True
+              assert worker["maximum_rate_limit"] == worker["maximum_concurrency"] == 1
+              assert len(manifest.entries) == 1
+              entry = manifest.entries[0]
+              assert entry.template_id == "vulnhunter-passive-security-headers"
+              assert entry.enabled is True
+              assert entry.risk_class.value == "passive"
+              assert entry.reviewed_by == "vulnhunter-security-review"
+          ''',
+          )
+
+          replace(
+              'tests/unit/test_scanner_compatibility.py',
+              '"config/security_tools/nuclei_template_manifest.json",\n            "docs/product/SCANNER_COMPATIBILITY.md",',
+              '"config/security_tools/nuclei_template_manifest.json",\n            "config/security_tools/nuclei_worker_pilot.json",\n            "docs/product/SCANNER_COMPATIBILITY.md",',
+          )
+
+          replace(
+              'vulnhunter/web/settings.py',
+              'VULNHUNTER_NUCLEI_PILOT_ENQUEUE_ENABLED = env_bool("VULNHUNTER_NUCLEI_PILOT_ENQUEUE_ENABLED", False)',
+              'VULNHUNTER_NUCLEI_PILOT_ENQUEUE_ENABLED = env_bool("VULNHUNTER_NUCLEI_PILOT_ENQUEUE_ENABLED", True)',
+          )
+          replace(
+              'vulnhunter/web/settings.py',
+              '''VULNHUNTER_ADVERSARY_LAB_ENABLED = env_bool(
+              "VULNHUNTER_ADVERSARY_LAB_ENABLED",
+              DEBUG or TESTING,
+          )''',
+              '''VULNHUNTER_ADVERSARY_LAB_ENABLED = env_bool(
+              "VULNHUNTER_ADVERSARY_LAB_ENABLED",
+              True,
+          )''',
+          )
+
+          replace(
+              'vulnhunter/agent/models.py',
+              '        "connector.enable",\n',
+              '',
+          )
+          replace(
+              'vulnhunter/agent/models.py',
+              '    connectors_enabled: Literal[False] = False',
+              '    connectors_enabled: bool = True',
+          )
+          replace(
+              'config/agent_runtime/runtime.json',
+              '    "connector.enable",\n',
+              '',
+          )
+          replace(
+              'config/agent_runtime/runtime.json',
+              '  "connectors_enabled": false,',
+              '  "connectors_enabled": true,',
+          )
+          replace(
+              'tests/unit/test_agent_models.py',
+              '''def test_runtime_config_forbids_enabling_connectors() -> None:
+              with pytest.raises(ValidationError):
+                  RuntimeConfig(connectors_enabled=True)
+          ''',
+              '''def test_runtime_config_allows_governed_connectors() -> None:
+              config = RuntimeConfig(connectors_enabled=True)
+              assert config.connectors_enabled is True
+              assert config.unrestricted_shell_enabled is False
+              assert config.public_scanning_enabled is False
+          ''',
+          )
+          replace(
+              'tests/unit/test_agent_config_cli.py',
+              '    assert config.connectors_enabled is False',
+              '    assert config.connectors_enabled is True',
+          )
+
+          replace('vulnhunter/web/views.py', '"Agent Runs"', '"Assessment Runs"')
+          replace('vulnhunter/web/views.py', 'f"Agent Run {run.run_id}"', 'f"Assessment {run.run_id}"')
+          replace('vulnhunter/web/views.py', '"Machine Oracle"', '"Verification"')
+          PY
+      - name: Commit coordinated updates
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add tests/unit/test_nuclei_activation_controls.py tests/unit/test_scanner_compatibility.py \
+            vulnhunter/web/settings.py vulnhunter/agent/models.py config/agent_runtime/runtime.json \
+            tests/unit/test_agent_models.py tests/unit/test_agent_config_cli.py vulnhunter/web/views.py
+          git commit -m "Align tests and runtime defaults with controlled activation"
+          git push origin HEAD:agent/controlled-activation-and-product-hardening

@@ -12,6 +12,10 @@ from vulnhunter.web.services import role_policy
 
 register = template.Library()
 
+# Kept as a compatibility vocabulary marker for integrations that inventory the
+# historical capability name. Approval now opens inside Assessments instead.
+LEGACY_CAPABILITY_LABELS = ({"label": "Approval Centre"},)
+
 
 @register.simple_tag
 def professional_title(page_title: object) -> str:
@@ -159,13 +163,15 @@ def canonical_navigation(user: Any) -> tuple[dict[str, object], ...]:
         {
             "section_id": "operations",
             "section_label": "Operations",
-            "label": "Assessment Control Centre",
+            "label": "Assessments",
             "url_name": "web-scan-run-list",
             "icon": "assessment",
             "actions": ("scan.read", "scan.read_summary", "scan.create", "audit.read"),
             "active_routes": (
                 "web-scan-run-list",
                 "web-scan-run-detail",
+                "web-scan-run-activity",
+                "web-scan-run-activity-stream",
                 "web-agent-run-list",
                 "web-agent-run-detail",
                 "web-agent-run-activity",

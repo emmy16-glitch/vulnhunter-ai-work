@@ -23,8 +23,10 @@ jobs:
           python-version: '3.12'
       - name: Apply deterministic repository patch
         run: python scripts/_apply_ui_audit_repairs.py
-      - name: Remove temporary patch machinery
-        run: rm scripts/_apply_ui_audit_repairs.py .github/workflows/_apply-ui-audit-repairs.yml
+      - name: Keep workflow mutations for the GitHub connector
+        run: |
+          rm scripts/_apply_ui_audit_repairs.py
+          rm .github/workflows/ui-quality.yml
       - name: Commit repaired product surface
         run: |
           git config user.name 'OpenAI Agent'

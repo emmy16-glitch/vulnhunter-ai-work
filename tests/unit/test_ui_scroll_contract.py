@@ -2,14 +2,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
-
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 
 
 def test_global_ui_scroll_contract_is_present() -> None:
-    css = (REPOSITORY_ROOT / "vulnhunter/web/static/web/ui-audit.css").read_text(
-        encoding="utf-8"
-    )
+    css = (REPOSITORY_ROOT / "vulnhunter/web/static/web/ui-audit.css").read_text(encoding="utf-8")
 
     assert "overflow-y: scroll" in css
     assert "scrollbar-gutter: stable" in css

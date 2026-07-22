@@ -1,0 +1,69 @@
+{% extends "web/base.html" %}
+{% block content %}
+<section class="vh-governed-workspace">
+  <header class="vh-workspace-hero">
+    <div>
+      <p class="vh-crumb"><a href="{% url 'web-model-list' %}">Intelligence</a><span aria-hidden="true">/</span>{{ component_id }}</p>
+      <p class="vh-eyebrow">Model-neutral intelligence component</p>
+      <h1>{{ component.title }}</h1>
+      <p>{{ status_row.detail }}</p>
+    </div>
+    <div class="vh-page-actions"><a class="vh-button-secondary" href="{% url 'web-model-list' %}">All components</a><a class="vh-button-secondary" href="{% url 'web-settings-overview' %}">Settings</a></div>
+  </header>
+
+  <section class="vh-summary-strip" aria-label="Component status">
+    <article class="vh-summary-item"><small>State</small><strong>{{ status_row.state }}</strong><span>Backend-derived readiness</span></article>
+    <article class="vh-summary-item"><small>Authority</small><strong>Bounded</strong><span>Cannot bypass policy</span></article>
+    <article class="vh-summary-item"><small>Execution</small><strong>Not started</strong><span>Opening this page is read-only</span></article>
+    <article class="vh-summary-item"><small>Publication</small><strong>Prohibited</strong><span>Human release remains separate</span></article>
+  </section>
+
+  <div class="vh-detail-grid">
+    <section class="vh-surface vh-detail-main">
+      <header class="vh-surface-header"><div><h2>Operational contract</h2><p>What this component may contribute and where its authority stops.</p></div><span class="vh-status-chip {% if 'READY' in status_row.state %}vh-status-safe{% else %}vh-status-warning{% endif %}">{{ status_row.state }}</span></header>
+      <div class="vh-record-body">
+        <dl class="vh-definition-grid">
+          <div class="vh-definition-span"><dt>Authority</dt><dd>{{ component.authority }}</dd></div>
+          <div class="vh-definition-span"><dt>Permitted inputs</dt><dd>{{ component.inputs }}</dd></div>
+          <div><dt>Current component</dt><dd>{{ status_row.name }}</dd></div>
+          <div><dt>Current state</dt><dd>{{ status_row.state }}</dd></div>
+        </dl>
+      </div>
+    </section>
+
+    <aside class="vh-surface vh-detail-side vh-sticky-inspector">
+      <header class="vh-surface-header"><div><h2>Enforced boundary</h2><p>Authority before capability.</p></div></header>
+      <ul class="vh-checklist">
+        <li><span>01</span><strong>Cannot authorize a target or expand scope.</strong></li>
+        <li><span>02</span><strong>Cannot execute a scanner, shell, browser or connector.</strong></li>
+        <li><span>03</span><strong>Cannot declare evidence verified or final.</strong></li>
+        <li><span>04</span><strong>Cannot approve, adjudicate or publish a finding.</strong></li>
+      </ul>
+      <div class="vh-boundary-note"><strong>Central rule</strong><p>Advisory analysis may propose. VulnHunter verifies and enforces through deterministic controls and governed human decisions.</p></div>
+    </aside>
+
+    <section class="vh-surface vh-detail-full">
+      <header class="vh-surface-header"><div><h2>Permitted workflow position</h2><p>Intelligence components are subordinate to the evidence and governance lifecycle.</p></div></header>
+      <div class="vh-stage-track" aria-label="Permitted intelligence workflow">
+        <article class="vh-stage-tile is-complete"><span>01</span><div><strong>Authorization</strong><small>Deterministic prerequisite</small></div></article>
+        <article class="vh-stage-tile is-complete"><span>02</span><div><strong>Approved plan</strong><small>Digest-bound human gate</small></div></article>
+        <article class="vh-stage-tile is-complete"><span>03</span><div><strong>Evidence</strong><small>Persisted and sanitized</small></div></article>
+        <article class="vh-stage-tile is-active"><span>04</span><div><strong>Bounded analysis</strong><small>Context or proposal only</small></div></article>
+        <article class="vh-stage-tile"><span>05</span><div><strong>Verification</strong><small>Deterministic authority</small></div></article>
+        <article class="vh-stage-tile"><span>06</span><div><strong>Human review</strong><small>Independent decision</small></div></article>
+        <article class="vh-stage-tile"><span>07</span><div><strong>Release</strong><small>Separate governed action</small></div></article>
+      </div>
+    </section>
+
+    <section class="vh-surface vh-detail-full">
+      <header class="vh-surface-header"><div><h2>Privacy and failure behaviour</h2><p>The platform remains usable when optional advisory components are disabled or unavailable.</p></div></header>
+      <div class="vh-evidence-grid">
+        <article class="vh-evidence-card"><span class="vh-record-kicker">Privacy</span><strong>Private data remains local</strong><p>Credentials, customer data, private targets, authorization records, raw evidence and unpublished findings are denied remote routing.</p></article>
+        <article class="vh-evidence-card"><span class="vh-record-kicker">Failure</span><strong>Fail closed or abstain</strong><p>Provider failure, timeout, malformed output or unavailable quota cannot weaken deterministic verification or human gates.</p></article>
+        <article class="vh-evidence-card"><span class="vh-record-kicker">Provenance</span><strong>Bounded records</strong><p>Approved advisory results are stored only as non-authoritative provenance under the consolidated finding.</p></article>
+        <article class="vh-evidence-card"><span class="vh-record-kicker">Tools</span><strong>No execution definitions</strong><p>Advisory requests do not include scanner, shell, browser, MCP or connector tool definitions.</p></article>
+      </div>
+    </section>
+  </div>
+</section>
+{% endblock %}

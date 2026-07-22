@@ -5,6 +5,8 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+  schedule:
+    - cron: "17 3 * * 1"
 
 permissions:
   contents: read
@@ -41,6 +43,15 @@ jobs:
 
       - name: Validate scanner compatibility
         run: python scripts/validate_scanner_compatibility.py
+
+      - name: Verify restricted-worker scripts
+        run: |
+          bash -n scripts/install_remote_nuclei_worker.sh
+          python -m compileall -q \
+            scripts/remote_nuclei_forced_command.py \
+            vulnhunter/security_tools/remote_nuclei_models.py \
+            vulnhunter/security_tools/remote_nuclei_worker.py \
+            vulnhunter/security_tools/remote_nuclei_service.py
 
       - name: Test
         shell: bash

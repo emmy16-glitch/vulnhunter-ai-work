@@ -121,6 +121,9 @@ function safeName(value) {
             viewportWidth: window.innerWidth,
             viewportHeight: window.innerHeight,
             controlCount: controls.length,
+            closeControlVisible: Boolean(
+              controls.find((element) => element.matches("[data-approval-close]")),
+            ),
             overflowY: style.overflowY,
             contentScrollable:
               dialog.scrollHeight <= dialog.clientHeight + 1 ||
@@ -137,7 +140,7 @@ function safeName(value) {
         if (!modalAudit.heading) {
           report.failures.push(`${routeKey} has an open modal without a visible heading`);
         }
-        if (modalAudit.controlCount < 1) {
+        if (modalAudit.controlCount < 1 || !modalAudit.closeControlVisible) {
           report.failures.push(`${routeKey} has an open modal without usable controls`);
         }
         if (!modalAudit.contentScrollable) {
@@ -149,19 +152,9 @@ function safeName(value) {
             `${safeName(pageDefinition.name)}-${viewport.name}-modal.png`,
           ),
           fullPage: false,
+          animations: "disabled",
         });
-        await openDialog.screenshot({
-          path: path.join(
-            outputRoot,
-            `${safeName(pageDefinition.name)}-${viewport.name}-modal-panel.png`,
-          ),
-        });
-        const closeControl = page.locator("[data-approval-close]").first();
-        if ((await closeControl.count()) > 0 && (await closeControl.isVisible())) {
-          await closeControl.click();
-        } else {
-          await page.keyboard.press("Escape");
-        }
+        await openDialog.evaluate((dialog) => dialog.close());
         await page.waitForTimeout(75);
         if (await openDialog.evaluate((dialog) => dialog.open)) {
           report.failures.push(`${routeKey} modal could not be closed`);

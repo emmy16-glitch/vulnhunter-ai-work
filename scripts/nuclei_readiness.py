@@ -66,9 +66,7 @@ def verify_template_manifest(manifest_path: Path, template_root: Path) -> dict[s
             raise ValueError("template manifest entries must be a list")
         release = payload.get("template_release")
         enabled = [
-            entry
-            for entry in entries
-            if isinstance(entry, dict) and entry.get("enabled") is True
+            entry for entry in entries if isinstance(entry, dict) and entry.get("enabled") is True
         ]
         if not enabled:
             raise ValueError("template manifest has no enabled reviewed templates")
@@ -152,9 +150,7 @@ def main() -> int:
     if installed and executable:
         engine = _probe(executable, "-version")
     report["engine_probe"] = engine
-    report["engine_pin_matches"] = _version_matches(
-        EXPECTED_ENGINE, str(engine.get("summary", ""))
-    )
+    report["engine_pin_matches"] = _version_matches(EXPECTED_ENGINE, str(engine.get("summary", "")))
 
     template_report = verify_template_manifest(
         arguments.manifest.expanduser().resolve(),

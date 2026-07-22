@@ -78,9 +78,7 @@ def _nuclei_operational_projection(availability) -> tuple[str, str, str]:
     runtime = _load_json_object(Path(settings.VULNHUNTER_SECURITY_TOOL_CONFIG))
     nuclei = runtime.get("nuclei") if isinstance(runtime.get("nuclei"), dict) else {}
     worker = (
-        runtime.get("scanner_worker")
-        if isinstance(runtime.get("scanner_worker"), dict)
-        else {}
+        runtime.get("scanner_worker") if isinstance(runtime.get("scanner_worker"), dict) else {}
     )
     readiness = _load_json_object(Path(settings.VULNHUNTER_NUCLEI_READINESS_REPORT))
     policy = _load_json_object(Path(settings.VULNHUNTER_NUCLEI_WORKER_POLICY))
@@ -91,8 +89,7 @@ def _nuclei_operational_projection(availability) -> tuple[str, str, str]:
         "runtime": runtime.get("execution_enabled") is True,
         "nuclei": nuclei.get("enabled") is True and nuclei.get("real_runner_enabled") is True,
         "worker": (
-            worker.get("execution_enabled") is True
-            and worker.get("transport_enabled") is True
+            worker.get("execution_enabled") is True and worker.get("transport_enabled") is True
         ),
         "worker_policy": policy.get("enabled") is True,
         "signing_key": key_path.is_file(),

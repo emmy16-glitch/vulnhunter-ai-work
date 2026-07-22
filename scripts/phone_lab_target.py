@@ -20,8 +20,10 @@ def validate_lab_address(value: str) -> str:
     address = ipaddress.ip_address(value)
     if not isinstance(address, ipaddress.IPv4Address):
         raise ValueError("the phone lab currently requires an IPv4 RFC1918 address")
-    if address.is_loopback or address.is_link_local or not any(
-        address in network for network in _ALLOWED_NETWORKS
+    if (
+        address.is_loopback
+        or address.is_link_local
+        or not any(address in network for network in _ALLOWED_NETWORKS)
     ):
         raise ValueError("the phone lab target must use a non-loopback RFC1918 address")
     return str(address)

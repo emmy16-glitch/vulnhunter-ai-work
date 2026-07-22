@@ -33,8 +33,7 @@ def _validated_readiness(path: Path) -> dict[str, object]:
     mismatches = [key for key, expected in required.items() if payload.get(key) != expected]
     if mismatches:
         raise RuntimeError(
-            "the readiness report did not verify all private-lab gates: "
-            + ", ".join(mismatches)
+            "the readiness report did not verify all private-lab gates: " + ", ".join(mismatches)
         )
     return payload
 

@@ -54,8 +54,10 @@ class Command(BaseCommand):
             ipaddress.ip_network("172.16.0.0/12"),
             ipaddress.ip_network("192.168.0.0/16"),
         )
-        if address.is_loopback or address.is_link_local or not any(
-            address in item for item in allowed
+        if (
+            address.is_loopback
+            or address.is_link_local
+            or not any(address in item for item in allowed)
         ):
             raise CommandError("the phone lab target must be a non-loopback RFC1918 address")
 

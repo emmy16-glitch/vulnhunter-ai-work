@@ -935,9 +935,7 @@ class NucleiExecutionHarness:
             ScannerAdapterStatus.HARNESS_ONLY,
             ScannerAdapterStatus.PILOT_READY,
         }:
-            raise NucleiExecutionError(
-                "Nuclei adapter has not passed harness or pilot review"
-            )
+            raise NucleiExecutionError("Nuclei adapter has not passed harness or pilot review")
         if pin.engine_version != readiness.engine_version:
             raise NucleiExecutionError("Nuclei engine version does not match the reviewed pin")
         if pin.feed is None or pin.feed.release != readiness.template_release:

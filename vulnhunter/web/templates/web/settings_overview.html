@@ -1,20 +1,56 @@
 {% extends "web/base.html" %}
+{% load static %}
 {% block content %}
-<section class="vh-page-shell">
-  <header class="vh-page-header">
-    <div><p class="vh-eyebrow">System</p><h1>Settings</h1><p>Read-only configuration and provider state exposed by the current backend.</p></div>
-    <div class="vh-page-actions"><a class="vh-button-secondary" href="{% url 'web-status' %}">System Status</a><a class="vh-button-secondary" href="{% url 'web-security-tool-registry' %}">Integrations &amp; Tools</a></div>
+<link rel="stylesheet" href="{% static 'web/settings.css' %}?v=20260722-audit">
+<section class="vh-page-shell vh-settings-page">
+  <header class="vh-page-header vh-settings-hero">
+    <div><p class="vh-eyebrow">System control plane</p><h1>Settings &amp; readiness</h1><p>Inspect the real identity, security posture, local capabilities and activation gates used by this deployment. This page never reveals secrets or enables a control without its backend contract.</p></div>
+    <div class="vh-page-actions"><a class="vh-button-secondary" href="{% url 'web-status' %}">System status</a><a class="vh-button-primary" href="{% url 'web-security-tool-registry' %}">Integrations &amp; tools</a></div>
   </header>
 
-  <div class="vh-surface-grid">
-    <section class="vh-surface vh-surface-span-5">
-      <header class="vh-surface-header"><div><h2>Assessment configuration</h2><p>Open the governed profile definitions.</p></div></header>
-      <div class="vh-surface-body vh-link-grid"><a class="vh-link-card" href="{% url 'web-advanced-profiles' %}"><strong>Assessment Profiles</strong><span>Profile limits and approval gates</span></a><a class="vh-link-card" href="{% url 'web-authorization-list' %}"><strong>Authorizations</strong><span>Scope and expiry records</span></a></div>
+  <section class="vh-summary-strip" aria-label="Settings summary">
+    <article class="vh-summary-item"><small>Environment</small><strong>{{ environment_label }}</strong><span>{{ database_engine }} database</span></article>
+    <article class="vh-summary-item"><small>Governed identity</small><strong>{{ identity.status }}</strong><span>{{ identity.display_name }}</span></article>
+    <article class="vh-summary-item"><small>Capabilities healthy</small><strong>{{ healthy_count }}/{{ capability_rows|length }}</strong><span>Backend-validated state</span></article>
+    <article class="vh-summary-item"><small>Activations ready</small><strong>{{ enabled_count }}/{{ activation_rows|length }}</strong><span>Explicit configuration only</span></article>
+  </section>
+
+  <div class="vh-settings-layout">
+    <section class="vh-surface vh-settings-identity">
+      <header class="vh-surface-header"><div><h2>Operator identity</h2><p>The authenticated account and governed authority used for every protected request.</p></div><span class="vh-status-chip {% if identity.status == 'active' %}vh-status-safe{% else %}vh-status-warning{% endif %}">{{ identity.status }}</span></header>
+      <div class="vh-settings-profile"><div class="vh-settings-avatar" aria-hidden="true">{{ request.user.username|slice:':1'|upper }}</div><div><span>Signed in as</span><strong>{{ request.user.username }}</strong><small>{{ identity.display_name }}</small></div></div>
+      <dl class="vh-settings-definition">
+        <div><dt>Governance identity</dt><dd><code>{{ identity.reviewer_id }}</code></dd></div>
+        <div><dt>Identity roles</dt><dd>{{ identity.roles|join:", " }}</dd></div>
+        <div class="vh-settings-definition-wide"><dt>Product permissions</dt><dd><div class="vh-settings-chip-row">{% for role in product_roles %}<span>{{ role }}</span>{% endfor %}</div></dd></div>
+      </dl>
+      <div class="vh-settings-note"><strong>Authority remains server-side</strong><p>No browser control, query parameter or visual state can grant a role or override the governed identity mapping.</p></div>
     </section>
 
-    <section class="vh-surface vh-surface-span-7">
-      <header class="vh-surface-header"><div><h2>Provider state</h2><p>Health checks only. No inference starts here.</p></div><span class="vh-panel-count">{{ intelligence_status|length }}</span></header>
-      {% if intelligence_status %}<ul class="vh-compact-list">{% for item in intelligence_status %}<li><span>{{ item.name }}<small>{{ item.detail }}</small></span><strong class="{% if 'READY' in item.state %}vh-state-safe{% else %}vh-state-warning{% endif %}">{{ item.state }}</strong></li>{% endfor %}</ul>{% else %}<div class="vh-empty-panel"><svg aria-hidden="true"><use href="#vh-i-settings"></use></svg><h3>No provider state</h3><p>No advisory provider status is available.</p></div>{% endif %}
+    <section class="vh-surface vh-settings-activation">
+      <header class="vh-surface-header"><div><h2>Activation gates</h2><p>Capabilities become active only after their required policy and local dependencies are present.</p></div><span class="vh-panel-count">{{ activation_rows|length }}</span></header>
+      <div class="vh-activation-list">{% for item in activation_rows %}<article class="vh-activation-row {% if item.enabled %}is-enabled{% else %}is-gated{% endif %}"><span class="vh-activation-indicator" aria-hidden="true"></span><div><strong>{{ item.name }}</strong><p>{{ item.detail }}</p></div><div class="vh-activation-action"><span class="vh-status-chip {% if item.enabled %}vh-status-safe{% else %}vh-status-warning{% endif %}">{% if item.enabled %}configured{% else %}gated{% endif %}</span><a href="{% url item.link %}">Inspect →</a></div></article>{% endfor %}</div>
+    </section>
+
+    <section class="vh-surface vh-settings-capabilities">
+      <header class="vh-surface-header"><div><h2>Core capability health</h2><p>Read directly from local stores, configuration and integrity checks.</p></div></header>
+      <div class="vh-capability-grid">{% for item in capability_rows %}<article class="vh-capability-card"><div><span class="vh-capability-dot is-{{ item.state }}" aria-hidden="true"></span><strong>{{ item.name }}</strong></div><span class="vh-status-chip {% if item.state == 'available' or item.state == 'empty' %}vh-status-safe{% elif item.state == 'invalid' %}vh-status-danger{% else %}vh-status-warning{% endif %}">{{ item.state }}</span><p>{{ item.detail }}</p></article>{% endfor %}</div>
+    </section>
+
+    <section class="vh-surface vh-settings-security">
+      <header class="vh-surface-header"><div><h2>Browser security posture</h2><p>Effective Django and response-layer controls for this deployment.</p></div></header>
+      <ul class="vh-security-posture">{% for item in security_rows %}<li><span class="vh-security-check {% if item.safe %}is-safe{% else %}is-local{% endif %}" aria-hidden="true">{% if item.safe %}✓{% else %}!{% endif %}</span><div><strong>{{ item.name }}</strong><small>{{ item.value }}</small></div></li>{% endfor %}</ul>
+      <div class="vh-settings-note"><strong>Local-only is not production-ready</strong><p>When HTTPS enforcement or debug hardening is not active, keep the web process bound to loopback and use the documented deployment-readiness gates before exposure.</p></div>
+    </section>
+
+    <section class="vh-surface vh-settings-providers">
+      <header class="vh-surface-header"><div><h2>Intelligence components</h2><p>Health and authority state only. Opening this page never starts inference or graph generation.</p></div><span class="vh-panel-count">{{ intelligence_status|length }}</span></header>
+      {% if intelligence_status %}<ul class="vh-provider-list">{% for item in intelligence_status %}<li><div><strong>{{ item.name }}</strong><p>{{ item.detail }}</p></div><span class="vh-status-chip {% if 'READY' in item.state %}vh-status-safe{% else %}vh-status-warning{% endif %}">{{ item.state }}</span></li>{% endfor %}</ul>{% else %}<div class="vh-empty-panel"><svg aria-hidden="true"><use href="#vh-i-settings"></use></svg><h3>No provider state</h3><p>No advisory component status is available.</p></div>{% endif %}
+    </section>
+
+    <section class="vh-surface vh-settings-links">
+      <header class="vh-surface-header"><div><h2>Configuration workspaces</h2><p>Open the authoritative read-only or governed control surface.</p></div></header>
+      <nav class="vh-settings-link-grid" aria-label="Configuration workspaces"><a href="{% url 'web-authorization-list' %}"><svg aria-hidden="true"><use href="#vh-i-authorization"></use></svg><span><strong>Authorizations</strong><small>Scope, owner and expiry records</small></span></a><a href="{% url 'web-advanced-profiles' %}"><svg aria-hidden="true"><use href="#vh-i-radar"></use></svg><span><strong>Assessment profiles</strong><small>Limits and approval gates</small></span></a><a href="{% url 'web-role-list' %}"><svg aria-hidden="true"><use href="#vh-i-team"></use></svg><span><strong>Role registry</strong><small>Allowed and denied authority</small></span></a><a href="{% url 'web-audit-overview' %}"><svg aria-hidden="true"><use href="#vh-i-audit"></use></svg><span><strong>Audit evidence</strong><small>Integrity and governance events</small></span></a></nav>
     </section>
   </div>
 </section>

@@ -1,6 +1,7 @@
 {% load static vh_navigation %}
 {% canonical_navigation request.user as navigation %}
 {% professional_title page_title as display_title %}
+{% account_role_label request.user as account_role %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -17,9 +18,10 @@
   <link rel="stylesheet" href="{% static 'web/intelligence.css' %}?v=20260722-console">
   <link rel="stylesheet" href="{% static 'web/console.css' %}?v=20260722-console">
   <link rel="stylesheet" href="{% static 'web/ui-audit.css' %}?v=20260722-scroll3">
+  <link rel="stylesheet" href="{% static 'web/unified-mobile.css' %}?v=20260723-unified1">
   <script src="{% static 'web/app.js' %}?v=20260722-console" defer></script>
   <script src="{% static 'web/activity.js' %}?v=20260722-console" defer></script>
-  <script src="{% static 'web/assessment-modal.js' %}?v=20260722-console" defer></script>
+  <script src="{% static 'web/assessment-modal.js' %}?v=20260723-unified1" defer></script>
 </head>
 <body data-route="{{ current_route }}">
   <svg class="vh-icon-sprite" aria-hidden="true">
@@ -56,9 +58,9 @@
   <a class="vh-skip-link" href="#main-content">Skip to content</a>
   <div class="vh-app">
     <aside id="vh-sidebar" class="vh-sidebar" data-sidebar aria-label="Application sidebar">
-      <a class="vh-brand" href="{% url 'web-dashboard' %}" aria-label="VulnHunter dashboard">
+      <a class="vh-brand" href="{% url 'web-scan-run-list' %}" aria-label="VulnHunter Assessment Control Centre">
         <span class="vh-brand-mark" aria-hidden="true"><svg><use href="#vh-i-shield"></use></svg></span>
-        <span><strong>VulnHunter</strong><small>Security operations</small></span>
+        <span><strong>VulnHunter</strong><small>Assessment control</small></span>
       </a>
       <nav aria-label="Primary" class="vh-nav">
         {% if navigation %}
@@ -73,7 +75,7 @@
         {% endif %}
       </nav>
       {% if request.user.is_authenticated %}
-        <div class="vh-sidebar-footer"><div class="vh-organisation"><span class="vh-organisation-mark" aria-hidden="true"><svg><use href="#vh-i-shield"></use></svg></span><span><strong>VulnHunter Lab</strong><small>Controlled workspace</small></span><span class="vh-environment-pill">Private Lab</span></div></div>
+        <div class="vh-sidebar-footer"><div class="vh-organisation"><span class="vh-organisation-mark" aria-hidden="true"><svg><use href="#vh-i-shield"></use></svg></span><span><strong>VulnHunter Lab</strong><small>{{ account_role }}</small></span><span class="vh-environment-pill">Private Lab</span></div></div>
       {% endif %}
     </aside>
 
@@ -98,10 +100,10 @@
           {% if pending_approval %}
             <button class="vh-icon-control vh-notification-control" type="button" data-approval-open aria-haspopup="dialog" aria-controls="vh-approval-dialog" aria-label="Review pending approval"><svg aria-hidden="true"><use href="#vh-i-bell"></use></svg><span class="vh-notification-dot" aria-label="1 pending approval">1</span></button>
           {% else %}
-            <a class="vh-icon-control vh-notification-control" href="{% url 'web-approval-list' %}" aria-label="Open Approval Centre"><svg aria-hidden="true"><use href="#vh-i-bell"></use></svg></a>
+            <a class="vh-icon-control vh-notification-control" href="{% url 'web-scan-run-list' %}" aria-label="Open Assessment Control Centre"><svg aria-hidden="true"><use href="#vh-i-bell"></use></svg></a>
           {% endif %}
           {% if request.user.is_authenticated %}
-            <details class="vh-user-menu"><summary aria-label="Open account menu"><span class="vh-avatar" aria-hidden="true">{{ request.user.username|slice:":1"|upper }}</span><svg aria-hidden="true"><use href="#vh-i-chevron"></use></svg></summary><div class="vh-user-popover"><strong>{{ request.user.username }}</strong><small>Governed operator</small>{% if controls.stop.available and run %}<a class="vh-user-stop-link" href="{% url 'web-agent-run-stop' run.run_id %}">Stop current run</a>{% endif %}<form action="{% url 'web-logout' %}" method="post">{% csrf_token %}<button type="submit">Sign out</button></form></div></details>
+            <details class="vh-user-menu"><summary aria-label="Open account menu"><span class="vh-avatar" aria-hidden="true">{{ request.user.username|slice:":1"|upper }}</span><svg aria-hidden="true"><use href="#vh-i-chevron"></use></svg></summary><div class="vh-user-popover"><strong>{{ request.user.username }}</strong><small>{{ account_role }}</small>{% if controls.stop.available and run %}<a class="vh-user-stop-link" href="{% url 'web-agent-run-stop' run.run_id %}">Stop current run</a>{% endif %}<a href="{% url 'web-scan-run-list' %}">Assessment Control Centre</a><form action="{% url 'web-logout' %}" method="post">{% csrf_token %}<button type="submit">Sign out</button></form></div></details>
           {% endif %}
         </div>
       </header>

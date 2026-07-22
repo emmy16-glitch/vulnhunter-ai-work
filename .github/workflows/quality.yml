@@ -114,6 +114,7 @@ jobs:
           node --check vulnhunter/web/static/web/activity.js
           node --check vulnhunter/web/static/web/assessment-modal.js
           node --check .playwright-validate.cjs
+          node --check tests/ui/sidebar_viewport_audit.cjs
 
       - name: Install application and browser audit tools
         run: |
@@ -145,6 +146,9 @@ jobs:
 
       - name: Capture and validate responsive product UI
         run: node .playwright-validate.cjs
+
+      - name: Verify the actual sidebar viewport
+        run: node tests/ui/sidebar_viewport_audit.cjs
 
       - name: Upload visual audit evidence
         if: always()

@@ -10,6 +10,38 @@ permissions:
   contents: read
 
 jobs:
+  format-preview:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install Ruff
+        run: python -m pip install ruff
+
+      - name: Produce canonical formatter output
+        run: |
+          python -m ruff format \
+            tests/unit/test_governed_ui_workspaces.py \
+            vulnhunter/web/governance_workspace_views.py \
+            vulnhunter/web/workspace_forms.py
+
+      - name: Upload canonical formatter output
+        uses: actions/upload-artifact@v4
+        with:
+          name: canonical-format-output
+          path: |
+            tests/unit/test_governed_ui_workspaces.py
+            vulnhunter/web/governance_workspace_views.py
+            vulnhunter/web/workspace_forms.py
+          if-no-files-found: error
+          retention-days: 1
+
   verify:
     runs-on: ubuntu-latest
     strategy:

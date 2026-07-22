@@ -41,12 +41,12 @@ urlpatterns = [
     path(
         "scans/<str:run_id>/activity/",
         unified_assessment_views.assessment_activity_view,
-        name="web-scan-run-activity",
+        name="web-agent-run-activity",
     ),
     path(
         "scans/<str:run_id>/activity/stream/",
         unified_assessment_views.assessment_activity_stream_view,
-        name="web-scan-run-activity-stream",
+        name="web-agent-run-activity-stream",
     ),
     path(
         "scans/<str:assessment_id>/active-validation/new/",
@@ -135,16 +135,20 @@ urlpatterns = [
     path("skills/", views.skill_list_view, name="web-skill-list"),
     path("skills/<str:skill_id>/", views.skill_detail_view, name="web-skill-detail"),
     path("agent/runs/", views.agent_run_list_view, name="web-agent-run-list"),
-    path("agent/runs/<str:run_id>/", views.agent_run_detail_view, name="web-agent-run-detail"),
+    path(
+        "agent/runs/<str:run_id>/",
+        unified_assessment_views.assessment_detail_view,
+        name="web-agent-run-detail",
+    ),
     path(
         "agent/runs/<str:run_id>/activity/",
         views.agent_activity_view,
-        name="web-agent-run-activity",
+        name="web-legacy-agent-run-activity",
     ),
     path(
         "agent/runs/<str:run_id>/activity/stream/",
         stream_views.agent_activity_stream_view,
-        name="web-agent-run-activity-stream",
+        name="web-legacy-agent-run-activity-stream",
     ),
     path("agent/runs/<str:run_id>/stop/", views.stop_run_view, name="web-agent-run-stop"),
     path("approvals/", operations_views.approval_list_view, name="web-approval-list"),

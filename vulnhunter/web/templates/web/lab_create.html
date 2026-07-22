@@ -27,7 +27,7 @@
         <div class="vh-lab-scenario-grid">
           {% for scenario in scenarios %}
             <label class="vh-lab-scenario-card">
-              <input type="radio" name="scenario_id" value="{{ scenario.scenario_id }}" required{% if forloop.first %} checked{% endif %}>
+              <input type="radio" name="scenario_id" value="{{ scenario.scenario_id }}" aria-label="Select {{ scenario.title }}" required{% if forloop.first %} checked{% endif %}>
               <span class="vh-lab-scenario-main"><strong>{{ scenario.title }}</strong><small>{{ scenario.summary }}</small></span>
               <details class="vh-inline-disclosure" data-persist-disclosure data-disclosure-key="scenario-{{ scenario.scenario_id }}">
                 <summary>Scenario controls</summary>

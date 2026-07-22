@@ -14,8 +14,8 @@ from vulnhunter.evidence.store import EvidenceStore
 from vulnhunter.oracle.store import OracleStore
 from vulnhunter.security_tools.nuclei_activation import NucleiTemplateManifest
 from vulnhunter.security_tools.nuclei_execution import NucleiExecutionStore
+from vulnhunter.security_tools.remote_nuclei_service import RemoteNucleiPilotWorkerService
 from vulnhunter.security_tools.remote_nuclei_worker import (
-    RemoteNucleiPilotWorkerService,
     RemoteNucleiWorkerError,
     RemoteNucleiWorkerPolicy,
     RestrictedSshNucleiRunner,

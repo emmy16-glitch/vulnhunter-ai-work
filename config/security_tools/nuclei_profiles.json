@@ -2,68 +2,38 @@
   "schema_version": "1.0",
   "engine_pin": "v3.8.0",
   "templates_pin": "v10.4.5",
-  "execution_enabled": false,
+  "execution_enabled": true,
   "automatic_updates_enabled": false,
   "cloud_upload_enabled": false,
   "public_oast_enabled": false,
   "profiles": {
     "passive": {
       "tool_profile": "safe_assessment",
-      "default_tags": [
-        "tech",
-        "exposure",
-        "misconfig"
-      ],
-      "protocol_types": [
-        "http",
-        "ssl",
-        "dns"
-      ],
-      "rate_limit": 5,
-      "bulk_size": 2,
-      "concurrency": 2,
-      "private_network_access": false,
+      "default_tags": ["tech", "exposure", "misconfig"],
+      "protocol_types": ["http", "ssl", "dns"],
+      "rate_limit": 1,
+      "bulk_size": 1,
+      "concurrency": 1,
+      "private_network_access": "approval-gated",
       "interactsh": false,
-      "requires_isolation": false
+      "requires_isolation": true
     },
     "standard": {
-      "tool_profiles": [
-        "safe_assessment",
-        "active_assessment"
-      ],
+      "tool_profiles": ["safe_assessment", "active_assessment"],
       "explicit_template_filter_required": true,
-      "protocol_types": [
-        "http",
-        "ssl",
-        "dns",
-        "tcp",
-        "websocket",
-        "whois"
-      ],
+      "protocol_types": ["http", "ssl", "dns", "tcp", "websocket", "whois"],
       "rate_limit": 5,
       "bulk_size": 2,
       "concurrency": 2,
-      "private_network_access": false,
+      "private_network_access": "approval-gated",
       "interactsh": false,
-      "requires_isolation": false
+      "requires_isolation": true
     },
     "intrusive": {
-      "tool_profiles": [
-        "active_assessment",
-        "validation"
-      ],
+      "tool_profiles": ["active_assessment", "validation"],
       "explicit_template_ids_required": true,
       "exact_human_approval_required": true,
-      "protocol_types": [
-        "http",
-        "ssl",
-        "dns",
-        "tcp",
-        "websocket",
-        "whois",
-        "headless",
-        "javascript"
-      ],
+      "protocol_types": ["http", "ssl", "dns", "tcp", "websocket", "whois", "headless", "javascript"],
       "rate_limit": 5,
       "bulk_size": 2,
       "concurrency": 2,
@@ -74,12 +44,12 @@
     "retest": {
       "tool_profile": "retest",
       "explicit_template_ids_required": true,
-      "rate_limit": 5,
+      "rate_limit": 1,
       "bulk_size": 1,
       "concurrency": 1,
       "private_network_access": "approval-gated",
       "interactsh": false,
-      "requires_isolation": false
+      "requires_isolation": true
     }
   },
   "blocked_capabilities": [

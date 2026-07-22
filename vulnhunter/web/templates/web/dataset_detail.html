@@ -1,0 +1,80 @@
+{% extends "web/base.html" %}
+{% block content %}
+<section class="vh-governed-workspace">
+  <header class="vh-workspace-hero">
+    <div>
+      <p class="vh-crumb"><a href="{% url 'web-dataset-list' %}">Datasets</a><span aria-hidden="true">/</span>{{ campaign.campaign_id }}</p>
+      <p class="vh-eyebrow">Dataset quality and provenance</p>
+      <h1>{{ campaign.title }}</h1>
+      <p>Inspect the governed campaign data, review coverage, class balance and immutable release evidence without starting training or inference.</p>
+    </div>
+    <div class="vh-page-actions"><a class="vh-button-secondary" href="{% url 'web-campaign-detail' campaign.campaign_id %}">Campaign</a><a class="vh-button-secondary" href="{% url 'web-release-detail' campaign.campaign_id %}">Release assessment</a></div>
+  </header>
+
+  <section class="vh-summary-strip" aria-label="Dataset quality summary">
+    <article class="vh-summary-item"><small>Dataset state</small><strong>{% if is_released %}Released{% elif readiness.pilot_ready %}Pilot ready{% else %}Not ready{% endif %}</strong><span>Governed campaign evidence</span></article>
+    <article class="vh-summary-item"><small>Applications</small><strong>{{ campaign.applications|length }}</strong><span>{{ readiness.application_family_diversity|default:"—" }} application families</span></article>
+    <article class="vh-summary-item"><small>Review agreement</small><strong>{{ readiness.review_agreement_count|default:"—" }}</strong><span>{{ readiness.review_disagreement_count|default:"—" }} disagreements</span></article>
+    <article class="vh-summary-item"><small>Adjudications</small><strong>{{ readiness.adjudication_count|default:"—" }}</strong><span>Independent resolutions</span></article>
+  </section>
+
+  <div class="vh-detail-grid">
+    <section class="vh-surface vh-detail-main">
+      <header class="vh-surface-header"><div><h2>Quality gate</h2><p>Readiness is calculated from persisted campaign and review evidence.</p></div><span class="vh-status-chip {% if readiness.pilot_ready %}vh-status-safe{% else %}vh-status-warning{% endif %}">{% if readiness.pilot_ready %}pilot ready{% else %}blocked{% endif %}</span></header>
+      {% if readiness.hard_release_blockers %}
+        <h3 class="vh-section-label">Hard release blockers</h3>
+        <ul class="vh-blocker-list">{% for blocker in readiness.hard_release_blockers %}<li><svg aria-hidden="true"><use href="#vh-i-shield"></use></svg><span>{{ blocker }}</span></li>{% endfor %}</ul>
+      {% else %}
+        <div class="vh-locked-state"><svg aria-hidden="true"><use href="#vh-i-checkdoc"></use></svg><h3>No hard release blocker</h3><p>Release and any later model-training approval remain separate governance actions.</p></div>
+      {% endif %}
+      {% if readiness.warnings %}
+        <h3 class="vh-section-label">Warnings</h3>
+        <ul class="vh-checklist">{% for warning in readiness.warnings %}<li><span>!</span><strong>{{ warning }}</strong></li>{% endfor %}</ul>
+      {% endif %}
+    </section>
+
+    <aside class="vh-surface vh-detail-side vh-sticky-inspector">
+      <header class="vh-surface-header"><div><h2>Data boundary</h2><p>Governed evidence only.</p></div></header>
+      <ul class="vh-checklist">
+        <li><span>01</span><strong>Only persisted, authorized campaign data is counted.</strong></li>
+        <li><span>02</span><strong>Independent review determines effective labels.</strong></li>
+        <li><span>03</span><strong>Training readiness is not model approval.</strong></li>
+        <li><span>04</span><strong>No provider receives private data from this page.</strong></li>
+      </ul>
+      <div class="vh-boundary-note"><strong>Read-only intelligence surface</strong><p>No dataset export, training run or provider request is triggered by opening this workspace.</p></div>
+    </aside>
+
+    <section class="vh-surface vh-detail-full">
+      <header class="vh-surface-header"><div><h2>Class balance</h2><p>Effective governed labels reported by the readiness service.</p></div><span class="vh-panel-count">{{ readiness.class_balance|length }}</span></header>
+      {% if readiness.class_balance %}
+        <div class="vh-metric-card-grid">{% for label, count in readiness.class_balance.items %}<article><span>{{ label }}</span><strong>{{ count }}</strong></article>{% endfor %}</div>
+      {% else %}
+        <div class="vh-empty-panel"><svg aria-hidden="true"><use href="#vh-i-database"></use></svg><h3>No class-balance evidence</h3><p>Reviewed labels are not yet sufficient to report a class distribution.</p></div>
+      {% endif %}
+    </section>
+
+    <section class="vh-surface vh-detail-full">
+      <header class="vh-surface-header"><div><h2>Applications and scans</h2><p>Authorized sources enrolled in this campaign.</p></div><span class="vh-panel-count">{{ campaign.applications|length }}</span></header>
+      {% if campaign.applications %}
+        <div class="vh-table-wrap"><table class="vh-table"><thead><tr><th>Application</th><th>Family</th><th>Environment</th><th>Authorization</th><th>Target</th></tr></thead><tbody>{% for application in campaign.applications %}<tr><td><strong>{{ application.application_id }}</strong></td><td>{{ application.application_family }}</td><td>{{ application.environment }}</td><td><code>{{ application.authorization_id }}</code></td><td>{{ application.target_url }}</td></tr>{% endfor %}</tbody></table></div>
+      {% else %}
+        <div class="vh-empty-panel"><svg aria-hidden="true"><use href="#vh-i-database"></use></svg><h3>No applications</h3><p>The campaign contains no governed application records.</p></div>
+      {% endif %}
+    </section>
+
+    <section class="vh-surface vh-detail-full">
+      <header class="vh-surface-header"><div><h2>Integrity references</h2><p>Hashes bind this quality view to the generated dataset and readiness report.</p></div></header>
+      {% if readiness %}
+        <div class="vh-key-value-list">
+          <div><span>Dataset SHA-256</span><code>{{ readiness.dataset_sha256 }}</code></div>
+          <div><span>Readiness report SHA-256</span><code>{{ readiness.report_sha256 }}</code></div>
+          <div><span>Release manifest SHA-256</span><code>{{ readiness.release_manifest_sha256|default:"No governed release manifest" }}</code></div>
+          {% if manifest %}<div><span>Release ID</span><code>{{ manifest.release_id }}</code></div>{% endif %}
+        </div>
+      {% else %}
+        <div class="vh-empty-panel"><svg aria-hidden="true"><use href="#vh-i-audit"></use></svg><h3>No readiness report</h3><p>Integrity references cannot be displayed until a readiness report exists.</p></div>
+      {% endif %}
+    </section>
+  </div>
+</section>
+{% endblock %}

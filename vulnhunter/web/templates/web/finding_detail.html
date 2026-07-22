@@ -5,8 +5,8 @@
     <div>
       <p class="vh-crumb"><a href="{% url 'web-findings-overview' %}">Findings</a><span aria-hidden="true">/</span>{{ finding_id }}</p>
       <p class="vh-eyebrow">Evidence-backed finding</p>
-      <h1>{{ finding.title|default:finding_id }}</h1>
-      <p>{{ finding.description|default:finding.summary|default:"No additional description was recorded for this finding." }}</p>
+      <h1>{% firstof finding.title finding_id %}</h1>
+      <p>{% firstof finding.description finding.summary "No additional description was recorded for this finding." %}</p>
     </div>
     <div class="vh-page-actions">
       <a class="vh-button-secondary" href="{% url 'web-agent-run-detail' run.run_id %}">Source assessment</a>
@@ -17,7 +17,7 @@
   <section class="vh-summary-strip" aria-label="Finding status">
     <article class="vh-summary-item"><small>Severity</small><strong class="vh-severity-{{ finding.severity|default:'info'|lower }}">{{ finding.severity|default:"Unclassified" }}</strong><span>Recorded assessment value</span></article>
     <article class="vh-summary-item"><small>Confidence</small><strong>{{ finding.confidence|default:"Not recorded" }}</strong><span>Not a publication decision</span></article>
-    <article class="vh-summary-item"><small>Verification</small><strong>{{ finding.verification|default:run.evaluation_result|default:"Pending" }}</strong><span>Deterministic state</span></article>
+    <article class="vh-summary-item"><small>Verification</small><strong>{% firstof finding.verification run.evaluation_result "Pending" %}</strong><span>Deterministic state</span></article>
     <article class="vh-summary-item"><small>Release</small><strong>{{ finding.release_state|default:"Not released" }}</strong><span>Separate governance gate</span></article>
   </section>
 
@@ -28,11 +28,11 @@
         <dl class="vh-definition-grid">
           <div><dt>Evidence ID</dt><dd class="vh-mono-compact">{{ finding_id }}</dd></div>
           <div><dt>Scanner</dt><dd>{{ run.requested_tool|default:"Not recorded" }}</dd></div>
-          <div><dt>Target</dt><dd>{{ finding.target_reference|default:run.scope_summary|default:"Not recorded" }}</dd></div>
-          <div><dt>Assessment state</dt><dd>{{ run.workflow_state|default:run.current_state }}</dd></div>
-          <div><dt>Category</dt><dd>{{ finding.category|default:finding.classification|default:"Not recorded" }}</dd></div>
+          <div><dt>Target</dt><dd>{% firstof finding.target_reference run.scope_summary "Not recorded" %}</dd></div>
+          <div><dt>Assessment state</dt><dd>{% firstof run.workflow_state run.current_state "Not recorded" %}</dd></div>
+          <div><dt>Category</dt><dd>{% firstof finding.category finding.classification "Not recorded" %}</dd></div>
           <div><dt>Review state</dt><dd>{{ finding.review_state|default:"Not reviewed" }}</dd></div>
-          <div class="vh-definition-span"><dt>Evidence summary</dt><dd>{{ finding.evidence_summary|default:finding.summary|default:finding.description|default:"No narrative evidence summary was recorded." }}</dd></div>
+          <div class="vh-definition-span"><dt>Evidence summary</dt><dd>{% firstof finding.evidence_summary finding.summary finding.description "No narrative evidence summary was recorded." %}</dd></div>
         </dl>
       </div>
     </section>
@@ -54,9 +54,9 @@
           {% for artifact in run.artifacts %}
             <article class="vh-evidence-card">
               <span class="vh-record-kicker">Artifact {{ forloop.counter }}</span>
-              <strong>{{ artifact.title|default:artifact.name|default:artifact.artifact_id|default:"Evidence artifact" }}</strong>
-              <p>{{ artifact.summary|default:artifact.type|default:"Persisted assessment evidence" }}</p>
-              <code class="vh-hash-block">{{ artifact.sha256|default:artifact.artifact_sha256|default:artifact.evidence_sha256|default:"Hash not recorded" }}</code>
+              <strong>{% firstof artifact.title artifact.name artifact.artifact_id "Evidence artifact" %}</strong>
+              <p>{% firstof artifact.summary artifact.type "Persisted assessment evidence" %}</p>
+              <code class="vh-hash-block">{% firstof artifact.sha256 artifact.artifact_sha256 artifact.evidence_sha256 "Hash not recorded" %}</code>
             </article>
           {% endfor %}
         </div>

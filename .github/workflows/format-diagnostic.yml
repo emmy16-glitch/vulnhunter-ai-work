@@ -1,0 +1,35 @@
+name: Temporary formatter diagnostic
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  format-diff:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install Ruff
+        run: python -m pip install ruff
+      - name: Capture formatter diff
+        shell: bash
+        run: |
+          set +e
+          python -m ruff format --check --diff . > "$RUNNER_TEMP/format.diff" 2>&1
+          status=$?
+          cat "$RUNNER_TEMP/format.diff"
+          exit $status
+      - name: Upload formatter diff
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: formatter-diff
+          path: ${{ runner.temp }}/format.diff
+          if-no-files-found: error
+          retention-days: 1

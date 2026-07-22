@@ -115,26 +115,10 @@ jobs:
           )''',
           )
 
-          replace(
-              'vulnhunter/agent/models.py',
-              '        "connector.enable",\n',
-              '',
-          )
-          replace(
-              'vulnhunter/agent/models.py',
-              '    connectors_enabled: Literal[False] = False',
-              '    connectors_enabled: bool = True',
-          )
-          replace(
-              'config/agent_runtime/runtime.json',
-              '    "connector.enable",\n',
-              '',
-          )
-          replace(
-              'config/agent_runtime/runtime.json',
-              '  "connectors_enabled": false,',
-              '  "connectors_enabled": true,',
-          )
+          replace('vulnhunter/agent/models.py', '        "connector.enable",\n', '')
+          replace('vulnhunter/agent/models.py', '    connectors_enabled: Literal[False] = False', '    connectors_enabled: bool = True')
+          replace('config/agent_runtime/runtime.json', '    "connector.enable",\n', '')
+          replace('config/agent_runtime/runtime.json', '  "connectors_enabled": false,', '  "connectors_enabled": true,')
           replace(
               'tests/unit/test_agent_models.py',
               '''def test_runtime_config_forbids_enabling_connectors() -> None:
@@ -148,12 +132,7 @@ jobs:
               assert config.public_scanning_enabled is False
           ''',
           )
-          replace(
-              'tests/unit/test_agent_config_cli.py',
-              '    assert config.connectors_enabled is False',
-              '    assert config.connectors_enabled is True',
-          )
-
+          replace('tests/unit/test_agent_config_cli.py', '    assert config.connectors_enabled is False', '    assert config.connectors_enabled is True')
           replace('vulnhunter/web/views.py', '"Agent Runs"', '"Assessment Runs"')
           replace('vulnhunter/web/views.py', 'f"Agent Run {run.run_id}"', 'f"Assessment {run.run_id}"')
           replace('vulnhunter/web/views.py', '"Machine Oracle"', '"Verification"')

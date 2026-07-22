@@ -1,0 +1,26 @@
+name: Temporary lint diagnostic
+
+on:
+  push:
+    branches:
+      - final-ui-ux-hardening-and-scroll-audit
+
+permissions:
+  contents: read
+
+jobs:
+  lint-report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: python -m pip install "ruff>=0.9,<1"
+      - run: python -m ruff check . --output-format=concise > ruff-lint.txt || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ruff-lint-report
+          path: ruff-lint.txt
+          if-no-files-found: error
+          retention-days: 1

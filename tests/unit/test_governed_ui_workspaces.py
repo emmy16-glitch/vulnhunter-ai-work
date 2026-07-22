@@ -15,41 +15,55 @@ _WEB_ROOT = _ROOT / "vulnhunter" / "web"
 
 def test_governed_workspace_routes_are_wired() -> None:
     assignment_reference = "a" * 24
-    assert reverse(
-        "web-finding-detail",
-        kwargs={"finding_id": "evidence-one"},
-    ) == "/findings/evidence-one/"
-    assert reverse(
-        "web-review-detail",
-        kwargs={"assignment_reference": assignment_reference},
-    ) == f"/reviews/{assignment_reference}/"
-    assert reverse(
-        "web-adjudication-detail",
-        kwargs={"assignment_reference": assignment_reference},
-    ) == f"/adjudications/{assignment_reference}/"
-    assert reverse(
-        "web-release-detail",
-        kwargs={"campaign_id": "campaign-one"},
-    ) == "/releases/campaign-one/"
-    assert reverse(
-        "web-dataset-detail",
-        kwargs={"campaign_id": "campaign-one"},
-    ) == "/datasets/campaign-one/"
-    assert reverse(
-        "web-model-detail",
-        kwargs={"component_id": "advisory-analysis"},
-    ) == "/models/advisory-analysis/"
+    assert (
+        reverse(
+            "web-finding-detail",
+            kwargs={"finding_id": "evidence-one"},
+        )
+        == "/findings/evidence-one/"
+    )
+    assert (
+        reverse(
+            "web-review-detail",
+            kwargs={"assignment_reference": assignment_reference},
+        )
+        == f"/reviews/{assignment_reference}/"
+    )
+    assert (
+        reverse(
+            "web-adjudication-detail",
+            kwargs={"assignment_reference": assignment_reference},
+        )
+        == f"/adjudications/{assignment_reference}/"
+    )
+    assert (
+        reverse(
+            "web-release-detail",
+            kwargs={"campaign_id": "campaign-one"},
+        )
+        == "/releases/campaign-one/"
+    )
+    assert (
+        reverse(
+            "web-dataset-detail",
+            kwargs={"campaign_id": "campaign-one"},
+        )
+        == "/datasets/campaign-one/"
+    )
+    assert (
+        reverse(
+            "web-model-detail",
+            kwargs={"component_id": "advisory-analysis"},
+        )
+        == "/models/advisory-analysis/"
+    )
 
 
 def test_login_and_console_remain_server_authoritative() -> None:
-    login = (_WEB_ROOT / "templates" / "web" / "login.html").read_text(
-        encoding="utf-8"
-    )
-    base = (_WEB_ROOT / "templates" / "web" / "base.html").read_text(
-        encoding="utf-8"
-    )
+    login = (_WEB_ROOT / "templates" / "web" / "login.html").read_text(encoding="utf-8")
+    base = (_WEB_ROOT / "templates" / "web" / "base.html").read_text(encoding="utf-8")
 
-    assert '{% csrf_token %}' in login
+    assert "{% csrf_token %}" in login
     assert 'method="post"' in login
     assert "onsubmit=" not in login
     assert "onclick=" not in login
@@ -73,9 +87,7 @@ def test_web_product_surface_contains_no_qwen_copy() -> None:
 
     for root in browser_roots:
         checked_paths.extend(
-            path
-            for path in root.rglob("*")
-            if path.is_file() and path.suffix in browser_suffixes
+            path for path in root.rglob("*") if path.is_file() and path.suffix in browser_suffixes
         )
 
     for path in checked_paths:

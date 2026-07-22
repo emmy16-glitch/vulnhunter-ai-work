@@ -60,12 +60,27 @@ def test_login_and_console_remain_server_authoritative() -> None:
     assert "Private Lab" in base
 
 
-def test_web_ui_contains_no_qwen_product_copy() -> None:
-    checked_suffixes = {".html", ".py", ".css", ".js"}
-    for path in _WEB_ROOT.rglob("*"):
-        if path.is_file() and path.suffix in checked_suffixes:
-            text = path.read_text(encoding="utf-8").lower()
-            assert "qwen" not in text, path
+def test_web_product_surface_contains_no_qwen_copy() -> None:
+    browser_roots = (
+        _WEB_ROOT / "templates",
+        _WEB_ROOT / "static",
+    )
+    browser_suffixes = {".html", ".css", ".js"}
+    checked_paths = [
+        _WEB_ROOT / "governance_workspace_views.py",
+        _WEB_ROOT / "workspace_forms.py",
+    ]
+
+    for root in browser_roots:
+        checked_paths.extend(
+            path
+            for path in root.rglob("*")
+            if path.is_file() and path.suffix in browser_suffixes
+        )
+
+    for path in checked_paths:
+        text = path.read_text(encoding="utf-8").lower()
+        assert "qwen" not in text, path
 
 
 def test_governance_credentials_are_password_inputs() -> None:

@@ -1,0 +1,54 @@
+.vh-component-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  padding: 16px;
+}
+
+.vh-component-card {
+  display: flex;
+  min-width: 0;
+  min-height: 220px;
+  flex-direction: column;
+  padding: 18px;
+  border: 1px solid var(--vh-border);
+  border-radius: var(--vh-radius);
+  background: var(--vh-panel-2);
+  box-shadow: var(--vh-shadow-border);
+}
+
+.vh-component-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.vh-component-card h3 {
+  margin: 0;
+  font-size: 1.02rem;
+}
+
+.vh-component-card p {
+  margin: 14px 0 20px;
+  color: var(--vh-muted);
+}
+
+.vh-component-card .vh-button-secondary {
+  width: max-content;
+  margin-top: auto;
+}
+
+.vh-organisation {
+  grid-template-columns: 34px minmax(0, 1fr);
+}
+
+.vh-organisation > .vh-environment-pill {
+  grid-column: 1 / -1;
+  margin-top: 3px;
+}
+
+@media (max-width: 1080px) {
+  .vh-component-grid { grid-template-columns: 1fr; }
+  .vh-component-card { min-height: 0; }
+}

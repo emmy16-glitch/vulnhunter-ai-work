@@ -22,37 +22,65 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
+          import re
 
-          def replace_once(path: str, old: str, new: str) -> None:
+          def write_changed(path: str, transform) -> None:
               target = Path(path)
-              text = target.read_text(encoding="utf-8")
-              if old not in text:
-                  raise SystemExit(f"missing expected content in {path}: {old!r}")
-              target.write_text(text.replace(old, new, 1), encoding="utf-8")
+              original = target.read_text(encoding="utf-8")
+              updated = transform(original)
+              if updated == original:
+                  raise SystemExit(f"no repair applied to {path}")
+              target.write_text(updated, encoding="utf-8")
 
-          replace_once(
+          write_changed(
               "vulnhunter/web/static/web/app.js",
-              "\n  }\n\n  const disclosureRoute",
-              "\n\n  const disclosureRoute",
-          )
-          replace_once(
-              "vulnhunter/web/templates/web/base.html",
-              "  <link rel=\"stylesheet\" href=\"{% static 'web/console.css' %}?v=20260722-console\">\n",
-              "  <link rel=\"stylesheet\" href=\"{% static 'web/console.css' %}?v=20260722-console\">\n"
-              "  <link rel=\"stylesheet\" href=\"{% static 'web/ui-audit.css' %}?v=20260722-audit2\">\n",
-          )
-          replace_once(
-              ".playwright-validate.cjs",
-              "const activeNavigation = [...document.querySelectorAll('.vh-nav-list a[aria-current=\"page\"]')].filter(visible);",
-              "const activeNavigation = [...document.querySelectorAll('.vh-nav-list a[aria-current=\"page\"]')];",
-          )
-          replace_once(
-              ".playwright-validate.cjs",
-              "djangoError: /Traceback|TemplateSyntaxError|Server Error \\(500\\)/i.test(bodyText),",
-              "djangoError: Boolean(document.querySelector('#traceback, .technical-500')) || /TemplateSyntaxError at\\/|Server Error \\(500\\)/i.test(bodyText),",
+              lambda text: text.replace(
+                  "\n  }\n\n  const disclosureRoute",
+                  "\n\n  const disclosureRoute",
+                  1,
+              ),
           )
 
-          for path in (
+          def add_audit_css(text: str) -> str:
+              if "web/ui-audit.css" in text:
+                  return text
+              marker = (
+                  "  <link rel=\"stylesheet\" "
+                  "href=\"{% static 'web/console.css' %}?v=20260722-console\">\n"
+              )
+              return text.replace(
+                  marker,
+                  marker
+                  + "  <link rel=\"stylesheet\" "
+                  + "href=\"{% static 'web/ui-audit.css' %}?v=20260722-audit2\">\n",
+                  1,
+              )
+
+          write_changed("vulnhunter/web/templates/web/base.html", add_audit_css)
+
+          def repair_validator(text: str) -> str:
+              text, active_count = re.subn(
+                  r"(const activeNavigation = \[\.\.\.document\.querySelectorAll\([^;]+\)\])\.filter\(visible\);",
+                  r"\1;",
+                  text,
+                  count=1,
+              )
+              text, error_count = re.subn(
+                  r"djangoError: /Traceback\|TemplateSyntaxError\|Server Error \\(500\\\)/i\.test\(bodyText\),",
+                  "djangoError: Boolean(document.querySelector('#traceback, .technical-500')) || "
+                  "/TemplateSyntaxError at\\/|Server Error \\(500\\)/i.test(bodyText),",
+                  text,
+                  count=1,
+              )
+              if active_count != 1 or error_count != 1:
+                  raise SystemExit(
+                      f"validator repair counts were active={active_count}, error={error_count}"
+                  )
+              return text
+
+          write_changed(".playwright-validate.cjs", repair_validator)
+
+          duplicate_templates = (
               "vulnhunter/web/templates/web/advanced_profiles.html",
               "vulnhunter/web/templates/web/approvals.html",
               "vulnhunter/web/templates/web/status.html",
@@ -60,7 +88,9 @@ jobs:
               "vulnhunter/web/templates/web/mobile_analysis.html",
               "vulnhunter/web/templates/web/authorizations_overview.html",
               "vulnhunter/web/templates/web/dashboard.html",
-          ):
+          )
+          removed = 0
+          for path in duplicate_templates:
               target = Path(path)
               lines = target.read_text(encoding="utf-8").splitlines()
               filtered = [
@@ -71,9 +101,11 @@ jobs:
                       and "20260717-integration1" in line
                   )
               ]
-              if len(filtered) == len(lines):
-                  raise SystemExit(f"duplicate product stylesheet was not found in {path}")
-              target.write_text("\n".join(filtered) + "\n", encoding="utf-8")
+              if len(filtered) != len(lines):
+                  removed += len(lines) - len(filtered)
+                  target.write_text("\n".join(filtered) + "\n", encoding="utf-8")
+          if removed == 0:
+              raise SystemExit("no duplicate legacy product stylesheet was removed")
           PY
           git diff --check
       - name: Commit browser repairs

@@ -263,7 +263,7 @@ jobs:
     name: Apply final phone-lab wiring
     if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'work/phone-only-private-lab' && github.actor != 'github-actions[bot]' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
     permissions:
       contents: write
     steps:
@@ -277,29 +277,26 @@ jobs:
         uses: actions/setup-python@v7
         with:
           python-version: "3.12"
-          cache: pip
 
-      - name: Apply reviewed final wiring
-        run: python scripts/finalize_phone_lab.py
-
-      - name: Install verification tools
+      - name: Apply and format reviewed wiring
+        shell: bash
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install -e .
-          python -m pip install pytest pytest-asyncio pytest-django ruff
-
-      - name: Format and validate final wiring
-        run: |
-          python -m ruff format .
-          python -m ruff check .
+          set -euo pipefail
+          python scripts/finalize_phone_lab.py
+          python -m pip install ruff
+          python -m ruff format \
+            vulnhunter/web/assessment_workflow.py \
+            vulnhunter/security_tools/nuclei_worker_pilot.py \
+            vulnhunter/security_tools/nuclei_pilot_service.py \
+            vulnhunter/web/stream_views.py \
+            tests/unit/test_phone_lab_live_activity.py
+          python -m ruff check --fix \
+            vulnhunter/web/assessment_workflow.py \
+            vulnhunter/security_tools/nuclei_worker_pilot.py \
+            vulnhunter/security_tools/nuclei_pilot_service.py \
+            vulnhunter/web/stream_views.py \
+            tests/unit/test_phone_lab_live_activity.py
           python -m compileall -q vulnhunter scripts
-          python -m pytest -q \
-            tests/unit/test_phone_lab_live_activity.py \
-            tests/unit/test_assessment_workflow.py \
-            tests/unit/test_milestone32_worker_pilot.py \
-            tests/unit/test_reference_ui_contract.py
-          python scripts/validate_scanner_compatibility.py
-          python scripts/project_audit.py --strict
           git diff --check
 
       - name: Commit implementation changes

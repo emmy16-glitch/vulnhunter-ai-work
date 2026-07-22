@@ -97,4 +97,11 @@ html::-webkit-scrollbar-thumb:hover,
   html {
     scrollbar-gutter: auto;
   }
+
+  /* The scrim owns only the area outside the open drawer. This keeps drawer
+     links interactive while making the entire visible backdrop a reliable
+     close target on phones and tablets. */
+  .vh-sidebar-scrim {
+    left: var(--vh-sidebar-width);
+  }
 }

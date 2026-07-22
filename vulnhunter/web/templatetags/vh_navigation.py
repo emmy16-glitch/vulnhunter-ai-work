@@ -65,7 +65,10 @@ def account_role_label(user: Any) -> str:
         "model-analyst": "Model analyst",
         "read-only-observer": "Read-only observer",
     }
-    roles = [labels.get(str(item), str(item).replace("-", " ").title()) for item in mapping.product_roles]
+    roles = [
+        labels.get(str(item), str(item).replace("-", " ").title())
+        for item in mapping.product_roles
+    ]
     return " · ".join(roles) if roles else "Governed account"
 
 

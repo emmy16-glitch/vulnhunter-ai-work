@@ -1,0 +1,100 @@
+/* Final shell and scrolling integrity rules.
+   This file loads last so long pages cannot be clipped by the fixed-height
+   assessment workspace refinements in app.css. */
+
+html {
+  min-height: 100%;
+  overflow-x: hidden;
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
+  scrollbar-color: var(--vh-border-strong) var(--vh-bg);
+  scrollbar-width: thin;
+}
+
+body {
+  min-height: 100dvh;
+  overflow-x: hidden;
+  overflow-y: visible;
+}
+
+html::-webkit-scrollbar,
+.vh-nav::-webkit-scrollbar,
+.vh-command-results::-webkit-scrollbar,
+.vh-table-wrap::-webkit-scrollbar,
+.vh-workspace-tabs::-webkit-scrollbar,
+.vh-path-row::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+html::-webkit-scrollbar-track,
+.vh-nav::-webkit-scrollbar-track,
+.vh-command-results::-webkit-scrollbar-track,
+.vh-table-wrap::-webkit-scrollbar-track,
+.vh-workspace-tabs::-webkit-scrollbar-track,
+.vh-path-row::-webkit-scrollbar-track {
+  background: var(--vh-bg);
+}
+
+html::-webkit-scrollbar-thumb,
+.vh-nav::-webkit-scrollbar-thumb,
+.vh-command-results::-webkit-scrollbar-thumb,
+.vh-table-wrap::-webkit-scrollbar-thumb,
+.vh-workspace-tabs::-webkit-scrollbar-thumb,
+.vh-path-row::-webkit-scrollbar-thumb {
+  border: 2px solid var(--vh-bg);
+  border-radius: 999px;
+  background: var(--vh-border-strong);
+}
+
+html::-webkit-scrollbar-thumb:hover,
+.vh-nav::-webkit-scrollbar-thumb:hover,
+.vh-command-results::-webkit-scrollbar-thumb:hover,
+.vh-table-wrap::-webkit-scrollbar-thumb:hover,
+.vh-workspace-tabs::-webkit-scrollbar-thumb:hover,
+.vh-path-row::-webkit-scrollbar-thumb:hover {
+  background: var(--vh-muted);
+}
+
+.vh-app,
+.vh-main-shell {
+  min-height: 100dvh;
+}
+
+.vh-main-shell {
+  overflow-x: clip !important;
+  overflow-y: visible !important;
+}
+
+.vh-main {
+  min-height: calc(100dvh - var(--vh-header-height));
+}
+
+/* Only the live run workspace is intentionally viewport-contained on wide
+   screens. Every other page uses normal document scrolling. */
+@media (min-width: 1440px) {
+  body:not([data-route="web-scan-run-detail"]):not([data-route="web-agent-run-detail"]) .vh-main {
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  body[data-route="web-scan-run-detail"] .vh-main,
+  body[data-route="web-agent-run-detail"] .vh-main {
+    height: calc(100dvh - var(--vh-header-height));
+    min-height: 0;
+    overflow: hidden;
+  }
+}
+
+@media (max-width: 1439px) {
+  .vh-main {
+    height: auto !important;
+    overflow: visible !important;
+  }
+}
+
+@media (max-width: 1023px) {
+  html {
+    scrollbar-gutter: auto;
+  }
+}

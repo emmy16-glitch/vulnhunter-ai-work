@@ -1,5 +1,100 @@
 /* Browser-audit corrections that must win after the console refinement layer. */
 
+html {
+  min-height: 100%;
+  overflow-x: hidden;
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
+  scrollbar-color: var(--vh-border-strong) var(--vh-bg);
+  scrollbar-width: thin;
+}
+
+body {
+  min-height: 100dvh;
+  overflow-x: hidden;
+}
+
+.vh-app,
+.vh-main-shell {
+  min-height: 100dvh;
+}
+
+.vh-main-shell {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.vh-main {
+  min-height: calc(100dvh - var(--vh-header-height));
+  flex: 1 0 auto;
+}
+
+.vh-nav,
+.vh-command-results,
+.vh-assessment-dialog,
+dialog,
+pre,
+.vh-table-wrap,
+.vh-terminal,
+.vh-activity-stream {
+  scrollbar-color: var(--vh-border-strong) transparent;
+  scrollbar-width: thin;
+}
+
+html::-webkit-scrollbar,
+.vh-nav::-webkit-scrollbar,
+.vh-command-results::-webkit-scrollbar,
+.vh-assessment-dialog::-webkit-scrollbar,
+dialog::-webkit-scrollbar,
+pre::-webkit-scrollbar,
+.vh-table-wrap::-webkit-scrollbar,
+.vh-terminal::-webkit-scrollbar,
+.vh-activity-stream::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+html::-webkit-scrollbar-track,
+.vh-nav::-webkit-scrollbar-track,
+.vh-command-results::-webkit-scrollbar-track,
+.vh-assessment-dialog::-webkit-scrollbar-track,
+dialog::-webkit-scrollbar-track,
+pre::-webkit-scrollbar-track,
+.vh-table-wrap::-webkit-scrollbar-track,
+.vh-terminal::-webkit-scrollbar-track,
+.vh-activity-stream::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+html::-webkit-scrollbar-thumb,
+.vh-nav::-webkit-scrollbar-thumb,
+.vh-command-results::-webkit-scrollbar-thumb,
+.vh-assessment-dialog::-webkit-scrollbar-thumb,
+dialog::-webkit-scrollbar-thumb,
+pre::-webkit-scrollbar-thumb,
+.vh-table-wrap::-webkit-scrollbar-thumb,
+.vh-terminal::-webkit-scrollbar-thumb,
+.vh-activity-stream::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: var(--vh-border-strong);
+  background-clip: padding-box;
+}
+
+html::-webkit-scrollbar-thumb:hover,
+.vh-nav::-webkit-scrollbar-thumb:hover,
+.vh-command-results::-webkit-scrollbar-thumb:hover,
+.vh-assessment-dialog::-webkit-scrollbar-thumb:hover,
+dialog::-webkit-scrollbar-thumb:hover,
+pre::-webkit-scrollbar-thumb:hover,
+.vh-table-wrap::-webkit-scrollbar-thumb:hover,
+.vh-terminal::-webkit-scrollbar-thumb:hover,
+.vh-activity-stream::-webkit-scrollbar-thumb:hover {
+  background: var(--vh-muted);
+  background-clip: padding-box;
+}
+
 .vh-summary-item small,
 .vh-summary-item strong,
 .vh-summary-item span {
@@ -53,6 +148,10 @@
 }
 
 @media (max-width: 1023px) {
+  html {
+    scrollbar-gutter: auto;
+  }
+
   .vh-app {
     grid-template-columns: minmax(0, 1fr);
   }

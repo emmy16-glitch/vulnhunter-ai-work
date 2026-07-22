@@ -105,9 +105,7 @@ def main() -> int:
     controller = _controller(runtime_root)
     task = controller.create_task(
         task_id="ui-reference-run",
-        objective=(
-            "Inspect a bounded local application and preserve evidence for human review."
-        ),
+        objective=("Inspect a bounded local application and preserve evidence for human review."),
         permission_manifest=PermissionManifest(
             manifest_id="ui-reference-manifest",
             role_id="orchestrator",

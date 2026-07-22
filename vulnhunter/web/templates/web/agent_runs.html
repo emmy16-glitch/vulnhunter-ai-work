@@ -2,34 +2,74 @@
 {% load vh_navigation %}
 {% block content %}
 {% security_runtime as activation %}
-<section class="vh-page-shell" aria-labelledby="assessment-page-title">
+<section class="vh-page-shell vh-control-centre" aria-labelledby="assessment-page-title">
   <header class="vh-page-header">
-    <div><p class="vh-eyebrow">Operations</p><h1 id="assessment-page-title">Assessments</h1><p>Governed plans and their current backend state.</p></div>
-    <div class="vh-page-actions"><button class="vh-button-primary" type="button" data-assessment-open>New Assessment</button></div>
+    <div>
+      <p class="vh-eyebrow">Unified workflow</p>
+      <h1 id="assessment-page-title">Assessment Control Centre</h1>
+      <p>Plan, approve, execute and inspect each governed assessment from one place.</p>
+    </div>
+    <div class="vh-page-actions">
+      {% if can_create_assessment %}
+        <button class="vh-button-primary" type="button" data-assessment-open>New Assessment</button>
+      {% elif can_decide_approval %}
+        <span class="vh-role-chip is-approver">Approval workspace</span>
+      {% else %}
+        <span class="vh-role-chip">Read-only workspace</span>
+      {% endif %}
+    </div>
   </header>
+
+  {% if approval_only %}
+    <section class="vh-role-notice is-approval" aria-label="Approver guidance">
+      <svg aria-hidden="true"><use href="#vh-i-shield"></use></svg>
+      <div><strong>Approval mode</strong><p>Open a pending assessment below, review the exact plan digest, then approve or deny it on the same assessment page. Planning controls are hidden for this account.</p></div>
+    </section>
+  {% elif can_create_assessment %}
+    <section class="vh-role-notice" aria-label="Operator guidance">
+      <svg aria-hidden="true"><use href="#vh-i-assessment"></use></svg>
+      <div><strong>Operator mode</strong><p>Create a bounded plan here. A separate approver will review the exact digest inside this same control centre before execution.</p></div>
+    </section>
+  {% endif %}
 
   {% if error_message %}<section class="vh-operational-notice is-danger"><strong>Assessment store unavailable</strong><p>{{ error_message }}</p></section>{% endif %}
 
+  {% if pending_approvals %}
+    <section class="vh-surface vh-pending-approvals" aria-labelledby="pending-approval-title">
+      <header class="vh-surface-header"><div><h2 id="pending-approval-title">Pending approvals</h2><p>Exact-plan decisions waiting for an authorised approver.</p></div><span class="vh-panel-count">{{ pending_approvals|length }}</span></header>
+      <div class="vh-pending-grid">
+        {% for approval in pending_approvals %}
+          <a class="vh-pending-card" href="{% url 'web-scan-run-detail' approval.run_id %}">
+            <span class="vh-pending-icon" aria-hidden="true"><svg><use href="#vh-i-shield"></use></svg></span>
+            <span><small>Approval required</small><strong>{{ approval.summary|truncatechars:90 }}</strong><code>{{ approval.run_id }}</code></span>
+            <b>Review →</b>
+          </a>
+        {% endfor %}
+      </div>
+    </section>
+  {% endif %}
+
   <section class="vh-summary-strip" aria-label="Assessment summary">
     <article class="vh-summary-item"><small>Runs</small><strong>{{ runs|length }}</strong><span>Visible to this account</span></article>
-    <article class="vh-summary-item"><small>Scanner</small><strong>Nuclei</strong><span>Governed planning only</span></article>
-    <article class="vh-summary-item"><small>Execution</small><strong>{{ activation.state }}</strong><span>Exact approval and worker readiness required</span></article>
-    <article class="vh-summary-item"><small>Approval</small><strong>Plan bound</strong><span>Exact digest required</span></article>
+    <article class="vh-summary-item"><small>Scanner</small><strong>Nuclei</strong><span>Governed passive execution</span></article>
+    <article class="vh-summary-item"><small>Execution</small><strong>{{ activation.state }}</strong><span>Approval and worker readiness required</span></article>
+    <article class="vh-summary-item"><small>Workflow</small><strong>Unified</strong><span>Plan → approve → run → evidence</span></article>
   </section>
 
   <section class="vh-surface">
-    <header class="vh-surface-header"><div><h2>Assessment runs</h2><p>Open a run for activity, evidence, findings and safety controls.</p></div><span class="vh-panel-count">{{ runs|length }}</span></header>
+    <header class="vh-surface-header"><div><h2>Assessment runs</h2><p>Open any run for approval, activity, evidence, findings and safety controls.</p></div><span class="vh-panel-count">{{ runs|length }}</span></header>
     {% if runs %}
-      <div class="vh-table-wrap"><table class="vh-table vh-assessment-table"><thead><tr><th>Assessment</th><th>State</th><th>Scanner</th><th>Profile</th><th>Approval</th><th>Updated</th><th></th></tr></thead><tbody>{% for run in runs %}<tr><td><strong>{{ run.objective }}</strong><code>{{ run.run_id }}</code></td><td><span class="vh-status-chip">{{ run.current_state }}</span>{% if run.execution_blocking_reason %}<small>{{ run.execution_blocking_reason|truncatechars:80 }}</small>{% endif %}</td><td>{{ run.requested_tool|default:"Not selected" }}</td><td>{{ run.risk_classification|default:run.selected_skill|default:"Not set" }}</td><td>{{ run.approval_state }}</td><td>{{ run.updated_at }}</td><td><a href="{% url 'web-scan-run-detail' run.run_id %}">Open run →</a></td></tr>{% endfor %}</tbody></table></div>
+      <div class="vh-table-wrap"><table class="vh-table vh-assessment-table"><thead><tr><th>Assessment</th><th>State</th><th>Scanner</th><th>Profile</th><th>Approval</th><th>Updated</th><th></th></tr></thead><tbody>{% for run in runs %}<tr><td data-label="Assessment"><strong>{{ run.objective }}</strong><code>{{ run.run_id }}</code></td><td data-label="State"><span class="vh-status-chip">{{ run.current_state }}</span>{% if run.execution_blocking_reason %}<small>{{ run.execution_blocking_reason|truncatechars:80 }}</small>{% endif %}</td><td data-label="Scanner">{{ run.requested_tool|default:"Not selected" }}</td><td data-label="Profile">{{ run.risk_classification|default:run.selected_skill|default:"Not set" }}</td><td data-label="Approval">{{ run.approval_state }}</td><td data-label="Updated">{{ run.updated_at }}</td><td data-label="Action"><a class="vh-table-action" href="{% url 'web-scan-run-detail' run.run_id %}">{% if can_decide_approval and run.approval_state.value == 'pending' %}Review plan →{% else %}Open assessment →{% endif %}</a></td></tr>{% endfor %}</tbody></table></div>
     {% else %}
-      <div class="vh-empty-panel"><svg aria-hidden="true"><use href="#vh-i-assessment"></use></svg><h3>No Active Assessment</h3><p>Create a plan from an active authorization. No scan starts automatically.</p><button class="vh-button-primary" type="button" data-assessment-open>New Assessment</button></div>
+      <div class="vh-empty-panel"><svg aria-hidden="true"><use href="#vh-i-assessment"></use></svg><h3>No Active Assessment</h3>{% if can_create_assessment %}<p>Create a bounded plan from an active authorization. Nothing executes until an independent approval is recorded.</p><button class="vh-button-primary" type="button" data-assessment-open>New Assessment</button>{% elif can_decide_approval %}<p>No assessment currently needs your approval. New operator-created plans will appear here automatically.</p>{% else %}<p>No assessment is visible to this account.</p>{% endif %}</div>
     {% endif %}
   </section>
 
+  {% if can_create_assessment %}
   <dialog class="vh-assessment-dialog" data-assessment-dialog data-authorizations-url="{% url 'web-active-authorizations' %}" aria-labelledby="new-assessment-title">
     <form method="post" action="{% url 'web-new-scan' %}" data-assessment-form>
       {% csrf_token %}
-      <header class="vh-approval-modal-header"><div class="vh-approval-modal-icon" aria-hidden="true"><svg><use href="#vh-i-assessment"></use></svg></div><div><span class="vh-risk-label">Governed planning</span><h2 id="new-assessment-title">New Assessment</h2><p>All values are checked again by the backend.</p></div><button type="button" class="vh-dialog-close" data-assessment-close aria-label="Close assessment dialog">×</button></header>
+      <header class="vh-approval-modal-header"><div class="vh-approval-modal-icon" aria-hidden="true"><svg><use href="#vh-i-assessment"></use></svg></div><div><span class="vh-risk-label">Governed planning</span><h2 id="new-assessment-title">New Assessment</h2><p>Create the plan here; approval and execution continue in this same control centre.</p></div><button type="button" class="vh-dialog-close" data-assessment-close aria-label="Close assessment dialog">×</button></header>
       <p class="vh-operational-notice" data-assessment-status aria-live="polite">Loading active authorizations…</p>
       <div class="vh-assessment-form-grid">
         <label>Authorization<select name="authorization_id" data-authorization-select required><option value="">Select authorization</option></select></label>
@@ -43,5 +83,6 @@
       <p class="vh-form-note">Creating a plan records scope and approval requirements. Exact approval and worker-readiness checks are required before queueing.</p>
     </form>
   </dialog>
+  {% endif %}
 </section>
 {% endblock %}

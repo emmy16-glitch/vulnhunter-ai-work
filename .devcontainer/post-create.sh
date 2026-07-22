@@ -76,7 +76,9 @@ export VULNHUNTER_VERIFICATION_ROOT="$ROOT/.local/verification"
 export VULNHUNTER_NUCLEI_PILOT_ENQUEUE_ENABLED=true
 export VULNHUNTER_PHONE_LAB_TARGET_PORT=8010
 export PATH="$(dirname "$NUCLEI_BIN"):${PATH}"
-[[ -f "$STATE_DIR/phone-lab-users.env" ]] && source "$STATE_DIR/phone-lab-users.env"
+if [[ -f "$STATE_DIR/phone-lab-users.env" ]]; then
+  source "$STATE_DIR/phone-lab-users.env"
+fi
 EOF2
 chmod 600 "$ENV_FILE"
 

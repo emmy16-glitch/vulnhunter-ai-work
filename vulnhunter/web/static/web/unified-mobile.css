@@ -1,0 +1,453 @@
+/* Unified assessment and mobile resilience overrides. */
+
+html {
+  overflow-x: hidden;
+}
+
+body,
+.vh-app,
+.vh-main-shell,
+.vh-main,
+.vh-page-shell,
+.vh-assessment-layout,
+.vh-workstream-panel,
+.vh-inspector,
+.vh-surface,
+.vh-table-wrap {
+  min-width: 0;
+}
+
+body {
+  overflow-x: hidden;
+}
+
+:where(p, span, strong, small, a, button, label, dt, dd, td, th, code) {
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+code,
+.vh-terminal-hash,
+.vh-stage-detail strong,
+.vh-context-card strong,
+.vh-artifact-list code,
+.vh-result-evidence code {
+  word-break: break-word;
+}
+
+.vh-control-centre > * {
+  animation: vh-rise-in 320ms ease both;
+}
+
+.vh-control-centre > *:nth-child(2) { animation-delay: 45ms; }
+.vh-control-centre > *:nth-child(3) { animation-delay: 80ms; }
+.vh-control-centre > *:nth-child(4) { animation-delay: 115ms; }
+.vh-control-centre > *:nth-child(5) { animation-delay: 150ms; }
+
+.vh-role-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  padding: 7px 12px;
+  border: 1px solid var(--vh-border-strong);
+  border-radius: 999px;
+  background: var(--vh-panel-2);
+  color: var(--vh-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.vh-role-chip.is-approver {
+  border-color: rgba(34, 197, 94, .35);
+  background: rgba(34, 197, 94, .09);
+  color: #86efac;
+}
+
+.vh-role-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+  margin: 0 0 20px;
+  padding: 15px 17px;
+  border: 1px solid rgba(79, 140, 255, .28);
+  border-radius: var(--vh-radius);
+  background: linear-gradient(135deg, rgba(79, 140, 255, .12), rgba(56, 189, 248, .05));
+  box-shadow: var(--vh-shadow-panel);
+}
+
+.vh-role-notice.is-approval {
+  border-color: rgba(34, 197, 94, .28);
+  background: linear-gradient(135deg, rgba(34, 197, 94, .1), rgba(56, 189, 248, .04));
+}
+
+.vh-role-notice > svg {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  color: var(--vh-accent);
+}
+
+.vh-role-notice.is-approval > svg {
+  color: var(--vh-success);
+}
+
+.vh-role-notice strong {
+  display: block;
+  margin-bottom: 3px;
+}
+
+.vh-role-notice p {
+  margin: 0;
+  color: var(--vh-muted);
+}
+
+.vh-pending-approvals {
+  margin-bottom: 20px;
+}
+
+.vh-pending-grid {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+}
+
+.vh-pending-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--vh-border);
+  border-radius: var(--vh-radius-sm);
+  background: var(--vh-panel-2);
+  color: var(--vh-text);
+  text-decoration: none;
+  transition: transform 160ms ease, border-color 160ms ease, background-color 160ms ease;
+}
+
+.vh-pending-card:hover,
+.vh-pending-card:focus-visible {
+  transform: translateY(-1px);
+  border-color: rgba(79, 140, 255, .5);
+  background: var(--vh-panel-3);
+}
+
+.vh-pending-card small,
+.vh-pending-card code {
+  display: block;
+  color: var(--vh-muted);
+}
+
+.vh-pending-card strong {
+  display: block;
+  margin: 3px 0;
+}
+
+.vh-pending-card b {
+  color: #bfdbfe;
+  white-space: nowrap;
+}
+
+.vh-pending-icon {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border-radius: 10px;
+  background: rgba(79, 140, 255, .14);
+  color: var(--vh-accent);
+}
+
+.vh-pending-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.vh-notification-dot {
+  animation: vh-soft-pulse 1.8s ease-in-out infinite;
+}
+
+.vh-table-action {
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  padding: 6px 9px;
+  border-radius: 7px;
+  background: rgba(79, 140, 255, .1);
+  color: #bfdbfe;
+  font-weight: 750;
+  text-decoration: none;
+}
+
+.vh-assessment-dialog {
+  width: min(760px, calc(100vw - 24px));
+  max-height: min(88vh, 860px);
+  overflow: auto;
+}
+
+.vh-assessment-dialog form,
+.vh-approval-modal-shell {
+  min-width: 0;
+}
+
+.vh-assessment-form-grid > label,
+.vh-assessment-form-grid select,
+.vh-approval-modal-facts > div,
+.vh-stage-card,
+.vh-stage-copy,
+.vh-stage-expanded-body,
+.vh-output-panel,
+.vh-output-body {
+  min-width: 0;
+}
+
+.vh-assessment-form-grid select,
+.vh-assessment-dialog button,
+.vh-approval-dialog button,
+.vh-approval-dialog textarea {
+  min-height: 44px;
+}
+
+.vh-workspace-tabs,
+.vh-output-tabs,
+.vh-bottom-tabs {
+  overscroll-behavior-inline: contain;
+  scrollbar-width: thin;
+}
+
+@keyframes vh-rise-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes vh-soft-pulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(79, 140, 255, .3); }
+  50% { transform: scale(1.08); box-shadow: 0 0 0 6px rgba(79, 140, 255, 0); }
+}
+
+@media (max-width: 900px) {
+  .vh-context-controls {
+    max-width: calc(100vw - 150px);
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+  }
+
+  .vh-context-card {
+    flex: 0 0 min(210px, 70vw);
+    scroll-snap-align: start;
+  }
+
+  .vh-page-header,
+  .vh-surface-header {
+    align-items: flex-start;
+    gap: 12px;
+  }
+}
+
+@media (max-width: 760px) {
+  .vh-page-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .vh-page-actions,
+  .vh-page-actions > * {
+    width: 100%;
+  }
+
+  .vh-page-actions .vh-role-chip {
+    justify-content: center;
+  }
+
+  .vh-role-notice {
+    padding: 13px;
+  }
+
+  .vh-summary-item {
+    min-height: auto;
+  }
+
+  .vh-assessment-table,
+  .vh-assessment-table tbody,
+  .vh-assessment-table tr,
+  .vh-assessment-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .vh-assessment-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  .vh-assessment-table tbody {
+    display: grid;
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .vh-assessment-table tr {
+    overflow: hidden;
+    border: 1px solid var(--vh-border);
+    border-radius: var(--vh-radius);
+    background: var(--vh-panel-2);
+    box-shadow: var(--vh-shadow-panel);
+  }
+
+  .vh-assessment-table tbody td {
+    display: grid;
+    grid-template-columns: minmax(92px, .35fr) minmax(0, 1fr);
+    gap: 10px;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--vh-border);
+  }
+
+  .vh-assessment-table tbody td::before {
+    align-self: start;
+    color: var(--vh-muted);
+    content: attr(data-label);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+  }
+
+  .vh-assessment-table tbody td:last-child {
+    border-bottom: 0;
+  }
+
+  .vh-assessment-table td > strong,
+  .vh-assessment-table td > code,
+  .vh-assessment-table td > small {
+    grid-column: 2;
+  }
+
+  .vh-table-action {
+    justify-content: center;
+  }
+
+  .vh-pending-card {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .vh-pending-card b {
+    grid-column: 2;
+    white-space: normal;
+  }
+
+  .vh-assessment-form-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .vh-assessment-dialog-actions,
+  .vh-approval-modal-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .vh-assessment-dialog-actions > *,
+  .vh-approval-modal-actions > * {
+    width: 100%;
+  }
+
+  .vh-approval-modal-facts {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .vh-stage-list {
+    padding-inline: 0;
+  }
+
+  .vh-stage {
+    grid-template-columns: 30px minmax(0, 1fr);
+  }
+
+  .vh-stage-card summary {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+
+  .vh-stage-state {
+    grid-column: 2;
+    justify-self: start;
+  }
+
+  .vh-stage-chevron {
+    grid-column: 3;
+    grid-row: 1 / span 2;
+  }
+
+  .vh-workspace-tabs,
+  .vh-output-tabs,
+  .vh-bottom-tabs {
+    display: flex;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
+  .vh-workspace-tabs > *,
+  .vh-output-tabs > *,
+  .vh-bottom-tabs > * {
+    flex: 0 0 auto;
+  }
+}
+
+@media (max-width: 480px) {
+  .vh-main {
+    padding-inline: 10px;
+  }
+
+  .vh-topbar {
+    min-width: 0;
+  }
+
+  .vh-search-trigger span,
+  .vh-search-trigger kbd {
+    display: none;
+  }
+
+  .vh-context-controls {
+    max-width: calc(100vw - 118px);
+  }
+
+  .vh-context-card {
+    flex-basis: min(184px, 68vw);
+  }
+
+  .vh-role-notice {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .vh-assessment-table tbody td {
+    grid-template-columns: minmax(76px, .32fr) minmax(0, 1fr);
+  }
+
+  .vh-assessment-dialog {
+    width: calc(100vw - 12px);
+    max-height: calc(100dvh - 12px);
+    padding: 0;
+    border-radius: 12px;
+  }
+
+  .vh-assessment-dialog form,
+  .vh-approval-modal-shell {
+    padding: 12px;
+  }
+
+  .vh-assessment-form-grid select,
+  .vh-approval-dialog textarea {
+    font-size: 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vh-control-centre > *,
+  .vh-notification-dot {
+    animation: none !important;
+  }
+}

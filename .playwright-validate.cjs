@@ -15,6 +15,7 @@ const viewports = [
   { name: "mobile-390", width: 390, height: 844 },
   { name: "mobile-360", width: 360, height: 800 },
 ];
+
 function safeName(value) {
   return value.replace(/[^a-zA-Z0-9._-]+/g, "-");
 }
@@ -31,13 +32,13 @@ function safeName(value) {
     interactionFailures: [],
     failures: [],
   };
-  const contextCache = new Map();
+  const contexts = new Map();
   const checkedLinks = new Map();
-  const testedGlobalInteractions = new Set();
+  const testedInteractions = new Set();
 
   async function contextFor(viewport, personaName) {
     const key = `${viewport.name}:${personaName}`;
-    if (contextCache.has(key)) return contextCache.get(key);
+    if (contexts.has(key)) return contexts.get(key);
     const context = await browser.newContext({
       viewport,
       colorScheme: "dark",
@@ -45,8 +46,10 @@ function safeName(value) {
     });
     const page = await context.newPage();
     const persona = manifest.personas[personaName];
-    const login = await page.goto(`${baseUrl}/login/`, { waitUntil: "networkidle" });
-    if (!login || login.status() >= 400) throw new Error(`Login page failed for ${personaName}`);
+    const response = await page.goto(`${baseUrl}/login/`, { waitUntil: "networkidle" });
+    if (!response || response.status() >= 400) {
+      throw new Error(`Login page failed for ${personaName}`);
+    }
     await page.getByLabel("Username").fill(persona.username);
     await page.getByLabel("Password").fill(persona.password);
     await Promise.all([
@@ -54,33 +57,33 @@ function safeName(value) {
       page.getByRole("button", { name: /sign in securely/i }).click(),
     ]);
     await page.close();
-    contextCache.set(key, context);
+    contexts.set(key, context);
     return context;
   }
 
-  async function auditGlobalInteractions(page, viewport, personaName, routeKey) {
-    const interactionKey = `${viewport.name}:${personaName}`;
-    if (testedGlobalInteractions.has(interactionKey)) return;
-    testedGlobalInteractions.add(interactionKey);
+  async function auditInteractions(page, viewport, personaName, routeKey) {
+    const key = `${viewport.name}:${personaName}`;
+    if (testedInteractions.has(key)) return;
+    testedInteractions.add(key);
 
     try {
       const searchButton = page.locator("[data-search-toggle]");
       if (await searchButton.isVisible()) {
         await searchButton.click();
         const dialog = page.locator("#vh-command-dialog");
+        await dialog.waitFor({ state: "visible" });
         if (!(await dialog.evaluate((element) => element.open))) {
           report.interactionFailures.push({ routeKey, interaction: "search-open" });
-        } else {
-          const input = page.locator("[data-command-input]");
-          await input.fill("Settings");
-          const settingsResult = page.getByRole("link", { name: "Settings", exact: true });
-          if (!(await settingsResult.isVisible())) {
-            report.interactionFailures.push({ routeKey, interaction: "search-filter" });
-          }
-          await page.keyboard.press("Escape");
-          if (await dialog.evaluate((element) => element.open)) {
-            report.interactionFailures.push({ routeKey, interaction: "search-close" });
-          }
+        }
+        await dialog.locator("[data-command-input]").fill("Settings");
+        const result = dialog.getByRole("link", { name: "Settings", exact: true });
+        if (!(await result.isVisible())) {
+          report.interactionFailures.push({ routeKey, interaction: "search-filter" });
+        }
+        await dialog.getByRole("button", { name: "Close search" }).click();
+        await dialog.waitFor({ state: "hidden" });
+        if (await dialog.evaluate((element) => element.open)) {
+          report.interactionFailures.push({ routeKey, interaction: "search-close" });
         }
       }
     } catch (error) {
@@ -100,8 +103,8 @@ function safeName(value) {
         if (!(await sidebar.isVisible()) || (await toggle.getAttribute("aria-expanded")) !== "true") {
           report.interactionFailures.push({ routeKey, interaction: "mobile-nav-open" });
         }
-        await close.click({ position: { x: viewport.width - 8, y: 8 } });
-        if ((await toggle.getAttribute("aria-expanded")) !== "false") {
+        await close.click();
+        if ((await toggle.getAttribute("aria-expanded")) !== "false" || (await sidebar.isVisible())) {
           report.interactionFailures.push({ routeKey, interaction: "mobile-nav-close" });
         }
       } catch (error) {
@@ -114,32 +117,31 @@ function safeName(value) {
     }
   }
 
-  for (const pageDefinition of manifest.pages) {
-    const targets = pageDefinition.responsive ? viewports : [viewports[1]];
+  for (const definition of manifest.pages) {
+    const targets = definition.responsive ? viewports : [viewports[1]];
     for (const viewport of targets) {
-      const context = await contextFor(viewport, pageDefinition.persona);
+      const context = await contextFor(viewport, definition.persona);
       const page = await context.newPage();
-      const routeKey = `${pageDefinition.name}:${viewport.name}`;
+      const routeKey = `${definition.name}:${viewport.name}`;
       page.on("console", (message) => {
         if (message.type() === "error") {
           report.consoleErrors.push({ routeKey, text: message.text() });
         }
       });
-      page.on("pageerror", (error) => report.pageErrors.push({ routeKey, text: error.message }));
+      page.on("pageerror", (error) => {
+        report.pageErrors.push({ routeKey, text: error.message });
+      });
       page.on("response", (response) => {
         if (response.url().includes("/static/") && response.status() >= 400) {
-          report.assetFailures.push({
-            routeKey,
-            url: response.url(),
-            status: response.status(),
-          });
+          report.assetFailures.push({ routeKey, url: response.url(), status: response.status() });
         }
       });
-      const response = await page.goto(`${baseUrl}${pageDefinition.path}`, {
+
+      const response = await page.goto(`${baseUrl}${definition.path}`, {
         waitUntil: "networkidle",
       });
-      await page.waitForTimeout(150);
-      await auditGlobalInteractions(page, viewport, pageDefinition.persona, routeKey);
+      await page.waitForTimeout(100);
+      await auditInteractions(page, viewport, definition.persona, routeKey);
 
       const audit = await page.evaluate(async () => {
         const visible = (element) => {
@@ -152,36 +154,58 @@ function safeName(value) {
             rect.height > 0
           );
         };
-        const nextFrame = () => new Promise((resolve) => requestAnimationFrame(() => resolve()));
+        const nextFrame = () => new Promise((resolve) => requestAnimationFrame(resolve));
+        const root = document.scrollingElement || document.documentElement;
+        const main = document.querySelector(".vh-main");
         const controls = [
           ...document.querySelectorAll("button, a, input, select, textarea, summary"),
         ].filter(visible);
         const unnamedControls = controls
           .filter((element) => {
             const id = element.getAttribute("id");
-            const label = id
+            const explicitLabel = id
               ? document.querySelector(`label[for="${CSS.escape(id)}"]`)
               : null;
+            const parentLabel = element.closest("label");
             return !(
               element.getAttribute("aria-label") ||
               element.getAttribute("aria-labelledby") ||
               element.textContent.trim() ||
               element.getAttribute("title") ||
               element.getAttribute("placeholder") ||
-              label?.textContent.trim()
+              explicitLabel?.textContent.trim() ||
+              parentLabel?.textContent.trim()
             );
           })
           .map((element) => element.outerHTML.slice(0, 220));
         const ids = [...document.querySelectorAll("[id]")].map((element) => element.id);
-        const duplicateIds = ids.filter((id, index) => ids.indexOf(id) !== index);
-        const sidebar = document.querySelector(".vh-sidebar");
-        const navToggle = document.querySelector("[data-nav-toggle]");
-        const activeNavigation = [
-          ...document.querySelectorAll('.vh-nav-list a[aria-current="page"]'),
-        ];
-        const bodyText = document.body.innerText;
-        const root = document.scrollingElement || document.documentElement;
-        const main = document.querySelector(".vh-main");
+        const duplicateIds = [...new Set(ids.filter((id, index) => ids.indexOf(id) !== index))];
+        const deadButtons = [...document.querySelectorAll('button[type="button"]')]
+          .filter(visible)
+          .filter((element) => !element.disabled)
+          .filter((element) => {
+            const hasHook = [...element.attributes].some((attribute) =>
+              attribute.name.startsWith("data-"),
+            );
+            return !(
+              hasHook ||
+              element.getAttribute("aria-controls") ||
+              element.getAttribute("onclick") ||
+              element.closest("form")
+            );
+          })
+          .map((element) => element.outerHTML.slice(0, 220));
+        const placeholderLinks = [...document.querySelectorAll("a[href]")]
+          .filter(visible)
+          .filter((element) => {
+            const href = element.getAttribute("href").trim();
+            return href === "#" || href.startsWith("javascript:");
+          })
+          .map((element) => element.outerHTML.slice(0, 220));
+        const postFormsWithoutCsrf = [...document.querySelectorAll("form")]
+          .filter((form) => (form.getAttribute("method") || "get").toLowerCase() === "post")
+          .filter((form) => !form.querySelector('input[name="csrfmiddlewaretoken"]'))
+          .map((form) => form.outerHTML.slice(0, 220));
 
         async function verifyScroll(element) {
           if (!element || element.scrollHeight <= element.clientHeight + 2) {
@@ -209,10 +233,7 @@ function safeName(value) {
 
         const documentScroll = await verifyScroll(root);
         const mainStyle = main ? getComputedStyle(main) : null;
-        const mainCanOwnScroll = Boolean(
-          mainStyle && ["auto", "scroll"].includes(mainStyle.overflowY),
-        );
-        const mainScroll = mainCanOwnScroll
+        const mainScroll = mainStyle && ["auto", "scroll"].includes(mainStyle.overflowY)
           ? await verifyScroll(main)
           : {
               needed: false,
@@ -220,7 +241,6 @@ function safeName(value) {
               scrollHeight: main?.scrollHeight || 0,
               clientHeight: main?.clientHeight || 0,
             };
-
         const clippingContainers = [
           ...document.querySelectorAll(
             ".vh-main-shell, .vh-main, .vh-page-shell, .vh-product-page, .vh-settings-page",
@@ -242,7 +262,6 @@ function safeName(value) {
             clientHeight: element.clientHeight,
             overflowY: getComputedStyle(element).overflowY,
           }));
-
         const lastContent = main
           ? [...main.children].filter(visible).at(-1) || null
           : null;
@@ -257,39 +276,8 @@ function safeName(value) {
           lastContentReachable = rect.top < window.innerHeight && rect.bottom <= window.innerHeight + 4;
           owner.scrollTop = original;
         } else if (lastContent) {
-          const rect = lastContent.getBoundingClientRect();
-          lastContentReachable = rect.bottom <= window.innerHeight + 4;
+          lastContentReachable = lastContent.getBoundingClientRect().bottom <= window.innerHeight + 4;
         }
-
-        const deadButtons = [...document.querySelectorAll('button[type="button"]')]
-          .filter(visible)
-          .filter((element) => !element.disabled)
-          .filter((element) => {
-            const hasDataHook = [...element.attributes].some((attribute) =>
-              attribute.name.startsWith("data-"),
-            );
-            return !(
-              hasDataHook ||
-              element.getAttribute("aria-controls") ||
-              element.getAttribute("onclick") ||
-              element.closest("form")
-            );
-          })
-          .map((element) => element.outerHTML.slice(0, 220));
-
-        const placeholderLinks = [...document.querySelectorAll("a[href]")]
-          .filter(visible)
-          .filter((element) => {
-            const href = element.getAttribute("href").trim();
-            return href === "#" || href.startsWith("javascript:");
-          })
-          .map((element) => element.outerHTML.slice(0, 220));
-
-        const postFormsWithoutCsrf = [...document.querySelectorAll("form")]
-          .filter((form) => (form.getAttribute("method") || "get").toLowerCase() === "post")
-          .filter((form) => !form.querySelector('input[name="csrfmiddlewaretoken"]'))
-          .map((form) => form.outerHTML.slice(0, 220));
-
         const internalLinks = [
           ...new Set(
             [...document.querySelectorAll("a[href]")]
@@ -300,13 +288,14 @@ function safeName(value) {
               .map((url) => `${url.pathname}${url.search}`),
           ),
         ];
+        const sidebar = document.querySelector(".vh-sidebar");
+        const navToggle = document.querySelector("[data-nav-toggle]");
+        const bodyText = document.body.innerText;
 
         return {
           title: document.title,
           h1Count: [...document.querySelectorAll("h1")].filter(visible).length,
           overflowX: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
-          bodyScrollWidth: document.documentElement.scrollWidth,
-          bodyClientWidth: document.documentElement.clientWidth,
           documentScroll,
           mainScroll,
           rootOverflowY: getComputedStyle(document.documentElement).overflowY,
@@ -317,9 +306,11 @@ function safeName(value) {
           deadButtons,
           placeholderLinks,
           postFormsWithoutCsrf,
-          duplicateIds: [...new Set(duplicateIds)],
+          duplicateIds,
           internalLinks,
-          activeNavigation: activeNavigation.map((item) => item.textContent.trim()),
+          activeNavigation: [
+            ...document.querySelectorAll('.vh-nav-list a[aria-current="page"]'),
+          ].map((item) => item.textContent.trim()),
           djangoError:
             Boolean(document.querySelector("#traceback, .technical-500")) ||
             /TemplateSyntaxError at\/|Server Error \(500\)/i.test(bodyText),
@@ -330,28 +321,28 @@ function safeName(value) {
 
       for (const href of audit.internalLinks) {
         const absoluteUrl = new URL(href, baseUrl).toString();
-        const linkKey = `${pageDefinition.persona}:${absoluteUrl}`;
-        if (!checkedLinks.has(linkKey)) {
+        const key = `${definition.persona}:${absoluteUrl}`;
+        if (!checkedLinks.has(key)) {
           try {
             const linkResponse = await context.request.get(absoluteUrl, {
               failOnStatusCode: false,
               maxRedirects: 3,
               timeout: 10_000,
             });
-            checkedLinks.set(linkKey, linkResponse.status());
+            checkedLinks.set(key, linkResponse.status());
           } catch (error) {
-            checkedLinks.set(linkKey, 0);
+            checkedLinks.set(key, 0);
             report.linkFailures.push({ routeKey, href, status: 0, text: error.message });
           }
         }
-        const linkStatus = checkedLinks.get(linkKey);
-        if (linkStatus === 0 || linkStatus >= 400) {
-          report.linkFailures.push({ routeKey, href, status: linkStatus });
+        const status = checkedLinks.get(key);
+        if (status === 0 || status >= 400) {
+          report.linkFailures.push({ routeKey, href, status });
         }
       }
 
       const status = response ? response.status() : 0;
-      report.pages.push({ ...pageDefinition, viewport: viewport.name, status, ...audit });
+      report.pages.push({ ...definition, viewport: viewport.name, status, ...audit });
       if (status >= 400) report.failures.push(`${routeKey} returned ${status}`);
       if (audit.djangoError) report.failures.push(`${routeKey} displayed a Django error`);
       if (audit.overflowX) report.failures.push(`${routeKey} has body-level horizontal overflow`);
@@ -366,7 +357,7 @@ function safeName(value) {
         report.failures.push(`${routeKey} clips vertically overflowing content`);
       }
       if (!audit.documentScroll.reachedBottom || !audit.mainScroll.reachedBottom) {
-        report.failures.push(`${routeKey} has content that cannot be scrolled to the bottom`);
+        report.failures.push(`${routeKey} has content that cannot scroll to the bottom`);
       }
       if (!audit.lastContentReachable) {
         report.failures.push(`${routeKey} has unreachable final page content`);
@@ -388,14 +379,14 @@ function safeName(value) {
         );
       }
       await page.screenshot({
-        path: path.join(outputRoot, `${safeName(pageDefinition.name)}-${viewport.name}.png`),
+        path: path.join(outputRoot, `${safeName(definition.name)}-${viewport.name}.png`),
         fullPage: true,
       });
       await page.close();
     }
   }
 
-  for (const context of contextCache.values()) await context.close();
+  for (const context of contexts.values()) await context.close();
   await browser.close();
   if (report.consoleErrors.length) {
     report.failures.push(`${report.consoleErrors.length} console error(s)`);

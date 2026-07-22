@@ -149,7 +149,10 @@ function safeName(value) {
         }
         await openDialog.evaluate((dialog) => dialog.close());
         await page.waitForTimeout(75);
-        if (await openDialog.evaluate((dialog) => dialog.open)) {
+        const modalStillOpen = await page.evaluate(() =>
+          Boolean(document.querySelector("dialog[open]")),
+        );
+        if (modalStillOpen) {
           report.failures.push(`${routeKey} modal could not be closed`);
         }
       }

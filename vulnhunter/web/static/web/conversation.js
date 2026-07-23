@@ -711,6 +711,13 @@
     try {
       const data = await postForm(initial.message_url, { message: value });
       if (data.message) appendMessage(data.message, { animate: true });
+      if (data.clear_run) {
+        if (pollTimer) window.clearTimeout(pollTimer);
+        runCard?.remove();
+        runCard = null;
+        activeRun = null;
+        lastRunSignature = "";
+      }
       if (data.run) {
         activeRun = normalizeRun(data.run);
         lastRunSignature = runSignature(activeRun);

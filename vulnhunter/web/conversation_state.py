@@ -241,12 +241,15 @@ def contextual_chat_reply(
                 return "The exact passive plan is waiting for your confirmation below."
             approval_state = _text(payload.get("approval_state")) or "not required"
             return f"The current approval state is {approval_state}."
+    if fallback:
+        return fallback
+    if payload:
         return (
-            f"I am tracking the current assessment for {_text(payload.get('target'))}. "
-            f"{_text(payload.get('current_step'))} You can ask for status, results, "
-            "evidence or the next step."
+            f"I am tracking the selected assessment for {_text(payload.get('target'))}. "
+            "Ask for its status, results, evidence or next step, or paste another authorised "
+            "website to prepare a new assessment."
         )
-    return fallback or (
+    return (
         "Paste an authorised http or https target. I will check scope, prepare the passive plan, "
         "pause for confirmation and report progress in this conversation."
     )

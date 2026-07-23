@@ -1,0 +1,45 @@
+name: Temporary controlled-learning formatter
+
+on:
+  pull_request:
+    paths:
+      - "vulnhunter/learning/**"
+      - "vulnhunter/intelligence/service.py"
+      - "vulnhunter/web/management/commands/vh_run_intelligence_worker.py"
+      - "vulnhunter/web/management/commands/vh_manage_learning.py"
+      - "tests/unit/test_controlled_learning.py"
+      - ".github/workflows/temporary-learning-format.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  format:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: python -m pip install "ruff>=0.9,<1"
+      - name: Format changed Python
+        run: |
+          python -m ruff format \
+            vulnhunter/learning \
+            vulnhunter/intelligence/service.py \
+            vulnhunter/web/management/commands/vh_run_intelligence_worker.py \
+            vulnhunter/web/management/commands/vh_manage_learning.py \
+            tests/unit/test_controlled_learning.py
+          mkdir -p /tmp/formatted
+          cp -R vulnhunter/learning /tmp/formatted/learning
+          cp vulnhunter/intelligence/service.py /tmp/formatted/intelligence-service.py
+          cp vulnhunter/web/management/commands/vh_run_intelligence_worker.py \
+            /tmp/formatted/vh_run_intelligence_worker.py
+          cp vulnhunter/web/management/commands/vh_manage_learning.py \
+            /tmp/formatted/vh_manage_learning.py
+          cp tests/unit/test_controlled_learning.py /tmp/formatted/test_controlled_learning.py
+      - uses: actions/upload-artifact@v6
+        with:
+          name: exact-controlled-learning-format
+          path: /tmp/formatted
+          retention-days: 1

@@ -13,6 +13,7 @@ fi
 
 export VULNHUNTER_GROQ_ENABLED="${VULNHUNTER_GROQ_ENABLED:-true}"
 export VULNHUNTER_GROQ_API_KEY_FILE="${VULNHUNTER_GROQ_API_KEY_FILE:-$ROOT/.codespaces/groq-api-key}"
+export VULNHUNTER_INTELLIGENCE_ENABLED="${VULNHUNTER_INTELLIGENCE_ENABLED:-true}"
 
 LAB_PORT="${VULNHUNTER_LAB_TARGET_PORT:-${VULNHUNTER_PHONE_LAB_TARGET_PORT:-8010}}"
 LAB_ADDRESS="$(python scripts/phone_lab_target.py --print-address)"
@@ -22,8 +23,13 @@ mkdir -p "$LOG_ROOT"
 
 TARGET_PID=""
 WORKER_PID=""
+INTELLIGENCE_PID=""
 cleanup() {
   set +e
+  if [[ -n "$INTELLIGENCE_PID" ]]; then
+    kill "$INTELLIGENCE_PID" 2>/dev/null
+    wait "$INTELLIGENCE_PID" 2>/dev/null
+  fi
   if [[ -n "$WORKER_PID" ]]; then
     kill "$WORKER_PID" 2>/dev/null
     wait "$WORKER_PID" 2>/dev/null
@@ -67,8 +73,15 @@ python manage.py vh_run_nuclei_worker --watch --poll-seconds 0.5 \
 WORKER_PID=$!
 
 GROQ_STATE="deterministic fallback"
+INTELLIGENCE_STATE="disabled"
 if [[ "$VULNHUNTER_GROQ_ENABLED" == "true" && -s "$VULNHUNTER_GROQ_API_KEY_FILE" ]]; then
   GROQ_STATE="configured advisory"
+  if [[ "$VULNHUNTER_INTELLIGENCE_ENABLED" == "true" ]]; then
+    python manage.py vh_run_intelligence_worker --watch --poll-seconds 0.5 \
+      >"$LOG_ROOT/intelligence.log" 2>&1 &
+    INTELLIGENCE_PID=$!
+    INTELLIGENCE_STATE="analyst → critic → synthesizer ready"
+  fi
 fi
 
 cat <<MESSAGE
@@ -77,11 +90,12 @@ VulnHunter is ready.
 Controlled target: $LAB_URL
 Login username: $VULNHUNTER_USERNAME
 Groq: $GROQ_STATE
+Reasoning: $INTELLIGENCE_STATE
 Nuclei: pinned passive worker ready
 
 Open the private port-8002 Codespaces URL and sign in once.
 Use the conversation box to request the assessment. Approval, progress,
-evidence and results remain inside the same workspace.
+evidence, verification and advisory reasoning remain inside the same workspace.
 
 MESSAGE
 

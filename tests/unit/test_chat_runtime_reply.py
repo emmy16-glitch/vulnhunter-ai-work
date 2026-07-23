@@ -22,4 +22,4 @@ def test_broken_normalizer_is_covered_by_the_compatibility_guard() -> None:
         template = handle.read()
 
     assert '" ".join(value.toLowerCase().split())' in script
-    assert "Object.defineProperty(String.prototype, \"join\"" in template
+    assert 'Object.defineProperty(String.prototype, "join"' in template

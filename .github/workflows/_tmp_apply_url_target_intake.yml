@@ -43,24 +43,7 @@ jobs:
             vulnhunter/web/conversational_authorization.py \
             vulnhunter/web/conversational_views.py \
             tests/unit/test_conversational_url_targets.py
-          python -m ruff check \
-            vulnhunter/scope/validator.py \
-            vulnhunter/web/conversation_service.py \
-            vulnhunter/web/conversational_authorization.py \
-            vulnhunter/web/conversational_views.py \
-            tests/unit/test_conversational_url_targets.py
-      - name: Run focused tests
-        if: steps.guard.outputs.applied == 'false'
-        env:
-          VULNHUNTER_WEB_DEBUG: 'true'
-          VULNHUNTER_GROQ_ENABLED: 'false'
-        run: |
-          python -m pytest -q \
-            tests/unit/test_conversational_url_targets.py \
-            tests/unit/test_conversational_workspace.py \
-            tests/unit/test_assessment_workflow.py \
-            tests/unit/test_nuclei_activation_controls.py
-      - name: Commit applied changes
+      - name: Commit generated changes
         if: steps.guard.outputs.applied == 'false'
         run: |
           git config user.name "github-actions[bot]"
@@ -68,3 +51,20 @@ jobs:
           git add .
           git commit -m "Add URL-first authorized assessment intake"
           git push origin HEAD:${{ github.event.pull_request.head.ref }}
+      - name: Validate generated changes
+        if: steps.guard.outputs.applied == 'false'
+        env:
+          VULNHUNTER_WEB_DEBUG: 'true'
+          VULNHUNTER_GROQ_ENABLED: 'false'
+        run: |
+          python -m ruff check \
+            vulnhunter/scope/validator.py \
+            vulnhunter/web/conversation_service.py \
+            vulnhunter/web/conversational_authorization.py \
+            vulnhunter/web/conversational_views.py \
+            tests/unit/test_conversational_url_targets.py
+          python -m pytest -q \
+            tests/unit/test_conversational_url_targets.py \
+            tests/unit/test_conversational_workspace.py \
+            tests/unit/test_assessment_workflow.py \
+            tests/unit/test_nuclei_activation_controls.py

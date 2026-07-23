@@ -1,0 +1,32 @@
+name: Diagnose conversational core runner
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    if: github.head_ref == 'feature/conversational-url-targets'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+      - name: Run normalized patcher
+        id: runner
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          python scripts/_tmp_run_conversation_core.py 2>&1 | tee core-runner.log
+      - name: Upload runner log
+        uses: actions/upload-artifact@v6
+        with:
+          name: conversation-core-runner-log
+          retention-days: 2
+          path: core-runner.log
+      - name: Fail when runner failed
+        if: steps.runner.outcome != 'success'
+        run: exit 1

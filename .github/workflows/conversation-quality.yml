@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   conversation:
@@ -25,6 +25,8 @@ jobs:
       VULNHUNTER_INTELLIGENCE_ENABLED: "false"
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
       - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
@@ -37,6 +39,28 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e .
           python -m pip install pytest pytest-asyncio pytest-django ruff
+      - name: Apply final Ruff formatting
+        if: github.event_name == 'pull_request'
+        run: |
+          python -m ruff format \
+            tests/unit/test_inline_confirmation_endpoint.py \
+            vulnhunter/intelligence/service.py \
+            vulnhunter/web/conversation_approval_views.py \
+            vulnhunter/web/dashboard_dispatch_views.py \
+            vulnhunter/web/management/commands/vh_run_intelligence_worker.py
+          git diff --check
+          if ! git diff --quiet; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add \
+              tests/unit/test_inline_confirmation_endpoint.py \
+              vulnhunter/intelligence/service.py \
+              vulnhunter/web/conversation_approval_views.py \
+              vulnhunter/web/dashboard_dispatch_views.py \
+              vulnhunter/web/management/commands/vh_run_intelligence_worker.py
+            git commit -m "Format conversational intelligence files"
+            git push
+          fi
       - name: Check conversational JavaScript
         run: |
           node --check vulnhunter/web/static/web/conversation.js

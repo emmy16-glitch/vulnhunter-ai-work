@@ -25,14 +25,32 @@ from vulnhunter.providers import (
     ProviderKind,
     ProviderOutputKind,
 )
+from vulnhunter.security import redact_text
 
 _URL_PATTERN = re.compile(r"https?://[^\s<>'\"]+", re.IGNORECASE)
+_BRACKETED_IPV6_TARGET_PATTERN = re.compile(
+    r"(?<![\w:])\[[0-9a-f:.%_-]+\](?::[0-9]{1,5})?(?:/[^\s<>'\"]*)?",
+    re.IGNORECASE,
+)
 _BARE_TARGET_PATTERN = re.compile(
-    r"(?<![\w.-])((?:\d{1,3}\.){3}\d{1,3}|[a-z0-9.-]+):([0-9]{1,5})(?:/[^\s]*)?",
+    r"(?<![\w.-])((?:\d{1,3}\.){3}\d{1,3}|"
+    r"(?:localhost|[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?"
+    r"(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+))"
+    r":([0-9]{1,5})(?:/[^\s<>'\"]*)?",
+    re.IGNORECASE,
+)
+_BARE_HOSTNAME_PATTERN = re.compile(
+    r"(?<![@\w.-])(?:localhost|[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?"
+    r"(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+)(?![\w.-])",
     re.IGNORECASE,
 )
 _PORT_PATTERN = re.compile(r"\bport\s*[:#-]?\s*([0-9]{1,5})\b", re.IGNORECASE)
 _IPV4_PATTERN = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
+_COOKIE_ASSIGNMENT_PATTERN = re.compile(
+    r"\b(cookie|set-cookie)\b(\s*[:=]\s*)[^\r\n]+",
+    re.IGNORECASE,
+)
+_SECRET_TOKEN_PATTERN = re.compile(r"\b(?:sk|gsk)_[A-Za-z0-9_-]{10,}\b")
 _PROFILE_WORDS = {
     "passive": "passive",
     "safe": "passive",
@@ -79,12 +97,19 @@ def canonical_target(value: str) -> str:
     path = parsed.path or "/"
     if not path.startswith("/"):
         path = f"/{path}"
-    netloc = f"{hostname.lower()}:{port}"
+    normalized_hostname = hostname.lower()
+    display_hostname = (
+        f"[{normalized_hostname}]" if ":" in normalized_hostname else normalized_hostname
+    )
+    netloc = f"{display_hostname}:{port}"
     return urlunsplit((scheme, netloc, path, "", ""))
 
 
 def extract_target(text: str) -> str | None:
     match = _URL_PATTERN.search(text)
+    if match:
+        return canonical_target(match.group(0)) or None
+    match = _BRACKETED_IPV6_TARGET_PATTERN.search(text)
     if match:
         return canonical_target(match.group(0)) or None
     match = _BARE_TARGET_PATTERN.search(text)
@@ -115,21 +140,35 @@ def extract_profile(text: str) -> str | None:
     return None
 
 
+def _contains_term(text: str, term: str) -> bool:
+    return re.search(rf"(?<!\w){re.escape(term)}(?!\w)", text) is not None
+
+
 def deterministic_intent(text: str) -> str:
     lowered = " ".join(text.casefold().split())
-    if any(word in lowered for word in _CANCEL_WORDS):
+    if any(_contains_term(lowered, word) for word in _CANCEL_WORDS):
         return "cancel"
-    if any(word in lowered for word in _STATUS_WORDS):
+    if any(_contains_term(lowered, word) for word in _STATUS_WORDS):
         return "status"
-    if any(word in lowered for word in _SCAN_WORDS) or extract_target(text):
+    if any(_contains_term(lowered, word) for word in _SCAN_WORDS) or extract_target(text):
         return "scan"
     return "clarify"
 
 
 def _sanitize_for_groq(text: str) -> str:
-    sanitized = _URL_PATTERN.sub("[AUTHORIZED_TARGET]", text)
+    """Apply central redaction plus target-specific removal before remote inference."""
+
+    sanitized = redact_text(text)
+    sanitized = _COOKIE_ASSIGNMENT_PATTERN.sub(
+        lambda match: f"{match.group(1)}{match.group(2)}[REDACTED]",
+        sanitized,
+    )
+    sanitized = _URL_PATTERN.sub("[AUTHORIZED_TARGET]", sanitized)
+    sanitized = _BRACKETED_IPV6_TARGET_PATTERN.sub("[AUTHORIZED_TARGET]", sanitized)
+    sanitized = _BARE_TARGET_PATTERN.sub("[AUTHORIZED_TARGET]", sanitized)
     sanitized = _IPV4_PATTERN.sub("[PRIVATE_ADDRESS]", sanitized)
-    sanitized = re.sub(r"\b(?:sk|gsk)_[A-Za-z0-9_-]{10,}\b", "[SECRET]", sanitized)
+    sanitized = _BARE_HOSTNAME_PATTERN.sub("[PRIVATE_HOST]", sanitized)
+    sanitized = _SECRET_TOKEN_PATTERN.sub("[REDACTED]", sanitized)
     return sanitized[:4_000]
 
 
@@ -147,12 +186,12 @@ def _groq_advisory(
     sanitized = _sanitize_for_groq(text)
     prompt = (
         "Interpret a cybersecurity assessment chat request. The deterministic backend owns "
-        "authorization, target matching, ports, approval, Nuclei execution, evidence, "
-        "and findings. Do not claim any tool ran. Return content as a JSON string with keys "
-        "intent, message, recommended_profile, and missing. intent must be scan, status, "
-        "cancel, or clarify. recommended_profile must be one of the supplied profiles or "
-        "null. missing must be an array containing only target, port, profile, or "
-        "authorization. Keep message under 240 characters. "
+        "authorization, target matching, cancellation, ports, approval, Nuclei execution, "
+        "evidence, and findings. Do not claim any tool ran and do not request cancellation. "
+        "Return content as a JSON string with keys intent, message, recommended_profile, and "
+        "missing. intent must be scan, status, or clarify. recommended_profile must be one of "
+        "the supplied profiles or null. missing must be an array containing only target, port, "
+        "profile, or authorization. Keep message under 240 characters. "
         f"Available profiles: {', '.join(available_profiles) or 'none'}. "
         f"Sanitized user request: {sanitized}"
     )
@@ -219,7 +258,8 @@ def interpret_request(
     port = extract_port(text, target)
     protocol = urlsplit(target).scheme if target else None
     profile = extract_profile(text)
-    intent = deterministic_intent(text)
+    deterministic = deterministic_intent(text)
+    intent = deterministic
     assistant_copy = None
     provider = "deterministic"
     detail = "Deterministic request parsing is active."
@@ -234,14 +274,17 @@ def interpret_request(
         except json.JSONDecodeError:
             payload = {}
         advisory_intent = payload.get("intent")
-        if advisory_intent in {"scan", "status", "cancel", "clarify"}:
+        if deterministic not in {"cancel", "status"} and advisory_intent in {
+            "scan",
+            "clarify",
+        }:
             intent = advisory_intent
         advisory_profile = payload.get("recommended_profile")
         if profile is None and advisory_profile in set(available_profiles):
             profile = advisory_profile
         copy = payload.get("message")
         if isinstance(copy, str) and copy.strip():
-            assistant_copy = " ".join(copy.split())[:240]
+            assistant_copy = redact_text(" ".join(copy.split()))[:240]
         provider = "groq"
         detail = advisory_detail
     else:

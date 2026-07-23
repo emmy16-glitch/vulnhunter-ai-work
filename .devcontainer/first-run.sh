@@ -72,8 +72,15 @@ EOF2
 chmod 600 "$USERS_FILE"
 
 GROQ_KEY_FILE="${VULNHUNTER_GROQ_API_KEY_FILE:-$ROOT/.codespaces/groq-api-key}"
+if [[ ! -s "$GROQ_KEY_FILE" && -n "${GROQ_API_KEY:-}" ]]; then
+  umask 077
+  printf '%s' "$GROQ_API_KEY" > "$GROQ_KEY_FILE"
+  chmod 600 "$GROQ_KEY_FILE"
+  unset GROQ_API_KEY
+  printf 'Configured the protected Groq key file from the Codespaces secret.\n'
+fi
 if [[ ! -s "$GROQ_KEY_FILE" ]]; then
-  printf '\nGroq powers conversational request interpretation and result assistance.\n'
+  printf '\nGroq powers conversational request interpretation and bounded finding analysis.\n'
   read -r -p "Configure your Groq API key now? [Y/n]: " CONFIGURE_GROQ
   CONFIGURE_GROQ="${CONFIGURE_GROQ:-Y}"
   if [[ "${CONFIGURE_GROQ,,}" != "n" && "${CONFIGURE_GROQ,,}" != "no" ]]; then
@@ -82,7 +89,7 @@ if [[ ! -s "$GROQ_KEY_FILE" ]]; then
     printf 'Groq was left unconfigured. Deterministic planning will remain available.\n'
   fi
 else
-  printf 'Groq key file already exists: %s\n' "$GROQ_KEY_FILE"
+  printf 'Groq key file is ready: %s\n' "$GROQ_KEY_FILE"
 fi
 
 printf '\nVulnHunter setup is complete. Start the workspace with:\n'

@@ -38,6 +38,8 @@ class InlineConfirmationStore(ApprovalStore):
             )
 
         instant = (now or datetime.now(UTC)).astimezone(UTC)
+        expired = False
+        confirmed: ApprovalRequest | None = None
         self.initialize()
         with self._connect(write=True) as connection:
             current = self._load_locked(connection, request_id)
@@ -58,9 +60,9 @@ class InlineConfirmationStore(ApprovalStore):
                     f"The plan cannot be confirmed from {current.status.value}."
                 )
             if instant >= current.expires_at:
-                expired = current.model_copy(update={"status": ApprovalStatus.EXPIRED})
-                expired = ApprovalRequest.model_validate(expired.model_dump())
-                self._save_locked(connection, expired)
+                expired_request = current.model_copy(update={"status": ApprovalStatus.EXPIRED})
+                expired_request = ApprovalRequest.model_validate(expired_request.model_dump())
+                self._save_locked(connection, expired_request)
                 self._append_event(
                     connection,
                     request_id=request_id,
@@ -68,31 +70,36 @@ class InlineConfirmationStore(ApprovalStore):
                     actor_id=actor_id,
                     detail={"profile": profile},
                 )
-                raise ApprovalConflictError("The exact command plan has expired.")
+                expired = True
+            else:
+                confirmed = current.model_copy(
+                    update={
+                        "status": ApprovalStatus.APPROVED,
+                        "decided_by": actor_id,
+                        "decision": ApprovalDecision.APPROVE_ONCE,
+                        "decision_reason": safe_reason,
+                        "conditions": (
+                            "Exact target, port, reviewed templates, rate limit and concurrency only.",
+                        ),
+                        "decided_at": instant,
+                    }
+                )
+                confirmed = ApprovalRequest.model_validate(confirmed.model_dump())
+                self._save_locked(connection, confirmed)
+                self._append_event(
+                    connection,
+                    request_id=request_id,
+                    event_type="exact_passive_plan_confirmed",
+                    actor_id=actor_id,
+                    detail={
+                        "profile": profile,
+                        "action_manifest_sha256": action_manifest_sha256,
+                        "confirmation_kind": "single_account_exact_plan",
+                    },
+                )
 
-            confirmed = current.model_copy(
-                update={
-                    "status": ApprovalStatus.APPROVED,
-                    "decided_by": actor_id,
-                    "decision": ApprovalDecision.APPROVE_ONCE,
-                    "decision_reason": safe_reason,
-                    "conditions": (
-                        "Exact target, port, reviewed templates, rate limit and concurrency only.",
-                    ),
-                    "decided_at": instant,
-                }
-            )
-            confirmed = ApprovalRequest.model_validate(confirmed.model_dump())
-            self._save_locked(connection, confirmed)
-            self._append_event(
-                connection,
-                request_id=request_id,
-                event_type="exact_passive_plan_confirmed",
-                actor_id=actor_id,
-                detail={
-                    "profile": profile,
-                    "action_manifest_sha256": action_manifest_sha256,
-                    "confirmation_kind": "single_account_exact_plan",
-                },
-            )
+        if expired:
+            raise ApprovalConflictError("The exact command plan has expired.")
+        if confirmed is None:  # pragma: no cover - defensive invariant
+            raise ApprovalConflictError("The exact command plan was not confirmed.")
         return confirmed

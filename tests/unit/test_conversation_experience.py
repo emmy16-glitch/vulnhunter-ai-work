@@ -4,8 +4,10 @@ import json
 from pathlib import Path
 from unittest.mock import patch
 
-from vulnhunter.web.conversation_service import deterministic_intent, interpret_request
-
+from vulnhunter.web.conversation_service import (
+    deterministic_intent,
+    interpret_request,
+)
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -73,9 +75,9 @@ def test_conversation_template_keeps_history_and_details_progressive():
 
 
 def test_conversation_scroll_respects_manual_reading_position():
-    script = (
-        ROOT / "vulnhunter/web/static/web/conversation-autoscroll.js"
-    ).read_text(encoding="utf-8")
+    script = (ROOT / "vulnhunter/web/static/web/conversation-autoscroll.js").read_text(
+        encoding="utf-8"
+    )
 
     assert "followingLatest" in script
     assert "distanceFromBottom" in script

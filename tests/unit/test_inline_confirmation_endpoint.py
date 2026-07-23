@@ -30,9 +30,7 @@ def test_inline_confirmation_resumes_the_owned_passive_run(client):
     )
     client.force_login(user)
     digest = "a" * 64
-    actor = SimpleNamespace(
-        governance_identity=SimpleNamespace(reviewer_id="vulnhunter-user")
-    )
+    actor = SimpleNamespace(governance_identity=SimpleNamespace(reviewer_id="vulnhunter-user"))
     pending = SimpleNamespace(
         request_id="approval-inline-test",
         run_id="assessment-inline-test",
@@ -112,9 +110,7 @@ def test_inline_confirmation_rejects_intrusive_plan_before_state_change(client):
     )
     client.force_login(user)
     digest = "b" * 64
-    actor = SimpleNamespace(
-        governance_identity=SimpleNamespace(reviewer_id="vulnhunter-user")
-    )
+    actor = SimpleNamespace(governance_identity=SimpleNamespace(reviewer_id="vulnhunter-user"))
     pending = SimpleNamespace(run_id="assessment-inline-test")
     run = SimpleNamespace(
         run_id="assessment-inline-test",

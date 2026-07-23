@@ -10,7 +10,6 @@ fi
 
 : "${VULNHUNTER_USER_ID:?Run bash .devcontainer/first-run.sh first.}"
 : "${VULNHUNTER_USERNAME:?Run bash .devcontainer/first-run.sh first.}"
-: "${VULNHUNTER_APPROVER_USERNAME:?Run bash .devcontainer/first-run.sh again to create the independent approver.}"
 
 export VULNHUNTER_GROQ_ENABLED="${VULNHUNTER_GROQ_ENABLED:-true}"
 export VULNHUNTER_GROQ_API_KEY_FILE="${VULNHUNTER_GROQ_API_KEY_FILE:-$ROOT/.codespaces/groq-api-key}"
@@ -89,15 +88,14 @@ cat <<MESSAGE
 
 VulnHunter is ready.
 Controlled target: $LAB_URL
-Operator username: $VULNHUNTER_USERNAME
-Independent approver username: $VULNHUNTER_APPROVER_USERNAME
+Login username: $VULNHUNTER_USERNAME
 Groq: $GROQ_STATE
 Reasoning: $INTELLIGENCE_STATE
 Nuclei: pinned passive worker ready
 
-Open the private port-8002 Codespaces URL and sign in as the operator to create
-and monitor an assessment. When the plan pauses, sign in separately as the
-approver and use the Approval Centre. The requester cannot approve its own plan.
+Open the private port-8002 Codespaces URL and sign in once. Request the scan,
+answer any follow-up questions, confirm the exact passive plan in the chat, and
+watch Nuclei, evidence verification and GPT-OSS analysis continue on that screen.
 
 MESSAGE
 

@@ -8,11 +8,7 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.http import HttpResponse
 
-from vulnhunter.web import (
-    conversation_approval_views,
-    conversational_views,
-    dashboard_dispatch_views,
-)
+from vulnhunter.web import conversational_views, dashboard_dispatch_views
 from vulnhunter.web.conversation_service import (
     _sanitize_for_groq,
     canonical_target,
@@ -136,40 +132,7 @@ def test_conversation_payload_reads_persisted_finding_and_artifact_mappings():
 
 
 @pytest.mark.django_db
-def test_conversation_approval_rejects_the_requester(client):
-    user = get_user_model().objects.create_user(
-        username="operator",
-        password="long-test-password-1234",
-    )
-    client.force_login(user)
-    actor = SimpleNamespace(
-        governance_identity=SimpleNamespace(reviewer_id="operator-identity")
-    )
-    pending = SimpleNamespace(
-        requested_by="operator-identity",
-        run_id="run-test",
-    )
-    store = SimpleNamespace(get=lambda _request_id: pending)
-
-    with (
-        patch.object(conversation_approval_views, "_actor", return_value=actor),
-        patch.object(conversation_approval_views, "_approval_store", return_value=store),
-    ):
-        response = client.post(
-            "/workspace/approve/",
-            {
-                "request_id": "approval-test",
-                "plan_digest": "a" * 64,
-                "reason": "Approved for this exact plan.",
-            },
-        )
-
-    assert response.status_code == 409
-    assert "cannot approve" in response.json()["detail"]
-
-
-@pytest.mark.django_db
-def test_root_is_the_conversational_workspace_for_campaign_operator(client, settings):
+def test_root_is_the_single_account_conversational_workspace(client, settings):
     settings.ALLOWED_HOSTS = ["testserver"]
     user = get_user_model().objects.create_user(
         username="vulnhunter",
@@ -196,8 +159,11 @@ def test_root_is_the_conversational_workspace_for_campaign_operator(client, sett
     assert response.status_code == 200
     assert "VulnHunter Workspace" in content
     assert "data-conversation-form" in content
-    assert "Independent approval required" in content
-    assert "Open approval centre" in content
+    assert "Confirm exact passive plan" in content
+    assert "data-approval-confirm" in content
+    assert "Confirm and continue" in content
+    assert "Open approval centre" not in content
+    assert "separate approver" not in content
     assert "Remediation guidance" in content
     assert "Technical and audit details" in content
     assert "conversation.js" in content

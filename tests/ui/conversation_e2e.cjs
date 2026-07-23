@@ -40,15 +40,17 @@ let page;
     await input.fill("Confirm");
     await send.click();
     await page.getByText(/Approved\. Starting the governed assessment/i).waitFor({ timeout: 15000 });
-    const worker = execFileAsync("python", [
+    const workerResult = await execFileAsync("python", [
       "tests/ui/complete_conversation_run.py",
       "--run-id",
       runId,
     ]);
+    if (workerResult.stderr) {
+      fs.appendFileSync(serverLog, `\n--- Browser E2E worker stderr ---\n${workerResult.stderr}\n`);
+    }
     await page.getByText(/Running passive checks/i).waitFor({ timeout: 15000 });
     await page.getByText(/Verifying one possible finding/i).waitFor({ timeout: 15000 });
     await page.getByText(/Analysis complete in/i).waitFor({ timeout: 20000 });
-    await worker;
 
     await input.fill("Show me the results");
     await send.click();

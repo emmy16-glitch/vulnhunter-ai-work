@@ -40,14 +40,20 @@
 
   const advisoryEvent = (candidateRun) => {
     const events = Array.isArray(candidateRun?.events) ? candidateRun.events : [];
-    return events.findLast?.(
-      (event) =>
-        event?.event_type === "evaluation_completed" &&
-        event?.metadata?.advisory_only === true
-    ) || events.slice().reverse().find(
-      (event) =>
-        event?.event_type === "evaluation_completed" &&
-        event?.metadata?.advisory_only === true
+    return (
+      events.findLast?.(
+        (event) =>
+          event?.event_type === "evaluation_completed" &&
+          event?.metadata?.advisory_only === true
+      ) ||
+      events
+        .slice()
+        .reverse()
+        .find(
+          (event) =>
+            event?.event_type === "evaluation_completed" &&
+            event?.metadata?.advisory_only === true
+        )
     );
   };
 
@@ -63,6 +69,7 @@
     const avatar = fragment.querySelector(".vh-message-avatar");
     const copy = fragment.querySelector(".vh-message-copy");
     const actions = fragment.querySelector(".vh-message-actions");
+    if (!article || !avatar || !copy) return;
     article.classList.add("is-assistant", "is-status");
     article.dataset.advisoryResult = "true";
     avatar.textContent = "VH";
@@ -98,11 +105,19 @@
 
   const statusTemplate = String(initial.status_url_template || "");
   if (!statusTemplate) return;
-  const deadline = Date.now() + 180_000;
+  const absoluteDeadline = Date.now() + 900_000;
+  let terminalDeadline = run.terminal ? Date.now() + 180_000 : null;
   let stopped = false;
 
   const poll = async () => {
-    if (stopped || Date.now() >= deadline) return;
+    const now = Date.now();
+    if (
+      stopped ||
+      now >= absoluteDeadline ||
+      (terminalDeadline !== null && now >= terminalDeadline)
+    ) {
+      return;
+    }
     const url = statusTemplate.replace("RUN_ID", encodeURIComponent(String(run.run_id)));
     try {
       const response = await fetch(url, {
@@ -119,6 +134,9 @@
         }
         const findings = Array.isArray(data.run?.findings) ? data.run.findings : [];
         if (data.run?.terminal && findings.length === 0) return;
+        if (data.run?.terminal && terminalDeadline === null) {
+          terminalDeadline = Date.now() + 180_000;
+        }
       }
     } catch (_error) {
       // The main assessment remains usable; advisory polling is optional.

@@ -75,6 +75,7 @@ def build_analysis_request(
         target_identity=capsule.target_identity,
         evidence_sha256=evidence,
         safe_observations=observations,
+        created_at=capsule.created_at,
     )
 
 

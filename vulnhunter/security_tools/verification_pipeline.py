@@ -11,6 +11,11 @@ from pydantic import BaseModel, ConfigDict
 from vulnhunter.actions.models import sha256_json
 from vulnhunter.evidence.models import EvidenceRecord, FindingStatus
 from vulnhunter.evidence.store import EvidenceStore
+from vulnhunter.intelligence import (
+    IntelligenceStore,
+    IntelligenceStoreError,
+    build_analysis_request,
+)
 from vulnhunter.oracle.models import (
     FindingClaim,
     OracleResponse,
@@ -36,6 +41,8 @@ class UnifiedFindingOutcome(BaseModel):
     finding: EvidenceRecord
     verification: OracleResponse
     capsule_path: Path
+    analysis_id: str | None = None
+    analysis_queued: bool = False
 
 
 class EvidenceVerificationPipeline:
@@ -47,12 +54,19 @@ class EvidenceVerificationPipeline:
         evidence_store: EvidenceStore,
         verification_store: OracleStore,
         verifier: OracleVerifier | None = None,
+        intelligence_store: IntelligenceStore | None = None,
         clock=lambda: datetime.now(UTC),
     ) -> None:
         self.evidence_store = evidence_store
         self.verification_store = verification_store
         self.verifier = verifier or OracleVerifier()
         self.clock = clock
+        self.intelligence_store = intelligence_store
+        if self.intelligence_store is None:
+            try:
+                self.intelligence_store = IntelligenceStore.from_environment()
+            except (OSError, IntelligenceStoreError):
+                self.intelligence_store = None
 
     def process(
         self,
@@ -133,11 +147,34 @@ class EvidenceVerificationPipeline:
                 artifact_path=artifact_path,
                 metadata=metadata,
             )
+            analysis_id = None
+            analysis_queued = False
+            if self.intelligence_store is not None:
+                request = build_analysis_request(
+                    finding_id=record.evidence_id,
+                    run_id=run_id,
+                    campaign_id=campaign_id,
+                    candidate=candidate,
+                    verification=response,
+                    capsule=capsule,
+                )
+                analysis_id = request.analysis_id
+                try:
+                    analysis_queued = self.intelligence_store.enqueue(request)
+                    if not analysis_queued:
+                        analysis_queued = (
+                            self.intelligence_store.status_for_finding(record.evidence_id)
+                            is not None
+                        )
+                except IntelligenceStoreError:
+                    analysis_queued = False
             outcomes.append(
                 UnifiedFindingOutcome(
                     finding=record,
                     verification=response,
                     capsule_path=capsule_path,
+                    analysis_id=analysis_id,
+                    analysis_queued=analysis_queued,
                 )
             )
         return tuple(outcomes)

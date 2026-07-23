@@ -1,0 +1,79 @@
+name: Conversational workspace quality
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  conversation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      VULNHUNTER_WEB_DEBUG: "true"
+      VULNHUNTER_WEB_DATABASE: /tmp/vh-conversation/web.sqlite3
+      VULNHUNTER_AUTHORIZATION_DATABASE: /tmp/vh-conversation/auth.db
+      VULNHUNTER_GOVERNANCE_DATABASE: /tmp/vh-conversation/governance.db
+      VULNHUNTER_AGENT_DATABASE: /tmp/vh-conversation/agent.db
+      VULNHUNTER_APPROVAL_DATABASE: /tmp/vh-conversation/approvals.sqlite3
+      VULNHUNTER_AGENT_ACTIVITY_ROOT: /tmp/vh-conversation/activity
+      VULNHUNTER_SECURITY_EVIDENCE_ROOT: /tmp/vh-conversation/evidence
+      VULNHUNTER_ADVERSARY_LAB_DATABASE: /tmp/vh-conversation/lab.sqlite3
+      VULNHUNTER_GROQ_ENABLED: "false"
+      VULNHUNTER_INTELLIGENCE_ENABLED: "false"
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Install application and test tools
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .
+          python -m pip install pytest pytest-asyncio pytest-django ruff
+      - name: Check conversational JavaScript
+        run: |
+          node --check vulnhunter/web/static/web/conversation.js
+          node --check vulnhunter/web/static/web/conversation-autoscroll.js
+      - name: Check conversational and intelligence Python
+        run: |
+          python -m ruff check \
+            vulnhunter/web/conversation_service.py \
+            vulnhunter/web/conversational_views.py \
+            vulnhunter/web/conversation_approval_views.py \
+            vulnhunter/web/dashboard_dispatch_views.py \
+            vulnhunter/web/management/commands/vh_configure_groq.py \
+            vulnhunter/web/management/commands/vh_prepare_private_lab.py \
+            vulnhunter/web/management/commands/vh_run_intelligence_worker.py \
+            vulnhunter/intelligence \
+            tests/unit/test_conversational_workspace.py \
+            tests/unit/test_intelligence_loop.py
+          python -m ruff format --check \
+            vulnhunter/web/conversation_service.py \
+            vulnhunter/web/conversational_views.py \
+            vulnhunter/web/conversation_approval_views.py \
+            vulnhunter/web/dashboard_dispatch_views.py \
+            vulnhunter/web/management/commands/vh_configure_groq.py \
+            vulnhunter/web/management/commands/vh_prepare_private_lab.py \
+            vulnhunter/web/management/commands/vh_run_intelligence_worker.py \
+            vulnhunter/intelligence \
+            tests/unit/test_conversational_workspace.py \
+            tests/unit/test_intelligence_loop.py
+      - name: Run conversational and intelligence tests
+        run: |
+          python manage.py migrate --noinput
+          python -m pytest -q \
+            tests/unit/test_conversational_workspace.py \
+            tests/unit/test_intelligence_loop.py
+      - name: Verify launcher syntax
+        run: |
+          bash -n .devcontainer/first-run.sh
+          bash -n .devcontainer/post-create.sh
+          bash -n .devcontainer/start-vulnhunter.sh
+          bash -n .devcontainer/start-phone-lab.sh

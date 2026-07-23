@@ -1,0 +1,154 @@
+{% extends "web/base.html" %}
+{% load static %}
+{% block content %}
+<section class="vh-chat-workspace" data-conversation-workspace aria-labelledby="vh-chat-title">
+  <header class="vh-chat-header">
+    <div class="vh-chat-title-group">
+      <span class="vh-chat-orb" aria-hidden="true"><svg><use href="#vh-i-shield"></use></svg></span>
+      <div>
+        <p class="vh-eyebrow">Conversational security assessment</p>
+        <h1 id="vh-chat-title">VulnHunter Workspace</h1>
+        <p>Describe the authorised target. VulnHunter plans, pauses for independent approval, runs Nuclei and organises the evidence here.</p>
+      </div>
+    </div>
+    <div class="vh-chat-runtime" aria-label="Connected services">
+      <span class="vh-runtime-chip{% if groq.configured %} is-ready{% else %} is-warning{% endif %}"><i></i><strong>{{ groq.label }}</strong><small>{{ groq.model }}</small></span>
+      <span class="vh-runtime-chip is-ready"><i></i><strong>Nuclei</strong><small>Governed execution</small></span>
+      <button type="button" class="vh-chat-reset" data-conversation-reset>New conversation</button>
+    </div>
+  </header>
+
+  <div class="vh-chat-layout">
+    <main class="vh-chat-main" aria-label="Assessment conversation">
+      <div class="vh-chat-feed" data-conversation-feed aria-live="polite" aria-relevant="additions text">
+        <noscript><p class="vh-operational-notice is-danger">JavaScript is required for the interactive assessment workspace.</p></noscript>
+      </div>
+
+      <div class="vh-chat-thinking" data-conversation-thinking hidden aria-live="polite">
+        <span class="vh-thinking-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span data-thinking-copy>Understanding the request…</span>
+      </div>
+
+      <form class="vh-chat-composer" data-conversation-form method="post" action="{{ conversation.message_url }}">
+        {% csrf_token %}
+        <label class="vh-visually-hidden" for="vh-chat-message">Describe the assessment</label>
+        <div class="vh-chat-input-shell">
+          <textarea id="vh-chat-message" name="message" rows="1" maxlength="4000" autocomplete="off" spellcheck="true" placeholder="Example: Scan http://10.0.0.143:8010 safely" data-conversation-input required></textarea>
+          <button type="submit" class="vh-chat-send" data-conversation-send aria-label="Send assessment request">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m4 12 16-8-5.5 16-3.2-6.8z"/><path d="m11.3 13.2 4.6-4.6"/></svg>
+          </button>
+        </div>
+        <div class="vh-chat-composer-meta">
+          <span>Only authorised targets can proceed.</span>
+          <span>Enter to send · Shift+Enter for a new line</span>
+        </div>
+      </form>
+    </main>
+
+    <aside class="vh-chat-history" aria-labelledby="vh-recent-assessments-title">
+      <header>
+        <div><p class="vh-eyebrow">Workspace history</p><h2 id="vh-recent-assessments-title">Recent assessments</h2></div>
+        <span>{{ recent_runs|length }}</span>
+      </header>
+      <div class="vh-chat-history-list" data-recent-runs>
+        {% for item in recent_runs %}
+          <a href="{{ item.detail_url }}" class="vh-chat-history-item">
+            <span class="vh-history-state is-{{ item.state }}" aria-hidden="true"></span>
+            <span><strong>{{ item.target|truncatechars:38 }}</strong><small>{{ item.state }} · {{ item.profile }}</small></span>
+          </a>
+        {% empty %}
+          <p class="vh-chat-history-empty">Completed and active assessments will appear here.</p>
+        {% endfor %}
+      </div>
+      <a class="vh-chat-history-link" href="{% url 'web-findings-overview' %}">Open saved findings</a>
+    </aside>
+  </div>
+</section>
+
+<template id="vh-message-template">
+  <article class="vh-chat-message">
+    <div class="vh-message-avatar" aria-hidden="true"></div>
+    <div class="vh-message-body"><div class="vh-message-copy"></div><div class="vh-message-actions"></div></div>
+  </article>
+</template>
+
+<template id="vh-run-template">
+  <article class="vh-run-card" data-run-card>
+    <header class="vh-run-card-header">
+      <div class="vh-run-card-icon" aria-hidden="true"><svg><use href="#vh-i-radar"></use></svg></div>
+      <div class="vh-run-card-heading">
+        <span class="vh-run-state"><i></i><strong data-run-state>Preparing</strong></span>
+        <h2 data-run-target>Assessment</h2>
+        <p><span data-run-profile>Passive</span> · <span data-run-scanner>Nuclei</span></p>
+      </div>
+      <time data-run-elapsed>00:00</time>
+    </header>
+
+    <div class="vh-run-summary-grid" aria-label="Assessment summary">
+      <div><small>State</small><strong data-summary-state>Preparing</strong></div>
+      <div><small>Findings</small><strong data-summary-findings>0</strong></div>
+      <div><small>Evidence</small><strong data-summary-evidence>0</strong></div>
+      <div><small>Approval</small><strong data-summary-approval>Pending</strong></div>
+    </div>
+
+    <section class="vh-inline-approval" data-inline-approval hidden aria-labelledby="vh-inline-approval-title">
+      <div class="vh-inline-approval-top">
+        <span class="vh-approval-shield" aria-hidden="true"><svg><use href="#vh-i-shield"></use></svg></span>
+        <div><p class="vh-eyebrow">Action paused</p><h3 id="vh-inline-approval-title">Independent approval required</h3><p data-approval-summary>Review this exact plan before execution continues.</p></div>
+      </div>
+      <dl class="vh-inline-approval-facts">
+        <div><dt>Target</dt><dd data-approval-target></dd></div>
+        <div><dt>Profile</dt><dd data-approval-profile></dd></div>
+        <div><dt>Scanner</dt><dd data-approval-scanner></dd></div>
+        <div><dt>Plan digest</dt><dd><code data-approval-digest></code></dd></div>
+      </dl>
+      <p>Sign in with the separate approver account and review the pending request in the Approval Centre. The requester cannot approve this plan.</p>
+      <div class="vh-inline-approval-actions">
+        <a class="vh-button-primary" href="{% url 'web-approval-list' %}" data-approval-review>Open approval centre</a>
+        <button type="button" class="vh-button-secondary" data-approval-cancel>Cancel assessment</button>
+      </div>
+      <p class="vh-inline-approval-risk" data-approval-risk></p>
+    </section>
+
+    <div class="vh-run-stage-track" data-run-stages aria-label="Assessment progress"></div>
+
+    <div class="vh-run-disclosures">
+      <details data-section="summary" open>
+        <summary><span><svg aria-hidden="true"><use href="#vh-i-assessment"></use></svg><strong>Assessment summary</strong></span><b data-section-summary-state>In progress</b></summary>
+        <div class="vh-disclosure-body" data-summary-body></div>
+      </details>
+      <details data-section="progress">
+        <summary><span><svg aria-hidden="true"><use href="#vh-i-activity"></use></svg><strong>Live progress</strong></span><b data-progress-count>0 events</b></summary>
+        <div class="vh-disclosure-body"><ol class="vh-run-event-list" data-event-list></ol></div>
+      </details>
+      <details data-section="findings">
+        <summary><span><svg aria-hidden="true"><use href="#vh-i-finding"></use></svg><strong>Findings</strong></span><b data-findings-count>0</b></summary>
+        <div class="vh-disclosure-body" data-findings-list></div>
+      </details>
+      <details data-section="evidence">
+        <summary><span><svg aria-hidden="true"><use href="#vh-i-checkdoc"></use></svg><strong>Evidence collected</strong></span><b data-evidence-count>0</b></summary>
+        <div class="vh-disclosure-body" data-evidence-list></div>
+      </details>
+      <details data-section="verification">
+        <summary><span><svg aria-hidden="true"><use href="#vh-i-oracle"></use></svg><strong>Verification results</strong></span><b data-verification-state>Pending</b></summary>
+        <div class="vh-disclosure-body" data-verification-body></div>
+      </details>
+      <details data-section="guidance">
+        <summary><span><svg aria-hidden="true"><use href="#vh-i-checkdoc"></use></svg><strong>Remediation guidance</strong></span><b>Expandable</b></summary>
+        <div class="vh-disclosure-body" data-guidance-body></div>
+      </details>
+      <details data-section="technical">
+        <summary><span><svg aria-hidden="true"><use href="#vh-i-audit"></use></svg><strong>Technical and audit details</strong></span><b data-audit-count>0 events</b></summary>
+        <div class="vh-disclosure-body" data-technical-body></div>
+      </details>
+    </div>
+
+    <footer class="vh-run-card-footer">
+      <a data-run-detail-link>Open complete assessment</a>
+      <a data-findings-link>Saved findings</a>
+    </footer>
+  </article>
+</template>
+
+{{ conversation|json_script:"vh-conversation-data" }}
+{% endblock %}

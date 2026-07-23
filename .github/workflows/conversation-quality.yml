@@ -42,34 +42,41 @@ jobs:
       - name: Apply deterministic repair and Ruff formatting
         if: github.event_name == 'pull_request'
         run: |
-          {
+          set +e
+          (
             python scripts/repair_quality_wiring.py
             python -m ruff check --fix \
-              scripts/repair_quality_wiring.py \
               vulnhunter/intelligence/store.py \
               vulnhunter/web/conversational_views.py \
               tests/unit/test_conversational_workspace.py
             python -m ruff format \
-              scripts/repair_quality_wiring.py \
+              vulnhunter/intelligence/store.py \
+              vulnhunter/web/conversational_views.py \
+              tests/unit/test_conversational_workspace.py
+            python -m ruff check \
               vulnhunter/intelligence/store.py \
               vulnhunter/web/conversational_views.py \
               tests/unit/test_conversational_workspace.py
             git diff --check
-            if ! git diff --quiet; then
-              git config user.name "github-actions[bot]"
-              git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-              git add \
-                .devcontainer/first-run.sh \
-                scripts/repair_quality_wiring.py \
-                tests/unit/test_conversational_workspace.py \
-                vulnhunter/intelligence/store.py \
-                vulnhunter/web/conversational_views.py \
-                vulnhunter/web/static/web/conversation.js \
-                vulnhunter/web/templates/web/conversation.html
-              git commit -m "Apply automated wiring repair"
-              git push
-            fi
-          } 2>&1 | tee repair-quality.log
+          ) >repair-quality.log 2>&1
+          status=$?
+          cat repair-quality.log
+          if [[ $status -ne 0 ]]; then
+            exit "$status"
+          fi
+          if ! git diff --quiet; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add \
+              .devcontainer/first-run.sh \
+              tests/unit/test_conversational_workspace.py \
+              vulnhunter/intelligence/store.py \
+              vulnhunter/web/conversational_views.py \
+              vulnhunter/web/static/web/conversation.js \
+              vulnhunter/web/templates/web/conversation.html
+            git commit -m "Apply automated wiring repair"
+            git push
+          fi
       - name: Upload repair diagnostics
         if: failure()
         uses: actions/upload-artifact@v6

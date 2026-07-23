@@ -79,7 +79,8 @@ class InlineConfirmationStore(ApprovalStore):
                         "decision": ApprovalDecision.APPROVE_ONCE,
                         "decision_reason": safe_reason,
                         "conditions": (
-                            "Exact target, port, reviewed templates, rate limit and concurrency only.",
+                            "Exact target, port, reviewed templates, rate limit "
+                            "and concurrency only.",
                         ),
                         "decided_at": instant,
                     }

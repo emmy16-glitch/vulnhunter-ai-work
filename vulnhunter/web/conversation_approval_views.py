@@ -14,7 +14,10 @@ from django.views.decorators.http import require_POST
 
 from vulnhunter.approvals import ApprovalDecision
 from vulnhunter.approvals.store import ApprovalNotFoundError, ApprovalStoreError
-from vulnhunter.web.assessment_workflow import AssessmentWorkflowError, AssessmentWorkflowService
+from vulnhunter.web.assessment_workflow import (
+    AssessmentWorkflowError,
+    AssessmentWorkflowService,
+)
 from vulnhunter.web.conversational_views import (
     _actor,
     _append_message,
@@ -36,7 +39,10 @@ def approve_view(request: HttpRequest) -> JsonResponse:
 
     request_id = request.POST.get("request_id", "").strip()
     plan_digest = request.POST.get("plan_digest", "").strip()
-    reason = request.POST.get("reason", "").strip() or "Approved in the assessment workspace."
+    reason = (
+        request.POST.get("reason", "").strip()
+        or "Approved in the assessment workspace."
+    )
     if len(reason) < 8:
         return JsonResponse(
             {"detail": "Enter an approval note of at least eight characters."},
@@ -75,8 +81,8 @@ def approve_view(request: HttpRequest) -> JsonResponse:
         role="assistant",
         kind="status",
         content=(
-            "Approval recorded for this exact plan. The signed Nuclei job is continuing, "
-            "and live progress will appear below."
+            "Approval recorded for this exact plan. The signed Nuclei job is "
+            "continuing, and live progress will appear below."
         ),
         metadata={"run_id": str(refreshed.run_id)},
     )

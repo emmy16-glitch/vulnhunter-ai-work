@@ -106,9 +106,7 @@ class Command(BaseCommand):
             minimum=256,
             maximum=4_000,
         )
-        maximum_attempts = _env_int(
-            "VULNHUNTER_INTELLIGENCE_MAX_ATTEMPTS", 2, minimum=1, maximum=5
-        )
+        maximum_attempts = _env_int("VULNHUNTER_INTELLIGENCE_MAX_ATTEMPTS", 2, minimum=1, maximum=5)
 
         key_path = Path(settings.VULNHUNTER_GROQ_API_KEY_FILE).expanduser()
         try:

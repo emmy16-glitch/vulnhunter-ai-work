@@ -55,6 +55,40 @@ def test_groq_prompt_sanitizer_never_sends_raw_private_target_or_secret():
     assert "[SECRET]" in sanitized
 
 
+def test_conversation_payload_reads_persisted_finding_and_artifact_mappings():
+    finding = conversational_views._safe_finding(
+        {
+            "evidence_id": "finding-observation-1",
+            "title": "Missing security header",
+            "severity": "low",
+            "verification": "validated",
+            "target_reference": "target-reference",
+        }
+    )
+    artifact = conversational_views._safe_artifact(
+        {
+            "filename": "evidence.jsonl",
+            "type": "jsonl",
+            "size": 321,
+            "checksum": "a" * 64,
+        }
+    )
+
+    assert finding == {
+        "title": "Missing security header",
+        "severity": "low",
+        "verification": "validated",
+        "target": "target-reference",
+        "finding_id": "finding-observation-1",
+    }
+    assert artifact == {
+        "filename": "evidence.jsonl",
+        "type": "jsonl",
+        "size": 321,
+        "checksum": "a" * 64,
+    }
+
+
 @pytest.mark.django_db
 def test_root_is_the_conversational_workspace(client, settings):
     settings.ALLOWED_HOSTS = ["testserver"]

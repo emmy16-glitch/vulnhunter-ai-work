@@ -115,11 +115,9 @@ class FindingAnalysisRequest(BaseModel):
     def create(cls, **values) -> Self:
         draft = dict(values)
         draft.setdefault("created_at", utc_now())
-        draft["context_sha256"] = "0" * 64
-        temporary = cls.model_validate(draft)
-        return temporary.model_copy(
-            update={"context_sha256": sha256_json(temporary.unsigned_payload())}
-        )
+        temporary = cls.model_construct(context_sha256="0" * 64, **draft)
+        draft["context_sha256"] = sha256_json(temporary.unsigned_payload())
+        return cls.model_validate(draft)
 
     @model_validator(mode="after")
     def validate_context_binding(self) -> Self:

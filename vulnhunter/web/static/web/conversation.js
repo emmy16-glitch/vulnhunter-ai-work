@@ -609,13 +609,6 @@
       const runId = text(data.run?.run_id || card.dataset.runId);
       if (runId) confirmedRuns.add(runId);
       if (data.message) appendMessage(data.message, { animate: true });
-      if (data.clear_run) {
-        if (pollTimer) window.clearTimeout(pollTimer);
-        runCard?.remove();
-        runCard = null;
-        activeRun = null;
-        lastRunSignature = "";
-      }
       if (data.run) {
         activeRun = normalizeRun(data.run);
         lastRunSignature = runSignature(activeRun);

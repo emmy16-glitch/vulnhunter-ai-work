@@ -5,8 +5,8 @@ const { chromium } = require("playwright");
 
 const execFileAsync = promisify(execFile);
 const baseUrl = process.env.VULNHUNTER_UI_BASE_URL || "http://127.0.0.1:8767";
-const username = "visual-admin";
-const password = "Vh-Visual-Audit-2026!";
+const username = "conversation-e2e";
+const password = "Vh-Conversation-E2E-2026!";
 const failureScreenshot = "/tmp/vh-ui/screenshots/conversation-e2e-failure.png";
 const serverLog = "/tmp/vh-ui/server.log";
 

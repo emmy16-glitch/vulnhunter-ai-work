@@ -213,9 +213,7 @@ class GroqFindingReasoningLoop:
         prompt = self._prompt(request=request, stage=stage, task=task, prior=prior)
         raw = prompt.encode("utf-8")
         if len(raw) > self.maximum_input_bytes:
-            raise IntelligenceAnalysisError(
-                "bounded intelligence context exceeded its byte limit"
-            )
+            raise IntelligenceAnalysisError("bounded intelligence context exceeded its byte limit")
         invocation_id = f"{stage.value}-{uuid4().hex[:20]}"
         invocation = ProviderInvocation(
             invocation_id=invocation_id,

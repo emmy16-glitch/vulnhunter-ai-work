@@ -13,6 +13,7 @@ from vulnhunter.security import (
 def test_detects_common_sensitive_key_variations() -> None:
     assert is_sensitive_key("Authorization")
     assert is_sensitive_key("X-API-Key")
+    assert is_sensitive_key("token")
     assert is_sensitive_key("access_token")
     assert is_sensitive_key("client-secret")
     assert is_sensitive_key("session_id")
@@ -69,12 +70,15 @@ def test_redacts_bearer_token_from_free_text() -> None:
 
 
 def test_redacts_secret_assignments_from_free_text() -> None:
-    result = redact_text("password=hunter2 api_key:super-secret session_id=abc123")
+    result = redact_text(
+        "password=hunter2 api_key:super-secret session_id=abc123 token=secret-value"
+    )
 
     assert "hunter2" not in result
     assert "super-secret" not in result
     assert "abc123" not in result
-    assert result.count(REDACTED) == 3
+    assert "secret-value" not in result
+    assert result.count(REDACTED) == 4
 
 
 def test_redacts_email_and_payment_card_like_values() -> None:

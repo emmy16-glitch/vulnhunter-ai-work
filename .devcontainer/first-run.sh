@@ -62,7 +62,7 @@ else
 fi
 
 WEB_USERNAME="$USERNAME" GOVERNANCE_ID="$USER_ID" python manage.py shell -c \
-  'import os; from django.contrib.auth import get_user_model; from vulnhunter.web.models import WebUserMapping; user=get_user_model().objects.get(username=os.environ["WEB_USERNAME"]); mapping=WebUserMapping.objects.get(user=user); mapping.governance_identity_id=os.environ["GOVERNANCE_ID"]; mapping.product_roles=["campaign-operator"]; mapping.full_clean(); mapping.save(); user.is_staff=True; user.save(update_fields=["is_staff"]); print("Configured", user.username, "as the VulnHunter Security Analyst")'
+  'import os; from django.contrib.auth import get_user_model; from vulnhunter.web.models import WebUserMapping; user=get_user_model().objects.get(username=os.environ["WEB_USERNAME"]); mapping,_=WebUserMapping.objects.update_or_create(user=user, defaults={"governance_identity_id":os.environ["GOVERNANCE_ID"],"product_roles":["campaign-operator"]}); mapping.full_clean(); mapping.save(); user.is_staff=True; user.save(update_fields=["is_staff"]); print("Configured", user.username, "as the VulnHunter Security Analyst")'
 
 USERS_FILE="$ROOT/.codespaces/vulnhunter-user.env"
 cat > "$USERS_FILE" <<EOF2

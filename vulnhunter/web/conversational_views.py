@@ -149,14 +149,31 @@ def _approval_payload(run: object) -> dict[str, object] | None:
     pending = _pending_for_run(str(run.run_id))
     if pending is None:
         return None
+    command_plan = getattr(run, "command_plan_summary", {})
+    plan = command_plan if isinstance(command_plan, Mapping) else {}
+    target = str(getattr(run, "scope_summary", ""))
+    try:
+        parsed = urlsplit(target)
+        port = parsed.port or (443 if parsed.scheme == "https" else 80)
+    except ValueError:
+        port = None
+    template_hashes = plan.get("template_manifest_hashes", ())
+    if not isinstance(template_hashes, (list, tuple)):
+        template_hashes = ()
     return {
         "request_id": pending.request_id,
         "summary": pending.summary,
         "risk_summary": pending.risk_summary,
-        "plan_digest": str(getattr(run, "plan_digest", "")),
-        "target": str(getattr(run, "scope_summary", "")),
-        "profile": str(getattr(run, "risk_classification", "passive")),
-        "scanner": str(getattr(run, "requested_tool", "nuclei")),
+        "plan_digest": str(plan.get("plan_digest") or getattr(run, "plan_digest", "") or ""),
+        "target": target,
+        "port": port,
+        "profile": str(
+            plan.get("exact_profile") or getattr(run, "risk_classification", "passive") or "passive"
+        ),
+        "scanner": str(getattr(run, "requested_tool", "nuclei") or "nuclei"),
+        "template_count": len(template_hashes),
+        "rate_limit": plan.get("rate_limit"),
+        "concurrency": plan.get("concurrency"),
         "expires_at": pending.expires_at.isoformat(),
     }
 
@@ -173,9 +190,7 @@ def _safe_finding(item: object) -> dict[str, object]:
         "severity": str(_item_value(item, "severity", "info")),
         "verification": str(_item_value(item, "verification", "candidate")),
         "target": str(_item_value(item, "target_reference", "")),
-        "finding_id": str(
-            _item_value(item, "finding_id", _item_value(item, "evidence_id", ""))
-        ),
+        "finding_id": str(_item_value(item, "finding_id", _item_value(item, "evidence_id", ""))),
     }
 
 
@@ -452,7 +467,9 @@ def message_view(request: HttpRequest) -> JsonResponse:
             request,
             role="assistant",
             kind="question",
-            content="Which authorised assessment profile should I use? Passive is recommended first.",
+            content=(
+                "Which authorised assessment profile should I use? Passive is recommended first."
+            ),
             metadata={
                 "suggestions": [
                     {"label": value.title(), "message": f"Use the {value} profile for {canonical}"}

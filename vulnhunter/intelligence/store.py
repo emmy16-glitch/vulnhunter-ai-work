@@ -98,21 +98,23 @@ class IntelligenceStore:
                         now,
                     ),
                 )
-            except sqlite3.IntegrityError:
+            except sqlite3.IntegrityError as exc:
                 row = connection.execute(
                     "SELECT request_json FROM analyses WHERE finding_id = ?",
                     (request.finding_id,),
                 ).fetchone()
                 if row is None:
-                    raise IntelligenceStoreError("analysis queue integrity conflict")
+                    raise IntelligenceStoreError("analysis queue integrity conflict") from exc
                 try:
                     existing = FindingAnalysisRequest.model_validate_json(row["request_json"])
-                except ValidationError as exc:
-                    raise IntelligenceStoreError("stored analysis request is invalid") from exc
+                except ValidationError as validation_exc:
+                    raise IntelligenceStoreError(
+                        "stored analysis request is invalid"
+                    ) from validation_exc
                 if existing.context_sha256 != request.context_sha256:
                     raise IntelligenceStoreError(
                         "finding analysis was already queued with different context"
-                    )
+                    ) from exc
                 return False
         return True
 

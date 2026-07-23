@@ -21,11 +21,7 @@ def dashboard_view(request: HttpRequest) -> HttpResponse:
         mapping = request.user.vulnhunter_mapping
     except WebUserMapping.DoesNotExist:
         return views.dashboard_view(request)
-    roles = tuple(
-        str(item)
-        for item in mapping.product_roles
-        if isinstance(item, str)
-    )
+    roles = tuple(str(item) for item in mapping.product_roles if isinstance(item, str))
     if set(roles) == {"campaign-operator"}:
         return conversational_views.workspace_view(request)
     return views.dashboard_view(request)

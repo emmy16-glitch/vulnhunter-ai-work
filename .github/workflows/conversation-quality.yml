@@ -43,6 +43,7 @@ jobs:
           node --check vulnhunter/web/static/web/conversation-autoscroll.js
       - name: Check conversational and intelligence Python
         run: |
+          set +e
           python -m ruff check \
             vulnhunter/web/conversation_service.py \
             vulnhunter/web/conversational_views.py \
@@ -53,10 +54,15 @@ jobs:
             vulnhunter/web/management/commands/vh_prepare_private_lab.py \
             vulnhunter/web/management/commands/vh_run_intelligence_worker.py \
             vulnhunter/intelligence \
+            vulnhunter/security/redaction.py \
+            vulnhunter/security/sensitive_patterns.py \
             tests/unit/test_conversational_workspace.py \
             tests/unit/test_inline_confirmation_endpoint.py \
             tests/unit/test_inline_confirmation_store.py \
-            tests/unit/test_intelligence_loop.py
+            tests/unit/test_intelligence_loop.py \
+            tests/unit/test_redaction.py \
+            >conversation-quality.log 2>&1
+          lint_status=$?
           python -m ruff format --check \
             vulnhunter/web/conversation_service.py \
             vulnhunter/web/conversational_views.py \
@@ -67,10 +73,26 @@ jobs:
             vulnhunter/web/management/commands/vh_prepare_private_lab.py \
             vulnhunter/web/management/commands/vh_run_intelligence_worker.py \
             vulnhunter/intelligence \
+            vulnhunter/security/redaction.py \
+            vulnhunter/security/sensitive_patterns.py \
             tests/unit/test_conversational_workspace.py \
             tests/unit/test_inline_confirmation_endpoint.py \
             tests/unit/test_inline_confirmation_store.py \
-            tests/unit/test_intelligence_loop.py
+            tests/unit/test_intelligence_loop.py \
+            tests/unit/test_redaction.py \
+            >>conversation-quality.log 2>&1
+          format_status=$?
+          cat conversation-quality.log
+          if [[ $lint_status -ne 0 || $format_status -ne 0 ]]; then
+            exit 1
+          fi
+      - name: Upload conversational quality diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: conversational-quality-log
+          path: conversation-quality.log
+          retention-days: 3
       - name: Run conversational and intelligence tests
         run: |
           python manage.py migrate --noinput
@@ -78,7 +100,8 @@ jobs:
             tests/unit/test_conversational_workspace.py \
             tests/unit/test_inline_confirmation_endpoint.py \
             tests/unit/test_inline_confirmation_store.py \
-            tests/unit/test_intelligence_loop.py
+            tests/unit/test_intelligence_loop.py \
+            tests/unit/test_redaction.py
       - name: Verify launcher syntax
         run: |
           bash -n .devcontainer/first-run.sh

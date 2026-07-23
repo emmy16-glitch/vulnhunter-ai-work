@@ -39,10 +39,7 @@ def _confirmation_store() -> InlineConfirmationStore:
 
 
 def _confirmation_copy(run: object) -> str:
-    state = str(
-        getattr(run, "workflow_state", None)
-        or getattr(run, "current_state", "unknown")
-    )
+    state = str(getattr(run, "workflow_state", None) or getattr(run, "current_state", "unknown"))
     if state == "queued":
         return (
             "Exact passive plan confirmed. The signed Nuclei job is continuing "

@@ -88,7 +88,7 @@ def main() -> int:
         summary="Running passive checks…",
         source="tool",
     )
-    time.sleep(1.6)
+    time.sleep(3.0)
     transition(
         store,
         activity,
@@ -121,7 +121,7 @@ def main() -> int:
         artifact_path=artifact,
         metadata={},
     )
-    time.sleep(1.6)
+    time.sleep(3.0)
     transition(
         store,
         activity,

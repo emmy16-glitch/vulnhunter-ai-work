@@ -104,5 +104,23 @@ block = block.replace(
 )
 content = content[:start] + block + content[end:]
 
+# The established button endpoint already enforces immutable passive-plan
+# confirmation and has dedicated compatibility tests. The chat command calls
+# the new shared helper directly, so the endpoint itself does not need rewriting.
+while True:
+    target = content.find('"vulnhunter/web/conversation_approval_views.py"')
+    if target < 0:
+        break
+    replace_start = content.rfind("replace_once(", 0, target)
+    regex_start = content.rfind("regex_once(", 0, target)
+    call_start = max(replace_start, regex_start)
+    if call_start < 0:
+        raise RuntimeError("Could not find approval-view patch call start")
+    call_end = content.find("\n)\n", target)
+    if call_end < 0:
+        raise RuntimeError("Could not find approval-view patch call end")
+    call_end += len("\n)\n")
+    content = content[:call_start] + content[call_end:]
+
 namespace = {"__name__": "__main__", "__file__": str(path)}
 exec(compile(content, str(path), "exec"), namespace)

@@ -1,14 +1,14 @@
-name: Validate conversational URL target edge case
+name: Publish conversational URL target edge fix
 
 on:
   pull_request:
     branches: [main]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  validate:
+  publish:
     if: github.head_ref == 'feature/conversational-url-targets'
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -16,79 +16,82 @@ jobs:
       - uses: actions/checkout@v6
         with:
           ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+      - name: Detect completed fix
+        id: guard
+        run: |
+          if grep -q 'def _target_for_request' vulnhunter/web/conversational_views.py; then
+            echo "done=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "done=false" >> "$GITHUB_OUTPUT"
+          fi
       - uses: actions/setup-python@v6
+        if: steps.guard.outputs.done == 'false'
         with:
           python-version: '3.12'
-      - name: Preserve the pasted target during authorization
+      - name: Apply edge-case fix
+        if: steps.guard.outputs.done == 'false'
         run: |
           python - <<'PY'
           from pathlib import Path
 
           views = Path('vulnhunter/web/conversational_views.py')
           content = views.read_text(encoding='utf-8')
-          if 'def _target_for_request' not in content:
-              anchor = '''def _save_state(request: HttpRequest, state: dict[str, object]) -> None:\n    request.session[_SESSION_STATE] = state\n    request.session.modified = True\n\n\n'''
-              helper = '''def _save_state(request: HttpRequest, state: dict[str, object]) -> None:\n    request.session[_SESSION_STATE] = state\n    request.session.modified = True\n\n\ndef _target_for_request(\n    *,\n    intent: str,\n    interpreted_target: str | None,\n    stored_target: object,\n) -> str | None:\n    if intent == "authorize" and isinstance(stored_target, str) and stored_target:\n        return stored_target\n    if interpreted_target:\n        return interpreted_target\n    return stored_target if isinstance(stored_target, str) and stored_target else None\n\n\n'''
-              if content.count(anchor) != 1:
-                  raise SystemExit('state helper anchor changed')
-              content = content.replace(anchor, helper, 1)
-              old = '''    stored_target = state.get("target")\n    target = interpreted.target or (stored_target if isinstance(stored_target, str) else None)\n'''
-              new = '''    stored_target = state.get("target")\n    target = _target_for_request(\n        intent=interpreted.intent,\n        interpreted_target=interpreted.target,\n        stored_target=stored_target,\n    )\n'''
-              if content.count(old) != 1:
-                  raise SystemExit('target selection anchor changed')
-              content = content.replace(old, new, 1)
-              content = content.replace(
-                  'I recognized {canonical} on port {requested_port}. The URL and port are valid, ',
-                  'I recognized the URL syntax for {canonical} on port {requested_port}. ',
-                  1,
-              )
-              views.write_text(content, encoding='utf-8')
+          anchor = '''def _save_state(request: HttpRequest, state: dict[str, object]) -> None:\n    request.session[_SESSION_STATE] = state\n    request.session.modified = True\n\n\n'''
+          helper = '''def _save_state(request: HttpRequest, state: dict[str, object]) -> None:\n    request.session[_SESSION_STATE] = state\n    request.session.modified = True\n\n\ndef _target_for_request(\n    *,\n    intent: str,\n    interpreted_target: str | None,\n    stored_target: object,\n) -> str | None:\n    if intent == "authorize" and isinstance(stored_target, str) and stored_target:\n        return stored_target\n    if interpreted_target:\n        return interpreted_target\n    return stored_target if isinstance(stored_target, str) and stored_target else None\n\n\n'''
+          if content.count(anchor) != 1:
+              raise SystemExit('state helper anchor changed')
+          content = content.replace(anchor, helper, 1)
+          old = '''    stored_target = state.get("target")\n    target = interpreted.target or (stored_target if isinstance(stored_target, str) else None)\n'''
+          new = '''    stored_target = state.get("target")\n    target = _target_for_request(\n        intent=interpreted.intent,\n        interpreted_target=interpreted.target,\n        stored_target=stored_target,\n    )\n'''
+          if content.count(old) != 1:
+              raise SystemExit('target selection anchor changed')
+          content = content.replace(old, new, 1)
+          content = content.replace(
+              'I recognized {canonical} on port {requested_port}. The URL and port are valid, ',
+              'I recognized the URL syntax for {canonical} on port {requested_port}. ',
+              1,
+          )
+          views.write_text(content, encoding='utf-8')
 
           tests = Path('tests/unit/test_conversational_url_targets.py')
           test_content = tests.read_text(encoding='utf-8')
-          marker = 'def test_authorization_keeps_the_previously_pasted_target_when_evidence_is_a_url():'
-          if marker not in test_content:
-              test_content = test_content.replace(
-                  'from vulnhunter.web.conversation_service import interpret_request\n',
-                  'from vulnhunter.web import conversational_views\n'
-                  'from vulnhunter.web.conversation_service import interpret_request\n',
-                  1,
-              )
-              test_content += '''\n\ndef test_authorization_keeps_the_previously_pasted_target_when_evidence_is_a_url():\n    selected = conversational_views._target_for_request(\n        intent="authorize",\n        interpreted_target="https://bug-bounty.example/scope",\n        stored_target="https://target.example:8443/login",\n    )\n\n    assert selected == "https://target.example:8443/login"\n'''
-              tests.write_text(test_content, encoding='utf-8')
+          test_content = test_content.replace(
+              'from vulnhunter.web.conversation_service import interpret_request\n',
+              'from vulnhunter.web import conversational_views\n'
+              'from vulnhunter.web.conversation_service import interpret_request\n',
+              1,
+          )
+          test_content += '''\n\ndef test_authorization_keeps_the_previously_pasted_target_when_evidence_is_a_url():\n    selected = conversational_views._target_for_request(\n        intent="authorize",\n        interpreted_target="https://bug-bounty.example/scope",\n        stored_target="https://target.example:8443/login",\n    )\n\n    assert selected == "https://target.example:8443/login"\n'''
+          tests.write_text(test_content, encoding='utf-8')
           PY
-      - name: Install and format
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -e . pytest pytest-asyncio pytest-django ruff
-          python -m ruff format \
-            vulnhunter/web/conversational_views.py \
-            tests/unit/test_conversational_url_targets.py
-      - name: Validate patched files
-        id: validation
-        continue-on-error: true
+      - name: Validate fix
+        if: steps.guard.outputs.done == 'false'
         env:
           VULNHUNTER_WEB_DEBUG: 'true'
           VULNHUNTER_GROQ_ENABLED: 'false'
         run: |
-          set -o pipefail
-          {
-            python -m ruff check \
-              vulnhunter/web/conversational_views.py \
-              tests/unit/test_conversational_url_targets.py
-            python -m pytest -q \
-              tests/unit/test_conversational_url_targets.py \
-              tests/unit/test_conversational_workspace.py
-          } 2>&1 | tee edge-validation.log
-      - name: Upload patched files and diagnostics
-        uses: actions/upload-artifact@v6
-        with:
-          name: url-target-edge-fix
-          retention-days: 2
-          path: |
-            vulnhunter/web/conversational_views.py
+          python -m pip install --upgrade pip
+          python -m pip install -e . pytest pytest-asyncio pytest-django ruff
+          python -m ruff check --fix \
+            vulnhunter/web/conversational_views.py \
             tests/unit/test_conversational_url_targets.py
-            edge-validation.log
-      - name: Fail when validation failed
-        if: steps.validation.outcome != 'success'
-        run: exit 1
+          python -m ruff format \
+            vulnhunter/web/conversational_views.py \
+            tests/unit/test_conversational_url_targets.py
+          python -m ruff check \
+            vulnhunter/web/conversational_views.py \
+            tests/unit/test_conversational_url_targets.py
+          python -m pytest -q \
+            tests/unit/test_conversational_url_targets.py \
+            tests/unit/test_conversational_workspace.py
+      - name: Commit validated fix
+        if: steps.guard.outputs.done == 'false'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            vulnhunter/web/conversational_views.py \
+            tests/unit/test_conversational_url_targets.py
+          git commit -m "Preserve pasted target through authorization"
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}

@@ -9,8 +9,8 @@ permissions:
 
 jobs:
   conversation:
-    runs-on: ubuntu-slim
-    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
     env:
       VULNHUNTER_WEB_DEBUG: "true"
       VULNHUNTER_WEB_DATABASE: /tmp/vh-conversation/web.sqlite3
@@ -22,13 +22,14 @@ jobs:
       VULNHUNTER_SECURITY_EVIDENCE_ROOT: /tmp/vh-conversation/evidence
       VULNHUNTER_ADVERSARY_LAB_DATABASE: /tmp/vh-conversation/lab.sqlite3
       VULNHUNTER_GROQ_ENABLED: "false"
+      VULNHUNTER_INTELLIGENCE_ENABLED: "false"
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
           cache: pip
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@v6
         with:
           node-version: "22"
       - name: Install application and test tools
@@ -40,7 +41,7 @@ jobs:
         run: |
           node --check vulnhunter/web/static/web/conversation.js
           node --check vulnhunter/web/static/web/conversation-autoscroll.js
-      - name: Check conversational Python and formatting
+      - name: Check conversational and intelligence Python
         run: |
           python -m ruff check \
             vulnhunter/web/conversation_service.py \
@@ -49,7 +50,10 @@ jobs:
             vulnhunter/web/dashboard_dispatch_views.py \
             vulnhunter/web/management/commands/vh_configure_groq.py \
             vulnhunter/web/management/commands/vh_prepare_private_lab.py \
-            tests/unit/test_conversational_workspace.py
+            vulnhunter/web/management/commands/vh_run_intelligence_worker.py \
+            vulnhunter/intelligence \
+            tests/unit/test_conversational_workspace.py \
+            tests/unit/test_intelligence_loop.py
           python -m ruff format --check \
             vulnhunter/web/conversation_service.py \
             vulnhunter/web/conversational_views.py \
@@ -57,11 +61,16 @@ jobs:
             vulnhunter/web/dashboard_dispatch_views.py \
             vulnhunter/web/management/commands/vh_configure_groq.py \
             vulnhunter/web/management/commands/vh_prepare_private_lab.py \
-            tests/unit/test_conversational_workspace.py
-      - name: Run conversational workspace tests
+            vulnhunter/web/management/commands/vh_run_intelligence_worker.py \
+            vulnhunter/intelligence \
+            tests/unit/test_conversational_workspace.py \
+            tests/unit/test_intelligence_loop.py
+      - name: Run conversational and intelligence tests
         run: |
           python manage.py migrate --noinput
-          python -m pytest -q tests/unit/test_conversational_workspace.py
+          python -m pytest -q \
+            tests/unit/test_conversational_workspace.py \
+            tests/unit/test_intelligence_loop.py
       - name: Verify launcher syntax
         run: |
           bash -n .devcontainer/first-run.sh

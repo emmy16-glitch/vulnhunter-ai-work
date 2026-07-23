@@ -9,8 +9,8 @@ permissions:
 
 jobs:
   conversation:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
+    runs-on: ubuntu-slim
+    timeout-minutes: 15
     env:
       VULNHUNTER_WEB_DEBUG: "true"
       VULNHUNTER_WEB_DATABASE: /tmp/vh-conversation/web.sqlite3

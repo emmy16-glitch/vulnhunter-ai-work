@@ -5,7 +5,7 @@ on:
     branches: [main]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   apply:
@@ -16,12 +16,58 @@ jobs:
       - uses: actions/checkout@v6
         with:
           ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+      - name: Stop when the patch is already applied
+        id: guard
+        run: |
+          if [[ -f vulnhunter/web/conversational_authorization.py ]]; then
+            echo "applied=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "applied=false" >> "$GITHUB_OUTPUT"
+          fi
       - uses: actions/setup-python@v6
+        if: steps.guard.outputs.applied == 'false'
         with:
           python-version: '3.12'
       - name: Apply changes
+        if: steps.guard.outputs.applied == 'false'
         run: python scripts/_tmp_apply_url_target_intake.py
+      - name: Normalize generated files
+        if: steps.guard.outputs.applied == 'false'
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          tests = Path('tests/unit/test_conversational_url_targets.py')
+          content = tests.read_text(encoding='utf-8')
+          content = content.replace(
+              '    resolver = lambda _hostname: ("93.184.216.34",)\n',
+              '    def resolver(_hostname: str) -> tuple[str, ...]:\n'
+              '        return ("93.184.216.34",)\n',
+          )
+          tests.write_text(content, encoding='utf-8')
+
+          service = Path('vulnhunter/web/conversation_service.py')
+          content = service.read_text(encoding='utf-8').replace(
+              '        "authorization, prepare the passive plan and explain each live step. You can also ask about "\n'
+              '        "the current target, approval, findings, evidence or next action."\n',
+              '        "authorization, prepare the passive plan and explain each live step. You can also ask "\n'
+              '        "about the current target, approval, findings, evidence or next action."\n',
+          )
+          service.write_text(content, encoding='utf-8')
+
+          views = Path('vulnhunter/web/conversational_views.py')
+          content = views.read_text(encoding='utf-8').replace(
+              '                "and I will continue directly to the passive plan. Public websites need a contract, "\n'
+              '                "ticket, or bug-bounty scope reference."\n',
+              '                "and I will continue directly to the passive plan. Public websites need a "\n'
+              '                "contract, ticket, or bug-bounty scope reference."\n',
+          )
+          views.write_text(content, encoding='utf-8')
+          PY
+          git checkout -- .github/workflows/conversation-quality.yml
       - name: Install and format
+        if: steps.guard.outputs.applied == 'false'
         run: |
           python -m pip install --upgrade pip
           python -m pip install -e . pytest pytest-asyncio pytest-django ruff
@@ -32,40 +78,33 @@ jobs:
             vulnhunter/web/conversational_views.py \
             tests/unit/test_conversational_url_targets.py
       - name: Validate generated changes
-        id: validate
-        continue-on-error: true
+        if: steps.guard.outputs.applied == 'false'
         env:
           VULNHUNTER_WEB_DEBUG: 'true'
           VULNHUNTER_GROQ_ENABLED: 'false'
         run: |
-          set -o pipefail
-          {
-            python -m ruff check \
-              vulnhunter/scope/validator.py \
-              vulnhunter/web/conversation_service.py \
-              vulnhunter/web/conversational_authorization.py \
-              vulnhunter/web/conversational_views.py \
-              tests/unit/test_conversational_url_targets.py
-            python -m pytest -q \
-              tests/unit/test_conversational_url_targets.py \
-              tests/unit/test_conversational_workspace.py \
-              tests/unit/test_assessment_workflow.py \
-              tests/unit/test_nuclei_activation_controls.py
-          } 2>&1 | tee generated-validation.log
-      - name: Upload generated files
-        uses: actions/upload-artifact@v6
-        with:
-          name: conversational-url-target-intake
-          retention-days: 2
-          path: |
-            vulnhunter/scope/validator.py
-            vulnhunter/web/conversation_service.py
-            vulnhunter/web/conversational_authorization.py
-            vulnhunter/web/conversational_views.py
-            vulnhunter/web/templates/web/conversation.html
+          python -m ruff check \
+            vulnhunter/scope/validator.py \
+            vulnhunter/web/conversation_service.py \
+            vulnhunter/web/conversational_authorization.py \
+            vulnhunter/web/conversational_views.py \
             tests/unit/test_conversational_url_targets.py
-            .github/workflows/conversation-quality.yml
-            generated-validation.log
-      - name: Fail when validation failed
-        if: steps.validate.outcome != 'success'
-        run: exit 1
+          python -m pytest -q \
+            tests/unit/test_conversational_url_targets.py \
+            tests/unit/test_conversational_workspace.py \
+            tests/unit/test_assessment_workflow.py \
+            tests/unit/test_nuclei_activation_controls.py
+      - name: Commit generated changes
+        if: steps.guard.outputs.applied == 'false'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            vulnhunter/scope/validator.py \
+            vulnhunter/web/conversation_service.py \
+            vulnhunter/web/conversational_authorization.py \
+            vulnhunter/web/conversational_views.py \
+            vulnhunter/web/templates/web/conversation.html \
+            tests/unit/test_conversational_url_targets.py
+          git commit -m "Add URL-first authorized assessment intake"
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}

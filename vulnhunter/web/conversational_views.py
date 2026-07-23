@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -160,22 +161,30 @@ def _approval_payload(run: object) -> dict[str, object] | None:
     }
 
 
+def _item_value(item: object, key: str, default: object = "") -> object:
+    if isinstance(item, Mapping):
+        return item.get(key, default)
+    return getattr(item, key, default)
+
+
 def _safe_finding(item: object) -> dict[str, object]:
     return {
-        "title": str(getattr(item, "title", "Candidate finding")),
-        "severity": str(getattr(item, "severity", "info")),
-        "verification": str(getattr(item, "verification", "candidate")),
-        "target": str(getattr(item, "target_reference", "")),
-        "finding_id": str(getattr(item, "finding_id", "")),
+        "title": str(_item_value(item, "title", "Candidate finding")),
+        "severity": str(_item_value(item, "severity", "info")),
+        "verification": str(_item_value(item, "verification", "candidate")),
+        "target": str(_item_value(item, "target_reference", "")),
+        "finding_id": str(
+            _item_value(item, "finding_id", _item_value(item, "evidence_id", ""))
+        ),
     }
 
 
 def _safe_artifact(item: object) -> dict[str, object]:
     return {
-        "filename": str(getattr(item, "filename", "evidence artifact")),
-        "type": str(getattr(item, "type", "evidence")),
-        "size": int(getattr(item, "size", 0) or 0),
-        "checksum": str(getattr(item, "checksum", "")),
+        "filename": str(_item_value(item, "filename", "evidence artifact")),
+        "type": str(_item_value(item, "type", "evidence")),
+        "size": int(_item_value(item, "size", 0) or 0),
+        "checksum": str(_item_value(item, "checksum", "")),
     }
 
 
@@ -183,7 +192,7 @@ def _run_payload(run: object) -> dict[str, object]:
     run_id = str(run.run_id)
     try:
         timeline = activity_payload(run_id, after_sequence=0)
-    except (OSError, ProductServiceError, ValueError):
+    except (OSError, ProductServiceError, RuntimeError, ValueError):
         timeline = {"events": [], "terminal": False, "last_sequence": 0}
     events = timeline.get("events", []) if isinstance(timeline, dict) else []
     if not isinstance(events, list):
@@ -220,12 +229,9 @@ def _run_payload(run: object) -> dict[str, object]:
         "findings": [_safe_finding(item) for item in findings],
         "artifacts": [_safe_artifact(item) for item in artifacts],
         "events": events[-30:],
-        "last_sequence": (timeline.get("last_sequence", 0) if isinstance(timeline, dict) else 0),
+        "last_sequence": timeline.get("last_sequence", 0) if isinstance(timeline, dict) else 0,
         "approval": _approval_payload(run),
-        "detail_url": reverse(
-            "web-scan-run-detail",
-            kwargs={"run_id": run_id},
-        ),
+        "detail_url": reverse("web-scan-run-detail", kwargs={"run_id": run_id}),
         "findings_url": reverse("web-findings-overview"),
     }
 
@@ -410,15 +416,11 @@ def message_view(request: HttpRequest) -> JsonResponse:
             kind="question",
             content=(
                 "I need the authorised target before I can prepare the scan. "
-                "Choose the suggested target below or paste a complete http or "
-                "https URL."
+                "Choose the suggested target below or paste a complete http or https URL."
             ),
             metadata={
                 "suggestions": [
-                    {
-                        "label": value,
-                        "message": (f"Scan {value} using the passive profile"),
-                    }
+                    {"label": value, "message": f"Scan {value} using the passive profile"}
                     for value in suggestions[:4]
                 ],
                 "provider": interpreted.provider,
@@ -437,7 +439,7 @@ def message_view(request: HttpRequest) -> JsonResponse:
             request,
             role="assistant",
             kind="error",
-            content=("That target is not present in an active authorization for this account."),
+            content="That target is not present in an active authorization for this account.",
         )
         return JsonResponse({"message": message}, status=409)
 
@@ -450,26 +452,16 @@ def message_view(request: HttpRequest) -> JsonResponse:
             request,
             role="assistant",
             kind="question",
-            content=(
-                "Which authorised assessment profile should I use? Passive is recommended first."
-            ),
+            content="Which authorised assessment profile should I use? Passive is recommended first.",
             metadata={
                 "suggestions": [
-                    {
-                        "label": value.title(),
-                        "message": (f"Use the {value} profile for {canonical}"),
-                    }
+                    {"label": value.title(), "message": f"Use the {value} profile for {canonical}"}
                     for value in matched.approved_profiles
                 ],
                 "provider": interpreted.provider,
             },
         )
-        state.update(
-            {
-                "target": canonical,
-                "authorization_id": matched.authorization_id,
-            }
-        )
+        state.update({"target": canonical, "authorization_id": matched.authorization_id})
         _save_state(request, state)
         return JsonResponse({"message": message})
 
@@ -481,7 +473,7 @@ def message_view(request: HttpRequest) -> JsonResponse:
             request,
             role="assistant",
             kind="error",
-            content=("The requested protocol or port is outside the active authorization."),
+            content="The requested protocol or port is outside the active authorization.",
         )
         return JsonResponse({"message": message}, status=409)
 
@@ -529,10 +521,7 @@ def message_view(request: HttpRequest) -> JsonResponse:
             "run_id": result.task.task_id,
         },
     )
-    return JsonResponse(
-        {"message": message, "run": _run_payload(run)},
-        status=201,
-    )
+    return JsonResponse({"message": message, "run": _run_payload(run)}, status=201)
 
 
 @cache_control(private=True, no_store=True)

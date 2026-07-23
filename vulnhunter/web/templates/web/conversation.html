@@ -1,6 +1,18 @@
 {% extends "web/base.html" %}
 {% load static %}
 {% block content %}
+<script>
+(() => {
+  "use strict";
+  if (typeof String.prototype.join === "function") return;
+  Object.defineProperty(String.prototype, "join", {
+    configurable: true,
+    value(items) {
+      return Array.isArray(items) ? items.join(String(this)) : String(items ?? "");
+    },
+  });
+})();
+</script>
 <section class="vh-chat-workspace" data-conversation-workspace aria-labelledby="vh-chat-title">
   <header class="vh-chat-header">
     <div class="vh-chat-title-group">

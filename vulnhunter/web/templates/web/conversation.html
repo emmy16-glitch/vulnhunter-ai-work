@@ -8,7 +8,7 @@
       <div>
         <p class="vh-eyebrow">Conversational security assessment</p>
         <h1 id="vh-chat-title">VulnHunter Workspace</h1>
-        <p>Describe the authorised target. VulnHunter plans, pauses for independent approval, runs Nuclei and organises the evidence here.</p>
+        <p>Describe the authorised target. VulnHunter asks for missing details, builds the exact passive plan, pauses for confirmation, runs Nuclei and organises the evidence here.</p>
       </div>
     </div>
     <div class="vh-chat-runtime" aria-label="Connected services">
@@ -88,23 +88,26 @@
       <div><small>State</small><strong data-summary-state>Preparing</strong></div>
       <div><small>Findings</small><strong data-summary-findings>0</strong></div>
       <div><small>Evidence</small><strong data-summary-evidence>0</strong></div>
-      <div><small>Approval</small><strong data-summary-approval>Pending</strong></div>
+      <div><small>Confirmation</small><strong data-summary-approval>Pending</strong></div>
     </div>
 
     <section class="vh-inline-approval" data-inline-approval hidden aria-labelledby="vh-inline-approval-title">
       <div class="vh-inline-approval-top">
         <span class="vh-approval-shield" aria-hidden="true"><svg><use href="#vh-i-shield"></use></svg></span>
-        <div><p class="vh-eyebrow">Action paused</p><h3 id="vh-inline-approval-title">Independent approval required</h3><p data-approval-summary>Review this exact plan before execution continues.</p></div>
+        <div><p class="vh-eyebrow">Assessment paused</p><h3 id="vh-inline-approval-title">Confirm exact passive plan</h3><p data-approval-summary>Review this exact plan before execution continues.</p></div>
       </div>
       <dl class="vh-inline-approval-facts">
-        <div><dt>Target</dt><dd data-approval-target></dd></div>
+        <div><dt>Target and port</dt><dd data-approval-target></dd></div>
         <div><dt>Profile</dt><dd data-approval-profile></dd></div>
         <div><dt>Scanner</dt><dd data-approval-scanner></dd></div>
+        <div><dt>Templates</dt><dd>Reviewed passive templates only</dd></div>
+        <div><dt>Limits</dt><dd>1 request/sec · concurrency 1</dd></div>
         <div><dt>Plan digest</dt><dd><code data-approval-digest></code></dd></div>
       </dl>
-      <p>Sign in with the separate approver account and review the pending request in the Approval Centre. The requester cannot approve this plan.</p>
+      <label for="vh-inline-approval-note">Confirmation note</label>
+      <textarea id="vh-inline-approval-note" rows="2" minlength="8" maxlength="500" data-approval-note>Confirm this exact authorised passive plan.</textarea>
       <div class="vh-inline-approval-actions">
-        <a class="vh-button-primary" href="{% url 'web-approval-list' %}" data-approval-review>Open approval centre</a>
+        <button type="button" class="vh-button-primary" data-approval-confirm>Confirm and continue</button>
         <button type="button" class="vh-button-secondary" data-approval-cancel>Cancel assessment</button>
       </div>
       <p class="vh-inline-approval-risk" data-approval-risk></p>

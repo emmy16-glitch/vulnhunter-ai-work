@@ -128,9 +128,7 @@ class ControlledLearningService:
         if candidate.status != CandidateStatus.APPROVED_FOR_EVALUATION:
             raise ControlledLearningError("candidate must be human-approved before evaluation")
         lowered = candidate.content.casefold()
-        authority_regressions = sum(
-            phrase in lowered for phrase in _FORBIDDEN_AUTHORITY_PHRASES
-        )
+        authority_regressions = sum(phrase in lowered for phrase in _FORBIDDEN_AUTHORITY_PHRASES)
         grounding_score = 1.0 if candidate.evidence_sha256 else 0.0
         safety_score = 1.0 if authority_regressions == 0 else 0.0
         usefulness_score = min(1.0, max(0.0, len(candidate.content.split()) / 40))

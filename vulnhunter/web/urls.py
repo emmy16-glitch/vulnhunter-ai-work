@@ -6,6 +6,8 @@ from django.views.generic import RedirectView
 from vulnhunter.web import (
     assessment_views,
     audit_views,
+    conversation_approval_views,
+    conversational_views,
     findings_views,
     governance_workspace_views,
     intelligence_views,
@@ -22,7 +24,27 @@ urlpatterns = [
     path("ready/", views.deployment_readiness_view, name="web-deployment-readiness"),
     path("login/", unified_assessment_views.UnifiedLoginView.as_view(), name="web-login"),
     path("logout/", views.logout_view, name="web-logout"),
-    path("", unified_assessment_views.unified_dashboard_view, name="web-dashboard"),
+    path("", conversational_views.workspace_view, name="web-dashboard"),
+    path(
+        "workspace/message/",
+        conversational_views.message_view,
+        name="web-conversation-message",
+    ),
+    path(
+        "workspace/approve/",
+        conversation_approval_views.approve_view,
+        name="web-conversation-approve",
+    ),
+    path(
+        "workspace/reset/",
+        conversational_views.reset_view,
+        name="web-conversation-reset",
+    ),
+    path(
+        "workspace/runs/<str:run_id>/status/",
+        conversational_views.status_view,
+        name="web-conversation-status",
+    ),
     path("status/", views.status_view, name="web-status"),
     path("audit/", audit_views.audit_overview_view, name="web-audit-overview"),
     path("authorizations/", views.authorization_list_view, name="web-authorization-list"),

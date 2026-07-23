@@ -13,7 +13,7 @@
       </div>
     </div>
     <div class="vh-chat-runtime" aria-label="Connected services">
-      <span class="vh-runtime-chip{% if groq.configured %} is-ready{% else %} is-warning{% endif %}"><i></i><strong>{{ groq.label }}</strong><small>{{ groq.model }}</small></span>
+      <span class="vh-runtime-chip is-ready"><i></i><strong>{% if groq.configured %}AI conversation ready{% else %}Reliable command mode{% endif %}</strong><small>{% if groq.configured %}Natural explanations enabled{% else %}Core assessment workflow available{% endif %}</small></span>
       <span class="vh-runtime-chip is-ready"><i></i><strong>Nuclei ready</strong><small>Governed passive execution</small></span>
       <button type="button" class="vh-chat-history-toggle" data-history-toggle aria-expanded="false" aria-controls="vh-chat-history">History</button>
       <button type="button" class="vh-chat-reset" data-conversation-reset>New conversation</button>
@@ -107,10 +107,10 @@
         <div><dt>Port</dt><dd data-approval-port></dd></div>
         <div><dt>Profile</dt><dd data-approval-profile></dd></div>
         <div><dt>Scanner</dt><dd data-approval-scanner></dd></div>
-        <div><dt>Templates</dt><dd data-approval-templates></dd></div>
+        <div><dt>Checks</dt><dd data-approval-templates></dd></div>
         <div><dt>Limits</dt><dd data-approval-limits></dd></div>
-        <div><dt>Plan digest</dt><dd><code data-approval-digest></code></dd></div>
       </dl>
+      <details class="vh-approval-technical"><summary>Technical plan identity</summary><code data-approval-digest></code></details>
       <label for="vh-inline-approval-note">Confirmation note</label>
       <textarea id="vh-inline-approval-note" rows="2" minlength="8" maxlength="500" data-approval-note>Confirm this exact authorised passive plan.</textarea>
       <div class="vh-inline-approval-actions">
@@ -154,8 +154,8 @@
     </div>
 
     <footer class="vh-run-card-footer">
-      <a data-run-detail-link>Open complete assessment</a>
-      <a data-findings-link>Saved findings</a>
+      <a data-findings-link>View evidence and findings</a>
+      <a data-run-detail-link>View technical details</a>
     </footer>
   </article>
 </template>

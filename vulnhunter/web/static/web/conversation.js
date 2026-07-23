@@ -258,39 +258,28 @@
 
   const renderStages = (card, run) => {
     const track = card.querySelector("[data-run-stages]");
-    const stage = currentStage(run);
-    const completed = stageDefinitions.filter(([key]) => stageStatus(run, key) === "complete").length;
-    const failed = stage.status === "error";
-    const detail = eventSummary(latestEvent(run));
     track.replaceChildren();
-
     const row = document.createElement("div");
-    row.className = `vh-run-stage-current is-${stage.status}`;
+    row.className = `vh-run-stage-current ${run.terminal ? "is-complete" : "is-active"}`;
     const marker = document.createElement("span");
     marker.className = "vh-run-stage-marker";
-    marker.textContent = stage.status === "complete" ? "✓" : failed ? "!" : String(stage.index + 1).padStart(2, "0");
+    marker.textContent = run.terminal ? "✓" : "•";
     const body = document.createElement("div");
     const eyebrow = document.createElement("small");
-    eyebrow.textContent = failed
-      ? "Assessment stopped"
-      : run.terminal
-        ? `Completed ${completed} of ${stageDefinitions.length} stages`
-        : `Step ${stage.index + 1} of ${stageDefinitions.length}`;
+    eyebrow.textContent = text(run.progress_label || "Assessment progress");
     const strong = document.createElement("strong");
-    strong.textContent = stage.label;
+    strong.textContent = text(run.current_step || "Preparing the governed assessment…");
     const paragraph = document.createElement("p");
-    paragraph.textContent = detail;
+    paragraph.textContent = text(run.check_progress || run.next_action || "");
     body.append(eyebrow, strong, paragraph);
     const duration = document.createElement("time");
     duration.dataset.runStageElapsed = "true";
-    duration.textContent = formatDuration(elapsedFrom(run.created_at));
+    duration.textContent = text(run.elapsed_label || formatDuration(elapsedFrom(run.created_at)));
     row.append(marker, body, duration);
-
     const meter = document.createElement("div");
     meter.className = "vh-run-progress-meter";
     const fill = document.createElement("span");
-    const progress = run.terminal ? 100 : Math.max(8, Math.round(((stage.index + 0.35) / stageDefinitions.length) * 100));
-    fill.style.width = `${progress}%`;
+    fill.style.width = `${Math.max(4, Number(run.progress_percent || 0))}%`;
     meter.append(fill);
     track.append(row, meter);
   };
@@ -398,8 +387,10 @@
       span.textContent = "The recorded result is backed by persisted scanner evidence.";
       panel.append(strong, span);
       container.append(panel);
+    } else if (run.analysis_note) {
+      container.append(emptyBlock("Deterministic evidence summary", run.analysis_note));
     } else if (run.terminal) {
-      container.append(emptyBlock("No independent result recorded", "Review the assessment activity and saved evidence."));
+      container.append(emptyBlock("Verification complete", "Review the persisted findings and evidence."));
     }
     card.querySelector("[data-verification-state]").textContent = result ? prettyState(result) : run.terminal ? "Not recorded" : "Pending";
   };
@@ -467,10 +458,10 @@
     const artifacts = Array.isArray(run.artifacts) ? run.artifacts : [];
     const rules = {
       summary: Boolean(run.terminal),
-      progress: events.length > 0,
+      progress: false,
       findings: findings.length > 0 || Boolean(run.terminal),
       evidence: artifacts.length > 0,
-      verification: Boolean(run.evaluation_result) || Boolean(run.terminal),
+      verification: Boolean(run.evaluation_result) || Boolean(run.analysis_note),
       guidance: findings.length > 0,
       technical: true,
     };
@@ -505,7 +496,7 @@
     card.querySelector("[data-run-elapsed]").textContent = formatDuration(elapsedFrom(run.created_at));
     const latest = latestEvent(run);
     const liveCopy = card.querySelector("[data-run-live-copy]");
-    if (liveCopy) liveCopy.textContent = eventSummary(latest);
+    if (liveCopy) liveCopy.textContent = text(run.current_step || eventSummary(latest));
     card.querySelector("[data-summary-state]").textContent = prettyState(run.state);
     card.querySelector("[data-summary-approval]").textContent = prettyState(run.approval_state);
     card.querySelector("[data-section-summary-state]").textContent = run.terminal ? "Finished" : "In progress";
@@ -550,25 +541,27 @@
       artifacts: Array.isArray(run.artifacts) ? run.artifacts.length : 0,
       evaluation_result: run.evaluation_result,
       blocking_reason: run.blocking_reason,
+      current_step: run.current_step,
+      final_message: run.final_message,
       terminal: run.terminal,
     });
   };
 
   const announceRunProgress = (previous, next) => {
-    const previousSequence = Number(previous?.last_sequence || 0);
-    const events = Array.isArray(next?.events) ? next.events : [];
-    const fresh = events.filter((event) => Number(event?.sequence || 0) > previousSequence);
-    const event = fresh.length ? fresh[fresh.length - 1] : null;
-    if (!event) return;
-    const key = eventKey(event);
+    const previousState = text(previous?.state);
+    const nextState = text(next?.state);
+    if (previousState === nextState && !next.terminal) return;
+    const key = `${text(next.run_id)}:${nextState}:${next.terminal ? "terminal" : "live"}`;
     if (announcedEvents.has(key)) return;
     announcedEvents.add(key);
+    const copy = next.terminal ? next.final_message : next.current_step;
+    if (!copy) return;
     appendMessage(
       {
         role: "assistant",
-        kind: "status",
-        content: eventSummary(event),
-        timestamp: event.timestamp || event.created_at || new Date().toISOString(),
+        kind: next.terminal ? "result" : "status",
+        content: copy,
+        timestamp: next.updated_at || new Date().toISOString(),
       },
       { animate: true, forceScroll: false },
     );
@@ -691,56 +684,6 @@
     input.style.height = `${Math.min(input.scrollHeight, 180)}px`;
   };
 
-  const contextualReply = (value) => {
-    const lowered = " ".join(value.toLowerCase().split());
-    if (/\b(scan|assess|inspect|test|analyse|analyze|cancel|stop|abort)\b/.test(lowered)) return null;
-    const run = activeRun;
-    const asksForLink = /\b(link|url|address|target)\b/.test(lowered) && /\b(what|which|show|give|where)\b/.test(lowered);
-    const asksForStatus = /(status|progress|what is happening|what's happening|what is it doing|what's it doing|is it working|has it started|how far|how long|still pending|is it done|is it finished)/.test(lowered);
-    const asksForApproval = /\bapproval\b/.test(lowered);
-    const asksForResults = /\b(result|results|finding|findings|evidence|vulnerabilit)/.test(lowered);
-
-    if (asksForLink) {
-      return run?.target
-        ? `The controlled target for the active assessment is ${run.target}`
-        : "There is no active assessment link yet. Send the authorised target you want checked.";
-    }
-    if (asksForApproval) {
-      if (!run) return "There is no active approval request. Start an authorised assessment first.";
-      if (run.approval) return "The exact passive plan is waiting for your confirmation in the approval card below.";
-      if (["approved", "consumed"].includes(text(run.approval_state))) {
-        return `The plan is approved. The assessment is now ${prettyState(run.state).toLowerCase()}.`;
-      }
-      return `The approval state is ${prettyState(run.approval_state).toLowerCase()}.`;
-    }
-    if (asksForStatus) {
-      if (!run) return "No assessment is active. Send an authorised target when you are ready.";
-      const event = latestEvent(run);
-      return `The assessment is ${prettyState(run.state).toLowerCase()}. ${eventSummary(event)} Elapsed time: ${formatDuration(elapsedFrom(run.created_at))}.`;
-    }
-    if (asksForResults) {
-      if (!run) return "There is no active assessment result yet.";
-      const findings = Array.isArray(run.findings) ? run.findings.length : 0;
-      const evidence = Array.isArray(run.artifacts) ? run.artifacts.length : 0;
-      if (!run.terminal) {
-        return `The assessment is still ${prettyState(run.state).toLowerCase()}. Findings and evidence will appear after verification.`;
-      }
-      return `The assessment finished with ${findings} persisted finding${findings === 1 ? "" : "s"} and ${evidence} evidence item${evidence === 1 ? "" : "s"}. Open the result sections below for details.`;
-    }
-    return null;
-  };
-
-  const respondLocally = async (copy) => {
-    setBusy(true, "Checking the active workspace…");
-    await new Promise((resolve) => window.setTimeout(resolve, 220));
-    appendMessage(
-      { role: "assistant", kind: "text", content: copy, timestamp: new Date().toISOString() },
-      { animate: true },
-    );
-    setBusy(false);
-    input.focus();
-  };
-
   const openHistory = (open) => {
     if (!historyPanel || !historyToggle) return;
     historyPanel.hidden = !open;
@@ -763,12 +706,6 @@
     appendMessage({ role: "user", kind: "text", content: value, timestamp: new Date().toISOString() });
     input.value = "";
     resizeInput();
-
-    const localReply = contextualReply(value);
-    if (localReply) {
-      await respondLocally(localReply);
-      return;
-    }
 
     setBusy(true, "Understanding your request and checking authorised scope…");
     try {

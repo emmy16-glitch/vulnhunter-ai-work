@@ -16,7 +16,7 @@ from django.views.decorators.cache import cache_control
 from django.views.decorators.http import require_GET, require_POST
 
 from vulnhunter.approvals import ApprovalStatus, ApprovalStore
-from vulnhunter.approvals.store import ApprovalStoreError
+from vulnhunter.approvals.store import ApprovalConflictError, ApprovalStoreError
 from vulnhunter.product import ProductServiceError
 from vulnhunter.web.assessment_workflow import (
     AssessmentWorkflowError,
@@ -27,10 +27,18 @@ from vulnhunter.web.conversation_service import (
     groq_runtime_status,
     interpret_request,
 )
+from vulnhunter.web.conversation_state import (
+    contextual_chat_reply,
+    enrich_run_payload,
+    reply_for_intent,
+    results_reply,
+    status_reply,
+)
 from vulnhunter.web.conversational_authorization import (
     ConversationalAuthorizationError,
     prepare_conversational_authorization,
 )
+from vulnhunter.web.inline_confirmation_store import InlineConfirmationStore
 from vulnhunter.web.services import (
     WebCapabilityUnavailable,
     WebPermissionDenied,
@@ -88,6 +96,11 @@ def _messages(request: HttpRequest) -> list[dict[str, object]]:
     return messages
 
 
+def _normalize_message_copy(content: str) -> str:
+    lines = [" ".join(line.split()) for line in content.splitlines()]
+    return "\n".join(line for line in lines if line).strip()
+
+
 def _append_message(
     request: HttpRequest,
     *,
@@ -99,7 +112,7 @@ def _append_message(
     message = {
         "role": role,
         "kind": kind,
-        "content": " ".join(content.split()),
+        "content": _normalize_message_copy(content),
         "timestamp": datetime.now(UTC).isoformat(),
         "metadata": metadata or {},
     }
@@ -131,6 +144,125 @@ def _target_for_request(
     if interpreted_target:
         return interpreted_target
     return stored_target if isinstance(stored_target, str) and stored_target else None
+
+
+def _confirmation_store() -> InlineConfirmationStore:
+    store = InlineConfirmationStore(Path(settings.VULNHUNTER_APPROVAL_DATABASE))
+    store.initialize()
+    return store
+
+
+def _latest_visible_run(actor: object, target: str | None = None):
+    try:
+        summaries = list(product_service().list_agent_runs())
+    except ProductServiceError:
+        return None
+    summaries.sort(key=lambda item: item.updated_at, reverse=True)
+    canonical = canonical_target(target) if target else None
+    for summary in summaries:
+        if not run_visible_to_actor(summary, actor):
+            continue
+        try:
+            detail = product_service().get_agent_run(str(summary.run_id))
+        except ProductServiceError:
+            continue
+        if canonical:
+            detail_target = canonical_target(
+                str(getattr(detail, "scope_summary", None) or getattr(detail, "objective", ""))
+            )
+            if detail_target != canonical:
+                continue
+        return detail
+    return None
+
+
+def _authoritative_run(
+    state: dict[str, object],
+    actor: object,
+    *,
+    target: str | None = None,
+):
+    run_id = state.get("run_id")
+    if isinstance(run_id, str) and run_id:
+        try:
+            current = _visible_run(run_id, actor)
+        except Http404:
+            current = None
+        if current is not None:
+            if not target:
+                return current
+            current_target = canonical_target(
+                str(getattr(current, "scope_summary", None) or getattr(current, "objective", ""))
+            )
+            if current_target == canonical_target(target):
+                return current
+    return _latest_visible_run(actor, target=target)
+
+
+def _sync_state_from_run(
+    request: HttpRequest,
+    state: dict[str, object],
+    run: object,
+) -> dict[str, object]:
+    updated = dict(state)
+    updated["run_id"] = str(run.run_id)
+    target = str(getattr(run, "scope_summary", None) or getattr(run, "objective", ""))
+    if canonical_target(target):
+        updated["target"] = canonical_target(target)
+    profile = str(getattr(run, "risk_classification", "") or "")
+    if profile:
+        updated["profile"] = profile
+    authorization_id = getattr(run, "authorization_id", None)
+    if authorization_id:
+        updated["authorization_id"] = str(authorization_id)
+    _save_state(request, updated)
+    return updated
+
+
+def _confirm_active_run(
+    run: object,
+    *,
+    actor_id: str,
+    reason: str,
+    request_id: str | None = None,
+    submitted_plan_digest: str | None = None,
+):
+    pending = _pending_for_run(str(run.run_id))
+    if pending is None:
+        raise ApprovalConflictError("No current exact passive plan is waiting for confirmation.")
+    if request_id and pending.request_id != request_id:
+        raise ApprovalConflictError("The displayed confirmation request is stale.")
+    command_plan = getattr(run, "command_plan_summary", {})
+    plan = command_plan if isinstance(command_plan, Mapping) else {}
+    profile = str(plan.get("exact_profile") or "")
+    authoritative_digest = str(plan.get("plan_digest") or "")
+    if profile != "passive":
+        raise ApprovalConflictError(
+            "Inline confirmation is limited to the reviewed passive profile."
+        )
+    if not authoritative_digest:
+        raise ApprovalConflictError("The authoritative command-plan digest is unavailable.")
+    if submitted_plan_digest and submitted_plan_digest != authoritative_digest:
+        raise ApprovalConflictError("The displayed command plan is stale or has been modified.")
+    workflow = AssessmentWorkflowService.from_settings()
+    workflow.validate_approval_binding(
+        request=pending,
+        submitted_plan_digest=authoritative_digest,
+    )
+    confirmed = _confirmation_store().confirm_exact_passive_plan(
+        request_id=pending.request_id,
+        actor_id=actor_id,
+        action_manifest_sha256=authoritative_digest,
+        profile=profile,
+        reason=reason,
+    )
+    workflow.record_approval_decision(request=confirmed, actor_id=actor_id)
+    return product_service().get_agent_run(str(run.run_id))
+
+
+def _repeat_scan_requested(text: str) -> bool:
+    lowered = " ".join(text.casefold().split())
+    return any(term in lowered for term in ("scan again", "run again", "rescan", "re-scan"))
 
 
 def _enum_value(value: object) -> str:
@@ -226,9 +358,9 @@ def _run_payload(run: object) -> dict[str, object]:
         timeline = activity_payload(run_id, after_sequence=0)
     except (OSError, ProductServiceError, RuntimeError, ValueError):
         timeline = {"events": [], "terminal": False, "last_sequence": 0}
-    events = timeline.get("events", []) if isinstance(timeline, dict) else []
-    if not isinstance(events, list):
-        events = []
+    raw_events = timeline.get("events", []) if isinstance(timeline, dict) else []
+    if not isinstance(raw_events, list):
+        raw_events = []
     findings = tuple(getattr(run, "findings", ()) or ())
     artifacts = tuple(getattr(run, "artifacts", ()) or ())
     current_state = str(
@@ -244,7 +376,12 @@ def _run_payload(run: object) -> dict[str, object]:
         "readiness_blocked",
         "execution_blocked",
     }
-    return {
+    command_plan = getattr(run, "command_plan_summary", {})
+    plan = command_plan if isinstance(command_plan, Mapping) else {}
+    template_hashes = plan.get("template_manifest_hashes", ())
+    if not isinstance(template_hashes, (list, tuple)):
+        template_hashes = ()
+    payload: dict[str, object] = {
         "run_id": run_id,
         "state": current_state,
         "task_state": str(getattr(run, "current_state", current_state)),
@@ -260,12 +397,16 @@ def _run_payload(run: object) -> dict[str, object]:
         "evaluation_result": getattr(run, "evaluation_result", None),
         "findings": [_safe_finding(item) for item in findings],
         "artifacts": [_safe_artifact(item) for item in artifacts],
-        "events": events[-30:],
-        "last_sequence": timeline.get("last_sequence", 0) if isinstance(timeline, dict) else 0,
+        "last_sequence": (timeline.get("last_sequence", 0) if isinstance(timeline, dict) else 0),
         "approval": _approval_payload(run),
         "detail_url": reverse("web-scan-run-detail", kwargs={"run_id": run_id}),
         "findings_url": reverse("web-findings-overview"),
     }
+    return enrich_run_payload(
+        payload,
+        raw_events=raw_events,
+        template_count=len(template_hashes),
+    )
 
 
 def _visible_run(run_id: str, actor: object):
@@ -285,7 +426,13 @@ def _recent_runs(actor: object) -> tuple[dict[str, object], ...]:
         return ()
     visible = [run for run in runs if run_visible_to_actor(run, actor)]
     visible.sort(key=lambda item: item.updated_at, reverse=True)
-    return tuple(_run_payload(run) for run in visible[:12])
+    details: list[dict[str, object]] = []
+    for summary in visible[:12]:
+        try:
+            details.append(_run_payload(product_service().get_agent_run(str(summary.run_id))))
+        except ProductServiceError:
+            continue
+    return tuple(details)
 
 
 @cache_control(private=True, no_store=True)
@@ -302,14 +449,10 @@ def workspace_view(request: HttpRequest) -> HttpResponse:
             status=403,
         )
     state = _state(request)
-    active_run = None
-    run_id = state.get("run_id")
-    if isinstance(run_id, str) and run_id:
-        try:
-            active_run = _run_payload(_visible_run(run_id, actor))
-        except Http404:
-            state.pop("run_id", None)
-            _save_state(request, state)
+    authoritative = _authoritative_run(state, actor)
+    active_run = _run_payload(authoritative) if authoritative is not None else None
+    if authoritative is not None:
+        state = _sync_state_from_run(request, state, authoritative)
     initial = {
         "messages": _messages(request),
         "active_run": active_run,
@@ -378,28 +521,107 @@ def message_view(request: HttpRequest) -> JsonResponse:
         available_profiles=profiles,
         conversation_context=context,
     )
+    stored_target = state.get("target")
+    target_hint = _target_for_request(
+        intent=interpreted.intent,
+        interpreted_target=interpreted.target,
+        stored_target=stored_target,
+    )
+    active = _authoritative_run(
+        state,
+        actor,
+        target=target_hint if interpreted.intent in {"scan", "authorize"} else None,
+    )
+    active_payload = _run_payload(active) if active is not None else None
+    if active is not None:
+        state = _sync_state_from_run(request, state, active)
 
-    current_run_id = state.get("run_id")
-    if interpreted.intent == "status" and isinstance(current_run_id, str):
-        run = _visible_run(current_run_id, actor)
-        payload = _run_payload(run)
+    if interpreted.intent in {"status", "results", "next_step"}:
+        if active_payload is None:
+            copy = (
+                "No assessment is active yet. Paste an authorised http or https target to prepare "
+                "a passive plan."
+            )
+            message = _append_message(request, role="assistant", kind="status", content=copy)
+            return JsonResponse({"message": message})
         message = _append_message(
             request,
             role="assistant",
-            content=(
-                f"The assessment is currently {payload['state']}. "
-                "Open the progress card below for details."
-            ),
+            kind="result" if interpreted.intent == "results" else "status",
+            content=reply_for_intent(interpreted.intent, active_payload),
+            metadata={"run_id": active_payload["run_id"]},
+        )
+        return JsonResponse({"message": message, "run": active_payload})
+
+    if interpreted.intent == "approve":
+        if active is None or active_payload is None:
+            message = _append_message(
+                request,
+                role="assistant",
+                kind="question",
+                content="There is no active plan waiting for confirmation.",
+            )
+            return JsonResponse({"message": message})
+        if active_payload.get("terminal"):
+            message = _append_message(
+                request,
+                role="assistant",
+                kind="result",
+                content=results_reply(active_payload),
+            )
+            return JsonResponse({"message": message, "run": active_payload})
+        try:
+            refreshed = _confirm_active_run(
+                active,
+                actor_id=actor.governance_identity.reviewer_id,
+                reason="Confirmed in the conversation for this exact authorised passive plan.",
+            )
+        except (ApprovalConflictError, ApprovalStoreError, AssessmentWorkflowError) as exc:
+            message = _append_message(
+                request,
+                role="assistant",
+                kind="error",
+                content=str(exc),
+            )
+            return JsonResponse({"message": message}, status=409)
+        state = _sync_state_from_run(request, state, refreshed)
+        payload = _run_payload(refreshed)
+        copy = (
+            "Approved. Starting the governed assessment now. The compact live status below will "
+            "update as the scanner and verification stages progress."
+        )
+        message = _append_message(
+            request,
+            role="assistant",
             kind="status",
-            metadata={"provider": interpreted.provider},
+            content=copy,
+            metadata={"run_id": payload["run_id"]},
         )
         return JsonResponse({"message": message, "run": payload})
 
-    if interpreted.intent == "cancel" and isinstance(current_run_id, str):
+    if interpreted.intent == "cancel":
+        if active is None or active_payload is None:
+            message = _append_message(
+                request,
+                role="assistant",
+                kind="status",
+                content="There is no active assessment to cancel.",
+            )
+            return JsonResponse({"message": message})
+        if active_payload.get("terminal"):
+            message = _append_message(
+                request,
+                role="assistant",
+                kind="status",
+                content=(
+                    "That assessment is already finished, so there is no running work to cancel."
+                ),
+            )
+            return JsonResponse({"message": message, "run": active_payload})
         try:
             stop_agent_run(
                 request.user,
-                run_id=current_run_id,
+                run_id=str(active.run_id),
                 reason="Cancelled from chat workspace",
             )
         except WebCapabilityUnavailable as exc:
@@ -410,37 +632,33 @@ def message_view(request: HttpRequest) -> JsonResponse:
                 content=str(exc),
             )
             return JsonResponse({"message": message}, status=409)
-        run = _visible_run(current_run_id, actor)
+        refreshed = _visible_run(str(active.run_id), actor)
+        payload = _run_payload(refreshed)
         message = _append_message(
             request,
             role="assistant",
-            content=(
-                "The cancellation request was recorded. No additional scanner work will be started."
-            ),
             kind="status",
+            content="Cancellation requested. No additional scanner work will be started.",
         )
-        return JsonResponse({"message": message, "run": _run_payload(run)})
+        return JsonResponse({"message": message, "run": payload})
 
-    if interpreted.intent not in {"scan", "clarify"}:
+    if interpreted.intent not in {"scan", "authorize"}:
         message = _append_message(
             request,
             role="assistant",
-            content=(
-                interpreted.assistant_copy or "Tell me which authorised target you want to assess."
+            content=contextual_chat_reply(
+                text,
+                active_payload,
+                interpreted.assistant_copy,
             ),
-            metadata={
-                "provider": interpreted.provider,
-                "provider_detail": interpreted.provider_detail,
-            },
+            metadata={"provider": interpreted.provider},
         )
-        return JsonResponse({"message": message})
+        response: dict[str, object] = {"message": message}
+        if active_payload is not None:
+            response["run"] = active_payload
+        return JsonResponse(response)
 
-    stored_target = state.get("target")
-    target = _target_for_request(
-        intent=interpreted.intent,
-        interpreted_target=interpreted.target,
-        stored_target=stored_target,
-    )
+    target = target_hint
     if target is None:
         suggestions = [item.approved_targets[0] for item in choices if item.approved_targets]
         message = _append_message(
@@ -448,25 +666,61 @@ def message_view(request: HttpRequest) -> JsonResponse:
             role="assistant",
             kind="question",
             content=(
-                "I need the authorised target before I can prepare the scan. "
-                "Choose the suggested target below or paste a complete http or https URL."
+                "Paste the full http or https target. I will identify the path and port, check "
+                "authorization and prepare the passive plan."
             ),
             metadata={
                 "suggestions": [
                     {"label": value, "message": f"Scan {value} using the passive profile"}
                     for value in suggestions[:4]
-                ],
-                "provider": interpreted.provider,
+                ]
             },
         )
         return JsonResponse({"message": message})
 
     canonical = canonical_target(target)
+    if not canonical:
+        message = _append_message(
+            request,
+            role="assistant",
+            kind="error",
+            content="That target is not a valid http or https URL.",
+        )
+        return JsonResponse({"message": message}, status=400)
+
+    existing = _latest_visible_run(actor, target=canonical)
+    if existing is not None and not _repeat_scan_requested(text) and interpreted.intent == "scan":
+        payload = _run_payload(existing)
+        state = _sync_state_from_run(request, state, existing)
+        if payload.get("terminal"):
+            copy = (
+                f"A completed assessment already exists for {canonical}. {results_reply(payload)} "
+                "Say ‘scan again’ only when you intentionally want a new authorised run."
+            )
+            kind = "result"
+        else:
+            copy = f"The assessment for {canonical} is already active. {status_reply(payload)}"
+            kind = "status"
+        message = _append_message(
+            request,
+            role="assistant",
+            kind=kind,
+            content=copy,
+            metadata={
+                "suggestions": [
+                    {"label": "Show results", "message": "Show me the results"},
+                    {"label": "Scan again", "message": f"Scan {canonical} again"},
+                ]
+            },
+        )
+        return JsonResponse({"message": message, "run": payload})
+
     matched = None
     for item in choices:
         if any(canonical_target(value) == canonical for value in item.approved_targets):
             matched = item
             break
+
     if matched is None and interpreted.intent == "authorize":
         try:
             _actor(request, "scan.create", "authorization.create")
@@ -510,11 +764,8 @@ def message_view(request: HttpRequest) -> JsonResponse:
                 break
 
     if matched is None:
-        try:
-            parsed_target = urlsplit(canonical)
-            requested_port = parsed_target.port or (443 if parsed_target.scheme == "https" else 80)
-        except ValueError:
-            requested_port = interpreted.port
+        parsed_target = urlsplit(canonical)
+        requested_port = parsed_target.port or (443 if parsed_target.scheme == "https" else 80)
         state.update({"target": canonical, "profile": interpreted.profile or "passive"})
         _save_state(request, state)
         message = _append_message(
@@ -522,10 +773,9 @@ def message_view(request: HttpRequest) -> JsonResponse:
             role="assistant",
             kind="authorization_required",
             content=(
-                f"I recognized the URL syntax for {canonical} on port {requested_port}. "
-                "but no active authorization covers that exact target yet. Authorize it in chat "
-                "and I will continue directly to the passive plan. Public websites need a "
-                "contract, ticket, or bug-bounty scope reference."
+                f"I recognised {canonical} on port {requested_port}, but no active authorization "
+                "covers that exact URL and port. Authorize it in this conversation to continue. "
+                "Public websites require a contract, ticket or bug-bounty scope reference."
             ),
             metadata={
                 "suggestions": [
@@ -559,8 +809,7 @@ def message_view(request: HttpRequest) -> JsonResponse:
                 "suggestions": [
                     {"label": value.title(), "message": f"Use the {value} profile for {canonical}"}
                     for value in matched.approved_profiles
-                ],
-                "provider": interpreted.provider,
+                ]
             },
         )
         state.update({"target": canonical, "authorization_id": matched.authorization_id})
@@ -576,9 +825,8 @@ def message_view(request: HttpRequest) -> JsonResponse:
             role="assistant",
             kind="authorization_required",
             content=(
-                f"Port {port} is a valid HTTP/HTTPS service port, but this authorization does "
-                "not include it. VulnHunter accepts ports 1 through 65535 once the exact URL and "
-                "port are explicitly authorized."
+                f"Port {port} is valid for HTTP/HTTPS, but the current authorization does not "
+                "include it. Authorize the exact URL and port before continuing."
             ),
         )
         return JsonResponse({"message": message})
@@ -615,24 +863,12 @@ def message_view(request: HttpRequest) -> JsonResponse:
         role="assistant",
         kind="plan",
         content=(
-            (
-                "Authorization recorded. I prepared the exact passive Nuclei plan for the pasted "
-                "URL and port. Review the inline approval card to continue."
-            )
-            if interpreted.intent == "authorize"
-            else (
-                interpreted.assistant_copy
-                or (
-                    "I validated the authorised scope and prepared the exact "
-                    "Nuclei plan. Review the inline approval card to continue."
-                )
-            )
+            f"I found the active authorised target:\n{canonical}\n\n"
+            "Checking authorisation… completed.\n"
+            "Building the exact passive Nuclei plan… completed.\n\n"
+            "Review and confirm the plan below. No scanner traffic starts before confirmation."
         ),
-        metadata={
-            "provider": interpreted.provider,
-            "provider_detail": interpreted.provider_detail,
-            "run_id": result.task.task_id,
-        },
+        metadata={"run_id": result.task.task_id},
     )
     return JsonResponse({"message": message, "run": _run_payload(run)}, status=201)
 

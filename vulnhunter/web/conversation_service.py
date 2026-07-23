@@ -69,6 +69,32 @@ _AUTHORIZE_WORDS = (
     "i am authorized",
     "i am authorised",
 )
+_APPROVE_WORDS = (
+    "confirm",
+    "approve",
+    "confirm and continue",
+    "go ahead",
+    "start the assessment",
+    "run it",
+)
+_RESULTS_WORDS = (
+    "result",
+    "results",
+    "finding",
+    "findings",
+    "evidence",
+    "vulnerability",
+    "vulnerabilities",
+    "what did you find",
+    "show me",
+)
+_NEXT_STEP_WORDS = (
+    "next step",
+    "what next",
+    "what should i do",
+    "what do i do next",
+    "next action",
+)
 _STATUS_WORDS = (
     "status",
     "progress",
@@ -191,8 +217,14 @@ def deterministic_intent(text: str) -> str:
         return "authorize"
     if any(_contains_term(lowered, word) for word in _CANCEL_WORDS):
         return "cancel"
+    if any(_contains_term(lowered, word) for word in _APPROVE_WORDS):
+        return "approve"
     if any(_contains_term(lowered, word) for word in _STATUS_WORDS):
         return "status"
+    if any(_contains_term(lowered, word) for word in _NEXT_STEP_WORDS):
+        return "next_step"
+    if any(_contains_term(lowered, word) for word in _RESULTS_WORDS):
+        return "results"
     if any(_contains_term(lowered, word) for word in _SCAN_WORDS) or extract_target(text):
         return "scan"
     return "chat"
@@ -269,9 +301,11 @@ def _groq_advisory(
         "never invent a target, and never approve or cancel work. Respond naturally to ordinary "
         "questions instead of forcing every message into a scan flow. Return one JSON object with "
         "keys intent, message, recommended_profile, and missing. intent must be scan, status, or "
-        "chat. Use scan only when the user is asking to assess a target, status only for progress "
-        "questions, and chat for greetings, explanations, help, links, results questions, or other "
-        "conversation. recommended_profile must be one supplied profile or null. missing must be "
+        "chat. Deterministic commands such as approve, cancel, results and next step are handled "
+        "locally and cannot be changed by the provider. Use scan only when the user is asking to "
+        "assess a target, status only for progress questions, and chat for greetings, "
+        "explanations, help, links, or other ordinary conversation. "
+        "recommended_profile must be one supplied profile or null. missing must be "
         "an array containing only target, port, profile, or authorization. Keep message helpful, "
         "specific and under 600 characters. Do not expose hidden reasoning. "
         f"Available profiles: {', '.join(available_profiles) or 'none'}. "

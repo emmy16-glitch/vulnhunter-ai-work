@@ -105,6 +105,10 @@ jobs:
       VULNHUNTER_UI_OUTPUT: /tmp/vh-ui/screenshots
       VULNHUNTER_UI_BASE_URL: http://127.0.0.1:8767
       VULNHUNTER_INTELLIGENCE_ENABLED: "false"
+      VULNHUNTER_NUCLEI_READINESS_REPORT: /tmp/vh-ui/nuclei-readiness.json
+      VULNHUNTER_NUCLEI_PILOT_ENQUEUE_ENABLED: "true"
+      VULNHUNTER_NUCLEI_WORKER_SIGNING_KEY_FILE: /tmp/vh-ui/worker-signing.key
+      VULNHUNTER_NUCLEI_WORKER_SPOOL_ROOT: /tmp/vh-ui/worker-spool
 
     steps:
       - name: Check out repository
@@ -127,6 +131,7 @@ jobs:
           node --check vulnhunter/web/static/web/activity.js
           node --check vulnhunter/web/static/web/assessment-modal.js
           node --check .playwright-validate.cjs
+          node --check tests/ui/conversation_e2e.cjs
 
       - name: Install application and browser audit tools
         run: |
@@ -142,6 +147,7 @@ jobs:
           mkdir -p /tmp/vh-ui
           python manage.py migrate --noinput
           python tests/ui/prepare_visual_audit.py
+          python tests/ui/prepare_conversation_e2e.py
 
       - name: Start local web application
         run: |
@@ -154,6 +160,9 @@ jobs:
           done
           cat /tmp/vh-ui/server.log
           exit 1
+
+      - name: Run conversational browser lifecycle
+        run: node tests/ui/conversation_e2e.cjs
 
       - name: Capture and validate responsive product UI
         run: node .playwright-validate.cjs

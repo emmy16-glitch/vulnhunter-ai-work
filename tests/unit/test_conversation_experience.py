@@ -87,7 +87,8 @@ def test_conversation_ui_has_elapsed_thinking_and_contextual_answers():
     script = (ROOT / "vulnhunter/web/static/web/conversation.js").read_text(encoding="utf-8")
 
     assert "updateBusyCopy" in script
-    assert "Checking the active workspace" in script
-    assert "The controlled target for the active assessment is" in script
     assert "announceRunProgress" in script
+    assert "next.final_message" in script
+    assert "run.current_step" in script
+    assert "contextualReply" not in script
     assert "confirmedRuns" in script

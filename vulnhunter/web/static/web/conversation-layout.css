@@ -588,3 +588,45 @@
     transition: none;
   }
 }
+
+
+/* Chat-first assessment card: one live status, terminal details on demand. */
+.vh-conversation-body .vh-run-card {
+  width: min(100%, 700px);
+  border-color: rgba(79, 140, 255, .22);
+}
+
+.vh-conversation-body .vh-run-summary-grid {
+  display: none !important;
+}
+
+.vh-conversation-body .vh-run-live-copy {
+  white-space: normal;
+}
+
+.vh-conversation-body .vh-run-card:not(.is-completed):not(.is-failed):not(.is-cancelled):not(.is-blocked):not(.is-denied):not(.is-readiness_blocked):not(.is-execution_blocked) .vh-run-disclosures,
+.vh-conversation-body .vh-run-card:not(.is-completed):not(.is-failed):not(.is-cancelled):not(.is-blocked):not(.is-denied):not(.is-readiness_blocked):not(.is-execution_blocked) .vh-run-card-footer {
+  display: none;
+}
+
+.vh-conversation-body .vh-run-disclosures details[data-section="progress"] {
+  display: none !important;
+}
+
+.vh-approval-technical {
+  margin: 10px 0 14px;
+  color: var(--vh-muted);
+}
+
+.vh-approval-technical summary {
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.vh-approval-technical code {
+  display: block;
+  margin-top: 8px;
+  overflow-wrap: anywhere;
+  font-size: 9px;
+}

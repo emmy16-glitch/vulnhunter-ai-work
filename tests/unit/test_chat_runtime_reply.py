@@ -11,7 +11,7 @@ def test_conversation_template_uses_a_csp_safe_runtime_guard() -> None:
     assert asset in template
     assert template.index(asset) < template.index("data-conversation-workspace")
     assert "Object.defineProperty(String.prototype" not in template
-    assert '"script-src \'self\'; "' in settings
+    assert "\"script-src 'self'; \"" in settings
 
 
 def test_broken_normalizer_is_covered_by_the_external_guard() -> None:

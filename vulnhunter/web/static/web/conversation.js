@@ -359,8 +359,19 @@
     panel.dataset.planDigest = text(approval.plan_digest);
     panel.querySelector("[data-approval-summary]").textContent = text(approval.summary || "Review this exact plan.");
     panel.querySelector("[data-approval-target]").textContent = text(approval.target || run.target);
+    panel.querySelector("[data-approval-port]").textContent = text(approval.port || "Not recorded");
     panel.querySelector("[data-approval-profile]").textContent = prettyState(approval.profile || run.profile);
     panel.querySelector("[data-approval-scanner]").textContent = text(approval.scanner || run.scanner);
+    const templateCount = Number(approval.template_count || 0);
+    panel.querySelector("[data-approval-templates]").textContent = templateCount
+      ? `${templateCount} reviewed template${templateCount === 1 ? "" : "s"}`
+      : "No reviewed templates selected";
+    const rateLimit = Number(approval.rate_limit || 0);
+    const concurrency = Number(approval.concurrency || 0);
+    panel.querySelector("[data-approval-limits]").textContent =
+      rateLimit && concurrency
+        ? `${rateLimit} request${rateLimit === 1 ? "" : "s"}/sec · concurrency ${concurrency}`
+        : "Limits unavailable";
     panel.querySelector("[data-approval-digest]").textContent = text(approval.plan_digest || "");
     panel.querySelector("[data-approval-risk]").textContent = text(approval.risk_summary || "Execution remains bounded to this exact plan.");
   };

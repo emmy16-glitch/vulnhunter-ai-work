@@ -131,6 +131,41 @@ def test_conversation_payload_reads_persisted_finding_and_artifact_mappings():
     }
 
 
+def test_approval_payload_uses_the_authoritative_signed_plan(monkeypatch):
+    pending = SimpleNamespace(
+        request_id="approval-test",
+        summary="Confirm the exact passive plan.",
+        risk_summary="The plan is restricted to reviewed passive templates.",
+        expires_at=SimpleNamespace(isoformat=lambda: "2026-07-23T15:00:00+00:00"),
+    )
+    run = SimpleNamespace(
+        run_id="assessment-test",
+        scope_summary="http://10.0.0.143:8010/",
+        requested_tool="nuclei",
+        risk_classification="passive",
+        plan_digest="b" * 64,
+        command_plan_summary={
+            "exact_profile": "passive",
+            "template_manifest_hashes": ("a" * 64, "c" * 64),
+            "rate_limit": 1,
+            "concurrency": 1,
+            "plan_digest": "d" * 64,
+        },
+    )
+    monkeypatch.setattr(conversational_views, "_pending_for_run", lambda _run_id: pending)
+
+    payload = conversational_views._approval_payload(run)
+
+    assert payload is not None
+    assert payload["target"] == "http://10.0.0.143:8010/"
+    assert payload["port"] == 8010
+    assert payload["profile"] == "passive"
+    assert payload["template_count"] == 2
+    assert payload["rate_limit"] == 1
+    assert payload["concurrency"] == 1
+    assert payload["plan_digest"] == "d" * 64
+
+
 @pytest.mark.django_db
 def test_root_is_the_single_account_conversational_workspace(client, settings):
     settings.ALLOWED_HOSTS = ["testserver"]
@@ -162,6 +197,9 @@ def test_root_is_the_single_account_conversational_workspace(client, settings):
     assert "Confirm exact passive plan" in content
     assert "data-approval-confirm" in content
     assert "Confirm and continue" in content
+    assert "data-approval-port" in content
+    assert "data-approval-templates" in content
+    assert "data-approval-limits" in content
     assert "Open approval centre" not in content
     assert "separate approver" not in content
     assert "Remediation guidance" in content

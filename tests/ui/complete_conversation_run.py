@@ -35,6 +35,7 @@ def transition(
     status: TaskStatus,
     event_type: str,
     summary: str,
+    source: str,
 ) -> None:
     current = store.get_task(run_id)
     workflow = dict(current.memory.get("assessment_workflow", {}))
@@ -65,7 +66,7 @@ def transition(
         event_type=event_type,
         summary=summary,
         run_state=workflow_state,
-        source="browser_e2e_worker",
+        source=source,
     )
 
 
@@ -81,10 +82,11 @@ def main() -> int:
         store,
         activity,
         args.run_id,
-        workflow_state="running",
+        workflow_state="executing",
         status=TaskStatus.RUNNING,
-        event_type="scanner_started",
+        event_type="tool_execution_started",
         summary="Running passive checks…",
+        source="tool",
     )
     time.sleep(1.6)
     transition(
@@ -93,8 +95,9 @@ def main() -> int:
         args.run_id,
         workflow_state="evaluating",
         status=TaskStatus.RUNNING,
-        event_type="verification_started",
+        event_type="evaluation_started",
         summary="Verifying one possible finding…",
+        source="evaluator",
     )
     evidence_root = Path(settings.VULNHUNTER_SECURITY_EVIDENCE_ROOT)
     evidence_root.mkdir(parents=True, exist_ok=True)
@@ -127,6 +130,7 @@ def main() -> int:
         status=TaskStatus.COMPLETED,
         event_type="run_completed",
         summary="Analysis complete.",
+        source="system",
     )
     return 0
 

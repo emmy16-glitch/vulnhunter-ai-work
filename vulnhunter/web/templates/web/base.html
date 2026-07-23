@@ -20,12 +20,14 @@
   <link rel="stylesheet" href="{% static 'web/ui-audit.css' %}?v=20260722-scroll3">
   <link rel="stylesheet" href="{% static 'web/unified-mobile.css' %}?v=20260723-unified1">
   <link rel="stylesheet" href="{% static 'web/conversation.css' %}?v=20260723-chat1">
+  <link rel="stylesheet" href="{% static 'web/conversation-layout.css' %}?v=20260723-chat2">
   <script src="{% static 'web/app.js' %}?v=20260722-console" defer></script>
   <script src="{% static 'web/activity.js' %}?v=20260722-console" defer></script>
   <script src="{% static 'web/assessment-modal.js' %}?v=20260723-unified1" defer></script>
   <script src="{% static 'web/conversation.js' %}?v=20260723-chat1" defer></script>
+  <script src="{% static 'web/conversation-autoscroll.js' %}?v=20260723-chat2" defer></script>
 </head>
-<body data-route="{{ current_route }}">
+<body data-route="{{ current_route }}"{% if conversation %} class="vh-conversation-body"{% endif %}>
   <svg class="vh-icon-sprite" aria-hidden="true">
     <symbol id="vh-i-shield" viewBox="0 0 24 24"><path d="M12 2.5 20 6v5.7c0 5-3.4 8.4-8 9.8-4.6-1.4-8-4.8-8-9.8V6l8-3.5Z"/><path d="m9.2 12 1.8 1.8 3.9-4.2"/></symbol>
     <symbol id="vh-i-grid" viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/></symbol>
@@ -77,7 +79,7 @@
         {% endif %}
       </nav>
       {% if request.user.is_authenticated %}
-        <div class="vh-sidebar-footer"><div class="vh-organisation"><span class="vh-organisation-mark" aria-hidden="true"><svg><use href="#vh-i-shield"></use></svg></span><span><strong>VulnHunter</strong><small>{{ account_role }}</small></span><span class="vh-environment-pill">Controlled</span></div></div>
+        <div class="vh-sidebar-footer"><div class="vh-organisation"><span class="vh-organisation-mark" aria-hidden="true"><svg><use href="#vh-i-shield"></use></svg></span><span><strong>VulnHunter</strong><small>{% if conversation %}Security Analyst{% else %}{{ account_role }}{% endif %}</small></span><span class="vh-environment-pill">Controlled</span></div></div>
       {% endif %}
     </aside>
 
@@ -97,11 +99,11 @@
           <div class="vh-topbar-page"><small>VulnHunter</small><strong>{{ display_title }}</strong></div>
         {% endif %}
         <div class="vh-top-actions">
-          <span class="vh-environment-pill is-topbar">Controlled runtime</span>
+          <span class="vh-environment-pill is-topbar">Private Lab</span>
           <button class="vh-search-trigger" type="button" data-search-toggle aria-haspopup="dialog" aria-controls="vh-command-dialog" aria-expanded="false"><svg aria-hidden="true"><use href="#vh-i-search"></use></svg><span>Search</span><kbd>⌘ K</kbd></button>
           <a class="vh-icon-control vh-notification-control" href="{% url 'web-dashboard' %}" aria-label="Open assessment workspace"><svg aria-hidden="true"><use href="#vh-i-bell"></use></svg>{% if pending_approval %}<span class="vh-notification-dot" aria-label="1 pending approval">1</span>{% endif %}</a>
           {% if request.user.is_authenticated %}
-            <details class="vh-user-menu"><summary aria-label="Open account menu"><span class="vh-avatar" aria-hidden="true">{{ request.user.username|slice:":1"|upper }}</span><svg aria-hidden="true"><use href="#vh-i-chevron"></use></svg></summary><div class="vh-user-popover"><strong>{{ request.user.username }}</strong><small>{{ account_role }}</small>{% if controls.stop.available and run %}<a class="vh-user-stop-link" href="{% url 'web-agent-run-stop' run.run_id %}">Stop current run</a>{% endif %}<a href="{% url 'web-dashboard' %}">Assessment workspace</a><form action="{% url 'web-logout' %}" method="post">{% csrf_token %}<button type="submit">Sign out</button></form></div></details>
+            <details class="vh-user-menu"><summary aria-label="Open account menu"><span class="vh-avatar" aria-hidden="true">{{ request.user.username|slice:":1"|upper }}</span><svg aria-hidden="true"><use href="#vh-i-chevron"></use></svg></summary><div class="vh-user-popover"><strong>{{ request.user.username }}</strong><small>{% if conversation %}Security Analyst{% else %}{{ account_role }}{% endif %}</small>{% if controls.stop.available and run %}<a class="vh-user-stop-link" href="{% url 'web-agent-run-stop' run.run_id %}">Stop current run</a>{% endif %}<a href="{% url 'web-dashboard' %}">Assessment workspace</a><form action="{% url 'web-logout' %}" method="post">{% csrf_token %}<button type="submit">Sign out</button></form></div></details>
           {% endif %}
         </div>
       </header>

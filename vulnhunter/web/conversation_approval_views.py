@@ -1,8 +1,8 @@
-"""Inline exact-plan confirmation for the conversational workspace.
+"""Compatibility approval endpoint for the conversational workspace.
 
-The browser user remains one account. The approval ledger records a derived
-confirmation principal so request creation and confirmation remain distinct
-audit events without requiring a second login.
+Approval decisions must come from a separately authenticated governed identity.
+The assessment requester can monitor the run in chat, but cannot approve its own
+plan through this endpoint.
 """
 
 from __future__ import annotations
@@ -14,6 +14,7 @@ from django.views.decorators.http import require_POST
 
 from vulnhunter.approvals import ApprovalDecision
 from vulnhunter.approvals.store import ApprovalNotFoundError, ApprovalStoreError
+from vulnhunter.product import ProductServiceError
 from vulnhunter.web.assessment_workflow import (
     AssessmentWorkflowError,
     AssessmentWorkflowService,
@@ -23,7 +24,6 @@ from vulnhunter.web.conversational_views import (
     _append_message,
     _approval_store,
     _run_payload,
-    _visible_run,
 )
 from vulnhunter.web.services import WebPermissionDenied, product_service
 
@@ -33,7 +33,7 @@ from vulnhunter.web.services import WebPermissionDenied, product_service
 @require_POST
 def approve_view(request: HttpRequest) -> JsonResponse:
     try:
-        actor = _actor(request, "scan.create")
+        actor = _actor(request, "campaign.approve", "settings.manage")
     except WebPermissionDenied as exc:
         return JsonResponse({"detail": str(exc)}, status=403)
 
@@ -41,7 +41,7 @@ def approve_view(request: HttpRequest) -> JsonResponse:
     plan_digest = request.POST.get("plan_digest", "").strip()
     reason = (
         request.POST.get("reason", "").strip()
-        or "Approved in the assessment workspace."
+        or "Approved independently in the assessment workspace."
     )
     if len(reason) < 8:
         return JsonResponse(
@@ -50,11 +50,14 @@ def approve_view(request: HttpRequest) -> JsonResponse:
         )
 
     identity_id = actor.governance_identity.reviewer_id
-    confirmation_actor = f"{identity_id}.interactive-confirmation"
     try:
         store = _approval_store()
         pending = store.get(request_id)
-        run = _visible_run(pending.run_id, actor)
+        if identity_id == pending.requested_by:
+            return JsonResponse(
+                {"detail": "The assessment requester cannot approve its own plan."},
+                status=409,
+            )
         workflow = AssessmentWorkflowService.from_settings()
         workflow.validate_approval_binding(
             request=pending,
@@ -62,27 +65,27 @@ def approve_view(request: HttpRequest) -> JsonResponse:
         )
         decided = store.decide(
             request_id=request_id,
-            actor_id=confirmation_actor,
+            actor_id=identity_id,
             decision=ApprovalDecision.APPROVE_ONCE,
             reason=reason,
         )
         workflow.record_approval_decision(
             request=decided,
-            actor_id=confirmation_actor,
+            actor_id=identity_id,
         )
+        refreshed = product_service().get_agent_run(pending.run_id)
     except ApprovalNotFoundError as exc:
         return JsonResponse({"detail": str(exc)}, status=404)
-    except (ApprovalStoreError, AssessmentWorkflowError) as exc:
+    except (ApprovalStoreError, AssessmentWorkflowError, ProductServiceError) as exc:
         return JsonResponse({"detail": str(exc)}, status=409)
 
-    refreshed = product_service().get_agent_run(str(run.run_id))
     message = _append_message(
         request,
         role="assistant",
         kind="status",
         content=(
-            "Approval recorded for this exact plan. The signed Nuclei job is "
-            "continuing, and live progress will appear below."
+            "Independent approval was recorded for this exact plan. The signed "
+            "Nuclei job can now continue."
         ),
         metadata={"run_id": str(refreshed.run_id)},
     )

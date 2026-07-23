@@ -1,5 +1,7 @@
 import hashlib
 import json
+from datetime import UTC, datetime
+from types import SimpleNamespace
 
 import pytest
 from pydantic import ValidationError
@@ -10,6 +12,7 @@ from vulnhunter.intelligence import (
     GroqFindingReasoningLoop,
     IntelligenceStore,
     ReasoningStage,
+    build_analysis_request,
 )
 from vulnhunter.providers import ProviderKind, ProviderOutputKind, ProviderResponse
 
@@ -94,12 +97,53 @@ class FakeConnector:
 
 
 def test_request_digest_is_bound_and_tampering_is_rejected():
-    request = _request()
+    request = _request(context_sha256="b" * 64)
     assert len(request.context_sha256) == 64
+    assert request.context_sha256 != "b" * 64
     payload = request.model_dump(mode="json")
     payload["title"] = "Changed after binding"
     with pytest.raises(ValidationError, match="context digest"):
         FindingAnalysisRequest.model_validate(payload)
+
+
+def test_build_request_redacts_context_and_uses_capsule_timestamp():
+    created_at = datetime(2026, 7, 23, 12, 0, tzinfo=UTC)
+    candidate = SimpleNamespace(
+        title="Header issue for analyst@example.com token=secret-value",
+        severity="low",
+        confidence="medium",
+        template_id="test-template",
+    )
+    verification = SimpleNamespace(
+        strategy=SimpleNamespace(value="evidence_consistency_check"),
+        verdict=SimpleNamespace(value="verified"),
+    )
+    observation = SimpleNamespace(
+        observation_type="scanner_candidate",
+        value="email analyst@example.com token=secret-value",
+    )
+    capsule = SimpleNamespace(
+        evidence_hashes=(_EVIDENCE,),
+        structured_observations=(observation,),
+        target_identity="target-0123456789abcdef",
+        created_at=created_at,
+        capsule_hash=lambda: "c" * 64,
+    )
+
+    request = build_analysis_request(
+        finding_id="finding-test",
+        run_id="run-test",
+        campaign_id="campaign-test",
+        candidate=candidate,
+        verification=verification,
+        capsule=capsule,
+    )
+
+    serialized = request.model_dump_json()
+    assert request.created_at == created_at
+    assert "analyst@example.com" not in serialized
+    assert "secret-value" not in serialized
+    assert "[REDACTED" in serialized
 
 
 def test_reasoning_loop_runs_exact_analyst_critic_synthesizer_order():

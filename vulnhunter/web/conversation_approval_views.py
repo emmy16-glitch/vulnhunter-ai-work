@@ -38,6 +38,25 @@ def _confirmation_store() -> InlineConfirmationStore:
     return store
 
 
+def _confirmation_copy(run: object) -> str:
+    state = str(
+        getattr(run, "workflow_state", None)
+        or getattr(run, "current_state", "unknown")
+    )
+    if state == "queued":
+        return (
+            "Exact passive plan confirmed. The signed Nuclei job is continuing "
+            "from the paused point, and live progress will appear here."
+        )
+    if state == "execution_blocked":
+        reason = str(
+            getattr(run, "execution_blocking_reason", None)
+            or "The isolated Nuclei worker is not available."
+        )
+        return f"Exact passive plan confirmed, but execution remains blocked: {reason}"
+    return f"Exact passive plan confirmed. Current assessment state: {state}."
+
+
 @cache_control(private=True, no_store=True)
 @login_required
 @require_POST
@@ -110,10 +129,7 @@ def approve_view(request: HttpRequest) -> JsonResponse:
         request,
         role="assistant",
         kind="status",
-        content=(
-            "Exact passive plan confirmed. The signed Nuclei job is continuing "
-            "from the paused point, and live progress will appear here."
-        ),
+        content=_confirmation_copy(refreshed),
         metadata={"run_id": str(refreshed.run_id)},
     )
     return JsonResponse({"message": message, "run": _run_payload(refreshed)})

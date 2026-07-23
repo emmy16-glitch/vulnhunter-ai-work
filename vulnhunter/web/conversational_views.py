@@ -196,7 +196,9 @@ def _authoritative_run(
             )
             if current_target == canonical_target(target):
                 return current
-    return _latest_visible_run(actor, target=target)
+    if target:
+        return _latest_visible_run(actor, target=target)
+    return None
 
 
 def _sync_state_from_run(

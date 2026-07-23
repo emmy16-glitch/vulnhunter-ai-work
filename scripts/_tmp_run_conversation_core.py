@@ -28,51 +28,68 @@ if "def replace_all(" not in content:
     content = content.replace(helper_anchor, helper + helper_anchor, 1)
 
 
-def call_block(marker: str) -> tuple[int, int, str]:
-    start = content.find(marker)
-    if start < 0:
-        raise RuntimeError(f"Could not locate patch call: {marker}")
-    end = content.find("\n)\n", start)
-    if end < 0:
-        raise RuntimeError(f"Could not locate end of patch call: {marker}")
-    end += len("\n)\n")
-    return start, end, content[start:end]
+PREFIX = 'replace_once(\n    ".github/workflows/conversation-quality.yml",'
 
 
-def upgrade_call(marker: str, *, expected: int) -> None:
+def workflow_blocks() -> list[tuple[int, int, str]]:
+    blocks: list[tuple[int, int, str]] = []
+    cursor = 0
+    while True:
+        start = content.find(PREFIX, cursor)
+        if start < 0:
+            return blocks
+        end = content.find("\n)\n", start)
+        if end < 0:
+            raise RuntimeError("Could not find the end of a conversation-quality patch call")
+        end += len("\n)\n")
+        blocks.append((start, end, content[start:end]))
+        cursor = end
+
+
+def replace_block(predicate, transform) -> None:
     global content
-    start, end, block = call_block(marker)
-    replacement = block.replace("replace_once(", "replace_all(", 1)
-    replacement = replacement[:-3] + f"\n    expected={expected},\n)\n"
-    content = content[:start] + replacement + content[end:]
+    matches = [item for item in workflow_blocks() if predicate(item[2])]
+    if len(matches) != 1:
+        raise RuntimeError(f"Expected one workflow patch block, found {len(matches)}")
+    start, end, block = matches[0]
+    content = content[:start] + transform(block) + content[end:]
 
 
-upgrade_call(
-    'replace_once(\n    ".github/workflows/conversation-quality.yml",\n'
-    "    '''            vulnhunter/web/conversation_service.py",
-    expected=2,
+def make_replace_all(block: str, expected: int) -> str:
+    result = block.replace("replace_once(", "replace_all(", 1)
+    return result[:-3] + f"\n    expected={expected},\n)\n"
+
+
+replace_block(
+    lambda block: "vulnhunter/web/conversation_service.py" in block,
+    lambda block: make_replace_all(block, 2),
 )
-upgrade_call(
-    'replace_once(\n    ".github/workflows/conversation-quality.yml",\n'
-    "    '''            tests/unit/test_chat_runtime_reply.py \\\\n"
-    "            tests/unit/test_conversational_url_targets.py",
-    expected=3,
+replace_block(
+    lambda block: (
+        "tests/unit/test_chat_runtime_reply.py" in block
+        and "tests/unit/test_conversation_experience.py" not in block
+    ),
+    lambda block: make_replace_all(block, 3),
+)
+replace_block(
+    lambda block: (
+        "tests/unit/test_chat_runtime_reply.py" in block
+        and "tests/unit/test_conversation_experience.py" in block
+    ),
+    lambda _block: "",
 )
 
-redundant_marker = (
-    'replace_once(\n    ".github/workflows/conversation-quality.yml",\n'
-    "    '''            tests/unit/test_chat_runtime_reply.py \\\\n"
-    "            tests/unit/test_conversational_url_targets.py \\\\n"
-    "            tests/unit/test_conversation_experience.py"
-)
-start, end, _ = call_block(redundant_marker)
-content = content[:start] + content[end:]
-
-env_marker = (
-    'replace_once(\n    ".github/workflows/quality.yml",\n'
-    "    '      VULNHUNTER_INTELLIGENCE_ENABLED: \"false\"\\n',"
-)
-start, end, block = call_block(env_marker)
+quality_prefix = 'replace_once(\n    ".github/workflows/quality.yml",'
+start = content.find(quality_prefix)
+if start < 0:
+    raise RuntimeError("Could not find the quality workflow environment patch")
+end = content.find("\n)\n", start)
+if end < 0:
+    raise RuntimeError("Could not find the end of the quality workflow environment patch")
+end += len("\n)\n")
+block = content[start:end]
+if "VULNHUNTER_INTELLIGENCE_ENABLED" not in block:
+    raise RuntimeError("The first quality workflow patch was not the expected environment patch")
 block = block.replace(
     "    '      VULNHUNTER_INTELLIGENCE_ENABLED: \"false\"\\n',",
     "    '''      VULNHUNTER_UI_BASE_URL: http://127.0.0.1:8767\\n"

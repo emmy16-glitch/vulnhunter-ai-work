@@ -45,6 +45,7 @@ _BARE_HOSTNAME_PATTERN = re.compile(
     re.IGNORECASE,
 )
 _PORT_PATTERN = re.compile(r"\bport\s*[:#-]?\s*([0-9]{1,5})\b", re.IGNORECASE)
+_EVIDENCE_PATTERN = re.compile(r"\bevidence\s*[:=-]\s*(.+)$", re.IGNORECASE)
 _IPV4_PATTERN = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
 _COOKIE_ASSIGNMENT_PATTERN = re.compile(
     r"\b(cookie|set-cookie)\b(\s*[:=]\s*)[^\r\n]+",
@@ -60,6 +61,14 @@ _PROFILE_WORDS = {
 }
 _SCAN_WORDS = ("scan", "assess", "check", "inspect", "test", "analyse", "analyze")
 _CANCEL_WORDS = ("cancel", "stop", "abort")
+_AUTHORIZE_WORDS = (
+    "authorize",
+    "authorise",
+    "i own this target",
+    "i control this target",
+    "i am authorized",
+    "i am authorised",
+)
 _STATUS_WORDS = (
     "status",
     "progress",
@@ -86,6 +95,7 @@ class InterpretedRequest:
     protocol: str | None
     port: int | None
     profile: str | None
+    evidence_reference: str | None
     assistant_copy: str | None
     provider: str
     provider_detail: str
@@ -131,6 +141,9 @@ def extract_target(text: str) -> str | None:
     match = _BARE_TARGET_PATTERN.search(text)
     if match:
         return canonical_target(match.group(0)) or None
+    match = _BARE_HOSTNAME_PATTERN.search(text)
+    if match:
+        return canonical_target(match.group(0)) or None
     return None
 
 
@@ -156,6 +169,16 @@ def extract_profile(text: str) -> str | None:
     return None
 
 
+def extract_evidence_reference(text: str) -> str | None:
+    match = _EVIDENCE_PATTERN.search(text)
+    if not match:
+        return None
+    value = redact_text(" ".join(match.group(1).split())).strip()[:2_000]
+    if not value or value.startswith("<") or value.startswith("["):
+        return None
+    return value
+
+
 def _contains_term(text: str, term: str) -> bool:
     return re.search(rf"(?<!\w){re.escape(term)}(?!\w)", text) is not None
 
@@ -164,6 +187,8 @@ def deterministic_intent(text: str) -> str:
     """Classify high-impact actions locally and leave ordinary messages as chat."""
 
     lowered = " ".join(text.casefold().split())
+    if any(_contains_term(lowered, word) for word in _AUTHORIZE_WORDS):
+        return "authorize"
     if any(_contains_term(lowered, word) for word in _CANCEL_WORDS):
         return "cancel"
     if any(_contains_term(lowered, word) for word in _STATUS_WORDS):
@@ -196,8 +221,9 @@ def _deterministic_chat_copy(text: str) -> str:
             "plan, explain each step, show progress and organise evidence-backed results."
         )
     return (
-        "I can answer questions about this workspace or the active assessment. Ask for the target "
-        "link, current status, approval state, findings, evidence or the next safe step."
+        "Paste an http or https website link and I will identify its host, path and port, check "
+        "authorization, prepare the passive plan and explain each live step. You can also ask "
+        "about the current target, approval, findings, evidence or next action."
     )
 
 
@@ -222,6 +248,7 @@ def _groq_advisory(
     text: str,
     *,
     available_profiles: tuple[str, ...],
+    conversation_context: tuple[tuple[str, str], ...] = (),
 ) -> tuple[str | None, str]:
     if not getattr(settings, "VULNHUNTER_GROQ_ENABLED", False):
         return None, "Groq advisory is disabled."
@@ -230,6 +257,11 @@ def _groq_advisory(
         return None, "Groq API key has not been configured."
 
     sanitized = _sanitize_for_groq(text)
+    sanitized_context = [
+        {"role": role, "content": _sanitize_for_groq(content)[:600]}
+        for role, content in conversation_context[-8:]
+        if role in {"user", "assistant"} and content.strip()
+    ]
     prompt = (
         "Act as the conversational layer for a governed cybersecurity assessment workspace. "
         "The deterministic backend alone owns authorization, target matching, cancellation, "
@@ -243,6 +275,7 @@ def _groq_advisory(
         "an array containing only target, port, profile, or authorization. Keep message helpful, "
         "specific and under 600 characters. Do not expose hidden reasoning. "
         f"Available profiles: {', '.join(available_profiles) or 'none'}. "
+        f"Recent sanitized conversation: {json.dumps(sanitized_context, ensure_ascii=False)}. "
         f"Sanitized user request: {sanitized}"
     )
     raw = prompt.encode("utf-8")
@@ -301,6 +334,7 @@ def interpret_request(
     text: str,
     *,
     available_profiles: tuple[str, ...],
+    conversation_context: tuple[tuple[str, str], ...] = (),
 ) -> InterpretedRequest:
     """Combine deterministic extraction with a bounded Groq advisory."""
 
@@ -308,6 +342,7 @@ def interpret_request(
     port = extract_port(text, target)
     protocol = urlsplit(target).scheme if target else None
     profile = extract_profile(text)
+    evidence_reference = extract_evidence_reference(text)
     deterministic = deterministic_intent(text)
     intent = deterministic
     if deterministic == "chat":
@@ -325,6 +360,7 @@ def interpret_request(
     advisory, advisory_detail = _groq_advisory(
         text,
         available_profiles=available_profiles,
+        conversation_context=conversation_context,
     )
     if advisory:
         try:
@@ -353,6 +389,7 @@ def interpret_request(
         protocol=protocol,
         port=port,
         profile=profile,
+        evidence_reference=evidence_reference,
         assistant_copy=assistant_copy,
         provider=provider,
         provider_detail=detail,

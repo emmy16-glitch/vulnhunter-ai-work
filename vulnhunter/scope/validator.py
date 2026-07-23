@@ -80,7 +80,7 @@ def normalize_path(path: str) -> str:
     return normalized
 
 
-def _validate_ip_address(address_text: str) -> str:
+def _validate_ip_address(address_text: str, *, allow_public: bool = False) -> str:
     """Return a normalized address when it is explicitly allowed for lab use."""
     try:
         address = ipaddress.ip_address(address_text)
@@ -113,6 +113,8 @@ def _validate_ip_address(address_text: str) -> str:
         raise ScopeValidationError(f"Reserved addresses are prohibited: {address}")
 
     if address.is_global:
+        if allow_public:
+            return str(address)
         raise ScopeValidationError(f"Public Internet addresses are prohibited: {address}")
 
     raise ScopeValidationError(
@@ -144,6 +146,7 @@ def validate_target(
     url: str,
     *,
     resolver: Resolver = system_resolver,
+    allow_public: bool = False,
 ) -> ApprovedTarget:
     """Validate and normalize an authorised laboratory target."""
     try:
@@ -190,7 +193,12 @@ def validate_target(
         raise ScopeValidationError(f"Hostname returned no addresses: {hostname}")
 
     approved_addresses = tuple(
-        sorted({_validate_ip_address(address) for address in resolved_addresses})
+        sorted(
+            {
+                _validate_ip_address(address, allow_public=allow_public)
+                for address in resolved_addresses
+            }
+        )
     )
 
     netloc = _build_netloc(

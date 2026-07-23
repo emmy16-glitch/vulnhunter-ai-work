@@ -27,6 +27,10 @@ from vulnhunter.web.conversation_service import (
     groq_runtime_status,
     interpret_request,
 )
+from vulnhunter.web.conversational_authorization import (
+    ConversationalAuthorizationError,
+    prepare_conversational_authorization,
+)
 from vulnhunter.web.services import (
     WebCapabilityUnavailable,
     WebPermissionDenied,
@@ -73,9 +77,9 @@ def _messages(request: HttpRequest) -> list[dict[str, object]]:
                 "role": "assistant",
                 "kind": "welcome",
                 "content": (
-                    "Tell me what authorised target you want assessed. I will gather any "
-                    "missing details, prepare the bounded Nuclei plan, pause for your "
-                    "approval, and continue in this same workspace."
+                    "Paste an http or https website link. I will identify its path and port, "
+                    "check or request authorization, prepare the bounded Nuclei plan, pause for "
+                    "your approval and show each live step in this workspace."
                 ),
                 "timestamp": datetime.now(UTC).isoformat(),
             }
@@ -351,7 +355,16 @@ def message_view(request: HttpRequest) -> JsonResponse:
         return JsonResponse({"message": message}, status=503)
 
     profiles = tuple(sorted({profile for item in choices for profile in item.approved_profiles}))
-    interpreted = interpret_request(text, available_profiles=profiles)
+    context = tuple(
+        (str(item.get("role", "")), str(item.get("content", "")))
+        for item in _messages(request)[-8:]
+        if isinstance(item, dict)
+    )
+    interpreted = interpret_request(
+        text,
+        available_profiles=profiles,
+        conversation_context=context,
+    )
 
     current_run_id = state.get("run_id")
     if interpreted.intent == "status" and isinstance(current_run_id, str):
@@ -409,18 +422,6 @@ def message_view(request: HttpRequest) -> JsonResponse:
         )
         return JsonResponse({"message": message})
 
-    if not choices:
-        message = _append_message(
-            request,
-            role="assistant",
-            kind="error",
-            content=(
-                "No active authorization is available for this account. "
-                "Create or prepare an authorization before starting a scan."
-            ),
-        )
-        return JsonResponse({"message": message}, status=409)
-
     stored_target = state.get("target")
     target = interpreted.target or (stored_target if isinstance(stored_target, str) else None)
     if target is None:
@@ -449,14 +450,81 @@ def message_view(request: HttpRequest) -> JsonResponse:
         if any(canonical_target(value) == canonical for value in item.approved_targets):
             matched = item
             break
+    if matched is None and interpreted.intent == "authorize":
+        try:
+            _actor(request, "scan.create", "authorization.create")
+            prepare_conversational_authorization(
+                target_url=canonical,
+                evidence_reference=interpreted.evidence_reference,
+                identity_id=actor.governance_identity.reviewer_id,
+                username=request.user.get_username(),
+            )
+            choices = workflow.list_authorizations(
+                identity_id=actor.governance_identity.reviewer_id,
+                username=request.user.get_username(),
+            )
+        except WebPermissionDenied as exc:
+            message = _append_message(request, role="assistant", kind="error", content=str(exc))
+            return JsonResponse({"message": message}, status=403)
+        except (ConversationalAuthorizationError, OSError, RuntimeError, ValueError) as exc:
+            state.update({"target": canonical, "profile": interpreted.profile or "passive"})
+            _save_state(request, state)
+            message = _append_message(
+                request,
+                role="assistant",
+                kind="authorization_required",
+                content=str(exc),
+                metadata={
+                    "suggestions": [
+                        {
+                            "label": "Add authorization evidence",
+                            "message": (
+                                "Authorize this target. Evidence: "
+                                "<contract, ticket, or bug-bounty scope reference>"
+                            ),
+                        }
+                    ]
+                },
+            )
+            return JsonResponse({"message": message})
+        for item in choices:
+            if any(canonical_target(value) == canonical for value in item.approved_targets):
+                matched = item
+                break
+
     if matched is None:
+        try:
+            parsed_target = urlsplit(canonical)
+            requested_port = parsed_target.port or (443 if parsed_target.scheme == "https" else 80)
+        except ValueError:
+            requested_port = interpreted.port
+        state.update({"target": canonical, "profile": interpreted.profile or "passive"})
+        _save_state(request, state)
         message = _append_message(
             request,
             role="assistant",
-            kind="error",
-            content="That target is not present in an active authorization for this account.",
+            kind="authorization_required",
+            content=(
+                f"I recognized {canonical} on port {requested_port}. The URL and port are valid, "
+                "but no active authorization covers that exact target yet. Authorize it in chat "
+                "and I will continue directly to the passive plan. Public websites need a "
+                "contract, ticket, or bug-bounty scope reference."
+            ),
+            metadata={
+                "suggestions": [
+                    {
+                        "label": "Authorize this target",
+                        "message": (
+                            "Authorize this target. Evidence: "
+                            "<contract, ticket, or bug-bounty scope reference>"
+                        ),
+                    }
+                ],
+                "target": canonical,
+                "port": requested_port,
+            },
         )
-        return JsonResponse({"message": message}, status=409)
+        return JsonResponse({"message": message})
 
     stored_profile = state.get("profile")
     profile = interpreted.profile or (stored_profile if isinstance(stored_profile, str) else None)
@@ -489,10 +557,14 @@ def message_view(request: HttpRequest) -> JsonResponse:
         message = _append_message(
             request,
             role="assistant",
-            kind="error",
-            content="The requested protocol or port is outside the active authorization.",
+            kind="authorization_required",
+            content=(
+                f"Port {port} is a valid HTTP/HTTPS service port, but this authorization does "
+                "not include it. VulnHunter accepts ports 1 through 65535 once the exact URL and "
+                "port are explicitly authorized."
+            ),
         )
-        return JsonResponse({"message": message}, status=409)
+        return JsonResponse({"message": message})
 
     try:
         result = workflow.create_assessment(
@@ -526,10 +598,17 @@ def message_view(request: HttpRequest) -> JsonResponse:
         role="assistant",
         kind="plan",
         content=(
-            interpreted.assistant_copy
-            or (
-                "I validated the authorised scope and prepared the exact "
-                "Nuclei plan. Review the inline approval card to continue."
+            (
+                "Authorization recorded. I prepared the exact passive Nuclei plan for the pasted "
+                "URL and port. Review the inline approval card to continue."
+            )
+            if interpreted.intent == "authorize"
+            else (
+                interpreted.assistant_copy
+                or (
+                    "I validated the authorised scope and prepared the exact "
+                    "Nuclei plan. Review the inline approval card to continue."
+                )
             )
         ),
         metadata={

@@ -17,15 +17,39 @@ import django
 django.setup()
 
 from django.conf import settings
+from django.contrib.auth import get_user_model
 
 from vulnhunter.authorization.models import AuthorizationLimits
 from vulnhunter.authorization.service import issue_authorization
 from vulnhunter.authorization.store import AuthorizationStore
 from vulnhunter.scope import validate_target
 from vulnhunter.web.assessment_workflow import bind_nuclei_authorization
+from vulnhunter.web.models import WebUserMapping
+
+
+USERNAME = "conversation-e2e"
+IDENTITY_ID = "conversation-e2e-user"
+PASSWORD = "Vh-Conversation-E2E-2026!"
+
+
+def prepare_user() -> None:
+    model = get_user_model()
+    user, _ = model.objects.get_or_create(username=USERNAME)
+    user.set_password(PASSWORD)
+    user.is_active = True
+    user.is_staff = False
+    user.save()
+    WebUserMapping.objects.update_or_create(
+        user=user,
+        defaults={
+            "governance_identity_id": IDENTITY_ID,
+            "product_roles": ["campaign-operator"],
+        },
+    )
 
 
 def main() -> int:
+    prepare_user()
     target = validate_target(
         "http://10.0.11.34:8010/",
         resolver=lambda _hostname: ("10.0.11.34",),
@@ -36,7 +60,7 @@ def main() -> int:
     record = issue_authorization(
         store,
         target,
-        owner="admin-a",
+        owner=IDENTITY_ID,
         approved_by="browser-e2e-owner",
         purpose="Deterministic browser acceptance for the governed conversation workflow.",
         evidence_reference="browser-e2e-private-target",
@@ -54,7 +78,7 @@ def main() -> int:
         authorization_id=record.authorization_id,
         approved_profiles=("passive",),
         private_network_approved=True,
-        recorded_by="admin-a",
+        recorded_by=IDENTITY_ID,
         approval_basis="Browser E2E exact passive target confirmation.",
         now=now,
     )

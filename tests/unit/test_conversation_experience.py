@@ -63,9 +63,7 @@ def test_natural_progress_questions_are_status_requests():
 
 
 def test_conversation_template_keeps_history_and_details_progressive():
-    template = (ROOT / "vulnhunter/web/templates/web/conversation.html").read_text(
-        encoding="utf-8"
-    )
+    template = (ROOT / "vulnhunter/web/templates/web/conversation.html").read_text(encoding="utf-8")
 
     assert "data-history-toggle" in template
     assert "data-history-panel hidden" in template
@@ -86,9 +84,7 @@ def test_conversation_scroll_respects_manual_reading_position():
 
 
 def test_conversation_ui_has_elapsed_thinking_and_contextual_answers():
-    script = (ROOT / "vulnhunter/web/static/web/conversation.js").read_text(
-        encoding="utf-8"
-    )
+    script = (ROOT / "vulnhunter/web/static/web/conversation.js").read_text(encoding="utf-8")
 
     assert "updateBusyCopy" in script
     assert "Checking the active workspace" in script

@@ -9,14 +9,15 @@ python -m pip install -e ".[dev]"
 bash .devcontainer/install-nuclei.sh
 
 STATE_DIR="$ROOT/.codespaces"
-LAB_DIR="$STATE_DIR/phone-lab"
+RUNTIME_DIR="$STATE_DIR/runtime"
 ENV_FILE="$STATE_DIR/vulnhunter.env"
 NUCLEI_BIN="$STATE_DIR/tools/nuclei-v3.8.0/bin/nuclei"
-TEMPLATE_ROOT="$LAB_DIR/pilot-templates"
-POLICY_FILE="$LAB_DIR/nuclei-worker.json"
-SIGNING_KEY="$LAB_DIR/nuclei-worker.key"
-mkdir -p "$LAB_DIR" "$TEMPLATE_ROOT"
-chmod 700 "$STATE_DIR" "$LAB_DIR"
+TEMPLATE_ROOT="$RUNTIME_DIR/pilot-templates"
+POLICY_FILE="$RUNTIME_DIR/nuclei-worker.json"
+SIGNING_KEY="$RUNTIME_DIR/nuclei-worker.key"
+GROQ_KEY="$STATE_DIR/groq-api-key"
+mkdir -p "$RUNTIME_DIR" "$TEMPLATE_ROOT"
+chmod 700 "$STATE_DIR" "$RUNTIME_DIR"
 
 rm -rf "$TEMPLATE_ROOT"
 mkdir -p "$TEMPLATE_ROOT"
@@ -39,7 +40,7 @@ path = Path(os.environ["POLICY_FILE"])
 payload = {
     "schema_version": "1.0",
     "enabled": True,
-    "worker_id": "codespaces-phone-lab-worker",
+    "worker_id": "codespaces-vulnhunter-worker",
     "nuclei_executable": os.environ["NUCLEI_BIN"],
     "template_root": os.environ["TEMPLATE_ROOT"],
     "maximum_rate_limit": 1,
@@ -67,17 +68,19 @@ export VULNHUNTER_SECURITY_EVIDENCE_ROOT="$ROOT/.local/security-evidence"
 export VULNHUNTER_NUCLEI_EXECUTABLE="$NUCLEI_BIN"
 export VULNHUNTER_NUCLEI_TEMPLATE_ROOT="$TEMPLATE_ROOT"
 export VULNHUNTER_NUCLEI_TEMPLATE_MANIFEST="$ROOT/config/security_tools/nuclei_template_manifest.json"
-export VULNHUNTER_NUCLEI_READINESS_REPORT="$LAB_DIR/readiness.json"
+export VULNHUNTER_NUCLEI_READINESS_REPORT="$RUNTIME_DIR/readiness.json"
 export VULNHUNTER_NUCLEI_WORKER_POLICY="$POLICY_FILE"
 export VULNHUNTER_NUCLEI_WORKER_SIGNING_KEY_FILE="$SIGNING_KEY"
 export VULNHUNTER_NUCLEI_WORKER_SPOOL_ROOT="$ROOT/.local/nuclei-worker-spool"
 export VULNHUNTER_NUCLEI_EXECUTION_ROOT="$ROOT/.local/nuclei-executions"
 export VULNHUNTER_VERIFICATION_ROOT="$ROOT/.local/verification"
 export VULNHUNTER_NUCLEI_PILOT_ENQUEUE_ENABLED=true
-export VULNHUNTER_PHONE_LAB_TARGET_PORT=8010
+export VULNHUNTER_LAB_TARGET_PORT=8010
+export VULNHUNTER_GROQ_ENABLED=true
+export VULNHUNTER_GROQ_API_KEY_FILE="$GROQ_KEY"
 export PATH="$(dirname "$NUCLEI_BIN"):${PATH}"
-if [[ -f "$STATE_DIR/phone-lab-users.env" ]]; then
-  source "$STATE_DIR/phone-lab-users.env"
+if [[ -f "$STATE_DIR/vulnhunter-user.env" ]]; then
+  source "$STATE_DIR/vulnhunter-user.env"
 fi
 EOF2
 chmod 600 "$ENV_FILE"
@@ -109,4 +112,5 @@ python scripts/nuclei_readiness.py \
 python manage.py migrate --noinput
 python manage.py vh_init_agent_store
 
-printf '\nVulnHunter Codespace is prepared with the pinned passive worker.\nRun: bash .devcontainer/first-run.sh\n'
+printf '\nVulnHunter Codespace is prepared with Groq advisory wiring and the pinned Nuclei worker.\n'
+printf 'Run: bash .devcontainer/first-run.sh\n'

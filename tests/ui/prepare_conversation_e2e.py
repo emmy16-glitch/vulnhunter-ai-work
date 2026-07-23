@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Prepare an exact private authorization for browser conversation acceptance."""
 
-# ruff: noqa: E402
+# Django must be configured before importing application models in this standalone seed.
+# ruff: noqa: E402, I001
 
 from __future__ import annotations
 

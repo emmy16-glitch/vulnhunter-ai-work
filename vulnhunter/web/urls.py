@@ -8,6 +8,7 @@ from vulnhunter.web import (
     audit_views,
     conversation_approval_views,
     conversational_views,
+    dashboard_dispatch_views,
     findings_views,
     governance_workspace_views,
     intelligence_views,
@@ -24,7 +25,7 @@ urlpatterns = [
     path("ready/", views.deployment_readiness_view, name="web-deployment-readiness"),
     path("login/", unified_assessment_views.UnifiedLoginView.as_view(), name="web-login"),
     path("logout/", views.logout_view, name="web-logout"),
-    path("", conversational_views.workspace_view, name="web-dashboard"),
+    path("", dashboard_dispatch_views.dashboard_view, name="web-dashboard"),
     path(
         "workspace/message/",
         conversational_views.message_view,

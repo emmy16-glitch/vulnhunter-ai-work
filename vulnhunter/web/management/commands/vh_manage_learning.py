@@ -68,9 +68,7 @@ class Command(BaseCommand):
                 if len(reason) < 8:
                     raise CommandError("--reason must explain the human review decision")
                 candidate_id = options["approve"] or options["reject"]
-                decision = (
-                    ReviewDecision.APPROVE if options["approve"] else ReviewDecision.REJECT
-                )
+                decision = ReviewDecision.APPROVE if options["approve"] else ReviewDecision.REJECT
                 candidate = service.review(
                     candidate_id,
                     decision=decision,
@@ -78,9 +76,7 @@ class Command(BaseCommand):
                     reason=reason,
                 )
                 self.stdout.write(
-                    self.style.SUCCESS(
-                        f"{candidate.candidate_id} is now {candidate.status.value}."
-                    )
+                    self.style.SUCCESS(f"{candidate.candidate_id} is now {candidate.status.value}.")
                 )
                 return
             if options["evaluate"]:
@@ -91,9 +87,7 @@ class Command(BaseCommand):
                 return
             candidate = service.promote(options["promote"], promoted_by=actor)
             self.stdout.write(
-                self.style.SUCCESS(
-                    f"{candidate.candidate_id} was promoted for bounded retrieval."
-                )
+                self.style.SUCCESS(f"{candidate.candidate_id} was promoted for bounded retrieval.")
             )
         except (ControlledLearningError, ControlledMemoryStoreError, OSError, ValueError) as exc:
             raise CommandError(str(exc)) from exc

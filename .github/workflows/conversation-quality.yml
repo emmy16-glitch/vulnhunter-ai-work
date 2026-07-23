@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   conversation:
@@ -25,8 +25,6 @@ jobs:
       VULNHUNTER_INTELLIGENCE_ENABLED: "false"
     steps:
       - uses: actions/checkout@v6
-        with:
-          ref: ${{ github.head_ref || github.ref_name }}
       - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
@@ -39,57 +37,13 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e .
           python -m pip install pytest pytest-asyncio pytest-django ruff
-      - name: Apply deterministic repair and Ruff formatting
-        if: github.event_name == 'pull_request'
-        run: |
-          set +e
-          (
-            python scripts/repair_quality_wiring.py
-            python -m ruff check --fix \
-              vulnhunter/intelligence/store.py \
-              vulnhunter/web/conversational_views.py \
-              tests/unit/test_conversational_workspace.py
-            python -m ruff format \
-              vulnhunter/intelligence/store.py \
-              vulnhunter/web/conversational_views.py \
-              tests/unit/test_conversational_workspace.py
-            python -m ruff check \
-              vulnhunter/intelligence/store.py \
-              vulnhunter/web/conversational_views.py \
-              tests/unit/test_conversational_workspace.py
-            git diff --check
-          ) >repair-quality.log 2>&1
-          status=$?
-          cat repair-quality.log
-          if [[ $status -ne 0 ]]; then
-            exit "$status"
-          fi
-          if ! git diff --quiet; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add \
-              .devcontainer/first-run.sh \
-              tests/unit/test_conversational_workspace.py \
-              vulnhunter/intelligence/store.py \
-              vulnhunter/web/conversational_views.py \
-              vulnhunter/web/static/web/conversation.js \
-              vulnhunter/web/templates/web/conversation.html
-            git commit -m "Apply automated wiring repair"
-            git push
-          fi
-      - name: Upload repair diagnostics
-        if: failure()
-        uses: actions/upload-artifact@v6
-        with:
-          name: repair-quality-log
-          path: repair-quality.log
-          retention-days: 3
       - name: Check conversational JavaScript
         run: |
           node --check vulnhunter/web/static/web/conversation.js
           node --check vulnhunter/web/static/web/conversation-autoscroll.js
       - name: Check conversational and intelligence Python
         run: |
+          set +e
           python -m ruff check \
             vulnhunter/web/conversation_service.py \
             vulnhunter/web/conversational_views.py \
@@ -103,7 +57,9 @@ jobs:
             tests/unit/test_conversational_workspace.py \
             tests/unit/test_inline_confirmation_endpoint.py \
             tests/unit/test_inline_confirmation_store.py \
-            tests/unit/test_intelligence_loop.py
+            tests/unit/test_intelligence_loop.py \
+            >conversation-quality.log 2>&1
+          lint_status=$?
           python -m ruff format --check \
             vulnhunter/web/conversation_service.py \
             vulnhunter/web/conversational_views.py \
@@ -117,7 +73,20 @@ jobs:
             tests/unit/test_conversational_workspace.py \
             tests/unit/test_inline_confirmation_endpoint.py \
             tests/unit/test_inline_confirmation_store.py \
-            tests/unit/test_intelligence_loop.py
+            tests/unit/test_intelligence_loop.py \
+            >>conversation-quality.log 2>&1
+          format_status=$?
+          cat conversation-quality.log
+          if [[ $lint_status -ne 0 || $format_status -ne 0 ]]; then
+            exit 1
+          fi
+      - name: Upload conversational quality diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: conversational-quality-log
+          path: conversation-quality.log
+          retention-days: 3
       - name: Run conversational and intelligence tests
         run: |
           python manage.py migrate --noinput

@@ -9,7 +9,7 @@ from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 
 from vulnhunter.agent_activity.service import AgentActivityService
-from vulnhunter.agent_activity.store import AppendOnlyActivityStore
+from vulnhunter.agent_activity.store import ActivityStoreError, AppendOnlyActivityStore
 from vulnhunter.intelligence import (
     GroqFindingReasoningLoop,
     IntelligenceAnalysisError,
@@ -39,6 +39,15 @@ def _env_int(name: str, default: int, *, minimum: int, maximum: int) -> int:
     if not minimum <= value <= maximum:
         raise CommandError(f"{name} must be between {minimum} and {maximum}")
     return value
+
+
+def _record_activity(activity: AgentActivityService, **fields: object) -> None:
+    """Project optional UI activity without affecting advisory persistence."""
+
+    try:
+        activity.record_transition(**fields)
+    except (ActivityStoreError, OSError, TypeError, ValueError):
+        return
 
 
 class Command(BaseCommand):
@@ -127,7 +136,8 @@ class Command(BaseCommand):
                     time.sleep(poll_seconds)
                     continue
 
-                activity.record_transition(
+                _record_activity(
+                    activity,
                     run_id=request.run_id,
                     timestamp=datetime.now(UTC),
                     event_type="evaluation_started",
@@ -150,12 +160,14 @@ class Command(BaseCommand):
                     report = loop.run(request)
                     store.complete(report)
                 except (OSError, ValueError, GroqProviderError, IntelligenceStoreError) as exc:
+                    safe_error = f"{type(exc).__name__}: {exc}"[:500]
                     store.fail(
                         request.analysis_id,
-                        f"{type(exc).__name__}: {exc}",
+                        safe_error,
                         maximum_attempts=maximum_attempts,
                     )
-                    activity.record_transition(
+                    _record_activity(
+                        activity,
                         run_id=request.run_id,
                         timestamp=datetime.now(UTC),
                         event_type="evaluation_completed",
@@ -167,10 +179,12 @@ class Command(BaseCommand):
                         source="evaluator",
                         execution_state="failed",
                         error_code="advisory_analysis_failed",
-                        error_message=f"{type(exc).__name__}: {exc}",
+                        error_message=safe_error,
                         metadata={
                             "analysis_id": request.analysis_id,
                             "finding_id": request.finding_id,
+                            "advisory_only": True,
+                            "trusted": False,
                         },
                     )
                     self.stderr.write(
@@ -181,7 +195,8 @@ class Command(BaseCommand):
                     )
                 else:
                     final = report.final
-                    activity.record_transition(
+                    _record_activity(
+                        activity,
                         run_id=request.run_id,
                         timestamp=report.completed_at,
                         event_type="evaluation_completed",

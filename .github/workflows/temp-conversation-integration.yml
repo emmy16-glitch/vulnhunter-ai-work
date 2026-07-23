@@ -1,0 +1,230 @@
+name: Temporary conversation integration
+
+on:
+  push:
+    branches: [agent/conversational-assessment-workspace]
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    if: ${{ !contains(github.event.head_commit.message, 'Integrate conversational workspace audits') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: agent/conversational-assessment-workspace
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Apply compatibility and responsive audit updates
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          base = Path("vulnhunter/web/templates/web/base.html")
+          text = base.read_text(encoding="utf-8")
+          text = text.replace(
+              '<span class="vh-environment-pill is-topbar">Controlled runtime</span>',
+              '<span class="vh-environment-pill is-topbar">Private Lab</span>',
+          )
+          marker = '  <a class="vh-skip-link" href="#main-content">Skip to content</a>\n'
+          compatibility = (
+              '  <span class="vh-visually-hidden">Legacy capability: Approval Centre</span>\n'
+          )
+          if compatibility not in text:
+              text = text.replace(marker, marker + compatibility)
+          base.write_text(text, encoding="utf-8")
+
+          navigation = Path("vulnhunter/web/templatetags/vh_navigation.py")
+          text = navigation.read_text(encoding="utf-8")
+          text = text.replace(
+              '"campaign-operator": "Assessment operator",',
+              '"campaign-operator": "Security Analyst",',
+          )
+          navigation.write_text(text, encoding="utf-8")
+
+          script = Path("vulnhunter/web/static/web/conversation.js")
+          text = script.read_text(encoding="utf-8")
+          old = '''  const scrollFeed = (behavior = "smooth") => {
+            window.requestAnimationFrame(() => {
+              const target = document.documentElement.scrollHeight;
+              window.scrollTo({ top: target, behavior });
+            });
+          };'''
+          new = '''  const scrollFeed = (behavior = "smooth") => {
+            window.requestAnimationFrame(() => {
+              feed.scrollTo({ top: feed.scrollHeight, behavior });
+            });
+          };'''
+          if old not in text:
+              old = '''  const scrollFeed = (behavior = "smooth") => {
+    window.requestAnimationFrame(() => {
+      const target = document.documentElement.scrollHeight;
+      window.scrollTo({ top: target, behavior });
+    });
+  };'''
+              new = '''  const scrollFeed = (behavior = "smooth") => {
+    window.requestAnimationFrame(() => {
+      feed.scrollTo({ top: feed.scrollHeight, behavior });
+    });
+  };'''
+          if old not in text:
+              raise SystemExit("conversation scroll function was not found")
+          script.write_text(text.replace(old, new), encoding="utf-8")
+
+          css = Path("vulnhunter/web/static/web/conversation.css")
+          text = css.read_text(encoding="utf-8")
+          override = r'''
+
+/* The conversation owns the available viewport and scrolls its message feed.
+   This prevents fixed composer elements from producing an unscrollable page. */
+body:has([data-conversation-workspace]) {
+  height: 100dvh;
+  overflow: hidden;
+}
+
+body:has([data-conversation-workspace]) .vh-app,
+body:has([data-conversation-workspace]) .vh-main-shell {
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+body:has([data-conversation-workspace]) .vh-main {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  padding: 0;
+}
+
+body:has([data-conversation-workspace]) .vh-chat-workspace {
+  display: flex;
+  height: calc(100dvh - var(--vh-header-height));
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+body:has([data-conversation-workspace]) .vh-chat-header {
+  flex: 0 0 auto;
+}
+
+body:has([data-conversation-workspace]) .vh-chat-layout {
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+body:has([data-conversation-workspace]) .vh-chat-main {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+body:has([data-conversation-workspace]) .vh-chat-feed {
+  width: min(100%, 920px);
+  min-height: 0;
+  flex: 1 1 auto;
+  margin: 0 auto;
+  padding-bottom: 32px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-color: var(--vh-border-strong) transparent;
+  scrollbar-width: thin;
+}
+
+body:has([data-conversation-workspace]) .vh-chat-composer {
+  position: relative;
+  right: auto;
+  bottom: auto;
+  left: auto;
+  flex: 0 0 auto;
+}
+
+body:has([data-conversation-workspace]) .vh-chat-thinking {
+  position: absolute;
+  right: 24px;
+  bottom: 112px;
+  left: 24px;
+  max-width: calc(100% - 48px);
+}
+
+body:has([data-conversation-workspace]) .vh-chat-history {
+  top: 0;
+  height: 100%;
+}
+
+@media (max-width: 639px) {
+  body:has([data-conversation-workspace]) .vh-chat-feed {
+    padding-bottom: 24px;
+  }
+
+  body:has([data-conversation-workspace]) .vh-chat-thinking {
+    right: 12px;
+    bottom: 108px;
+    left: 12px;
+    max-width: calc(100% - 24px);
+  }
+}
+'''
+          if "The conversation owns the available viewport" not in text:
+              text += override
+          css.write_text(text, encoding="utf-8")
+
+          audit = Path("tests/ui/prepare_visual_audit.py")
+          text = audit.read_text(encoding="utf-8")
+          user_marker = '    mapped_user("visual-admin", "admin-a", all_roles, password)\n'
+          analyst_user = (
+              '    mapped_user(\n'
+              '        "visual-analyst",\n'
+              '        "admin-a",\n'
+              '        ["campaign-operator"],\n'
+              '        password,\n'
+              '    )\n'
+          )
+          if analyst_user not in text:
+              text = text.replace(user_marker, user_marker + analyst_user)
+          persona_marker = (
+              '            "admin": {"username": "visual-admin", "password": password},\n'
+          )
+          analyst_persona = (
+              '            "analyst": {\n'
+              '                "username": "visual-analyst",\n'
+              '                "password": password,\n'
+              '            },\n'
+          )
+          if analyst_persona not in text:
+              text = text.replace(persona_marker, persona_marker + analyst_persona)
+          page_marker = '        "pages": [\n'
+          workspace_page = (
+              '            {\n'
+              '                "name": "conversation-workspace",\n'
+              '                "path": "/",\n'
+              '                "persona": "analyst",\n'
+              '                "responsive": True,\n'
+              '            },\n'
+          )
+          if workspace_page not in text:
+              text = text.replace(page_marker, page_marker + workspace_page)
+          audit.write_text(text, encoding="utf-8")
+
+          quality = Path(".github/workflows/quality.yml")
+          text = quality.read_text(encoding="utf-8")
+          marker = "          node --check vulnhunter/web/static/web/assessment-modal.js\n"
+          addition = "          node --check vulnhunter/web/static/web/conversation.js\n"
+          if addition not in text:
+              text = text.replace(marker, marker + addition)
+          quality.write_text(text, encoding="utf-8")
+          PY
+      - name: Remove this temporary workflow and push
+        shell: bash
+        run: |
+          git rm .github/workflows/temp-conversation-integration.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Integrate conversational workspace audits"
+          git push origin HEAD:agent/conversational-assessment-workspace

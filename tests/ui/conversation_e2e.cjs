@@ -1,4 +1,5 @@
 const { execFile } = require("child_process");
+const fs = require("fs");
 const { promisify } = require("util");
 const { chromium } = require("playwright");
 
@@ -6,13 +7,16 @@ const execFileAsync = promisify(execFile);
 const baseUrl = process.env.VULNHUNTER_UI_BASE_URL || "http://127.0.0.1:8767";
 const username = "visual-admin";
 const password = "Vh-Visual-Audit-2026!";
+const failureScreenshot = "/tmp/vh-ui/screenshots/conversation-e2e-failure.png";
+const serverLog = "/tmp/vh-ui/server.log";
 
 let browser;
+let page;
 
 (async () => {
   try {
     browser = await chromium.launch({ headless: true });
-    const page = await browser.newPage({ viewport: { width: 1280, height: 820 } });
+    page = await browser.newPage({ viewport: { width: 1280, height: 820 } });
     const consoleErrors = [];
     page.on("console", (message) => {
       if (message.type() === "error") consoleErrors.push(message.text());
@@ -70,10 +74,16 @@ let browser;
     if (technicalOpen) throw new Error("Technical details must remain collapsed by default");
     if (consoleErrors.length) throw new Error(`Browser console errors: ${consoleErrors.join(" | ")}`);
     console.log(JSON.stringify({ runId, resultsCopy, nextCopy }));
+  } catch (error) {
+    const detail = error && error.stack ? error.stack : String(error);
+    console.error(detail);
+    fs.appendFileSync(serverLog, `\n\n--- Conversational E2E failure ---\n${detail}\n`);
+    if (page) {
+      fs.mkdirSync("/tmp/vh-ui/screenshots", { recursive: true });
+      await page.screenshot({ path: failureScreenshot, fullPage: true }).catch(() => undefined);
+    }
+    process.exitCode = 1;
   } finally {
     if (browser) await browser.close();
   }
-})().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+})();

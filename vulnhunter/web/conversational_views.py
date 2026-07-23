@@ -645,19 +645,45 @@ def message_view(request: HttpRequest) -> JsonResponse:
         return JsonResponse({"message": message, "run": payload})
 
     if interpreted.intent not in {"scan", "authorize"}:
+        normalized_chat = " ".join(text.casefold().split())
+        asks_about_selected_run = any(
+            term in normalized_chat
+            for term in (
+                "target",
+                "link",
+                "url",
+                "address",
+                "approval",
+                "this assessment",
+                "current assessment",
+            )
+        )
+        detach_terminal = bool(
+            interpreted.intent == "chat"
+            and active_payload is not None
+            and active_payload.get("terminal")
+            and not asks_about_selected_run
+        )
+        reply_payload = None if detach_terminal else active_payload
+        if detach_terminal:
+            for key in ("run_id", "target", "profile", "authorization_id"):
+                state.pop(key, None)
+            _save_state(request, state)
         message = _append_message(
             request,
             role="assistant",
             content=contextual_chat_reply(
                 text,
-                active_payload,
+                reply_payload,
                 interpreted.assistant_copy,
             ),
             metadata={"provider": interpreted.provider},
         )
         response: dict[str, object] = {"message": message}
-        if active_payload is not None:
-            response["run"] = active_payload
+        if reply_payload is not None:
+            response["run"] = reply_payload
+        if detach_terminal:
+            response["clear_run"] = True
         return JsonResponse(response)
 
     target = target_hint

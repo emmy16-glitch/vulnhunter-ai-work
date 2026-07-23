@@ -56,3 +56,24 @@ def test_explicit_session_run_remains_authoritative(monkeypatch) -> None:
     )
 
     assert resolved is selected
+
+
+def test_provider_cannot_reclassify_ordinary_chat_as_status(monkeypatch) -> None:
+    from vulnhunter.web import conversation_service
+
+    monkeypatch.setattr(
+        conversation_service,
+        "_groq_advisory",
+        lambda *args, **kwargs: (
+            '{"intent":"status","message":"Natural help response","recommended_profile":null}',
+            "mock provider",
+        ),
+    )
+
+    interpreted = conversation_service.interpret_request(
+        "What can you do?",
+        available_profiles=("passive",),
+    )
+
+    assert interpreted.intent == "chat"
+    assert interpreted.assistant_copy == "Natural help response"

@@ -401,10 +401,7 @@ def interpret_request(
             payload = json.loads(advisory)
         except json.JSONDecodeError:
             payload = {}
-        advisory_intent = payload.get("intent")
-        if deterministic == "chat" and advisory_intent in {"chat", "status", "scan"}:
-            intent = advisory_intent
-        elif deterministic == "scan":
+        if deterministic == "scan":
             intent = "scan"
         advisory_profile = payload.get("recommended_profile")
         if profile is None and advisory_profile in set(available_profiles):

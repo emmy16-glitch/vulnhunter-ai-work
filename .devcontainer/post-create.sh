@@ -78,6 +78,14 @@ export VULNHUNTER_NUCLEI_PILOT_ENQUEUE_ENABLED=true
 export VULNHUNTER_LAB_TARGET_PORT=8010
 export VULNHUNTER_GROQ_ENABLED=true
 export VULNHUNTER_GROQ_API_KEY_FILE="$GROQ_KEY"
+export VULNHUNTER_INTELLIGENCE_ENABLED=true
+export VULNHUNTER_INTELLIGENCE_ROOT="$ROOT/.local/intelligence"
+export VULNHUNTER_INTELLIGENCE_PRIMARY_MODEL="openai/gpt-oss-20b"
+export VULNHUNTER_INTELLIGENCE_DEEP_MODEL="openai/gpt-oss-120b"
+export VULNHUNTER_INTELLIGENCE_MAX_ATTEMPTS=2
+export VULNHUNTER_INTELLIGENCE_TIMEOUT_SECONDS=90
+export VULNHUNTER_INTELLIGENCE_MAX_INPUT_BYTES=64000
+export VULNHUNTER_INTELLIGENCE_MAX_OUTPUT_TOKENS=2400
 export PATH="$(dirname "$NUCLEI_BIN"):${PATH}"
 if [[ -f "$STATE_DIR/vulnhunter-user.env" ]]; then
   source "$STATE_DIR/vulnhunter-user.env"
@@ -100,7 +108,8 @@ mkdir -p \
   "$VULNHUNTER_SECURITY_EVIDENCE_ROOT" \
   "$VULNHUNTER_NUCLEI_WORKER_SPOOL_ROOT" \
   "$VULNHUNTER_NUCLEI_EXECUTION_ROOT" \
-  "$VULNHUNTER_VERIFICATION_ROOT"
+  "$VULNHUNTER_VERIFICATION_ROOT" \
+  "$VULNHUNTER_INTELLIGENCE_ROOT"
 
 python scripts/nuclei_readiness.py \
   --executable "$VULNHUNTER_NUCLEI_EXECUTABLE" \
@@ -112,5 +121,5 @@ python scripts/nuclei_readiness.py \
 python manage.py migrate --noinput
 python manage.py vh_init_agent_store
 
-printf '\nVulnHunter Codespace is prepared with Groq advisory wiring and the pinned Nuclei worker.\n'
+printf '\nVulnHunter Codespace is prepared with Groq advisory wiring, bounded reasoning, and the pinned Nuclei worker.\n'
 printf 'Run: bash .devcontainer/first-run.sh\n'

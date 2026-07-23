@@ -25,7 +25,9 @@ jobs:
       - name: Install project and test tools
         run: python -m pip install -e '.[dev]'
       - name: Apply exact repair
-        run: python tools/apply_stale_conversation_hotfix.py
+        run: |
+          python tools/apply_stale_conversation_hotfix.py
+          python tools/apply_stale_conversation_submit_fix.py
       - name: Format and test repair
         run: |
           node --check vulnhunter/web/static/web/conversation.js

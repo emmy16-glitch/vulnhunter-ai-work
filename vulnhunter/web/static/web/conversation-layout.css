@@ -1,0 +1,101 @@
+/* Viewport ownership for the conversational workspace. */
+
+.vh-conversation-body {
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.vh-conversation-body .vh-app,
+.vh-conversation-body .vh-main-shell {
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.vh-conversation-body .vh-main {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  padding: 0;
+}
+
+.vh-conversation-body .vh-chat-workspace {
+  display: flex;
+  height: calc(100dvh - var(--vh-header-height));
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.vh-conversation-body .vh-chat-header {
+  flex: 0 0 auto;
+}
+
+.vh-conversation-body .vh-chat-layout {
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+.vh-conversation-body .vh-chat-main {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.vh-conversation-body .vh-chat-feed {
+  width: min(100%, 920px);
+  min-height: 0;
+  flex: 1 1 auto;
+  margin: 0 auto;
+  padding-bottom: 32px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-color: var(--vh-border-strong) transparent;
+  scrollbar-width: thin;
+}
+
+.vh-conversation-body .vh-chat-composer {
+  position: relative;
+  right: auto;
+  bottom: auto;
+  left: auto;
+  flex: 0 0 auto;
+}
+
+.vh-conversation-body .vh-chat-thinking {
+  position: absolute;
+  right: 24px;
+  bottom: 112px;
+  left: 24px;
+  max-width: calc(100% - 48px);
+}
+
+.vh-conversation-body .vh-chat-history {
+  top: 0;
+  height: 100%;
+}
+
+@media (max-width: 900px) {
+  .vh-conversation-body .vh-chat-layout {
+    display: block;
+    overflow: hidden;
+  }
+
+  .vh-conversation-body .vh-chat-main {
+    display: flex;
+  }
+}
+
+@media (max-width: 639px) {
+  .vh-conversation-body .vh-chat-feed {
+    padding-bottom: 24px;
+  }
+
+  .vh-conversation-body .vh-chat-thinking {
+    right: 12px;
+    bottom: 108px;
+    left: 12px;
+    max-width: calc(100% - 24px);
+  }
+}

@@ -54,6 +54,7 @@ jobs:
             vulnhunter/web/management/commands/vh_run_intelligence_worker.py \
             vulnhunter/intelligence \
             tests/unit/test_conversational_workspace.py \
+            tests/unit/test_inline_confirmation_endpoint.py \
             tests/unit/test_inline_confirmation_store.py \
             tests/unit/test_intelligence_loop.py
           python -m ruff format --check \
@@ -67,6 +68,7 @@ jobs:
             vulnhunter/web/management/commands/vh_run_intelligence_worker.py \
             vulnhunter/intelligence \
             tests/unit/test_conversational_workspace.py \
+            tests/unit/test_inline_confirmation_endpoint.py \
             tests/unit/test_inline_confirmation_store.py \
             tests/unit/test_intelligence_loop.py
       - name: Run conversational and intelligence tests
@@ -74,6 +76,7 @@ jobs:
           python manage.py migrate --noinput
           python -m pytest -q \
             tests/unit/test_conversational_workspace.py \
+            tests/unit/test_inline_confirmation_endpoint.py \
             tests/unit/test_inline_confirmation_store.py \
             tests/unit/test_intelligence_loop.py
       - name: Verify launcher syntax

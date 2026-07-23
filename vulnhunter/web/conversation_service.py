@@ -60,7 +60,23 @@ _PROFILE_WORDS = {
 }
 _SCAN_WORDS = ("scan", "assess", "check", "inspect", "test", "analyse", "analyze")
 _CANCEL_WORDS = ("cancel", "stop", "abort")
-_STATUS_WORDS = ("status", "progress", "what is happening", "how far")
+_STATUS_WORDS = (
+    "status",
+    "progress",
+    "what is happening",
+    "what's happening",
+    "what is it doing",
+    "what's it doing",
+    "how far",
+    "has it started",
+    "is it working",
+    "is it running",
+    "still pending",
+    "approval pending",
+    "how long",
+    "is it done",
+    "is it finished",
+)
 
 
 @dataclass(frozen=True)
@@ -145,6 +161,8 @@ def _contains_term(text: str, term: str) -> bool:
 
 
 def deterministic_intent(text: str) -> str:
+    """Classify high-impact actions locally and leave ordinary messages as chat."""
+
     lowered = " ".join(text.casefold().split())
     if any(_contains_term(lowered, word) for word in _CANCEL_WORDS):
         return "cancel"
@@ -152,7 +170,35 @@ def deterministic_intent(text: str) -> str:
         return "status"
     if any(_contains_term(lowered, word) for word in _SCAN_WORDS) or extract_target(text):
         return "scan"
-    return "clarify"
+    return "chat"
+
+
+def _deterministic_chat_copy(text: str) -> str:
+    lowered = " ".join(text.casefold().split())
+    if re.search(r"\b(hello|hi|hey|good morning|good afternoon|good evening)\b", lowered):
+        return (
+            "Hello. I can answer questions about the active assessment, show its target and "
+            "status, explain approval, or prepare a new authorised scan."
+        )
+    if any(term in lowered for term in ("what link", "which link", "what url", "target link")):
+        return (
+            "I can show the controlled target for the active assessment. If no assessment is "
+            "active, send the authorised target you want checked."
+        )
+    if "approval" in lowered:
+        return (
+            "Approval applies only to the exact displayed passive plan. After confirmation, the "
+            "approval card should disappear and live scanner progress should continue here."
+        )
+    if any(term in lowered for term in ("what can you do", "help me", "how do i use")):
+        return (
+            "Describe an authorised target or ask about the current run. I can prepare the bounded "
+            "plan, explain each step, show progress and organise evidence-backed results."
+        )
+    return (
+        "I can answer questions about this workspace or the active assessment. Ask for the target "
+        "link, current status, approval state, findings, evidence or the next safe step."
+    )
 
 
 def _sanitize_for_groq(text: str) -> str:
@@ -185,13 +231,17 @@ def _groq_advisory(
 
     sanitized = _sanitize_for_groq(text)
     prompt = (
-        "Interpret a cybersecurity assessment chat request. The deterministic backend owns "
-        "authorization, target matching, cancellation, ports, approval, Nuclei execution, "
-        "evidence, and findings. Do not claim any tool ran and do not request cancellation. "
-        "Return content as a JSON string with keys intent, message, recommended_profile, and "
-        "missing. intent must be scan, status, or clarify. recommended_profile must be one of "
-        "the supplied profiles or null. missing must be an array containing only target, port, "
-        "profile, or authorization. Keep message under 240 characters. "
+        "Act as the conversational layer for a governed cybersecurity assessment workspace. "
+        "The deterministic backend alone owns authorization, target matching, cancellation, "
+        "ports, approval, Nuclei execution, evidence and findings. Never claim that a tool ran, "
+        "never invent a target, and never approve or cancel work. Respond naturally to ordinary "
+        "questions instead of forcing every message into a scan flow. Return one JSON object with "
+        "keys intent, message, recommended_profile, and missing. intent must be scan, status, or "
+        "chat. Use scan only when the user is asking to assess a target, status only for progress "
+        "questions, and chat for greetings, explanations, help, links, results questions, or other "
+        "conversation. recommended_profile must be one supplied profile or null. missing must be "
+        "an array containing only target, port, profile, or authorization. Keep message helpful, "
+        "specific and under 600 characters. Do not expose hidden reasoning. "
         f"Available profiles: {', '.join(available_profiles) or 'none'}. "
         f"Sanitized user request: {sanitized}"
     )
@@ -205,9 +255,9 @@ def _groq_advisory(
         capability=ProviderCapability.CLASSIFICATION,
         input_sha256=hashlib.sha256(raw).hexdigest(),
         maximum_input_characters=8_000,
-        maximum_output_characters=2_000,
+        maximum_output_characters=3_000,
         maximum_input_bytes=min(settings.VULNHUNTER_GROQ_MAX_INPUT_BYTES, 16_000),
-        maximum_output_bytes=4_000,
+        maximum_output_bytes=6_000,
         maximum_input_tokens=2_000,
         maximum_output_tokens=min(settings.VULNHUNTER_GROQ_MAX_OUTPUT_TOKENS, 800),
         timeout_seconds=min(settings.VULNHUNTER_GROQ_TIMEOUT_SECONDS, 60),
@@ -260,7 +310,15 @@ def interpret_request(
     profile = extract_profile(text)
     deterministic = deterministic_intent(text)
     intent = deterministic
-    assistant_copy = None
+    if deterministic == "chat":
+        assistant_copy = _deterministic_chat_copy(text)
+    elif deterministic == "status":
+        assistant_copy = (
+            "No assessment is active yet. Send an authorised target to start one, or ask what "
+            "VulnHunter can do."
+        )
+    else:
+        assistant_copy = None
     provider = "deterministic"
     detail = "Deterministic request parsing is active."
 
@@ -274,17 +332,16 @@ def interpret_request(
         except json.JSONDecodeError:
             payload = {}
         advisory_intent = payload.get("intent")
-        if deterministic not in {"cancel", "status"} and advisory_intent in {
-            "scan",
-            "clarify",
-        }:
+        if deterministic == "chat" and advisory_intent in {"chat", "status", "scan"}:
             intent = advisory_intent
+        elif deterministic == "scan":
+            intent = "scan"
         advisory_profile = payload.get("recommended_profile")
         if profile is None and advisory_profile in set(available_profiles):
             profile = advisory_profile
         copy = payload.get("message")
         if isinstance(copy, str) and copy.strip():
-            assistant_copy = redact_text(" ".join(copy.split()))[:240]
+            assistant_copy = redact_text(" ".join(copy.split()))[:600]
         provider = "groq"
         detail = advisory_detail
     else:

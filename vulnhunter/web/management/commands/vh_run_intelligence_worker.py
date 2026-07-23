@@ -2,11 +2,14 @@ from __future__ import annotations
 
 import os
 import time
+from datetime import UTC, datetime
 from pathlib import Path
 
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 
+from vulnhunter.agent_activity.service import AgentActivityService
+from vulnhunter.agent_activity.store import AppendOnlyActivityStore
 from vulnhunter.intelligence import (
     GroqFindingReasoningLoop,
     IntelligenceAnalysisError,
@@ -99,6 +102,9 @@ class Command(BaseCommand):
                 api_base=settings.VULNHUNTER_GROQ_API_BASE,
             )
             store = IntelligenceStore(root)
+            activity = AgentActivityService(
+                AppendOnlyActivityStore(Path(settings.VULNHUNTER_AGENT_ACTIVITY_ROOT))
+            )
             loop = GroqFindingReasoningLoop(
                 connector=provider,
                 primary_model=primary_model,
@@ -121,6 +127,25 @@ class Command(BaseCommand):
                     time.sleep(poll_seconds)
                     continue
 
+                activity.record_transition(
+                    run_id=request.run_id,
+                    timestamp=datetime.now(UTC),
+                    event_type="evaluation_started",
+                    summary=(
+                        "Bounded advisory analysis started its analyst, critic, and "
+                        "synthesizer stages."
+                    ),
+                    run_state="evaluating",
+                    source="evaluator",
+                    execution_state="running",
+                    metadata={
+                        "analysis_id": request.analysis_id,
+                        "finding_id": request.finding_id,
+                        "primary_model": primary_model,
+                        "deep_model": deep_model,
+                        "maximum_stages": 3,
+                    },
+                )
                 try:
                     report = loop.run(request)
                     store.complete(report)
@@ -130,6 +155,24 @@ class Command(BaseCommand):
                         f"{type(exc).__name__}: {exc}",
                         maximum_attempts=maximum_attempts,
                     )
+                    activity.record_transition(
+                        run_id=request.run_id,
+                        timestamp=datetime.now(UTC),
+                        event_type="evaluation_completed",
+                        summary=(
+                            "Advisory analysis failed safely; deterministic verification "
+                            "and human review remain authoritative."
+                        ),
+                        run_state="completed",
+                        source="evaluator",
+                        execution_state="failed",
+                        error_code="advisory_analysis_failed",
+                        error_message=f"{type(exc).__name__}: {exc}",
+                        metadata={
+                            "analysis_id": request.analysis_id,
+                            "finding_id": request.finding_id,
+                        },
+                    )
                     self.stderr.write(
                         self.style.WARNING(
                             f"Analysis {request.analysis_id} failed safely; "
@@ -137,6 +180,42 @@ class Command(BaseCommand):
                         )
                     )
                 else:
+                    final = report.final
+                    activity.record_transition(
+                        run_id=request.run_id,
+                        timestamp=report.completed_at,
+                        event_type="evaluation_completed",
+                        summary=(
+                            "Advisory reasoning completed after analyst, critic, and "
+                            "synthesizer review."
+                            if report.status.value == "completed"
+                            else "Advisory reasoning abstained safely because the evidence "
+                            "was insufficient or a provider stage was unavailable."
+                        ),
+                        run_state="completed",
+                        source="evaluator",
+                        execution_state="succeeded",
+                        metadata={
+                            "analysis_id": report.analysis_id,
+                            "finding_id": report.finding_id,
+                            "status": report.status.value,
+                            "stage_count": len(report.stages),
+                            "models": list(report.models),
+                            "conclusion": final.conclusion if final else "abstain",
+                            "summary": final.summary if final else report.safe_error or "ABSTAIN",
+                            "missing_information": (
+                                list(final.missing_information) if final else []
+                            ),
+                            "safe_verification_suggestions": (
+                                list(final.safe_verification_suggestions) if final else []
+                            ),
+                            "remediation_options": (
+                                list(final.remediation_options) if final else []
+                            ),
+                            "trusted": False,
+                            "advisory_only": True,
+                        },
+                    )
                     self.stdout.write(
                         self.style.SUCCESS(
                             f"Analysis {request.analysis_id} finished as {report.status.value} "

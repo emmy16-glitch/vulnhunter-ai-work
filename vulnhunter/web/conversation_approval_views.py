@@ -69,7 +69,7 @@ def approve_view(request: HttpRequest) -> JsonResponse:
     except (ApprovalStoreError, AssessmentWorkflowError) as exc:
         return JsonResponse({"detail": str(exc)}, status=409)
 
-    refreshed = product_service().get_agent_run(str(getattr(run, "run_id")))
+    refreshed = product_service().get_agent_run(str(run.run_id))
     message = _append_message(
         request,
         role="assistant",
@@ -78,6 +78,6 @@ def approve_view(request: HttpRequest) -> JsonResponse:
             "Approval recorded for this exact plan. The signed Nuclei job is continuing, "
             "and live progress will appear below."
         ),
-        metadata={"run_id": str(getattr(refreshed, "run_id"))},
+        metadata={"run_id": str(refreshed.run_id)},
     )
     return JsonResponse({"message": message, "run": _run_payload(refreshed)})

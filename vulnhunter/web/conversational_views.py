@@ -139,9 +139,7 @@ def _pending_for_run(run_id: str):
     candidates = [
         item
         for item in records
-        if item.run_id == run_id
-        and item.status in actionable
-        and item.expires_at > now
+        if item.run_id == run_id and item.status in actionable and item.expires_at > now
     ]
     return max(candidates, key=lambda item: item.requested_at) if candidates else None
 
@@ -193,8 +191,7 @@ def _run_payload(run: object) -> dict[str, object]:
     findings = tuple(getattr(run, "findings", ()) or ())
     artifacts = tuple(getattr(run, "artifacts", ()) or ())
     current_state = str(
-        getattr(run, "workflow_state", None)
-        or getattr(run, "current_state", "unknown")
+        getattr(run, "workflow_state", None) or getattr(run, "current_state", "unknown")
     )
     terminal = current_state in {
         "completed",
@@ -210,15 +207,9 @@ def _run_payload(run: object) -> dict[str, object]:
         "run_id": run_id,
         "state": current_state,
         "task_state": str(getattr(run, "current_state", current_state)),
-        "approval_state": _enum_value(
-            getattr(run, "approval_state", "not_required")
-        ),
-        "execution_state": str(
-            getattr(run, "execution_state", "not_started")
-        ),
-        "target": str(
-            getattr(run, "scope_summary", getattr(run, "objective", ""))
-        ),
+        "approval_state": _enum_value(getattr(run, "approval_state", "not_required")),
+        "execution_state": str(getattr(run, "execution_state", "not_started")),
+        "target": str(getattr(run, "scope_summary", getattr(run, "objective", ""))),
         "profile": str(getattr(run, "risk_classification", "passive")),
         "scanner": str(getattr(run, "requested_tool", "nuclei")),
         "created_at": run.created_at.isoformat(),
@@ -229,9 +220,7 @@ def _run_payload(run: object) -> dict[str, object]:
         "findings": [_safe_finding(item) for item in findings],
         "artifacts": [_safe_artifact(item) for item in artifacts],
         "events": events[-30:],
-        "last_sequence": (
-            timeline.get("last_sequence", 0) if isinstance(timeline, dict) else 0
-        ),
+        "last_sequence": (timeline.get("last_sequence", 0) if isinstance(timeline, dict) else 0),
         "approval": _approval_payload(run),
         "detail_url": reverse(
             "web-scan-run-detail",
@@ -340,15 +329,7 @@ def message_view(request: HttpRequest) -> JsonResponse:
         )
         return JsonResponse({"message": message}, status=503)
 
-    profiles = tuple(
-        sorted(
-            {
-                profile
-                for item in choices
-                for profile in item.approved_profiles
-            }
-        )
-    )
+    profiles = tuple(sorted({profile for item in choices for profile in item.approved_profiles}))
     interpreted = interpret_request(text, available_profiles=profiles)
 
     current_run_id = state.get("run_id")
@@ -387,8 +368,7 @@ def message_view(request: HttpRequest) -> JsonResponse:
             request,
             role="assistant",
             content=(
-                "The cancellation request was recorded. "
-                "No additional scanner work will be started."
+                "The cancellation request was recorded. No additional scanner work will be started."
             ),
             kind="status",
         )
@@ -399,8 +379,7 @@ def message_view(request: HttpRequest) -> JsonResponse:
             request,
             role="assistant",
             content=(
-                interpreted.assistant_copy
-                or "Tell me which authorised target you want to assess."
+                interpreted.assistant_copy or "Tell me which authorised target you want to assess."
             ),
             metadata={
                 "provider": interpreted.provider,
@@ -422,15 +401,9 @@ def message_view(request: HttpRequest) -> JsonResponse:
         return JsonResponse({"message": message}, status=409)
 
     stored_target = state.get("target")
-    target = interpreted.target or (
-        stored_target if isinstance(stored_target, str) else None
-    )
+    target = interpreted.target or (stored_target if isinstance(stored_target, str) else None)
     if target is None:
-        suggestions = [
-            item.approved_targets[0]
-            for item in choices
-            if item.approved_targets
-        ]
+        suggestions = [item.approved_targets[0] for item in choices if item.approved_targets]
         message = _append_message(
             request,
             role="assistant",
@@ -444,9 +417,7 @@ def message_view(request: HttpRequest) -> JsonResponse:
                 "suggestions": [
                     {
                         "label": value,
-                        "message": (
-                            f"Scan {value} using the passive profile"
-                        ),
+                        "message": (f"Scan {value} using the passive profile"),
                     }
                     for value in suggestions[:4]
                 ],
@@ -458,10 +429,7 @@ def message_view(request: HttpRequest) -> JsonResponse:
     canonical = canonical_target(target)
     matched = None
     for item in choices:
-        if any(
-            canonical_target(value) == canonical
-            for value in item.approved_targets
-        ):
+        if any(canonical_target(value) == canonical for value in item.approved_targets):
             matched = item
             break
     if matched is None:
@@ -469,17 +437,12 @@ def message_view(request: HttpRequest) -> JsonResponse:
             request,
             role="assistant",
             kind="error",
-            content=(
-                "That target is not present in an active authorization for "
-                "this account."
-            ),
+            content=("That target is not present in an active authorization for this account."),
         )
         return JsonResponse({"message": message}, status=409)
 
     stored_profile = state.get("profile")
-    profile = interpreted.profile or (
-        stored_profile if isinstance(stored_profile, str) else None
-    )
+    profile = interpreted.profile or (stored_profile if isinstance(stored_profile, str) else None)
     if profile not in matched.approved_profiles:
         profile = "passive" if "passive" in matched.approved_profiles else None
     if profile is None:
@@ -488,16 +451,13 @@ def message_view(request: HttpRequest) -> JsonResponse:
             role="assistant",
             kind="question",
             content=(
-                "Which authorised assessment profile should I use? "
-                "Passive is recommended first."
+                "Which authorised assessment profile should I use? Passive is recommended first."
             ),
             metadata={
                 "suggestions": [
                     {
                         "label": value.title(),
-                        "message": (
-                            f"Use the {value} profile for {canonical}"
-                        ),
+                        "message": (f"Use the {value} profile for {canonical}"),
                     }
                     for value in matched.approved_profiles
                 ],
@@ -515,21 +475,13 @@ def message_view(request: HttpRequest) -> JsonResponse:
 
     parsed = urlsplit(canonical)
     protocol = parsed.scheme
-    port = interpreted.port or parsed.port or (
-        443 if parsed.scheme == "https" else 80
-    )
-    if (
-        protocol not in matched.approved_protocols
-        or port not in matched.approved_ports
-    ):
+    port = interpreted.port or parsed.port or (443 if parsed.scheme == "https" else 80)
+    if protocol not in matched.approved_protocols or port not in matched.approved_ports:
         message = _append_message(
             request,
             role="assistant",
             kind="error",
-            content=(
-                "The requested protocol or port is outside the active "
-                "authorization."
-            ),
+            content=("The requested protocol or port is outside the active authorization."),
         )
         return JsonResponse({"message": message}, status=409)
 

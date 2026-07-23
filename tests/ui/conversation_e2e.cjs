@@ -30,6 +30,7 @@ let page;
     ]);
     const input = page.locator("[data-conversation-input]");
     const send = page.locator("[data-conversation-send]");
+    const assistantMessages = page.locator(".vh-chat-message.is-assistant .vh-message-copy");
     await input.fill("Scan http://10.0.11.34:8010/ using the passive profile");
     await send.click();
     await page.getByText(/Review and confirm the plan below/i).waitFor({ timeout: 15000 });
@@ -39,7 +40,10 @@ let page;
 
     await input.fill("Confirm");
     await send.click();
-    await page.getByText(/Approved\. Starting the governed assessment/i).waitFor({ timeout: 15000 });
+    await assistantMessages
+      .filter({ hasText: /Approved\. Starting the governed assessment/ })
+      .last()
+      .waitFor({ timeout: 15000 });
     const workerResult = await execFileAsync("python", [
       "tests/ui/complete_conversation_run.py",
       "--run-id",
@@ -48,13 +52,22 @@ let page;
     if (workerResult.stderr) {
       fs.appendFileSync(serverLog, `\n--- Browser E2E worker stderr ---\n${workerResult.stderr}\n`);
     }
-    await page.getByText(/Running passive checks/i).waitFor({ timeout: 15000 });
-    await page.getByText(/Verifying one possible finding/i).waitFor({ timeout: 15000 });
-    await page.getByText(/Analysis complete in/i).waitFor({ timeout: 20000 });
+    await assistantMessages
+      .filter({ hasText: /^Running passive checks…$/ })
+      .last()
+      .waitFor({ timeout: 15000 });
+    await assistantMessages
+      .filter({ hasText: /^Verifying one possible finding…$/ })
+      .last()
+      .waitFor({ timeout: 15000 });
+    await assistantMessages
+      .filter({ hasText: /Analysis complete in/ })
+      .last()
+      .waitFor({ timeout: 20000 });
 
     await input.fill("Show me the results");
     await send.click();
-    const results = page.locator(".vh-chat-message.is-assistant .vh-message-copy").last();
+    const results = assistantMessages.last();
     await results.waitFor({ timeout: 10000 });
     const resultsCopy = await results.textContent();
     if (!resultsCopy || !resultsCopy.includes("Missing X-Content-Type-Options")) {
@@ -63,7 +76,7 @@ let page;
 
     await input.fill("Next step");
     await send.click();
-    const next = page.locator(".vh-chat-message.is-assistant .vh-message-copy").last();
+    const next = assistantMessages.last();
     await next.waitFor({ timeout: 10000 });
     const nextCopy = await next.textContent();
     if (!nextCopy || nextCopy === resultsCopy || !/evidence|remediation|retest/i.test(nextCopy)) {

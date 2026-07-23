@@ -1,5 +1,7 @@
 def test_conversation_template_uses_a_csp_safe_runtime_guard() -> None:
-    with open("vulnhunter/web/templates/web/conversation.html", encoding="utf-8") as handle:
+    with open(
+        "vulnhunter/web/templates/web/conversation.html", encoding="utf-8"
+    ) as handle:
         template = handle.read()
     with open("vulnhunter/web/settings.py", encoding="utf-8") as handle:
         settings = handle.read()

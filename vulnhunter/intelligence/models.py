@@ -114,6 +114,7 @@ class FindingAnalysisRequest(BaseModel):
     @classmethod
     def create(cls, **values) -> Self:
         draft = dict(values)
+        draft.pop("context_sha256", None)
         draft.setdefault("created_at", utc_now())
         temporary = cls.model_construct(context_sha256="0" * 64, **draft)
         draft["context_sha256"] = sha256_json(temporary.unsigned_payload())

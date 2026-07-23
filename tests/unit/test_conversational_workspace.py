@@ -15,6 +15,7 @@ from vulnhunter.web.conversation_service import (
     extract_target,
     interpret_request,
 )
+from vulnhunter.web.models import WebUserMapping
 
 
 def test_conversation_parser_extracts_authoritative_target_port_and_profile(settings):
@@ -61,10 +62,15 @@ def test_root_is_the_conversational_workspace(client, settings):
         username="vulnhunter",
         password="long-test-password-1234",
     )
+    WebUserMapping.objects.create(
+        user=user,
+        governance_identity_id="vulnhunter-user",
+        product_roles=["campaign-operator"],
+    )
     client.force_login(user)
     actor = SimpleNamespace(
         governance_identity=SimpleNamespace(reviewer_id="vulnhunter-user"),
-        product_roles=("security-analyst",),
+        product_roles=("campaign-operator",),
     )
 
     with (

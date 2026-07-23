@@ -1,0 +1,128 @@
+name: One-time chat runtime repair
+
+on:
+  push:
+    branches: ["hotfix/chat-runtime-reply"]
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out hotfix branch
+        uses: actions/checkout@v6
+        with:
+          ref: hotfix/chat-runtime-reply
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Repair chat runtime and add regression coverage
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          js_path = Path("vulnhunter/web/static/web/conversation.js")
+          js = js_path.read_text(encoding="utf-8")
+          broken = '    const lowered = " ".join(value.toLowerCase().split());'
+          fixed = '    const lowered = value.toLowerCase().trim().replace(/\\s+/g, " ");'
+          if broken not in js:
+              raise SystemExit("Expected broken chat normalizer was not found")
+          js = js.replace(broken, fixed, 1)
+
+          anchor = fixed + "\n"
+          greeting = '''    const isGreeting = /^(hello|hi|hey|good morning|good afternoon|good evening)[!.? ]*$/.test(lowered);
+              if (isGreeting) {
+                return "Hello. I can answer questions about the active assessment, explain approval and progress, or prepare a new authorised passive scan.";
+              }
+          '''
+          if greeting.strip() not in js:
+              js = js.replace(anchor, anchor + greeting, 1)
+          js_path.write_text(js, encoding="utf-8")
+
+          base_path = Path("vulnhunter/web/templates/web/base.html")
+          base = base_path.read_text(encoding="utf-8")
+          old_asset = "conversation.js'?v=20260723-chat1"
+          new_asset = "conversation.js'?v=20260723-chat-hotfix1"
+          if old_asset not in base:
+              raise SystemExit("Expected conversation.js cache version was not found")
+          base_path.write_text(base.replace(old_asset, new_asset, 1), encoding="utf-8")
+
+          test_path = Path("tests/unit/test_chat_runtime_reply.py")
+          test_path.write_text(
+              '''from __future__ import annotations
+
+          from pathlib import Path
+
+
+          ROOT = Path(__file__).resolve().parents[2]
+
+
+          def test_chat_message_normalization_uses_valid_javascript() -> None:
+              script = (ROOT / "vulnhunter/web/static/web/conversation.js").read_text(
+                  encoding="utf-8"
+              )
+
+              assert '" ".join(' not in script
+              assert 'value.toLowerCase().trim().replace(/\\s+/g, " ")' in script
+
+
+          def test_simple_greeting_has_an_immediate_local_reply() -> None:
+              script = (ROOT / "vulnhunter/web/static/web/conversation.js").read_text(
+                  encoding="utf-8"
+              )
+
+              assert "const isGreeting" in script
+              assert "Hello. I can answer questions about the active assessment" in script
+
+
+          def test_browser_loads_the_hotfixed_chat_asset() -> None:
+              template = (ROOT / "vulnhunter/web/templates/web/base.html").read_text(
+                  encoding="utf-8"
+              )
+
+              assert "conversation.js'?v=20260723-chat-hotfix1" in template
+          ''',
+              encoding="utf-8",
+          )
+
+          Path(".github/workflows/hotfix-chat-runtime.yml").unlink()
+          PY
+
+      - name: Validate repaired browser runtime
+        run: |
+          node --check vulnhunter/web/static/web/conversation.js
+          python -m compileall -q tests/unit/test_chat_runtime_reply.py
+
+      - name: Install focused test tools
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .
+          python -m pip install pytest pytest-django ruff
+
+      - name: Run focused checks
+        run: |
+          python -m ruff check tests/unit/test_chat_runtime_reply.py
+          python -m ruff format --check tests/unit/test_chat_runtime_reply.py
+          python -m pytest -q tests/unit/test_chat_runtime_reply.py
+
+      - name: Commit repaired runtime
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Fix chat runtime reply crash"
+          git push origin HEAD:hotfix/chat-runtime-reply

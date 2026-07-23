@@ -31,6 +31,20 @@ let page;
     const input = page.locator("[data-conversation-input]");
     const send = page.locator("[data-conversation-send]");
     const assistantMessages = page.locator(".vh-chat-message.is-assistant .vh-message-copy");
+
+    async function waitForNewAssistantMessage(previousCount, expected, timeout = 15000) {
+      const message = assistantMessages.nth(previousCount);
+      await message.waitFor({ timeout });
+      const deadline = Date.now() + timeout;
+      while (Date.now() < deadline) {
+        const copy = (await message.textContent()) || "";
+        if (expected.test(copy)) return { message, copy };
+        await page.waitForTimeout(50);
+      }
+      const copy = (await message.textContent()) || "";
+      throw new Error(`Assistant message did not finish with expected content: ${copy}`);
+    }
+
     await input.fill("Scan http://10.0.11.34:8010/ using the passive profile");
     await send.click();
     await page.getByText(/Review and confirm the plan below/i).waitFor({ timeout: 15000 });
@@ -65,22 +79,23 @@ let page;
       .last()
       .waitFor({ timeout: 20000 });
 
+    const resultIndex = await assistantMessages.count();
     await input.fill("Show me the results");
     await send.click();
-    const results = assistantMessages.last();
-    await results.waitFor({ timeout: 10000 });
-    const resultsCopy = await results.textContent();
-    if (!resultsCopy || !resultsCopy.includes("Missing X-Content-Type-Options")) {
-      throw new Error(`Results reply was not evidence-specific: ${resultsCopy}`);
-    }
+    const { copy: resultsCopy } = await waitForNewAssistantMessage(
+      resultIndex,
+      /Missing X-Content-Type-Options/,
+    );
 
+    const nextIndex = await assistantMessages.count();
     await input.fill("Next step");
     await send.click();
-    const next = assistantMessages.last();
-    await next.waitFor({ timeout: 10000 });
-    const nextCopy = await next.textContent();
-    if (!nextCopy || nextCopy === resultsCopy || !/evidence|remediation|retest/i.test(nextCopy)) {
-      throw new Error(`Next-step reply was not distinct and actionable: ${nextCopy}`);
+    const { copy: nextCopy } = await waitForNewAssistantMessage(
+      nextIndex,
+      /evidence|remediation|retest/i,
+    );
+    if (nextCopy === resultsCopy) {
+      throw new Error(`Next-step reply repeated the results reply: ${nextCopy}`);
     }
 
     const technicalOpen = await page.locator('details[data-section="technical"]').evaluate(

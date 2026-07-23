@@ -27,64 +27,65 @@ helper = '''def replace_all(path: str, old: str, new: str, *, expected: int) -> 
 if "def replace_all(" not in content:
     content = content.replace(helper_anchor, helper + helper_anchor, 1)
 
-module_old = '''replace_once(
-    ".github/workflows/conversation-quality.yml",
-    \'\'\'            vulnhunter/web/conversation_service.py \\
-            vulnhunter/web/conversational_authorization.py \\
-            vulnhunter/web/conversational_views.py \\
-\'\'\',
-    \'\'\'            vulnhunter/web/conversation_service.py \\
-            vulnhunter/web/conversation_state.py \\
-            vulnhunter/web/conversational_authorization.py \\
-            vulnhunter/web/conversational_views.py \\
-\'\'\',
-)'''
-module_new = module_old.replace("replace_once(", "replace_all(", 1).replace(
-    "\n)", "\n    expected=2,\n)", 1
-)
-content = content.replace(module_old, module_new, 1)
 
-tests_old = '''replace_once(
-    ".github/workflows/conversation-quality.yml",
-    \'\'\'            tests/unit/test_chat_runtime_reply.py \\
-            tests/unit/test_conversational_url_targets.py \\
-\'\'\',
-    \'\'\'            tests/unit/test_chat_runtime_reply.py \\
-            tests/unit/test_conversation_core_redesign.py \\
-            tests/unit/test_conversational_url_targets.py \\
-\'\'\',
-)'''
-tests_new = tests_old.replace("replace_once(", "replace_all(", 1).replace(
-    "\n)", "\n    expected=3,\n)", 1
-)
-content = content.replace(tests_old, tests_new, 1)
+def call_block(marker: str) -> tuple[int, int, str]:
+    start = content.find(marker)
+    if start < 0:
+        raise RuntimeError(f"Could not locate patch call: {marker}")
+    end = content.find("\n)\n", start)
+    if end < 0:
+        raise RuntimeError(f"Could not locate end of patch call: {marker}")
+    end += len("\n)\n")
+    return start, end, content[start:end]
 
-redundant = '''replace_once(
-    ".github/workflows/conversation-quality.yml",
-    \'\'\'            tests/unit/test_chat_runtime_reply.py \\
-            tests/unit/test_conversational_url_targets.py \\
-            tests/unit/test_conversation_experience.py \\
-\'\'\',
-    \'\'\'            tests/unit/test_chat_runtime_reply.py \\
-            tests/unit/test_conversation_core_redesign.py \\
-            tests/unit/test_conversational_url_targets.py \\
-            tests/unit/test_conversation_experience.py \\
-\'\'\',
-)
-'''
-content = content.replace(redundant, "", 1)
 
-env_old = '''replace_once(
-    ".github/workflows/quality.yml",
-    '      VULNHUNTER_INTELLIGENCE_ENABLED: "false"\\n',
-    \'\'\'      VULNHUNTER_INTELLIGENCE_ENABLED: "false"\\n      VULNHUNTER_NUCLEI_READINESS_REPORT: /tmp/vh-ui/nuclei-readiness.json\\n      VULNHUNTER_NUCLEI_PILOT_ENQUEUE_ENABLED: "true"\\n      VULNHUNTER_NUCLEI_WORKER_SIGNING_KEY_FILE: /tmp/vh-ui/worker-signing.key\\n      VULNHUNTER_NUCLEI_WORKER_SPOOL_ROOT: /tmp/vh-ui/worker-spool\\n\'\'\',
-)'''
-env_new = '''replace_once(
-    ".github/workflows/quality.yml",
-    \'\'\'      VULNHUNTER_UI_BASE_URL: http://127.0.0.1:8767\\n      VULNHUNTER_INTELLIGENCE_ENABLED: "false"\\n\'\'\',
-    \'\'\'      VULNHUNTER_UI_BASE_URL: http://127.0.0.1:8767\\n      VULNHUNTER_INTELLIGENCE_ENABLED: "false"\\n      VULNHUNTER_NUCLEI_READINESS_REPORT: /tmp/vh-ui/nuclei-readiness.json\\n      VULNHUNTER_NUCLEI_PILOT_ENQUEUE_ENABLED: "true"\\n      VULNHUNTER_NUCLEI_WORKER_SIGNING_KEY_FILE: /tmp/vh-ui/worker-signing.key\\n      VULNHUNTER_NUCLEI_WORKER_SPOOL_ROOT: /tmp/vh-ui/worker-spool\\n\'\'\',
-)'''
-content = content.replace(env_old, env_new, 1)
+def upgrade_call(marker: str, *, expected: int) -> None:
+    global content
+    start, end, block = call_block(marker)
+    replacement = block.replace("replace_once(", "replace_all(", 1)
+    replacement = replacement[:-3] + f"\n    expected={expected},\n)\n"
+    content = content[:start] + replacement + content[end:]
+
+
+upgrade_call(
+    'replace_once(\n    ".github/workflows/conversation-quality.yml",\n'
+    "    '''            vulnhunter/web/conversation_service.py",
+    expected=2,
+)
+upgrade_call(
+    'replace_once(\n    ".github/workflows/conversation-quality.yml",\n'
+    "    '''            tests/unit/test_chat_runtime_reply.py \\\\n"
+    "            tests/unit/test_conversational_url_targets.py",
+    expected=3,
+)
+
+redundant_marker = (
+    'replace_once(\n    ".github/workflows/conversation-quality.yml",\n'
+    "    '''            tests/unit/test_chat_runtime_reply.py \\\\n"
+    "            tests/unit/test_conversational_url_targets.py \\\\n"
+    "            tests/unit/test_conversation_experience.py"
+)
+start, end, _ = call_block(redundant_marker)
+content = content[:start] + content[end:]
+
+env_marker = (
+    'replace_once(\n    ".github/workflows/quality.yml",\n'
+    "    '      VULNHUNTER_INTELLIGENCE_ENABLED: \"false\"\\n',"
+)
+start, end, block = call_block(env_marker)
+block = block.replace(
+    "    '      VULNHUNTER_INTELLIGENCE_ENABLED: \"false\"\\n',",
+    "    '''      VULNHUNTER_UI_BASE_URL: http://127.0.0.1:8767\\n"
+    "      VULNHUNTER_INTELLIGENCE_ENABLED: \"false\"\\n''',",
+    1,
+)
+block = block.replace(
+    "    '''      VULNHUNTER_INTELLIGENCE_ENABLED: \"false\"\\n",
+    "    '''      VULNHUNTER_UI_BASE_URL: http://127.0.0.1:8767\\n"
+    "      VULNHUNTER_INTELLIGENCE_ENABLED: \"false\"\\n",
+    1,
+)
+content = content[:start] + block + content[end:]
 
 namespace = {"__name__": "__main__", "__file__": str(path)}
 exec(compile(content, str(path), "exec"), namespace)

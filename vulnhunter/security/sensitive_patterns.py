@@ -18,6 +18,7 @@ SENSITIVE_KEY_NAMES = frozenset(
         "setcookie",
         "apikey",
         "xapikey",
+        "token",
         "accesstoken",
         "refreshtoken",
         "idtoken",
@@ -55,6 +56,7 @@ JWT_PATTERN = re.compile(
 SECRET_ASSIGNMENT_PATTERN = re.compile(
     r"\b("
     r"api[_-]?key|"
+    r"token|"
     r"access[_-]?token|"
     r"refresh[_-]?token|"
     r"id[_-]?token|"

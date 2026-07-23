@@ -63,31 +63,56 @@ jobs:
             tests/ui/prepare_conversation_e2e.py \
             tests/ui/complete_conversation_run.py
       - name: Validate redesign
+        id: validation
+        continue-on-error: true
         if: steps.guard.outputs.done == 'false'
         env:
           VULNHUNTER_WEB_DEBUG: 'true'
           VULNHUNTER_GROQ_ENABLED: 'false'
         run: |
-          node --check vulnhunter/web/static/web/conversation.js
-          node --check tests/ui/conversation_e2e.cjs
-          python -m ruff check \
-            vulnhunter/web/conversation_service.py \
-            vulnhunter/web/conversation_state.py \
-            vulnhunter/web/conversational_views.py \
-            vulnhunter/web/conversation_approval_views.py \
-            tests/unit/test_conversation_core_redesign.py \
-            tests/unit/test_conversation_experience.py \
-            tests/ui/prepare_conversation_e2e.py \
-            tests/ui/complete_conversation_run.py
-          python -m pytest -q \
-            tests/unit/test_conversation_core_redesign.py \
-            tests/unit/test_conversational_url_targets.py \
-            tests/unit/test_conversation_experience.py \
-            tests/unit/test_conversational_workspace.py \
-            tests/unit/test_inline_confirmation_endpoint.py \
-            tests/unit/test_assessment_workflow.py
-      - name: Commit redesign
+          set -o pipefail
+          {
+            node --check vulnhunter/web/static/web/conversation.js
+            node --check tests/ui/conversation_e2e.cjs
+            python -m ruff check \
+              vulnhunter/web/conversation_service.py \
+              vulnhunter/web/conversation_state.py \
+              vulnhunter/web/conversational_views.py \
+              vulnhunter/web/conversation_approval_views.py \
+              tests/unit/test_conversation_core_redesign.py \
+              tests/unit/test_conversation_experience.py \
+              tests/ui/prepare_conversation_e2e.py \
+              tests/ui/complete_conversation_run.py
+            python -m pytest -q \
+              tests/unit/test_conversation_core_redesign.py \
+              tests/unit/test_conversational_url_targets.py \
+              tests/unit/test_conversation_experience.py \
+              tests/unit/test_conversational_workspace.py \
+              tests/unit/test_inline_confirmation_endpoint.py \
+              tests/unit/test_assessment_workflow.py
+          } 2>&1 | tee conversation-core-validation.log
+      - name: Upload generated redesign diagnostics
         if: steps.guard.outputs.done == 'false'
+        uses: actions/upload-artifact@v6
+        with:
+          name: conversation-core-validation
+          retention-days: 2
+          path: |
+            conversation-core-validation.log
+            vulnhunter/web/conversation_service.py
+            vulnhunter/web/conversation_state.py
+            vulnhunter/web/conversational_views.py
+            vulnhunter/web/conversation_approval_views.py
+            vulnhunter/web/static/web/conversation.js
+            vulnhunter/web/static/web/conversation-layout.css
+            vulnhunter/web/templates/web/conversation.html
+            tests/unit/test_conversation_core_redesign.py
+            tests/unit/test_conversation_experience.py
+            tests/ui/prepare_conversation_e2e.py
+            tests/ui/complete_conversation_run.py
+            tests/ui/conversation_e2e.cjs
+      - name: Commit redesign
+        if: steps.guard.outputs.done == 'false' && steps.validation.outcome == 'success'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -106,3 +131,6 @@ jobs:
             tests/ui/conversation_e2e.cjs
           git commit -m "Redesign conversational assessment workflow"
           git push origin HEAD:${{ github.event.pull_request.head.ref }}
+      - name: Fail when validation failed
+        if: steps.guard.outputs.done == 'false' && steps.validation.outcome != 'success'
+        run: exit 1

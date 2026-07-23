@@ -8,19 +8,20 @@
       <div>
         <p class="vh-eyebrow">Conversational security assessment</p>
         <h1 id="vh-chat-title">VulnHunter Workspace</h1>
-        <p>Describe the authorised target. VulnHunter asks for missing details, builds the exact passive plan, pauses for confirmation, runs Nuclei and organises the evidence here.</p>
+        <p>Chat naturally about an authorised target. VulnHunter explains each step, pauses for exact-plan confirmation and shows progress as the assessment runs.</p>
       </div>
     </div>
     <div class="vh-chat-runtime" aria-label="Connected services">
       <span class="vh-runtime-chip{% if groq.configured %} is-ready{% else %} is-warning{% endif %}"><i></i><strong>{{ groq.label }}</strong><small>{{ groq.model }}</small></span>
-      <span class="vh-runtime-chip is-ready"><i></i><strong>Nuclei</strong><small>Governed execution</small></span>
+      <span class="vh-runtime-chip is-ready"><i></i><strong>Nuclei ready</strong><small>Governed passive execution</small></span>
+      <button type="button" class="vh-chat-history-toggle" data-history-toggle aria-expanded="false" aria-controls="vh-chat-history">History</button>
       <button type="button" class="vh-chat-reset" data-conversation-reset>New conversation</button>
     </div>
   </header>
 
   <div class="vh-chat-layout">
     <main class="vh-chat-main" aria-label="Assessment conversation">
-      <div class="vh-chat-feed" data-conversation-feed aria-live="polite" aria-relevant="additions text">
+      <div class="vh-chat-feed" data-conversation-feed data-follow-latest="true" aria-live="polite" aria-relevant="additions text">
         <noscript><p class="vh-operational-notice is-danger">JavaScript is required for the interactive assessment workspace.</p></noscript>
       </div>
 
@@ -33,8 +34,8 @@
         {% csrf_token %}
         <label class="vh-visually-hidden" for="vh-chat-message">Describe the assessment</label>
         <div class="vh-chat-input-shell">
-          <textarea id="vh-chat-message" name="message" rows="1" maxlength="4000" autocomplete="off" spellcheck="true" placeholder="Example: Scan http://10.0.0.143:8010 safely" data-conversation-input required></textarea>
-          <button type="submit" class="vh-chat-send" data-conversation-send aria-label="Send assessment request">
+          <textarea id="vh-chat-message" name="message" rows="1" maxlength="4000" autocomplete="off" spellcheck="true" placeholder="Ask a question or request an authorised assessment" data-conversation-input required></textarea>
+          <button type="submit" class="vh-chat-send" data-conversation-send aria-label="Send message">
             <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m4 12 16-8-5.5 16-3.2-6.8z"/><path d="m11.3 13.2 4.6-4.6"/></svg>
           </button>
         </div>
@@ -45,10 +46,13 @@
       </form>
     </main>
 
-    <aside class="vh-chat-history" aria-labelledby="vh-recent-assessments-title">
+    <aside id="vh-chat-history" class="vh-chat-history" data-history-panel hidden aria-labelledby="vh-recent-assessments-title">
       <header>
         <div><p class="vh-eyebrow">Workspace history</p><h2 id="vh-recent-assessments-title">Recent assessments</h2></div>
-        <span>{{ recent_runs|length }}</span>
+        <div class="vh-chat-history-actions">
+          <span>{{ recent_runs|length }}</span>
+          <button type="button" data-history-close aria-label="Close assessment history">×</button>
+        </div>
       </header>
       <div class="vh-chat-history-list" data-recent-runs>
         {% for item in recent_runs %}
@@ -80,6 +84,7 @@
         <span class="vh-run-state"><i></i><strong data-run-state>Preparing</strong></span>
         <h2 data-run-target>Assessment</h2>
         <p><span data-run-profile>Passive</span> · <span data-run-scanner>Nuclei</span></p>
+        <p class="vh-run-live-copy" data-run-live-copy>Preparing the authorised assessment…</p>
       </div>
       <time data-run-elapsed>00:00</time>
     </header>
@@ -114,15 +119,15 @@
       <p class="vh-inline-approval-risk" data-approval-risk></p>
     </section>
 
-    <div class="vh-run-stage-track" data-run-stages aria-label="Assessment progress"></div>
+    <div class="vh-run-stage-track" data-run-stages aria-label="Current assessment progress" aria-live="polite"></div>
 
     <div class="vh-run-disclosures">
-      <details data-section="summary" open>
+      <details data-section="summary">
         <summary><span><svg aria-hidden="true"><use href="#vh-i-assessment"></use></svg><strong>Assessment summary</strong></span><b data-section-summary-state>In progress</b></summary>
         <div class="vh-disclosure-body" data-summary-body></div>
       </details>
       <details data-section="progress">
-        <summary><span><svg aria-hidden="true"><use href="#vh-i-activity"></use></svg><strong>Live progress</strong></span><b data-progress-count>0 events</b></summary>
+        <summary><span><svg aria-hidden="true"><use href="#vh-i-activity"></use></svg><strong>Recent activity</strong></span><b data-progress-count>0 events</b></summary>
         <div class="vh-disclosure-body"><ol class="vh-run-event-list" data-event-list></ol></div>
       </details>
       <details data-section="findings">
@@ -138,7 +143,7 @@
         <div class="vh-disclosure-body" data-verification-body></div>
       </details>
       <details data-section="guidance">
-        <summary><span><svg aria-hidden="true"><use href="#vh-i-checkdoc"></use></svg><strong>Remediation guidance</strong></span><b>Expandable</b></summary>
+        <summary><span><svg aria-hidden="true"><use href="#vh-i-checkdoc"></use></svg><strong>Remediation guidance</strong></span><b>Available</b></summary>
         <div class="vh-disclosure-body" data-guidance-body></div>
       </details>
       <details data-section="technical">

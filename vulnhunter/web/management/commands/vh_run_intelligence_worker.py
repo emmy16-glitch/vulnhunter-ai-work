@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import time
 from pathlib import Path
 
@@ -15,6 +16,28 @@ from vulnhunter.intelligence import (
 from vulnhunter.providers import GroqProvider, GroqProviderError
 
 
+def _env_bool(name: str, default: bool = False) -> bool:
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    normalized = value.strip().lower()
+    if normalized in {"1", "true", "yes", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "off"}:
+        return False
+    raise CommandError(f"{name} must be true or false")
+
+
+def _env_int(name: str, default: int, *, minimum: int, maximum: int) -> int:
+    try:
+        value = int(os.environ.get(name, str(default)))
+    except ValueError as exc:
+        raise CommandError(f"{name} must be an integer") from exc
+    if not minimum <= value <= maximum:
+        raise CommandError(f"{name} must be between {minimum} and {maximum}")
+    return value
+
+
 class Command(BaseCommand):
     help = "Process bounded analyst-critic-synthesizer advisory finding analyses."
 
@@ -25,7 +48,7 @@ class Command(BaseCommand):
         parser.add_argument("--poll-seconds", type=float, default=1.0)
 
     def handle(self, *args, **options) -> None:
-        if not settings.VULNHUNTER_INTELLIGENCE_ENABLED:
+        if not _env_bool("VULNHUNTER_INTELLIGENCE_ENABLED", False):
             self.stdout.write(
                 self.style.WARNING(
                     "Advisory intelligence is disabled; deterministic verification remains active."
@@ -37,24 +60,52 @@ class Command(BaseCommand):
         if not 0.1 <= poll_seconds <= 60:
             raise CommandError("poll-seconds must be between 0.1 and 60")
 
+        primary_model = os.environ.get(
+            "VULNHUNTER_INTELLIGENCE_PRIMARY_MODEL", "openai/gpt-oss-20b"
+        ).strip()
+        deep_model = os.environ.get(
+            "VULNHUNTER_INTELLIGENCE_DEEP_MODEL", "openai/gpt-oss-120b"
+        ).strip()
+        root = Path(
+            os.environ.get(
+                "VULNHUNTER_INTELLIGENCE_ROOT",
+                str(Path(settings.BASE_DIR) / ".local" / "intelligence"),
+            )
+        )
+        timeout_seconds = _env_int(
+            "VULNHUNTER_INTELLIGENCE_TIMEOUT_SECONDS", 90, minimum=5, maximum=180
+        )
+        maximum_input_bytes = _env_int(
+            "VULNHUNTER_INTELLIGENCE_MAX_INPUT_BYTES",
+            64_000,
+            minimum=4_000,
+            maximum=100_000,
+        )
+        maximum_output_tokens = _env_int(
+            "VULNHUNTER_INTELLIGENCE_MAX_OUTPUT_TOKENS",
+            2_400,
+            minimum=256,
+            maximum=4_000,
+        )
+        maximum_attempts = _env_int(
+            "VULNHUNTER_INTELLIGENCE_MAX_ATTEMPTS", 2, minimum=1, maximum=5
+        )
+
         key_path = Path(settings.VULNHUNTER_GROQ_API_KEY_FILE).expanduser()
         try:
             provider = GroqProvider.from_key_file(
                 key_path,
-                approved_models=(
-                    settings.VULNHUNTER_INTELLIGENCE_PRIMARY_MODEL,
-                    settings.VULNHUNTER_INTELLIGENCE_DEEP_MODEL,
-                ),
+                approved_models=(primary_model, deep_model),
                 api_base=settings.VULNHUNTER_GROQ_API_BASE,
             )
-            store = IntelligenceStore(Path(settings.VULNHUNTER_INTELLIGENCE_ROOT))
+            store = IntelligenceStore(root)
             loop = GroqFindingReasoningLoop(
                 connector=provider,
-                primary_model=settings.VULNHUNTER_INTELLIGENCE_PRIMARY_MODEL,
-                deep_model=settings.VULNHUNTER_INTELLIGENCE_DEEP_MODEL,
-                timeout_seconds=settings.VULNHUNTER_INTELLIGENCE_TIMEOUT_SECONDS,
-                maximum_input_bytes=settings.VULNHUNTER_INTELLIGENCE_MAX_INPUT_BYTES,
-                maximum_output_tokens=settings.VULNHUNTER_INTELLIGENCE_MAX_OUTPUT_TOKENS,
+                primary_model=primary_model,
+                deep_model=deep_model,
+                timeout_seconds=timeout_seconds,
+                maximum_input_bytes=maximum_input_bytes,
+                maximum_output_tokens=maximum_output_tokens,
             )
         except (OSError, ValueError, GroqProviderError, IntelligenceAnalysisError) as exc:
             raise CommandError(str(exc)) from exc
@@ -62,9 +113,7 @@ class Command(BaseCommand):
         watch = bool(options["watch"])
         try:
             while True:
-                request = store.claim_next(
-                    maximum_attempts=settings.VULNHUNTER_INTELLIGENCE_MAX_ATTEMPTS
-                )
+                request = store.claim_next(maximum_attempts=maximum_attempts)
                 if request is None:
                     if not watch:
                         self.stdout.write("No advisory finding analysis is pending.")
@@ -79,7 +128,7 @@ class Command(BaseCommand):
                     store.fail(
                         request.analysis_id,
                         f"{type(exc).__name__}: {exc}",
-                        maximum_attempts=settings.VULNHUNTER_INTELLIGENCE_MAX_ATTEMPTS,
+                        maximum_attempts=maximum_attempts,
                     )
                     self.stderr.write(
                         self.style.WARNING(

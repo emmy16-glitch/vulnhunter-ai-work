@@ -49,6 +49,7 @@ jobs:
           python -m ruff check \
             vulnhunter/scope/validator.py \
             vulnhunter/web/conversation_service.py \
+            vulnhunter/web/conversation_state.py \
             vulnhunter/web/conversational_authorization.py \
             vulnhunter/web/conversational_views.py \
             vulnhunter/web/conversation_approval_views.py \
@@ -61,6 +62,7 @@ jobs:
             vulnhunter/security/redaction.py \
             vulnhunter/security/sensitive_patterns.py \
             tests/unit/test_chat_runtime_reply.py \
+            tests/unit/test_conversation_core_redesign.py \
             tests/unit/test_conversational_url_targets.py \
             tests/unit/test_conversation_experience.py \
             tests/unit/test_conversational_workspace.py \
@@ -73,6 +75,7 @@ jobs:
           python -m ruff format --check \
             vulnhunter/scope/validator.py \
             vulnhunter/web/conversation_service.py \
+            vulnhunter/web/conversation_state.py \
             vulnhunter/web/conversational_authorization.py \
             vulnhunter/web/conversational_views.py \
             vulnhunter/web/conversation_approval_views.py \
@@ -85,6 +88,7 @@ jobs:
             vulnhunter/security/redaction.py \
             vulnhunter/security/sensitive_patterns.py \
             tests/unit/test_chat_runtime_reply.py \
+            tests/unit/test_conversation_core_redesign.py \
             tests/unit/test_conversational_url_targets.py \
             tests/unit/test_conversation_experience.py \
             tests/unit/test_conversational_workspace.py \
@@ -110,6 +114,7 @@ jobs:
           python manage.py migrate --noinput
           python -m pytest -q \
             tests/unit/test_chat_runtime_reply.py \
+            tests/unit/test_conversation_core_redesign.py \
             tests/unit/test_conversational_url_targets.py \
             tests/unit/test_conversation_experience.py \
             tests/unit/test_conversational_workspace.py \

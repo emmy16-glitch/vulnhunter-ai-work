@@ -25,6 +25,7 @@ from vulnhunter.providers import (
     ProviderOutputKind,
     ProviderResponse,
 )
+from vulnhunter.security import redact_text
 from vulnhunter.security_tools.scanner_protocol import ScannerCandidateObservation
 
 
@@ -53,7 +54,7 @@ def build_analysis_request(
 ) -> FindingAnalysisRequest:
     evidence = tuple(dict.fromkeys(str(value) for value in capsule.evidence_hashes))
     observations = tuple(
-        f"{item.observation_type}:{item.value}"[:500]
+        redact_text(f"{item.observation_type}:{item.value}")[:500]
         for item in capsule.structured_observations
     )
     seed = f"{finding_id}:{capsule.capsule_hash()}"
@@ -65,12 +66,12 @@ def build_analysis_request(
         finding_id=finding_id,
         run_id=run_id,
         campaign_id=campaign_id,
-        title=candidate.title,
-        scanner_severity=candidate.severity,
-        scanner_confidence=candidate.confidence,
-        verification_verdict=str(verdict),
-        verification_strategy=str(strategy),
-        scanner_template_id=candidate.template_id or "unknown",
+        title=redact_text(candidate.title),
+        scanner_severity=redact_text(candidate.severity),
+        scanner_confidence=redact_text(candidate.confidence),
+        verification_verdict=redact_text(str(verdict)),
+        verification_strategy=redact_text(str(strategy)),
+        scanner_template_id=redact_text(candidate.template_id or "unknown"),
         target_identity=capsule.target_identity,
         evidence_sha256=evidence,
         safe_observations=observations,

@@ -133,7 +133,11 @@ def _sanitize_for_groq(text: str) -> str:
     return sanitized[:4_000]
 
 
-def _groq_advisory(text: str, *, available_profiles: tuple[str, ...]) -> tuple[str | None, str]:
+def _groq_advisory(
+    text: str,
+    *,
+    available_profiles: tuple[str, ...],
+) -> tuple[str | None, str]:
     if not getattr(settings, "VULNHUNTER_GROQ_ENABLED", False):
         return None, "Groq advisory is disabled."
     key_path = Path(settings.VULNHUNTER_GROQ_API_KEY_FILE).expanduser()
@@ -143,11 +147,12 @@ def _groq_advisory(text: str, *, available_profiles: tuple[str, ...]) -> tuple[s
     sanitized = _sanitize_for_groq(text)
     prompt = (
         "Interpret a cybersecurity assessment chat request. The deterministic backend owns "
-        "authorization, target matching, ports, approval, Nuclei execution, evidence, and findings. "
-        "Do not claim any tool ran. Return content as a JSON string with keys intent, message, "
-        "recommended_profile, and missing. intent must be scan, status, cancel, or clarify. "
-        "recommended_profile must be one of the supplied profiles or null. missing must be an array "
-        "containing only target, port, profile, or authorization. Keep message under 240 characters. "
+        "authorization, target matching, ports, approval, Nuclei execution, evidence, "
+        "and findings. Do not claim any tool ran. Return content as a JSON string with keys "
+        "intent, message, recommended_profile, and missing. intent must be scan, status, "
+        "cancel, or clarify. recommended_profile must be one of the supplied profiles or "
+        "null. missing must be an array containing only target, port, profile, or "
+        "authorization. Keep message under 240 characters. "
         f"Available profiles: {', '.join(available_profiles) or 'none'}. "
         f"Sanitized user request: {sanitized}"
     )
@@ -203,7 +208,11 @@ def _groq_advisory(text: str, *, available_profiles: tuple[str, ...]) -> tuple[s
     return json.dumps(result), f"Groq advisory model: {response.model}"
 
 
-def interpret_request(text: str, *, available_profiles: tuple[str, ...]) -> InterpretedRequest:
+def interpret_request(
+    text: str,
+    *,
+    available_profiles: tuple[str, ...],
+) -> InterpretedRequest:
     """Combine deterministic extraction with a bounded Groq advisory."""
 
     target = extract_target(text)
@@ -215,7 +224,10 @@ def interpret_request(text: str, *, available_profiles: tuple[str, ...]) -> Inte
     provider = "deterministic"
     detail = "Deterministic request parsing is active."
 
-    advisory, advisory_detail = _groq_advisory(text, available_profiles=available_profiles)
+    advisory, advisory_detail = _groq_advisory(
+        text,
+        available_profiles=available_profiles,
+    )
     if advisory:
         try:
             payload = json.loads(advisory)

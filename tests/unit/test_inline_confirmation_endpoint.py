@@ -9,6 +9,19 @@ from django.contrib.auth import get_user_model
 from vulnhunter.web import conversation_approval_views
 
 
+def test_confirmation_copy_reports_queued_and_blocked_states():
+    queued = SimpleNamespace(workflow_state="queued")
+    blocked = SimpleNamespace(
+        workflow_state="execution_blocked",
+        execution_blocking_reason="The isolated worker is disabled.",
+    )
+
+    assert "continuing" in conversation_approval_views._confirmation_copy(queued)
+    blocked_copy = conversation_approval_views._confirmation_copy(blocked)
+    assert "execution remains blocked" in blocked_copy
+    assert "isolated worker is disabled" in blocked_copy
+
+
 @pytest.mark.django_db
 def test_inline_confirmation_resumes_the_owned_passive_run(client):
     user = get_user_model().objects.create_user(
@@ -30,7 +43,10 @@ def test_inline_confirmation_resumes_the_owned_passive_run(client):
         command_plan_summary={"exact_profile": "passive", "plan_digest": digest},
     )
     confirmed = SimpleNamespace(run_id="assessment-inline-test")
-    refreshed = SimpleNamespace(run_id="assessment-inline-test")
+    refreshed = SimpleNamespace(
+        run_id="assessment-inline-test",
+        workflow_state="queued",
+    )
     store = Mock()
     store.get.return_value = pending
     store.confirm_exact_passive_plan.return_value = confirmed

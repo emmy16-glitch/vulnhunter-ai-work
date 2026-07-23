@@ -39,8 +39,10 @@ jobs:
           python -m pip install pytest pytest-asyncio pytest-django ruff
       - name: Check conversational JavaScript
         run: |
+          node --check vulnhunter/web/static/web/conversation-runtime-compat.js
           node --check vulnhunter/web/static/web/conversation.js
           node --check vulnhunter/web/static/web/conversation-autoscroll.js
+          node tests/ui/chat_runtime_compat.cjs
       - name: Check conversational and intelligence Python
         run: |
           set +e
@@ -56,6 +58,7 @@ jobs:
             vulnhunter/intelligence \
             vulnhunter/security/redaction.py \
             vulnhunter/security/sensitive_patterns.py \
+            tests/unit/test_chat_runtime_reply.py \
             tests/unit/test_conversation_experience.py \
             tests/unit/test_conversational_workspace.py \
             tests/unit/test_inline_confirmation_endpoint.py \
@@ -76,6 +79,7 @@ jobs:
             vulnhunter/intelligence \
             vulnhunter/security/redaction.py \
             vulnhunter/security/sensitive_patterns.py \
+            tests/unit/test_chat_runtime_reply.py \
             tests/unit/test_conversation_experience.py \
             tests/unit/test_conversational_workspace.py \
             tests/unit/test_inline_confirmation_endpoint.py \
@@ -99,6 +103,7 @@ jobs:
         run: |
           python manage.py migrate --noinput
           python -m pytest -q \
+            tests/unit/test_chat_runtime_reply.py \
             tests/unit/test_conversation_experience.py \
             tests/unit/test_conversational_workspace.py \
             tests/unit/test_inline_confirmation_endpoint.py \

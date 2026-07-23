@@ -22,13 +22,16 @@ const password = "Vh-Visual-Audit-2026!";
     page.getByRole("button", { name: /sign in securely/i }).click(),
   ]);
   const input = page.locator("[data-conversation-input]");
+  const send = page.locator("[data-conversation-send]");
   await input.fill("Scan http://10.0.11.34:8010/ using the passive profile");
-  await page.locator("[data-conversation-send]").click();
+  await send.click();
   await page.getByText(/Review and confirm the plan below/i).waitFor({ timeout: 15000 });
   await page.locator("[data-inline-approval]").waitFor({ state: "visible", timeout: 15000 });
   const runId = await page.locator("[data-run-card]").getAttribute("data-run-id");
   if (!runId) throw new Error("The conversation did not expose an authoritative run id");
-  await page.locator("[data-approval-confirm]").click();
+
+  await input.fill("Confirm");
+  await send.click();
   await page.getByText(/Approved\. Starting the governed assessment/i).waitFor({ timeout: 15000 });
   const worker = execFileAsync("python", [
     "tests/ui/complete_conversation_run.py",
@@ -41,7 +44,7 @@ const password = "Vh-Visual-Audit-2026!";
   await worker;
 
   await input.fill("Show me the results");
-  await page.locator("[data-conversation-send]").click();
+  await send.click();
   const results = page.locator(".vh-chat-message.is-assistant .vh-message-copy").last();
   await results.waitFor({ timeout: 10000 });
   const resultsCopy = await results.textContent();
@@ -50,7 +53,7 @@ const password = "Vh-Visual-Audit-2026!";
   }
 
   await input.fill("Next step");
-  await page.locator("[data-conversation-send]").click();
+  await send.click();
   const next = page.locator(".vh-chat-message.is-assistant .vh-message-copy").last();
   await next.waitFor({ timeout: 10000 });
   const nextCopy = await next.textContent();

@@ -16,6 +16,13 @@ from vulnhunter.intelligence import (
     IntelligenceStore,
     IntelligenceStoreError,
 )
+from vulnhunter.learning import (
+    ControlledLearningError,
+    ControlledLearningService,
+    ControlledMemoryStore,
+    ControlledMemoryStoreError,
+    safe_retrieve,
+)
 from vulnhunter.providers import GroqProvider, GroqProviderError
 
 
@@ -99,7 +106,9 @@ class Command(BaseCommand):
             minimum=256,
             maximum=4_000,
         )
-        maximum_attempts = _env_int("VULNHUNTER_INTELLIGENCE_MAX_ATTEMPTS", 2, minimum=1, maximum=5)
+        maximum_attempts = _env_int(
+            "VULNHUNTER_INTELLIGENCE_MAX_ATTEMPTS", 2, minimum=1, maximum=5
+        )
 
         key_path = Path(settings.VULNHUNTER_GROQ_API_KEY_FILE).expanduser()
         try:
@@ -120,7 +129,15 @@ class Command(BaseCommand):
                 maximum_input_bytes=maximum_input_bytes,
                 maximum_output_tokens=maximum_output_tokens,
             )
-        except (OSError, ValueError, GroqProviderError, IntelligenceAnalysisError) as exc:
+            learning_store = ControlledMemoryStore.from_environment()
+            learning = ControlledLearningService(learning_store) if learning_store else None
+        except (
+            OSError,
+            ValueError,
+            GroqProviderError,
+            IntelligenceAnalysisError,
+            ControlledMemoryStoreError,
+        ) as exc:
             raise CommandError(str(exc)) from exc
 
         watch = bool(options["watch"])
@@ -134,6 +151,7 @@ class Command(BaseCommand):
                     time.sleep(poll_seconds)
                     continue
 
+                approved_memory = safe_retrieve(learning_store, request)
                 _record_activity(
                     activity,
                     run_id=request.run_id,
@@ -152,10 +170,11 @@ class Command(BaseCommand):
                         "primary_model": primary_model,
                         "deep_model": deep_model,
                         "maximum_stages": 3,
+                        "approved_memory_items": len(approved_memory),
                     },
                 )
                 try:
-                    report = loop.run(request)
+                    report = loop.run(request, approved_memory=approved_memory)
                     store.complete(report)
                 except (OSError, ValueError, GroqProviderError, IntelligenceStoreError) as exc:
                     safe_error = f"{type(exc).__name__}: {exc}"[:500]
@@ -192,6 +211,17 @@ class Command(BaseCommand):
                         )
                     )
                 else:
+                    candidate_count = 0
+                    if learning is not None:
+                        try:
+                            candidate_count = len(learning.propose_from_report(request, report))
+                        except (
+                            ControlledLearningError,
+                            ControlledMemoryStoreError,
+                            OSError,
+                            ValueError,
+                        ):
+                            candidate_count = 0
                     final = report.final
                     _record_activity(
                         activity,
@@ -225,6 +255,8 @@ class Command(BaseCommand):
                             "remediation_options": (
                                 list(final.remediation_options) if final else []
                             ),
+                            "approved_memory_items": len(approved_memory),
+                            "learning_candidates_created": candidate_count,
                             "trusted": False,
                             "advisory_only": True,
                         },

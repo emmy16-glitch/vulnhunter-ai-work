@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -49,8 +50,18 @@ def prepare_user() -> None:
     )
 
 
+def prepare_reviewed_templates() -> None:
+    source = Path(settings.BASE_DIR) / "config" / "security_tools" / "pilot_templates"
+    destination = Path(settings.VULNHUNTER_NUCLEI_TEMPLATE_ROOT)
+    if not source.is_dir():
+        raise RuntimeError(f"Reviewed pilot template source is missing: {source}")
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copytree(source, destination, dirs_exist_ok=True)
+
+
 def main() -> int:
     prepare_user()
+    prepare_reviewed_templates()
     target = validate_target(
         "http://10.0.11.34:8010/",
         resolver=lambda _hostname: ("10.0.11.34",),

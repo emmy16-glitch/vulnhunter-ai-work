@@ -120,6 +120,19 @@ def _save_state(request: HttpRequest, state: dict[str, object]) -> None:
     request.session.modified = True
 
 
+def _target_for_request(
+    *,
+    intent: str,
+    interpreted_target: str | None,
+    stored_target: object,
+) -> str | None:
+    if intent == "authorize" and isinstance(stored_target, str) and stored_target:
+        return stored_target
+    if interpreted_target:
+        return interpreted_target
+    return stored_target if isinstance(stored_target, str) and stored_target else None
+
+
 def _enum_value(value: object) -> str:
     return str(getattr(value, "value", value))
 
@@ -423,7 +436,11 @@ def message_view(request: HttpRequest) -> JsonResponse:
         return JsonResponse({"message": message})
 
     stored_target = state.get("target")
-    target = interpreted.target or (stored_target if isinstance(stored_target, str) else None)
+    target = _target_for_request(
+        intent=interpreted.intent,
+        interpreted_target=interpreted.target,
+        stored_target=stored_target,
+    )
     if target is None:
         suggestions = [item.approved_targets[0] for item in choices if item.approved_targets]
         message = _append_message(
@@ -505,7 +522,7 @@ def message_view(request: HttpRequest) -> JsonResponse:
             role="assistant",
             kind="authorization_required",
             content=(
-                f"I recognized {canonical} on port {requested_port}. The URL and port are valid, "
+                f"I recognized the URL syntax for {canonical} on port {requested_port}. "
                 "but no active authorization covers that exact target yet. Authorize it in chat "
                 "and I will continue directly to the passive plan. Public websites need a "
                 "contract, ticket, or bug-bounty scope reference."

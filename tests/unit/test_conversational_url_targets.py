@@ -7,6 +7,7 @@ import pytest
 from vulnhunter.authorization.store import AuthorizationStore
 from vulnhunter.exceptions import ScopeValidationError
 from vulnhunter.scope import validate_target
+from vulnhunter.web import conversational_views
 from vulnhunter.web.assessment_workflow import load_nuclei_authorization
 from vulnhunter.web.conversation_service import interpret_request
 from vulnhunter.web.conversational_authorization import (
@@ -120,3 +121,13 @@ def test_public_chat_authorization_records_exact_url_and_port(tmp_path):
     assert record.evidence_reference == "Bug bounty scope page BB-2026-17"
     assert engagement.approved_ports == (8443,)
     assert engagement.private_network_approved is False
+
+
+def test_authorization_keeps_the_previously_pasted_target_when_evidence_is_a_url():
+    selected = conversational_views._target_for_request(
+        intent="authorize",
+        interpreted_target="https://bug-bounty.example/scope",
+        stored_target="https://target.example:8443/login",
+    )
+
+    assert selected == "https://target.example:8443/login"

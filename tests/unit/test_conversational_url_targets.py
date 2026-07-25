@@ -58,13 +58,16 @@ def test_public_resolution_requires_explicit_opt_in():
     assert target.resolved_addresses == ("93.184.216.34",)
 
 
-def test_public_chat_authorization_requires_evidence(tmp_path):
+def test_public_chat_authorization_requires_independent_approval(tmp_path):
     store = AuthorizationStore(tmp_path / "authorization.db")
 
     def resolver(_hostname: str) -> tuple[str, ...]:
         return ("93.184.216.34",)
 
-    with pytest.raises(ConversationalAuthorizationError, match="evidence reference"):
+    with pytest.raises(
+        ConversationalAuthorizationError,
+        match="independent authorization approver",
+    ):
         prepare_conversational_authorization(
             target_url="https://example.com:8443/login",
             evidence_reference=None,
@@ -76,7 +79,7 @@ def test_public_chat_authorization_requires_evidence(tmp_path):
         )
 
 
-def test_chat_authorization_accepts_any_valid_http_port(tmp_path):
+def test_chat_authorization_accepts_any_valid_private_http_port(tmp_path):
     store = AuthorizationStore(tmp_path / "authorization.db")
     instant = datetime(2026, 7, 23, 18, 0, tzinfo=UTC)
 
@@ -97,30 +100,25 @@ def test_chat_authorization_accepts_any_valid_http_port(tmp_path):
     assert engagement.private_network_approved is True
 
 
-def test_public_chat_authorization_records_exact_url_and_port(tmp_path):
+def test_public_chat_authorization_rejects_evidence_only_claims(tmp_path):
     store = AuthorizationStore(tmp_path / "authorization.db")
 
     def resolver(_hostname: str) -> tuple[str, ...]:
         return ("93.184.216.34",)
 
-    instant = datetime(2026, 7, 23, 18, 0, tzinfo=UTC)
-
-    prepared = prepare_conversational_authorization(
-        target_url="https://example.com:8443/login",
-        evidence_reference="Bug bounty scope page BB-2026-17",
-        identity_id="vulnhunter-user",
-        username="vulnhunter",
-        authorization_store=store,
-        resolver=resolver,
-        now=instant,
-    )
-
-    record, engagement = load_nuclei_authorization(store, prepared.authorization_id)
-    assert record.hostname == "example.com"
-    assert record.port == 8443
-    assert record.evidence_reference == "Bug bounty scope page BB-2026-17"
-    assert engagement.approved_ports == (8443,)
-    assert engagement.private_network_approved is False
+    with pytest.raises(
+        ConversationalAuthorizationError,
+        match="independent authorization approver",
+    ):
+        prepare_conversational_authorization(
+            target_url="https://example.com:8443/login",
+            evidence_reference="Bug bounty scope page BB-2026-17",
+            identity_id="vulnhunter-user",
+            username="vulnhunter",
+            authorization_store=store,
+            resolver=resolver,
+            now=datetime(2026, 7, 23, 18, 0, tzinfo=UTC),
+        )
 
 
 def test_authorization_keeps_the_previously_pasted_target_when_evidence_is_a_url():

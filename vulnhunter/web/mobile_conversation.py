@@ -6,11 +6,14 @@ import re
 from uuid import uuid4
 
 from vulnhunter.hunt import build_mobile_hunt_plan
-from vulnhunter.mobile import MobileAnalysisPlanner, MobileAnalysisProfile, MobileAnalysisRequest
+from vulnhunter.mobile import (
+    MobileAnalysisPlanner,
+    MobileAnalysisProfile,
+    MobileAnalysisRequest,
+)
 from vulnhunter.mobile.models import MobileArtifactRecord
 from vulnhunter.security_tools.catalog import default_catalog
 from vulnhunter.web.conversation_attachments import ConversationAttachment
-
 
 _ID_SANITIZER = re.compile(r"[^a-z0-9._-]+")
 

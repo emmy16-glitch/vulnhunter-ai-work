@@ -7,8 +7,9 @@ from pathlib import Path
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, JsonResponse
+from django.urls import reverse
 from django.views.decorators.cache import cache_control
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_GET, require_POST
 
 from vulnhunter.mobile import MobileArtifactError, MobileArtifactIngestor
 from vulnhunter.mobile.models import MobileArtifactRecord
@@ -20,6 +21,7 @@ from vulnhunter.web.conversation_attachments import (
 )
 from vulnhunter.web.conversational_views import _actor, _append_message
 from vulnhunter.web.mobile_conversation import build_mobile_chat_plan, mobile_plan_reply
+from vulnhunter.web.mobile_execution import enqueue_mobile_static_if_ready, mobile_static_status
 from vulnhunter.web.services import WebPermissionDenied
 
 
@@ -104,12 +106,26 @@ def mobile_message_view(request: HttpRequest) -> JsonResponse:
         content=text,
         metadata={"attachment": attachment.payload()},
     )
+    requested_by = actor.governance_identity.reviewer_id
     plan = build_mobile_chat_plan(
         text=text,
-        requested_by=actor.governance_identity.reviewer_id,
+        requested_by=requested_by,
         attachment=attachment,
         artifact=artifact,
     )
+    execution = enqueue_mobile_static_if_ready(
+        request,
+        plan=plan,
+        attachment=attachment,
+        artifact=artifact,
+        requested_by=requested_by,
+    )
+    if execution.get("state") == "queued":
+        execution["status_url"] = reverse(
+            "web-conversation-mobile-status",
+            kwargs={"job_id": execution["job_id"]},
+        )
+    plan["execution"] = execution
     message = _append_message(
         request,
         role="assistant",
@@ -132,3 +148,21 @@ def mobile_message_view(request: HttpRequest) -> JsonResponse:
     )
     forget_attachment(request, attachment_id)
     return JsonResponse({"message": message, "mobile_plan": plan})
+
+
+@cache_control(private=True, no_store=True)
+@login_required
+@require_GET
+def mobile_status_view(request: HttpRequest, job_id: str) -> JsonResponse:
+    try:
+        actor = _actor(request, "scan.read")
+    except WebPermissionDenied as exc:
+        return JsonResponse({"detail": str(exc)}, status=403)
+    status = mobile_static_status(
+        request,
+        job_id=job_id,
+        requested_by=actor.governance_identity.reviewer_id,
+    )
+    if status is None:
+        return JsonResponse({"detail": "Mobile analysis job does not exist."}, status=404)
+    return JsonResponse({"mobile_execution": status})

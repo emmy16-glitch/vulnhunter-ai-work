@@ -18,12 +18,18 @@ NOW = datetime(2026, 7, 25, 8, 30, tzinfo=UTC)
 
 
 def _write_private(path: Path, payload: str) -> Path:
+    path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(payload, encoding="utf-8")
     path.chmod(0o600)
     return path.resolve()
 
 
-def _runtime_policy(tmp_path: Path, *, expires_at: datetime | None = None) -> MobileRuntimePolicy:
+def _runtime_policy(
+    tmp_path: Path,
+    *,
+    expires_at: datetime | None = None,
+) -> MobileRuntimePolicy:
+    tmp_path.mkdir(parents=True, exist_ok=True)
     dummy = _write_private(tmp_path / "tool", "placeholder")
     dummy.chmod(0o700)
     adapter = _write_private(tmp_path / "adapter.py", "print('{}')\n")
@@ -114,7 +120,10 @@ def test_runtime_approval_is_signature_and_digest_bound(tmp_path):
         )
 
 
-def test_mobile_infrastructure_projection_is_fail_closed_and_non_secret(tmp_path, monkeypatch):
+def test_mobile_infrastructure_projection_is_fail_closed_and_non_secret(
+    tmp_path,
+    monkeypatch,
+):
     mobsf_key = _write_private(tmp_path / "mobsf.key", "m" * 64)
     mobsf_policy_path = tmp_path / "mobsf.json"
     mobsf_policy = MobSFServiceConfig(

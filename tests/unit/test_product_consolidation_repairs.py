@@ -63,7 +63,10 @@ def test_public_targets_cannot_be_authorized_from_chat(monkeypatch):
         lambda *_args, **_kwargs: target,
     )
 
-    with pytest.raises(ConversationalAuthorizationError, match="independent authorization approver"):
+    with pytest.raises(
+        ConversationalAuthorizationError,
+        match="independent authorization approver",
+    ):
         prepare_conversational_authorization(
             target_url=target.normalized_url,
             evidence_reference="ticket-123",
@@ -103,7 +106,10 @@ def test_promoted_status_without_promotion_record_is_not_retrievable(tmp_path):
 
 @pytest.mark.django_db
 def test_web_mapping_normalizes_governance_identity():
-    user = get_user_model().objects.create_user(username="case-user", password="long-password-1234")
+    user = get_user_model().objects.create_user(
+        username="case-user",
+        password="long-password-1234",
+    )
     mapping = WebUserMapping(
         user=user,
         governance_identity_id=" Phone-Admin ",
@@ -118,7 +124,10 @@ def test_web_mapping_normalizes_governance_identity():
 @pytest.mark.django_db
 def test_consolidated_routes_redirect_to_the_workspace(client, settings):
     settings.ALLOWED_HOSTS = ["testserver"]
-    user = get_user_model().objects.create_user(username="route-user", password="long-password-1234")
+    user = get_user_model().objects.create_user(
+        username="route-user",
+        password="long-password-1234",
+    )
     WebUserMapping.objects.create(
         user=user,
         governance_identity_id="route-user",
@@ -140,7 +149,10 @@ def test_consolidated_routes_redirect_to_the_workspace(client, settings):
 
 @pytest.mark.django_db
 def test_navigation_has_one_workspace_and_no_mobile_apk_page():
-    user = get_user_model().objects.create_user(username="nav-user", password="long-password-1234")
+    user = get_user_model().objects.create_user(
+        username="nav-user",
+        password="long-password-1234",
+    )
     WebUserMapping.objects.create(
         user=user,
         governance_identity_id="nav-user",
@@ -170,9 +182,15 @@ def test_restore_latest_visible_non_terminal_run(monkeypatch):
         list_agent_runs=lambda: (summary,),
         get_agent_run=lambda _run_id: run,
     )
-    monkeypatch.setattr("vulnhunter.web.services.authorized_actor", lambda *_args, **_kwargs: object())
+    monkeypatch.setattr(
+        "vulnhunter.web.services.authorized_actor",
+        lambda *_args, **_kwargs: object(),
+    )
     monkeypatch.setattr("vulnhunter.web.services.product_service", lambda: service)
-    monkeypatch.setattr("vulnhunter.web.services.run_visible_to_actor", lambda *_args: True)
+    monkeypatch.setattr(
+        "vulnhunter.web.services.run_visible_to_actor",
+        lambda *_args: True,
+    )
 
     _restore_latest_non_terminal_run(request)
 

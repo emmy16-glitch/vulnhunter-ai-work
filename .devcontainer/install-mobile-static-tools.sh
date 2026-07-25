@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -u
 
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+TOOLS_ROOT="$ROOT/.codespaces/tools/mobile-releases"
+
 log() {
   printf '[mobile-tools] %s\n' "$*"
 }
@@ -18,18 +21,31 @@ install_apt_package() {
   fi
 }
 
-log 'Refreshing Debian package metadata for read-only Android tooling.'
+log 'Refreshing Debian metadata for Android tooling and release extraction.'
 if ! sudo apt-get update; then
   log 'APT metadata refresh failed; continuing with tools already present.'
 fi
 
-for package in default-jre-headless apksigner apktool aapt yara radare2 adb; do
+for package in apksigner apktool aapt adb yara file unzip dpkg-dev; do
   install_apt_package "$package"
 done
 
-log 'Installing Python-only APK metadata analyzers into the Codespace environment.'
-if ! python -m pip install 'apkid>=2,<4' 'androguard>=4,<5'; then
-  log 'Python mobile analyzers could not be installed; their adapters will remain gated.'
+log 'Installing pinned Python APK analyzers and dynamic-analysis clients.'
+if ! python -m pip install \
+  'apkid>=2,<4' \
+  'androguard==4.1.4' \
+  'yara-python==4.5.4' \
+  'frida==17.9.11' \
+  'frida-tools==14.10.4'; then
+  log 'One or more Python mobile tools failed to install; affected adapters remain gated.'
+fi
+
+mkdir -p "$HOME/.local/bin" "$TOOLS_ROOT"
+chmod 700 "$HOME/.local" "$HOME/.local/bin" "$TOOLS_ROOT" 2>/dev/null || true
+
+log 'Installing digest-verified JADX, Radare2 and Ghidra release assets.'
+if ! python "$ROOT/scripts/install_mobile_release_tools.py" --root "$TOOLS_ROOT"; then
+  log 'One or more release tools failed verification or installation; discovery keeps them gated.'
 fi
 
 log 'Mobile tool installation attempt complete. Worker policy discovery decides what is usable.'

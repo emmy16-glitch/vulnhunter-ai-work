@@ -180,17 +180,21 @@ def _hash_stable_regular_file(path: Path, *, root: Path) -> str:
             os.close(verification_descriptor)
 
         stable_identity = (
-            opened_after.st_dev,
-            opened_after.st_ino,
-            opened_after.st_ctime_ns,
-        ) == (
-            verified.st_dev,
-            verified.st_ino,
-            verified.st_ctime_ns,
-        ) == (
-            after.st_dev,
-            after.st_ino,
-            after.st_ctime_ns,
+            (
+                opened_after.st_dev,
+                opened_after.st_ino,
+                opened_after.st_ctime_ns,
+            )
+            == (
+                verified.st_dev,
+                verified.st_ino,
+                verified.st_ctime_ns,
+            )
+            == (
+                after.st_dev,
+                after.st_ino,
+                after.st_ctime_ns,
+            )
         )
         stable_content = (
             (

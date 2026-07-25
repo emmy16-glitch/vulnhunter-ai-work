@@ -139,7 +139,9 @@ def test_assessment_creation_post_requires_csrf(settings, tmp_path):
 
 
 @pytest.mark.django_db
-def test_empty_state_and_modal_are_real_query_backed(client, settings, tmp_path):
+def test_assessment_history_is_workspace_led_without_a_second_creation_modal(
+    client, settings, tmp_path
+):
     service = _service(tmp_path)
     _configure(settings, tmp_path, service)
     user = get_user_model().objects.create_user(username="web-a", password="password-1234")
@@ -150,8 +152,9 @@ def test_empty_state_and_modal_are_real_query_backed(client, settings, tmp_path)
 
     content = response.content.decode("utf-8")
     assert response.status_code == 200
-    assert "No Active Assessment" in content
-    assert "data-assessment-open" in content
-    assert '<select name="target"' in content
-    assert '<input name="target"' not in content
-    assert "worker-readiness checks are required before queueing" in content
+    assert "Assessment History" in content
+    assert "No assessments yet" in content
+    assert "Open workspace" in content
+    assert "data-assessment-open" not in content
+    assert '<select name="target"' not in content
+    assert "New Assessment" not in content

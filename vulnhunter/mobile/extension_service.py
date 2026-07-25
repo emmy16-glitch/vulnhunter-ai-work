@@ -70,8 +70,7 @@ class MobileExtensionQueueService:
                 (
                     item
                     for item in self.ingestor.list_records()
-                    if item.artifact_id == job.artifact_id
-                    and item.sha256 == job.artifact_sha256
+                    if item.artifact_id == job.artifact_id and item.sha256 == job.artifact_sha256
                 ),
                 None,
             )

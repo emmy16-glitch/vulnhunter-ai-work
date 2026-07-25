@@ -209,9 +209,7 @@ def test_product_blueprint_navigation_matches_the_unified_workspace():
         Path("config/product_interface/navigation.json").read_text(encoding="utf-8")
     )
     labels = [
-        item["label"]
-        for section in navigation["sections"]
-        for item in section.get("items", [])
+        item["label"] for section in navigation["sections"] for item in section.get("items", [])
     ]
 
     assert labels.count("Assessment Workspace") == 1

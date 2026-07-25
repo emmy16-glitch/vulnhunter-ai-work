@@ -7,6 +7,7 @@ from vulnhunter.web import (
     assessment_views,
     audit_views,
     conversation_approval_views,
+    conversation_mobile_extension_views,
     conversation_mobile_views,
     conversational_views,
     dashboard_dispatch_views,
@@ -61,6 +62,16 @@ urlpatterns = [
         "workspace/mobile-runs/<str:job_id>/status/",
         conversation_mobile_views.mobile_status_view,
         name="web-conversation-mobile-status",
+    ),
+    path(
+        "workspace/mobile-extensions/approve/",
+        conversation_mobile_extension_views.mobile_extension_approve_view,
+        name="web-conversation-mobile-extension-approve",
+    ),
+    path(
+        "workspace/mobile-extensions/<str:job_id>/status/",
+        conversation_mobile_extension_views.mobile_extension_status_view,
+        name="web-conversation-mobile-extension-status",
     ),
     path(
         "workspace/approve/",
@@ -218,27 +229,5 @@ urlpatterns = [
         "approvals/<str:request_id>/decision/",
         operations_views.approval_decision_view,
         name="web-approval-decision",
-    ),
-    path(
-        "security-tools/",
-        operations_views.security_tool_registry_view,
-        name="web-security-tool-registry",
-    ),
-    path(
-        "advanced-assessment/",
-        operations_views.advanced_profiles_view,
-        name="web-advanced-profiles",
-    ),
-    path(
-        "mobile-analysis/",
-        operations_views.mobile_analysis_view,
-        name="web-mobile-analysis",
-    ),
-    path("pilot/plans/", views.pilot_plan_list_view, name="web-pilot-plan-list"),
-    path("pilot/plans/<str:plan_id>/", views.pilot_plan_detail_view, name="web-pilot-plan-detail"),
-    path(
-        "pilot/plans/<str:plan_id>/validation/",
-        views.pilot_plan_validation_view,
-        name="web-pilot-plan-validation",
     ),
 ]

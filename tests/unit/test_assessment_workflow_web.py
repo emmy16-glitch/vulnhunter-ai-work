@@ -139,7 +139,7 @@ def test_backend_rejects_modified_target_and_profile_even_after_form_retirement(
 
 
 @pytest.mark.django_db
-def test_retired_assessment_creation_route_redirects_without_execution(settings, tmp_path):
+def test_retired_assessment_creation_post_fails_closed_without_csrf(settings, tmp_path):
     service = _service(tmp_path)
     _configure(settings, tmp_path, service)
     user = get_user_model().objects.create_user(username="csrf-a", password="password-1234")
@@ -148,8 +148,7 @@ def test_retired_assessment_creation_route_redirects_without_execution(settings,
 
     response = client.post("/scans/new/", {})
 
-    assert response.status_code == 302
-    assert response["Location"] == "/?intent=new-assessment"
+    assert response.status_code == 403
     assert AgentStore(tmp_path / "agent.db").list_tasks() == ()
 
 

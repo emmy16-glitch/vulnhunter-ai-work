@@ -11,6 +11,7 @@
     });
   }
 
+  if (typeof document === "undefined" || typeof window === "undefined") return;
   const current = document.currentScript?.src;
   if (!current) return;
 

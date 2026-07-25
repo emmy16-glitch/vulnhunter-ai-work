@@ -69,7 +69,7 @@ def test_canonical_navigation_matches_the_unified_product():
         assert retired not in navigation
 
 
-def test_canonical_routes_and_legacy_redirects_are_explicit():
+def test_canonical_routes_and_legacy_aliases_are_explicit():
     urls = _text(URLS)
     for route_name in (
         "web-authorization-list",
@@ -90,7 +90,7 @@ def test_canonical_routes_and_legacy_redirects_are_explicit():
         assert route_name in urls
 
     assert 'RedirectView.as_view(url="/?intent=new-assessment"' in urls
-    assert 'RedirectView.as_view(url="/?intent=apk-analysis"' in urls
+    assert '"mobile-analysis/",\n        dashboard_dispatch_views.dashboard_view' in urls
     assert 'RedirectView.as_view(pattern_name="web-scan-run-detail"' in urls
     assert urls.count('path(\n        "scans/<str:run_id>/"') == 1
     assert "audit_views.audit_overview_view" in urls
@@ -296,7 +296,7 @@ def test_pending_approval_records_a_real_decision_and_returns_to_the_canonical_r
 
 
 @pytest.mark.django_db
-def test_product_routes_render_and_retired_creation_routes_redirect(
+def test_product_routes_render_and_retired_creation_routes_are_unified(
     client,
     tmp_path,
     settings,
@@ -371,8 +371,9 @@ def test_product_routes_render_and_retired_creation_routes_redirect(
     mobile = client.get("/mobile-analysis/")
     assert new_scan.status_code == 302
     assert new_scan["Location"] == "/?intent=new-assessment"
-    assert mobile.status_code == 302
-    assert mobile["Location"] == "/?intent=apk-analysis"
+    assert mobile.status_code == 200
+    assert b"Assessment Workspace" in mobile.content
+    assert b"data-conversation-form" in mobile.content
 
     compatibility = client.get("/machine-oracle/")
     assert compatibility.status_code == 302

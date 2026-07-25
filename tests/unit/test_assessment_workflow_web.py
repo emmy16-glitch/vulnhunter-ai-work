@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 import pytest
 from django.contrib.auth import get_user_model
-from django.test import Client
+from django.test import Client, RequestFactory
 from test_assessment_workflow import TARGET, _bind, _record, _service
 
 from vulnhunter.agent.store import AgentStore
@@ -31,6 +31,13 @@ def _actor():
     return SimpleNamespace(
         governance_identity=SimpleNamespace(reviewer_id="operator-a"),
     )
+
+
+def _post_request(user, payload):
+    request = RequestFactory().post("/internal/new-assessment/", payload)
+    request.user = user
+    request.resolver_match = None
+    return request
 
 
 @pytest.mark.django_db
@@ -81,13 +88,15 @@ def test_authorization_endpoint_returns_only_minimum_active_actor_fields(
 
 
 @pytest.mark.django_db
-def test_browser_modified_target_and_profile_are_rejected_by_post(client, settings, tmp_path):
+def test_backend_rejects_modified_target_and_profile_even_after_form_retirement(
+    settings,
+    tmp_path,
+):
     service = _service(tmp_path)
     _configure(settings, tmp_path, service)
     record = _record(service.authorization_store)
     _bind(service, record)
     user = get_user_model().objects.create_user(username="web-a", password="password-1234")
-    client.force_login(user)
 
     with (
         patch.object(operations_views, "authorized_actor", return_value=_actor()),
@@ -97,25 +106,29 @@ def test_browser_modified_target_and_profile_are_rejected_by_post(client, settin
             return_value=service,
         ),
     ):
-        target_response = client.post(
-            "/scans/new/",
-            {
-                "authorization_id": record.authorization_id,
-                "target": "https://other.lab:443/app",
-                "protocol": "https",
-                "port": "443",
-                "profile": "passive",
-            },
+        target_response = operations_views.new_scan_view(
+            _post_request(
+                user,
+                {
+                    "authorization_id": record.authorization_id,
+                    "target": "https://other.lab:443/app",
+                    "protocol": "https",
+                    "port": "443",
+                    "profile": "passive",
+                },
+            )
         )
-        profile_response = client.post(
-            "/scans/new/",
-            {
-                "authorization_id": record.authorization_id,
-                "target": TARGET,
-                "protocol": "https",
-                "port": "443",
-                "profile": "intrusive",
-            },
+        profile_response = operations_views.new_scan_view(
+            _post_request(
+                user,
+                {
+                    "authorization_id": record.authorization_id,
+                    "target": TARGET,
+                    "protocol": "https",
+                    "port": "443",
+                    "profile": "intrusive",
+                },
+            )
         )
 
     assert target_response.status_code == 200
@@ -126,7 +139,7 @@ def test_browser_modified_target_and_profile_are_rejected_by_post(client, settin
 
 
 @pytest.mark.django_db
-def test_assessment_creation_post_requires_csrf(settings, tmp_path):
+def test_retired_assessment_creation_route_redirects_without_execution(settings, tmp_path):
     service = _service(tmp_path)
     _configure(settings, tmp_path, service)
     user = get_user_model().objects.create_user(username="csrf-a", password="password-1234")
@@ -135,7 +148,9 @@ def test_assessment_creation_post_requires_csrf(settings, tmp_path):
 
     response = client.post("/scans/new/", {})
 
-    assert response.status_code == 403
+    assert response.status_code == 302
+    assert response["Location"] == "/?intent=new-assessment"
+    assert AgentStore(tmp_path / "agent.db").list_tasks() == ()
 
 
 @pytest.mark.django_db

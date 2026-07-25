@@ -1,11 +1,17 @@
-"""Manager and worker services for queued networkless APK inspection."""
+"""Manager and worker services for queued isolated APK inspection."""
 
 from __future__ import annotations
 
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 
+from vulnhunter.hunt.mobile_graph import build_mobile_evidence_graph
+from vulnhunter.hunt.mobile_runtime import run_mobile_evidence_hunt
 from vulnhunter.mobile.artifacts import MobileArtifactIngestor
+from vulnhunter.mobile.static_progress import (
+    MobileStaticProgressError,
+    MobileStaticProgressStore,
+)
 from vulnhunter.mobile.static_spool import (
     MobileStaticJobReceipt,
     MobileStaticSpool,
@@ -36,12 +42,14 @@ class MobileStaticQueueService:
         self.policy = policy
         self.ingestor = ingestor
         self.clock = clock or (lambda: datetime.now(UTC))
+        self.progress = MobileStaticProgressStore(spool.root)
 
     def run_once(self) -> MobileStaticJobReceipt | None:
         claimed = self.spool.claim_next()
         if claimed is None:
             return None
         now = self.clock()
+        job: SignedMobileStaticJob | None = None
         try:
             job = self.spool.load_claimed(claimed, key=self.signing_key, now=now)
             record = next(
@@ -56,23 +64,76 @@ class MobileStaticQueueService:
                 raise MobileStaticQueueServiceError(
                     "The queued APK no longer matches the ingested artifact record."
                 )
+
+            def publish(event: dict[str, object]) -> None:
+                self.progress.append_event(
+                    job_id=job.job_id,
+                    event=event,
+                    key=self.signing_key,
+                )
+
             result = MobileStaticWorker(self.policy).analyze(
                 record,
                 analysis_reference=job.job_id,
+                progress_callback=publish,
             )
+            hunt = run_mobile_evidence_hunt(result)
+            graph = build_mobile_evidence_graph(artifact=record, hunt=hunt)
+            summary = {
+                "captures": [
+                    {
+                        "tool": capture.tool,
+                        "return_code": capture.return_code,
+                        "output_sha256": capture.output_sha256,
+                        "truncated": capture.truncated,
+                        "started_at": capture.started_at.isoformat(),
+                        "completed_at": capture.completed_at.isoformat(),
+                        "duration_ms": capture.duration_ms,
+                        "evidence": capture.evidence,
+                    }
+                    for capture in result.captures
+                ],
+                "hunt": hunt.model_dump(mode="json"),
+                "graph": graph.model_dump(mode="json"),
+            }
             receipt = MobileStaticJobReceipt.from_result(job=job, result=result)
+            success = result.state == "completed"
             self.spool.finish(
                 claimed,
                 receipt=receipt,
-                success=result.state == "completed",
+                success=success,
+            )
+            self.progress.finalize(
+                job_id=job.job_id,
+                success=success,
+                result_summary=summary,
+                key=self.signing_key,
             )
             return receipt
-        except (OSError, ValueError, MobileStaticSpoolError, MobileStaticQueueServiceError) as exc:
+        except (
+            OSError,
+            ValueError,
+            MobileStaticProgressError,
+            MobileStaticSpoolError,
+            MobileStaticQueueServiceError,
+        ) as exc:
             self.spool.reject(
                 claimed,
                 reason=f"Mobile static job failed closed: {type(exc).__name__}.",
                 now=now,
             )
+            if job is not None:
+                try:
+                    self.progress.finalize(
+                        job_id=job.job_id,
+                        success=False,
+                        result_summary={
+                            "error": f"Mobile static job failed closed: {type(exc).__name__}."
+                        },
+                        key=self.signing_key,
+                    )
+                except (OSError, ValueError, MobileStaticProgressError):
+                    pass
             raise MobileStaticQueueServiceError(str(exc)) from exc
 
 

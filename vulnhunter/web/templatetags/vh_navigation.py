@@ -149,7 +149,7 @@ def canonical_navigation(user: Any) -> tuple[dict[str, object], ...]:
             "url_name": "web-dashboard",
             "icon": "grid",
             "actions": ("dashboard.read", "scan.create", "scan.read"),
-            "active_routes": ("web-dashboard",),
+            "active_routes": ("web-dashboard", "web-mobile-analysis"),
         },
         {
             "section_id": "collection",
@@ -170,6 +170,7 @@ def canonical_navigation(user: Any) -> tuple[dict[str, object], ...]:
             "active_routes": (
                 "web-scan-run-list",
                 "web-scan-run-detail",
+                "web-agent-run-detail",
                 "web-agent-run-activity",
                 "web-agent-run-activity-stream",
                 "web-agent-run-list",

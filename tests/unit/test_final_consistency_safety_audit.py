@@ -9,6 +9,7 @@ import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management.base import CommandError
 
+from vulnhunter.exceptions import GovernanceAuthenticationError
 from vulnhunter.governance.service import bootstrap_administrator, create_identity
 from vulnhunter.governance.store import GovernanceStore
 from vulnhunter.mobile.models import MobileArtifactRecord
@@ -89,7 +90,7 @@ def test_learning_actor_must_authenticate_against_governance(tmp_path, settings)
         )
         == "learning-admin"
     )
-    with pytest.raises(Exception, match="authentication failed"):
+    with pytest.raises(GovernanceAuthenticationError, match="authentication failed"):
         _authenticated_learning_actor(
             actor="learning-admin",
             secret="wrong-secret",

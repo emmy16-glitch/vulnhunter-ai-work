@@ -1,38 +1,35 @@
 # VulnHunter
 
-VulnHunter is an authorised, laboratory-only security assessment and verification platform.
+VulnHunter is an authorised, laboratory-only security assessment and verification platform. It combines deterministic tools, evidence provenance, human authority and a conversational workspace without granting an AI model execution or approval power.
 
-## Current milestone
+## Current product state
 
-Milestone 33 provides:
+The repository currently provides:
 
-- everything delivered through Milestone 32;
+- one responsive assessment workspace for authorised website and APK work;
 - exact target, protocol, port, address and profile authorization;
-- immutable Nuclei plans and digest-bound human approval;
+- immutable Nuclei plans with digest-bound confirmation or approval;
 - a signed manager-to-worker spool with replay and expiry protection;
-- a passive-only isolated Nuclei worker pilot;
-- a restricted SSH bridge for running the pinned Nuclei process on an owned host;
-- fixed logical-to-transport target mapping without public exposure;
-- genuine request and result digests across the remote worker boundary;
+- a passive-only private-lab Nuclei worker pilot;
+- a restricted SSH bridge for an operator-owned worker host;
 - bounded timeout, cancellation, redaction and restart recovery;
 - evidence normalization into candidate findings;
-- deterministic verification and proof capsules inside each assessment;
-- one unified finding lifecycle with human review and release gates;
+- deterministic verification and proof capsules;
+- one finding lifecycle with independent review, adjudication and release gates;
 - optional sanitized Groq advisory analysis that is disabled by default;
-- a networkless, read-only mobile static-analysis worker;
-- a controlled synthetic Active Validation workspace with up to ten clean-snapshot trials;
-- responsive operational pages for assessments, findings, approvals, review, reports and audit;
-- automated desktop, tablet and mobile browser-quality checks;
-- loopback-only production deployment examples with mounted secret files.
+- resumable APK upload and a networkless, read-only mobile static-analysis worker;
+- a controlled synthetic Active Validation workspace;
+- shared desktop, tablet and mobile product styling;
+- automated Python, browser, conversational and genuine private-lab acceptance checks.
 
-The active assessment path is:
+The canonical website-assessment path is:
 
 ```text
-Authorization
-→ immutable plan
-→ exact human approval
+Pre-existing authorization or self-controlled private-lab authorization
+→ immutable passive plan
+→ exact plan confirmation
 → signed worker job
-→ passive private-lab scan through a local or restricted remote worker
+→ passive private-lab scan
 → bounded evidence
 → candidate finding
 → deterministic verification
@@ -41,51 +38,63 @@ Authorization
 → governed release
 ```
 
-Scanner output, deterministic verification, optional controlled validation and optional advisory analysis are consolidated into one finding record. Tool and provider details remain available as evidence provenance and audit metadata rather than separate competing findings.
+Exact passive-plan confirmation is limited to the immutable, authorised passive plan displayed to the run owner. Higher-risk actions, public-target authorization, active validation, review, adjudication and publication retain their separate human-control requirements.
 
-## Model-provider decision
+Scanner observations, deterministic verification, optional controlled validation and optional advisory analysis are consolidated into one finding record. Tool and provider details remain evidence provenance and audit metadata rather than separate competing findings.
 
-VulnHunter is model-provider neutral. Qwen is not a runtime, frontend, scanner, authority, or required dependency. Historical model research does not grant an implementation requirement. Optional advisory providers remain non-authoritative and the platform continues to operate through deterministic tools and human review when no model is configured.
+## Authorization boundary
 
-See `docs/intelligence/ADR_003_MODEL_PROVIDER_NEUTRALITY.md`.
+Conversational authorization creation is restricted to self-controlled private-network laboratory targets. Public targets cannot be authorised from chat. They must already be covered by an exact, independently approved authorization record before VulnHunter can prepare a plan.
+
+The default passive worker accepts a reviewed literal RFC1918 target and reviewed passive template with rate limit `1`, concurrency `1`, no redirects, no public OAST, no cloud upload, no automatic updates, no headless execution, and no code or file templates.
+
+Public Internet scanning and destructive testing remain prohibited.
 
 ## Default safety state
 
 A normal repository checkout does not automatically:
 
-- activate a local or remote Nuclei worker policy;
-- install or start a Nuclei binary;
+- install, enable or start a Nuclei worker;
 - contact a target;
+- create authorization for a public target;
 - provision a signing key or SSH identity;
-- alter `authorized_keys` without an explicit operator command;
-- activate Groq or store its API key;
+- alter `authorized_keys`;
+- activate Groq or store its key;
 - execute an uploaded APK;
-- start an emulator or dynamic Android laboratory;
+- start MobSF, an emulator, ADB or Frida;
+- enable controlled learning;
 - enable the controlled validation worker in production;
 - deploy PostgreSQL, TLS, DNS or a reverse proxy;
 - publish a finding without human review.
 
-The manager remains fail-closed. A browser request cannot install a scanner, enable a worker, change template trust or expand scope. The reviewed Codespaces devcontainer is an explicit operator-selected private-lab deployment and prepares those local prerequisites outside the browser.
+The manager remains fail-closed. A browser request cannot install a scanner, enable a worker, change reviewed template trust, expand scope or grant itself authority. The Codespaces devcontainer is an explicit operator-selected private-lab environment that prepares local prerequisites outside the browser.
 
-## Scope boundary
+## Unified web workspace
 
-The passive worker pilot accepts exactly one approved literal RFC1918 address, one reviewed passive template, rate limit `1`, concurrency `1`, and no redirects, public OAST, cloud upload, automatic updates, stdin, headless execution, code templates or file templates.
+Assessment-capable accounts enter the conversational workspace at `/`. Website and APK work begin there; the former standalone New Assessment and Mobile APK Analysis routes redirect back to this canonical entry point.
 
-Public Internet scanning and destructive testing remain prohibited.
+The shared authenticated shell provides:
 
-## Local web startup
+- role-aware navigation;
+- exact authorization, scope, approval and active-state visibility;
+- chat-based planning and status requests;
+- exact passive-plan confirmation;
+- assessment history;
+- a website/APK assessment inspector;
+- evidence, findings, verification and remediation disclosures;
+- responsive desktop, tablet and mobile behaviour.
 
-Follow [`docs/product/WEB_APPLICATION.md`](docs/product/WEB_APPLICATION.md). The local development surface binds to loopback and uses Django’s development server only for local testing.
+The interface must display persisted values only. Unknown progress, unavailable tools, empty evidence and blockers are shown explicitly rather than replaced with fabricated counts or percentages.
+
+Follow [`docs/product/WEB_APPLICATION.md`](docs/product/WEB_APPLICATION.md) for local startup and web architecture.
 
 ## Phone-only private laboratory with Codespaces
 
-A private GitHub Codespace can prepare the complete passive private-lab path for an authenticated phone browser. The environment checksum-verifies Nuclei `v3.8.0`, prepares the reviewed template set, owner-private signing key, signed spool, separate worker process, deliberate RFC1918 test target and real evidence pipeline. Termux is used only to control the private Codespace; no desktop is required.
-
-The operator and approver use separate identities, and a scan begins only after exact authorization and independent approval. Public Internet scanning remains prohibited.
+A private GitHub Codespace can prepare the complete passive private-lab path for an authenticated phone browser. The environment checksum-verifies the pinned Nuclei release, prepares the reviewed template set, owner-private signing key, signed spool, separate worker process, deliberate RFC1918 test target and real evidence pipeline. Termux is used only to control the private Codespace; no desktop is required.
 
 Follow [`docs/setup/PHONE_ONLY_PRIVATE_LAB.md`](docs/setup/PHONE_ONLY_PRIVATE_LAB.md) and [`docs/setup/CODESPACES_PHONE.md`](docs/setup/CODESPACES_PHONE.md).
 
-## Worker pilot
+## Worker architecture
 
 The manager/worker architecture is documented in:
 
@@ -98,13 +107,25 @@ The manager/worker architecture is documented in:
 - `config/security_tools/remote_nuclei_host.example.json`
 - `deploy/scanner-worker/`
 
-The operator must provide the pinned Nuclei executable, reviewed policy, owner-private signing key, dedicated restricted SSH identity when remote transport is used, and an authorized private laboratory target before activation.
+The operator must provide the pinned executable, reviewed policy, owner-private signing key, restricted transport identity when remote transport is used, and an authorised private-laboratory target before activation.
 
 ## Mobile analysis
 
-APK upload validates and stores an artifact without executing it. The static worker can run fixed read-only metadata tools against a read-only copy when its worker policy is enabled. Dynamic APK execution remains a separate disposable-laboratory prerequisite.
+APK upload is resumable, validates the final archive and SHA-256 digest, and stores the artifact without executing it. The static worker can run fixed, bounded, read-only tools against a private copy when its worker policy is enabled.
+
+The worker records each tool receipt independently. A single tool failure does not create a finding and does not automatically stop later tools; integrity and resource-boundary failures stop the assessment safely.
+
+Large-APK support includes staging quotas, free-disk preflight, abandoned-upload cleanup and explicit storage-full failures. A full medium or large APK acceptance run is still required before claiming that every configured mobile tool completes successfully in a particular Codespace.
+
+MobSF and dynamic APK execution remain separate private-service and disposable-emulator prerequisites. ADB and Frida remain gated until an authorised runtime identity is registered.
 
 See `docs/product/MOBILE_APPLICATION_SECURITY.md`.
+
+## Controlled learning
+
+Controlled learning is disabled by default. New memory candidates always enter as `pending_review`; promoted retrieval requires a real promotion record after human review and deterministic evaluation. Learning records remain advisory and cannot authorize, execute, verify, change severity or publish.
+
+Do not enable learning in an environment that has not completed its governance identity, retention, metadata-redaction and database-recovery review.
 
 ## Controlled active validation
 
@@ -116,12 +137,26 @@ See `docs/product/ACTIVE_VALIDATION.md`.
 
 ## Advisory analysis
 
-Groq is the only currently implemented optional remote advisory provider. It is disabled by default, receives sanitized bounded content only, has no tools, cannot authorize or verify a finding, and returns non-authoritative proposals or `ABSTAIN`.
+VulnHunter is model-provider neutral. Optional remote advisory providers are non-authoritative. Groq is the currently implemented provider; it is disabled by default, receives sanitized bounded content only, has no tools, cannot authorize or verify a finding, and returns proposals or `ABSTAIN`.
 
-Deterministic verification and human review continue when Groq is unavailable.
+Deterministic verification and human review continue when no model is configured. See `docs/intelligence/ADR_003_MODEL_PROVIDER_NEUTRALITY.md`.
+
+## Verification expectations
+
+A green CI run proves only the behaviours exercised by that run. The repository quality gates cover Python 3.11 and 3.12, linting, formatting, repository policy, responsive browser behaviour, conversational workflows and a genuine private-lab Nuclei acceptance.
+
+Before production or public use, complete additional acceptance for the intended deployment, including:
+
+- the actual medium or large APK and complete configured static toolchain;
+- private MobSF when enabled;
+- disposable emulator, ADB and Frida when enabled;
+- public-authorization independence;
+- database backup and restore;
+- TLS, DNS, PostgreSQL, monitoring and incident response;
+- an independent security review.
 
 ## Production preparation
 
-`deploy/production/compose.example.yaml` is a reviewed deployment example, not an active deployment. It keeps the web service on loopback, uses an internal database network, mounted secret files, a read-only application filesystem, dropped capabilities and resource limits. The controlled validation worker remains disabled and has no network namespace in the example.
+`deploy/production/compose.example.yaml` is a reviewed deployment example, not an active deployment. It keeps the web service on loopback, uses an internal database network, mounted secret files, a read-only application filesystem, dropped capabilities and resource limits. Controlled validation remains disabled and networkless in the example.
 
-Complete the separate TLS, DNS, PostgreSQL, backup, restore, monitoring and independent security-review gates in `docs/setup/DEPLOYMENT_READINESS.md` before production use.
+Complete `docs/setup/DEPLOYMENT_READINESS.md` before production use.

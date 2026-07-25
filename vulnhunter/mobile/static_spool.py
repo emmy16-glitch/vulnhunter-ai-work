@@ -229,7 +229,9 @@ class MobileStaticSpool:
             resolved = path.resolve(strict=True)
             resolved.relative_to(self.processing)
         except (OSError, ValueError) as exc:
-            raise MobileStaticSpoolError("claimed mobile job is outside the processing spool") from exc
+            raise MobileStaticSpoolError(
+                "claimed mobile job is outside the processing spool"
+            ) from exc
         if path.is_symlink() or not resolved.is_file():
             raise MobileStaticSpoolError("claimed mobile worker job is unsafe")
         try:

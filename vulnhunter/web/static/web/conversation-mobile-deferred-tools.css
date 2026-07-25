@@ -10,6 +10,26 @@
   color: #94a3b8;
 }
 
+.vh-inspector-tool.is-queued .vh-inspector-tool-marker,
+.vh-inspector-tool.is-running .vh-inspector-tool-marker {
+  border-color: rgba(103, 232, 249, .44);
+  background: rgba(8, 145, 178, .12);
+  color: #67e8f9;
+}
+
+.vh-inspector-tool.is-completed .vh-inspector-tool-marker {
+  border-color: rgba(134, 239, 172, .44);
+  background: rgba(22, 163, 74, .12);
+  color: #86efac;
+}
+
+.vh-inspector-tool.is-failed .vh-inspector-tool-marker,
+.vh-inspector-tool.is-rejected .vh-inspector-tool-marker {
+  border-color: rgba(252, 165, 165, .44);
+  background: rgba(220, 38, 38, .12);
+  color: #fca5a5;
+}
+
 .vh-inspector-tool em {
   display: block;
   margin-top: 4px;
@@ -17,4 +37,28 @@
   font-size: 8.5px;
   font-style: normal;
   line-height: 1.4;
+}
+
+.vh-inspector-extension-approve {
+  margin-top: 8px;
+  padding: 7px 10px;
+  border: 1px solid rgba(252, 211, 77, .3);
+  border-radius: 9px;
+  background: rgba(180, 83, 9, .1);
+  color: #fde68a;
+  font-size: 8.5px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.vh-inspector-extension-approve:hover,
+.vh-inspector-extension-approve:focus-visible {
+  border-color: rgba(252, 211, 77, .58);
+  background: rgba(180, 83, 9, .18);
+  outline: none;
+}
+
+.vh-inspector-extension-approve:disabled {
+  cursor: wait;
+  opacity: .6;
 }

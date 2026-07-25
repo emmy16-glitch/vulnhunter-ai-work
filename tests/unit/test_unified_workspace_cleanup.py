@@ -22,14 +22,18 @@ def test_legacy_mobile_url_serves_the_unified_workspace():
     assert "operations_views.mobile_analysis_view" not in urls
 
 
-def test_workspace_copy_and_shared_heading_descriptions_are_removed():
+def test_workspace_copy_and_shared_product_styles_are_final():
     conversation = _text(TEMPLATES / "conversation.html")
     polish = _text(STATIC / "workspace-polish.css")
     assert "Ask a security question, paste an authorised target" not in conversation
     assert "AI conversation ready" not in conversation
-    assert "Message VulnHunter or attach an APK" in conversation
-    assert ".vh-product-heading > div > p:not(.vh-eyebrow)" in polish
-    assert '.vh-nav-list li:has(a[href$="/mobile-analysis/"])' in polish
+    assert (
+        "Message VulnHunter — describe a target, attach an APK, or ask about a finding"
+        in conversation
+    )
+    assert ".vh-product-heading" in polish
+    assert '.vh-nav-list li:has(a[href$="/mobile-analysis/"])' not in polish
+    assert "--vh-final-sidebar: 264px" in polish
 
 
 def test_workspace_non_json_failures_are_converted_to_json(settings):

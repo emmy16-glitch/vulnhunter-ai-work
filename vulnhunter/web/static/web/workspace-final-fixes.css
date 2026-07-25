@@ -1,0 +1,53 @@
+/* Final cross-product alignment fixes loaded after all existing UI layers. */
+.vh-state-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 4px;
+}
+
+.vh-state-card .vh-state-label {
+  width: 100%;
+  margin: 0;
+}
+
+.vh-state-card strong {
+  width: 100%;
+  min-width: 0;
+}
+
+.vh-inspector,
+.vh-inspector-section,
+.vh-tool-identity,
+.vh-tool-identity > div,
+.vh-oracle-state,
+.vh-oracle-state > div {
+  min-width: 0;
+}
+
+.vh-inspector .vh-tool-identity strong,
+.vh-inspector .vh-tool-identity small,
+.vh-inspector .vh-oracle-state strong,
+.vh-inspector .vh-oracle-state small {
+  display: block;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.vh-bottom-dock .vh-attack-path button {
+  min-height: 44px;
+  border: 1px solid var(--vh-final-brand);
+  border-radius: var(--vh-final-radius-sm);
+  background: var(--vh-final-brand);
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.vh-bottom-dock .vh-attack-path button:hover {
+  border-color: #8793ff;
+  background: #7a88ff;
+}

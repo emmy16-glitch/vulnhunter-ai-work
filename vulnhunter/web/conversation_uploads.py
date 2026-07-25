@@ -69,7 +69,10 @@ def _configured_int(name: str, default: int) -> int:
 
 
 def apk_upload_chunk_bytes() -> int:
-    value = _configured_int("VULNHUNTER_MOBILE_UPLOAD_CHUNK_BYTES", _DEFAULT_CHUNK_BYTES)
+    value = _configured_int(
+        "VULNHUNTER_MOBILE_UPLOAD_CHUNK_BYTES",
+        _DEFAULT_CHUNK_BYTES,
+    )
     if not 64 * 1024 <= value <= 64 * 1024 * 1024:
         raise ConversationUploadError(
             "The APK upload chunk size must remain between 64 KiB and 64 MiB."
@@ -192,13 +195,17 @@ def _prune(request: _Request) -> dict[str, dict[str, object]]:
 def _preflight_capacity(expected_bytes: int, records: dict[str, dict[str, object]]) -> None:
     root = _upload_root()
     maximum = int(settings.VULNHUNTER_MOBILE_MAX_APK_BYTES)
-    staged_limit = _configured_int("VULNHUNTER_MOBILE_MAX_STAGED_BYTES", maximum * 2)
+    staged_limit = _configured_int(
+        "VULNHUNTER_MOBILE_MAX_STAGED_BYTES",
+        maximum * 2,
+    )
     if staged_limit < maximum:
         raise ConversationUploadError(
             "The staged APK quota must be at least as large as the maximum APK size."
         )
     staged_bytes = sum(
-        max(0, int(record.get("expected_bytes", 0) or 0)) for record in records.values()
+        max(0, int(record.get("expected_bytes", 0) or 0))
+        for record in records.values()
     )
     if staged_bytes + expected_bytes > staged_limit:
         raise ConversationUploadError(
@@ -210,7 +217,9 @@ def _preflight_capacity(expected_bytes: int, records: dict[str, dict[str, object
         _DEFAULT_DISK_RESERVE_BYTES,
     )
     if reserve < 0:
-        raise ConversationUploadError("The APK upload free-space reserve cannot be negative.")
+        raise ConversationUploadError(
+            "The APK upload free-space reserve cannot be negative."
+        )
     try:
         free = shutil.disk_usage(root).free
     except OSError as exc:
@@ -243,7 +252,8 @@ def begin_apk_upload(
     records = _prune(request)
     if len(records) >= _maximum_active_uploads():
         raise ConversationUploadError(
-            "Too many APK uploads are active in this session. Finish or cancel one before starting another."
+            "Too many APK uploads are active in this session. "
+            "Finish or cancel one before starting another."
         )
     _preflight_capacity(expected_bytes, records)
 
@@ -259,7 +269,9 @@ def begin_apk_upload(
             raise ConversationUploadError(
                 "Storage became full before the APK upload could start."
             ) from exc
-        raise ConversationUploadError("The staged APK upload file could not be created.") from exc
+        raise ConversationUploadError(
+            "The staged APK upload file could not be created."
+        ) from exc
     os.close(descriptor)
 
     instant = time.time()
@@ -305,7 +317,9 @@ def append_apk_chunk(
     for block in chunk.chunks():
         payload.extend(block)
         if len(payload) > maximum_chunk:
-            raise ConversationUploadError("An APK upload chunk exceeded the configured chunk size.")
+            raise ConversationUploadError(
+                "An APK upload chunk exceeded the configured chunk size."
+            )
     if not payload:
         raise ConversationUploadError("The APK upload chunk is empty.")
 
@@ -319,9 +333,12 @@ def append_apk_chunk(
         discard_apk_upload(request, upload_id=upload_id)
         if exc.errno == errno.ENOSPC:
             raise ConversationUploadError(
-                "Storage became full while receiving the APK. The incomplete upload was removed."
+                "Storage became full while receiving the APK. "
+                "The incomplete upload was removed."
             ) from exc
-        raise ConversationUploadError("The staged APK upload file is unavailable.") from exc
+        raise ConversationUploadError(
+            "The staged APK upload file is unavailable."
+        ) from exc
 
     locked = False
     try:
@@ -334,8 +351,11 @@ def append_apk_chunk(
                 f"The APK upload offset is out of sequence; expected {actual_offset} bytes."
             )
         next_received = actual_offset + len(payload)
-        if next_received > expected or next_received > int(settings.VULNHUNTER_MOBILE_MAX_APK_BYTES):
-            raise ConversationUploadError("The APK upload exceeded its declared size.")
+        maximum = int(settings.VULNHUNTER_MOBILE_MAX_APK_BYTES)
+        if next_received > expected or next_received > maximum:
+            raise ConversationUploadError(
+                "The APK upload exceeded its declared size."
+            )
 
         view = memoryview(payload)
         written = 0
@@ -351,10 +371,12 @@ def append_apk_chunk(
         discard_apk_upload(request, upload_id=upload_id)
         if exc.errno == errno.ENOSPC:
             raise ConversationUploadError(
-                "Storage became full while receiving the APK. The incomplete upload was removed."
+                "Storage became full while receiving the APK. "
+                "The incomplete upload was removed."
             ) from exc
         raise ConversationUploadError(
-            "The APK chunk could not be written safely; the incomplete upload was removed."
+            "The APK chunk could not be written safely; "
+            "the incomplete upload was removed."
         ) from exc
     except Exception:
         discard_apk_upload(request, upload_id=upload_id)

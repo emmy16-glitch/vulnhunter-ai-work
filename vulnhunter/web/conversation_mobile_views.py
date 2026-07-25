@@ -183,7 +183,9 @@ def mobile_followup_view(request: HttpRequest) -> JsonResponse:
     requested_by = actor.governance_identity.reviewer_id
     plan = current_mobile_plan(request, requested_by=requested_by)
     if plan is None:
-        return JsonResponse({"detail": "No mobile hunt is selected in this conversation."}, status=404)
+        return JsonResponse(
+            {"detail": "No mobile hunt is selected in this conversation."}, status=404
+        )
     interpreted = interpret_request(
         text,
         available_profiles=("static", "static_and_native", "dynamic", "full", "retest"),

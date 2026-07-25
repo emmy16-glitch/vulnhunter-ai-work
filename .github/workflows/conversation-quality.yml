@@ -44,18 +44,25 @@ jobs:
         run: |
           node --check vulnhunter/web/static/web/conversation-runtime-compat.js
           node --check vulnhunter/web/static/web/conversation.js
+          node --check vulnhunter/web/static/web/conversation-mobile-bridge.js
           node --check vulnhunter/web/static/web/conversation-mobile.js
           node --check vulnhunter/web/static/web/conversation-mobile-context.js
+          node --check vulnhunter/web/static/web/conversation-mobile-inspector.js
           node --check vulnhunter/web/static/web/conversation-autoscroll.js
           node tests/ui/chat_runtime_compat.cjs
       - name: Check conversational, mobile and intelligence Python
         run: |
           set +e
           python -m ruff check \
+            scripts/install_mobile_release_tools.py \
+            scripts/mobile_androguard_adapter.py \
+            scripts/mobile_yara_adapter.py \
             scripts/prepare_mobile_static_worker.py \
             vulnhunter/scope/validator.py \
+            vulnhunter/mobile/static_progress.py \
             vulnhunter/mobile/static_service.py \
             vulnhunter/mobile/static_spool.py \
+            vulnhunter/mobile/static_toolchain.py \
             vulnhunter/mobile/static_worker.py \
             vulnhunter/web/conversation_service.py \
             vulnhunter/web/conversation_state.py \
@@ -86,14 +93,20 @@ jobs:
             tests/unit/test_inline_confirmation_store.py \
             tests/unit/test_intelligence_loop.py \
             tests/unit/test_mobile_chat_hunt.py \
+            tests/unit/test_mobile_hunt_runtime.py \
             tests/unit/test_redaction.py \
             >conversation-quality.log 2>&1
           lint_status=$?
           python -m ruff format --check \
+            scripts/install_mobile_release_tools.py \
+            scripts/mobile_androguard_adapter.py \
+            scripts/mobile_yara_adapter.py \
             scripts/prepare_mobile_static_worker.py \
             vulnhunter/scope/validator.py \
+            vulnhunter/mobile/static_progress.py \
             vulnhunter/mobile/static_service.py \
             vulnhunter/mobile/static_spool.py \
+            vulnhunter/mobile/static_toolchain.py \
             vulnhunter/mobile/static_worker.py \
             vulnhunter/web/conversation_service.py \
             vulnhunter/web/conversation_state.py \
@@ -124,6 +137,7 @@ jobs:
             tests/unit/test_inline_confirmation_store.py \
             tests/unit/test_intelligence_loop.py \
             tests/unit/test_mobile_chat_hunt.py \
+            tests/unit/test_mobile_hunt_runtime.py \
             tests/unit/test_redaction.py \
             >>conversation-quality.log 2>&1
           format_status=$?
@@ -151,10 +165,17 @@ jobs:
             tests/unit/test_inline_confirmation_store.py \
             tests/unit/test_intelligence_loop.py \
             tests/unit/test_mobile_chat_hunt.py \
+            tests/unit/test_mobile_hunt_runtime.py \
             tests/unit/test_redaction.py
-      - name: Verify launcher and devcontainer syntax
+      - name: Verify launcher and configuration syntax
         run: |
           python -m json.tool .devcontainer/devcontainer.json >/dev/null
+          python -m json.tool config/security_tools/mobile_yara/manifest.json >/dev/null
+          python -m py_compile \
+            scripts/install_mobile_release_tools.py \
+            scripts/mobile_androguard_adapter.py \
+            scripts/mobile_yara_adapter.py \
+            scripts/prepare_mobile_static_worker.py
           bash -n .devcontainer/first-run.sh
           bash -n .devcontainer/install-codex.sh
           bash -n .devcontainer/install-mobile-static-tools.sh

@@ -96,7 +96,14 @@ class MemoryCandidate(BaseModel):
 
     @classmethod
     def create(cls, **values: object) -> Self:
+        """Create a new untrusted candidate in the only valid intake state.
+
+        Callers cannot pre-promote a candidate by supplying a status. State transitions
+        remain available only through the reviewed service methods.
+        """
+
         draft = dict(values)
+        draft["status"] = CandidateStatus.PENDING_REVIEW
         draft.setdefault("candidate_id", f"memory-{uuid4().hex[:24]}")
         draft.setdefault("created_at", utc_now())
         draft.setdefault("updated_at", draft["created_at"])

@@ -70,9 +70,7 @@ class SignedMobileExtensionJob(BaseModel):
     def validate_contract(self) -> Self:
         if self.expires_at <= self.created_at:
             raise ValueError("extension job must expire after creation")
-        if self.kind == "runtime" and (
-            self.package_name is None or self.runtime_approval is None
-        ):
+        if self.kind == "runtime" and (self.package_name is None or self.runtime_approval is None):
             raise ValueError("runtime job requires a package and signed runtime approval")
         if self.kind == "mobsf" and self.runtime_approval is not None:
             raise ValueError("MobSF job must not contain a runtime approval")
@@ -227,9 +225,7 @@ class MobileExtensionSpool:
         if path.parent != self.processing or path.is_symlink() or not path.is_file():
             raise MobileExtensionSpoolError("claimed extension job path is unsafe")
         try:
-            job = SignedMobileExtensionJob.model_validate_json(
-                path.read_text(encoding="utf-8")
-            )
+            job = SignedMobileExtensionJob.model_validate_json(path.read_text(encoding="utf-8"))
         except (OSError, ValueError) as exc:
             raise MobileExtensionSpoolError("claimed extension job is invalid") from exc
         job.verify(key, now=now)

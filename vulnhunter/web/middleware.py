@@ -63,8 +63,7 @@ def _restore_latest_non_terminal_run(request) -> None:
         except (ProductServiceError, OSError, RuntimeError, ValueError, sqlite3.Error):
             continue
         current_state = str(
-            getattr(run, "workflow_state", None)
-            or getattr(run, "current_state", "unknown")
+            getattr(run, "workflow_state", None) or getattr(run, "current_state", "unknown")
         )
         if current_state in _TERMINAL_STATES:
             continue

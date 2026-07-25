@@ -4,6 +4,10 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
+mkdir -p "$HOME/.local/bin"
+chmod 700 "$HOME/.local" "$HOME/.local/bin" 2>/dev/null || true
+export PATH="$HOME/.local/bin:$PATH"
+
 python -m pip install --upgrade pip
 python -m pip install -e ".[dev]"
 bash .devcontainer/install-codex.sh
@@ -119,7 +123,7 @@ export VULNHUNTER_INTELLIGENCE_MAX_ATTEMPTS=2
 export VULNHUNTER_INTELLIGENCE_TIMEOUT_SECONDS=90
 export VULNHUNTER_INTELLIGENCE_MAX_INPUT_BYTES=64000
 export VULNHUNTER_INTELLIGENCE_MAX_OUTPUT_TOKENS=2400
-export PATH="$(dirname "$NUCLEI_BIN"):${PATH}"
+export PATH="$HOME/.local/bin:$(dirname "$NUCLEI_BIN"):${PATH}"
 if [[ -f "$STATE_DIR/vulnhunter-user.env" ]]; then
   source "$STATE_DIR/vulnhunter-user.env"
 fi

@@ -156,12 +156,9 @@ def _prune(request: _Request) -> dict[str, dict[str, object]]:
 def _preflight_capacity(expected_bytes: int, records: dict[str, dict[str, object]]) -> None:
     root = _upload_root()
     maximum = int(settings.VULNHUNTER_MOBILE_MAX_APK_BYTES)
-    staged_limit = int(
-        getattr(settings, "VULNHUNTER_MOBILE_MAX_STAGED_BYTES", maximum * 2)
-    )
+    staged_limit = int(getattr(settings, "VULNHUNTER_MOBILE_MAX_STAGED_BYTES", maximum * 2))
     staged_bytes = sum(
-        max(0, int(record.get("expected_bytes", 0) or 0))
-        for record in records.values()
+        max(0, int(record.get("expected_bytes", 0) or 0)) for record in records.values()
     )
     if staged_bytes + expected_bytes > staged_limit:
         raise ConversationUploadError(

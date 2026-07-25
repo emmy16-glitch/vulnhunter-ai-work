@@ -59,21 +59,41 @@ class StagedApkUpload:
         return self.received_bytes == self.expected_bytes
 
 
+def _configured_int(name: str, default: int) -> int:
+    configured = getattr(settings, name, None)
+    raw = configured if configured is not None else os.environ.get(name, str(default))
+    try:
+        return int(raw)
+    except (TypeError, ValueError) as exc:
+        raise ConversationUploadError(f"{name} must be an integer") from exc
+
+
 def apk_upload_chunk_bytes() -> int:
-    return int(getattr(settings, "VULNHUNTER_MOBILE_UPLOAD_CHUNK_BYTES", _DEFAULT_CHUNK_BYTES))
+    value = _configured_int("VULNHUNTER_MOBILE_UPLOAD_CHUNK_BYTES", _DEFAULT_CHUNK_BYTES)
+    if not 64 * 1024 <= value <= 64 * 1024 * 1024:
+        raise ConversationUploadError(
+            "The APK upload chunk size must remain between 64 KiB and 64 MiB."
+        )
+    return value
 
 
 def _maximum_active_uploads() -> int:
-    value = int(
-        getattr(
-            settings,
-            "VULNHUNTER_MOBILE_MAX_ACTIVE_UPLOADS",
-            _DEFAULT_MAX_ACTIVE_UPLOADS,
-        )
+    value = _configured_int(
+        "VULNHUNTER_MOBILE_MAX_ACTIVE_UPLOADS",
+        _DEFAULT_MAX_ACTIVE_UPLOADS,
     )
     if not 1 <= value <= 10:
         raise ConversationUploadError(
             "The active APK upload limit is invalid; it must remain between one and ten."
+        )
+    return value
+
+
+def _upload_ttl_seconds() -> int:
+    value = _configured_int("VULNHUNTER_MOBILE_UPLOAD_TTL_SECONDS", 3_600)
+    if not 60 <= value <= 86_400:
+        raise ConversationUploadError(
+            "The APK upload expiry must remain between 60 seconds and 24 hours."
         )
     return value
 
@@ -135,7 +155,7 @@ def prune_stale_apk_uploads(*, now: float | None = None) -> int:
     """Delete abandoned staged files independently of a browser session."""
 
     instant = time.time() if now is None else now
-    ttl = int(getattr(settings, "VULNHUNTER_MOBILE_UPLOAD_TTL_SECONDS", 3_600))
+    ttl = _upload_ttl_seconds()
     removed = 0
     for candidate in _upload_root().glob("upload-*.part"):
         try:
@@ -149,7 +169,7 @@ def prune_stale_apk_uploads(*, now: float | None = None) -> int:
 
 def _prune(request: _Request) -> dict[str, dict[str, object]]:
     now = time.time()
-    ttl = int(getattr(settings, "VULNHUNTER_MOBILE_UPLOAD_TTL_SECONDS", 3_600))
+    ttl = _upload_ttl_seconds()
     owner = _owner_id(request)
     retained: dict[str, dict[str, object]] = {}
     for upload_id, record in _records(request).items():
@@ -172,7 +192,11 @@ def _prune(request: _Request) -> dict[str, dict[str, object]]:
 def _preflight_capacity(expected_bytes: int, records: dict[str, dict[str, object]]) -> None:
     root = _upload_root()
     maximum = int(settings.VULNHUNTER_MOBILE_MAX_APK_BYTES)
-    staged_limit = int(getattr(settings, "VULNHUNTER_MOBILE_MAX_STAGED_BYTES", maximum * 2))
+    staged_limit = _configured_int("VULNHUNTER_MOBILE_MAX_STAGED_BYTES", maximum * 2)
+    if staged_limit < maximum:
+        raise ConversationUploadError(
+            "The staged APK quota must be at least as large as the maximum APK size."
+        )
     staged_bytes = sum(
         max(0, int(record.get("expected_bytes", 0) or 0)) for record in records.values()
     )
@@ -181,13 +205,12 @@ def _preflight_capacity(expected_bytes: int, records: dict[str, dict[str, object
             "The staged APK quota is full. Finish, cancel or allow an older upload to expire first."
         )
 
-    reserve = int(
-        getattr(
-            settings,
-            "VULNHUNTER_MOBILE_MIN_FREE_BYTES",
-            _DEFAULT_DISK_RESERVE_BYTES,
-        )
+    reserve = _configured_int(
+        "VULNHUNTER_MOBILE_MIN_FREE_BYTES",
+        _DEFAULT_DISK_RESERVE_BYTES,
     )
+    if reserve < 0:
+        raise ConversationUploadError("The APK upload free-space reserve cannot be negative.")
     try:
         free = shutil.disk_usage(root).free
     except OSError as exc:

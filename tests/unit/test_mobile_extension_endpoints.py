@@ -84,9 +84,7 @@ def test_mobile_extension_approval_and_status_are_bound_to_the_chat_session(
     session = client.session
     session["vulnhunter_conversation_mobile_plan"] = _mobile_plan()
     session.save()
-    actor = SimpleNamespace(
-        governance_identity=SimpleNamespace(reviewer_id="mobile-endpoint-user")
-    )
+    actor = SimpleNamespace(governance_identity=SimpleNamespace(reviewer_id="mobile-endpoint-user"))
 
     with patch(
         "vulnhunter.web.conversation_mobile_extension_views._actor",

@@ -90,9 +90,7 @@ def test_chunked_apk_upload_auto_starts_the_mobile_worker_plan(
 
 
 @pytest.mark.django_db
-def test_chunked_upload_rejects_anything_above_one_gigabyte(
-    client, settings, tmp_path
-):
+def test_chunked_upload_rejects_anything_above_one_gigabyte(client, settings, tmp_path):
     settings.ALLOWED_HOSTS = ["testserver"]
     settings.VULNHUNTER_MOBILE_ARTIFACT_ROOT = str(tmp_path / "mobile-artifacts")
     settings.VULNHUNTER_MOBILE_MAX_APK_BYTES = 1_000_000_000
@@ -117,12 +115,8 @@ def test_chunked_upload_rejects_anything_above_one_gigabyte(
 
 
 def test_workspace_uses_resumable_uploads_and_codespaces_sets_one_gigabyte():
-    template = (ROOT / "vulnhunter/web/templates/web/conversation.html").read_text(
-        encoding="utf-8"
-    )
-    script = (ROOT / "vulnhunter/web/static/web/conversation-mobile.js").read_text(
-        encoding="utf-8"
-    )
+    template = (ROOT / "vulnhunter/web/templates/web/conversation.html").read_text(encoding="utf-8")
+    script = (ROOT / "vulnhunter/web/static/web/conversation-mobile.js").read_text(encoding="utf-8")
     post_create = (ROOT / ".devcontainer/post-create.sh").read_text(encoding="utf-8")
     start_script = (ROOT / ".devcontainer/start-vulnhunter.sh").read_text(encoding="utf-8")
 

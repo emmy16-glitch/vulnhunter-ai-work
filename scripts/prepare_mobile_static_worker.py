@@ -111,9 +111,7 @@ def main() -> int:
         else None
     )
     yara_rules = _verified_yara_rules() if _module_available("yara") else None
-    yara_adapter = (
-        _regular(ROOT / "scripts" / "mobile_yara_adapter.py") if yara_rules else None
-    )
+    yara_adapter = _regular(ROOT / "scripts" / "mobile_yara_adapter.py") if yara_rules else None
     ghidra = _executable("analyzeHeadless")
     tools: dict[str, str | None] = {
         "aapt2_executable": _executable("aapt2") or _executable("aapt"),
@@ -157,7 +155,7 @@ def main() -> int:
         "maximum_output_bytes": 1_000_000,
         "maximum_generated_bytes": 750_000_000,
         "maximum_generated_file_bytes": 200_000_000,
-        "maximum_memory_bytes": 4_000_000_000,
+        "maximum_memory_bytes": 8_000_000_000,
         "maximum_native_libraries": 24,
         "network_isolation": "process_policy",
         **tools,

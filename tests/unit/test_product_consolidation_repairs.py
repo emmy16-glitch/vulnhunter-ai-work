@@ -122,8 +122,27 @@ def test_web_mapping_normalizes_governance_identity():
 
 
 @pytest.mark.django_db
-def test_consolidated_routes_use_one_workspace(client, settings):
+def test_consolidated_routes_use_one_workspace(client, settings, tmp_path):
+    from governance_test_support import ADMIN_SECRET, NOW, make_governance_store
+
+    from vulnhunter.agent.store import AgentStore
+    from vulnhunter.governance.service import bootstrap_administrator
+
     settings.ALLOWED_HOSTS = ["testserver"]
+    settings.VULNHUNTER_GOVERNANCE_DATABASE = str(tmp_path / "governance.db")
+    settings.VULNHUNTER_AGENT_DATABASE = str(tmp_path / "agent.db")
+    settings.VULNHUNTER_APPROVAL_DATABASE = str(tmp_path / "approvals.db")
+    settings.VULNHUNTER_AGENT_ACTIVITY_ROOT = str(tmp_path / "activity")
+    settings.VULNHUNTER_SECURITY_EVIDENCE_ROOT = str(tmp_path / "evidence")
+    governance = make_governance_store(tmp_path)
+    bootstrap_administrator(
+        governance,
+        reviewer_id="route-user",
+        display_name="Route User",
+        secret=ADMIN_SECRET,
+        now=NOW,
+    )
+    AgentStore(tmp_path / "agent.db")
     user = get_user_model().objects.create_user(
         username="route-user",
         password="long-password-1234",

@@ -15,24 +15,26 @@
   const current = document.currentScript?.src;
   if (!current) return;
 
-  const loadWorkspaceState = () => {
-    if (document.querySelector("script[data-workspace-state-loader]")) return;
+  const loadScript = (filename, marker) => {
+    if (document.querySelector(`script[${marker}]`)) return;
     const url = new URL(current, window.location.href);
-    url.pathname = url.pathname.replace(
-      /conversation-runtime-compat\.js$/,
-      "workspace-state.js",
-    );
-    url.search = "?v=20260725-consolidate2";
+    url.pathname = url.pathname.replace(/conversation-runtime-compat\.js$/, filename);
+    url.search = "?v=20260725-consolidate3";
     const script = document.createElement("script");
     script.src = url.toString();
     script.async = false;
-    script.dataset.workspaceStateLoader = "true";
+    script.setAttribute(marker, "true");
     document.head.append(script);
   };
 
+  const loadWorkspaceBridges = () => {
+    loadScript("workspace-state.js", "data-workspace-state-loader");
+    loadScript("workspace-safety-polish.js", "data-workspace-safety-loader");
+  };
+
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", loadWorkspaceState, { once: true });
+    document.addEventListener("DOMContentLoaded", loadWorkspaceBridges, { once: true });
   } else {
-    loadWorkspaceState();
+    loadWorkspaceBridges();
   }
 })();

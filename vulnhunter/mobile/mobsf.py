@@ -163,12 +163,8 @@ class MobSFClient:
             report_sha256=hashlib.sha256(encoded).hexdigest(),
             report_bytes=len(encoded),
             report_keys=tuple(sorted(str(key) for key in report)[:512]),
-            package_name=self._optional_text(
-                report.get("package_name") or report.get("package")
-            ),
-            app_name=self._optional_text(
-                report.get("app_name") or report.get("file_name")
-            ),
+            package_name=self._optional_text(report.get("package_name") or report.get("package")),
+            app_name=self._optional_text(report.get("app_name") or report.get("file_name")),
             security_score=self._optional_number(report.get("security_score")),
             report=report,
         )
@@ -194,9 +190,7 @@ class MobSFClient:
         payload, _ = self._json_payload(response)
         scan_hash = str(payload.get("hash") or "")
         scan_type = str(payload.get("scan_type") or payload.get("scanType") or "")
-        file_name = str(
-            payload.get("file_name") or payload.get("fileName") or apk_path.name
-        )
+        file_name = str(payload.get("file_name") or payload.get("fileName") or apk_path.name)
         try:
             return MobSFUploadReceipt(
                 scan_hash=scan_hash,
@@ -243,9 +237,7 @@ class MobSFClient:
                     for chunk in streamed.iter_bytes():
                         content.extend(chunk)
                         if len(content) > self.config.maximum_response_bytes:
-                            raise MobSFError(
-                                "MobSF response exceeded the configured boundary"
-                            )
+                            raise MobSFError("MobSF response exceeded the configured boundary")
                     response = httpx.Response(
                         status_code=streamed.status_code,
                         headers=streamed.headers,

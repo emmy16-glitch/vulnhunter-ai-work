@@ -134,9 +134,7 @@ def build_mobile_chat_plan(
         }
         for item in hunt.rounds
     ]
-    deferred_ready = sum(
-        item.get("state") == "approval_required" for item in deferred_tools
-    )
+    deferred_ready = sum(item.get("state") == "approval_required" for item in deferred_tools)
     if dynamic_deferred and deferred_ready == len(deferred_tools):
         dynamic_note = (
             "MobSF and the registered disposable Android runtime are configured, but exact "

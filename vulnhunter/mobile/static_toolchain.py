@@ -675,7 +675,7 @@ class MobileStaticToolchain:
             observations.append(
                 {
                     "observation_id": f"mobile-native-{record.sha256[:20]}",
-                    "title": ("APK contains native libraries requiring native-code scrutiny"),
+                    "title": "APK contains native libraries",
                     "status": "evidence_required",
                     "count": len(record.native_libraries),
                     "abis": list(record.native_abis),

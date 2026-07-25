@@ -101,15 +101,11 @@ def _runtime_status(*, tool_id: str, now: datetime) -> dict[str, object]:
     return {
         "tool_id": tool_id,
         "state": "approval_required",
-        "reason": (
-            "Exact APK, package, emulator identity and plan digest approval is required."
-        ),
+        "reason": ("Exact APK, package, emulator identity and plan digest approval is required."),
         "runtime_id": policy.runtime_id,
         "expires_at": policy.expires_at.isoformat(),
         "emulator_required": policy.emulator_required,
-        "expected_frida_version": (
-            policy.expected_frida_version if tool_id == "frida" else None
-        ),
+        "expected_frida_version": (policy.expected_frida_version if tool_id == "frida" else None),
     }
 
 

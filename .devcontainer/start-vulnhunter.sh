@@ -23,12 +23,17 @@ mkdir -p "$LOG_ROOT"
 
 TARGET_PID=""
 WORKER_PID=""
+MOBILE_WORKER_PID=""
 INTELLIGENCE_PID=""
 cleanup() {
   set +e
   if [[ -n "$INTELLIGENCE_PID" ]]; then
     kill "$INTELLIGENCE_PID" 2>/dev/null
     wait "$INTELLIGENCE_PID" 2>/dev/null
+  fi
+  if [[ -n "$MOBILE_WORKER_PID" ]]; then
+    kill "$MOBILE_WORKER_PID" 2>/dev/null
+    wait "$MOBILE_WORKER_PID" 2>/dev/null
   fi
   if [[ -n "$WORKER_PID" ]]; then
     kill "$WORKER_PID" 2>/dev/null
@@ -72,6 +77,14 @@ python manage.py vh_run_nuclei_worker --watch --poll-seconds 0.5 \
   >"$LOG_ROOT/worker.log" 2>&1 &
 WORKER_PID=$!
 
+MOBILE_STATE="gated"
+if [[ "${VULNHUNTER_MOBILE_STATIC_ENQUEUE_ENABLED:-false}" == "true" ]]; then
+  python manage.py vh_run_mobile_static_worker --watch --poll-seconds 0.5 \
+    >"$LOG_ROOT/mobile-static-worker.log" 2>&1 &
+  MOBILE_WORKER_PID=$!
+  MOBILE_STATE="networkless static worker ready"
+fi
+
 GROQ_STATE="deterministic fallback"
 INTELLIGENCE_STATE="disabled"
 if [[ "$VULNHUNTER_GROQ_ENABLED" == "true" && -s "$VULNHUNTER_GROQ_API_KEY_FILE" ]]; then
@@ -92,10 +105,11 @@ Login username: $VULNHUNTER_USERNAME
 Groq: $GROQ_STATE
 Reasoning: $INTELLIGENCE_STATE
 Nuclei: pinned passive worker ready
+Mobile APK: $MOBILE_STATE
 
-Open the private port-8002 Codespaces URL and sign in once. Request the scan,
-answer any follow-up questions, confirm the exact passive plan in the chat, and
-watch Nuclei, evidence verification and GPT-OSS analysis continue on that screen.
+Open the private port-8002 Codespaces URL and sign in once. Use the plus button to
+attach an APK or request an authorised web scan. The chat reveals planning,
+worker progress, evidence receipts and verification stages as they happen.
 
 MESSAGE
 

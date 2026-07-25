@@ -12,10 +12,6 @@ from vulnhunter.web.services import role_policy
 
 register = template.Library()
 
-# Compatibility vocabulary for integrations that inventory historical capability labels.
-# Approval now opens contextually from assessment history and the workspace.
-LEGACY_CAPABILITY_LABELS = ({"label": "Approval Centre"},)
-
 
 @register.simple_tag
 def professional_title(page_title: object) -> str:

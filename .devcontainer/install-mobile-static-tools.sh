@@ -37,7 +37,7 @@ chmod 700 "$HOME/.local" "$HOME/.local/bin" "$TOOLS_ROOT" 2>/dev/null || true
 log 'Installing pinned Python APK analyzers in a dedicated worker environment.'
 if [[ ! -x "$PYTHON_TOOLS_ROOT/bin/python" ]]; then
   rm -rf "$PYTHON_TOOLS_ROOT"
-  if ! python -m venv "$PYTHON_TOOLS_ROOT"; then
+  if ! python -m venv --copies "$PYTHON_TOOLS_ROOT"; then
     log 'The dedicated Python worker environment could not be created; Python adapters remain gated.'
   fi
 fi

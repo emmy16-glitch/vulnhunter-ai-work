@@ -2,7 +2,16 @@
   "use strict";
 
   const originalFetch = window.fetch.bind(window);
+  const setMobileNavigation = (visible) => {
+    const navigation = document.querySelector("[data-mobile-workspace-nav]");
+    if (navigation) navigation.hidden = !visible;
+  };
   const emit = (name, detail) => {
+    if (["vh:mobile-attachment", "vh:mobile-plan", "vh:mobile-status"].includes(name)) {
+      setMobileNavigation(true);
+    } else if (name === "vh:mobile-reset") {
+      setMobileNavigation(false);
+    }
     document.dispatchEvent(new CustomEvent(name, { detail }));
   };
 

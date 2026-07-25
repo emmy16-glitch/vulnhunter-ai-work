@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import sqlite3
 
 from django.conf import settings
 from django.http import JsonResponse
@@ -43,7 +44,14 @@ def _restore_latest_non_terminal_run(request) -> None:
     try:
         actor = authorized_actor(request.user, required_actions=("scan.create", "scan.read"))
         summaries = list(product_service().list_agent_runs())
-    except (WebPermissionDenied, ProductServiceError, OSError, RuntimeError, ValueError):
+    except (
+        WebPermissionDenied,
+        ProductServiceError,
+        OSError,
+        RuntimeError,
+        ValueError,
+        sqlite3.Error,
+    ):
         return
 
     summaries.sort(key=lambda item: item.updated_at, reverse=True)
@@ -52,7 +60,7 @@ def _restore_latest_non_terminal_run(request) -> None:
             continue
         try:
             run = product_service().get_agent_run(str(summary.run_id))
-        except ProductServiceError:
+        except (ProductServiceError, OSError, RuntimeError, ValueError, sqlite3.Error):
             continue
         current_state = str(
             getattr(run, "workflow_state", None)

@@ -10,7 +10,7 @@ permissions:
 jobs:
   conversation:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     env:
       VULNHUNTER_WEB_DEBUG: "true"
       VULNHUNTER_WEB_DATABASE: /tmp/vh-conversation/web.sqlite3
@@ -48,17 +48,23 @@ jobs:
           node --check vulnhunter/web/static/web/conversation-mobile.js
           node --check vulnhunter/web/static/web/conversation-mobile-context.js
           node --check vulnhunter/web/static/web/conversation-mobile-inspector.js
+          node --check vulnhunter/web/static/web/conversation-mobile-deferred-tools.js
           node --check vulnhunter/web/static/web/conversation-autoscroll.js
           node tests/ui/chat_runtime_compat.cjs
       - name: Check conversational, mobile and intelligence Python
         run: |
           set +e
           python -m ruff check \
+            scripts/configure_mobsf.py \
             scripts/install_mobile_release_tools.py \
             scripts/mobile_androguard_adapter.py \
+            scripts/mobile_frida_inventory.py \
             scripts/mobile_yara_adapter.py \
             scripts/prepare_mobile_static_worker.py \
+            scripts/register_mobile_runtime.py \
             vulnhunter/scope/validator.py \
+            vulnhunter/mobile/mobsf.py \
+            vulnhunter/mobile/runtime.py \
             vulnhunter/mobile/static_progress.py \
             vulnhunter/mobile/static_service.py \
             vulnhunter/mobile/static_spool.py \
@@ -71,6 +77,7 @@ jobs:
             vulnhunter/web/mobile_conversation.py \
             vulnhunter/web/mobile_conversation_state.py \
             vulnhunter/web/mobile_execution.py \
+            vulnhunter/web/mobile_infrastructure.py \
             vulnhunter/web/conversational_authorization.py \
             vulnhunter/web/conversational_views.py \
             vulnhunter/web/conversation_approval_views.py \
@@ -94,15 +101,21 @@ jobs:
             tests/unit/test_intelligence_loop.py \
             tests/unit/test_mobile_chat_hunt.py \
             tests/unit/test_mobile_hunt_runtime.py \
+            tests/unit/test_mobile_infrastructure_runtime.py \
             tests/unit/test_redaction.py \
             >conversation-quality.log 2>&1
           lint_status=$?
           python -m ruff format --check \
+            scripts/configure_mobsf.py \
             scripts/install_mobile_release_tools.py \
             scripts/mobile_androguard_adapter.py \
+            scripts/mobile_frida_inventory.py \
             scripts/mobile_yara_adapter.py \
             scripts/prepare_mobile_static_worker.py \
+            scripts/register_mobile_runtime.py \
             vulnhunter/scope/validator.py \
+            vulnhunter/mobile/mobsf.py \
+            vulnhunter/mobile/runtime.py \
             vulnhunter/mobile/static_progress.py \
             vulnhunter/mobile/static_service.py \
             vulnhunter/mobile/static_spool.py \
@@ -115,6 +128,7 @@ jobs:
             vulnhunter/web/mobile_conversation.py \
             vulnhunter/web/mobile_conversation_state.py \
             vulnhunter/web/mobile_execution.py \
+            vulnhunter/web/mobile_infrastructure.py \
             vulnhunter/web/conversational_authorization.py \
             vulnhunter/web/conversational_views.py \
             vulnhunter/web/conversation_approval_views.py \
@@ -138,6 +152,7 @@ jobs:
             tests/unit/test_intelligence_loop.py \
             tests/unit/test_mobile_chat_hunt.py \
             tests/unit/test_mobile_hunt_runtime.py \
+            tests/unit/test_mobile_infrastructure_runtime.py \
             tests/unit/test_redaction.py \
             >>conversation-quality.log 2>&1
           format_status=$?
@@ -166,19 +181,24 @@ jobs:
             tests/unit/test_intelligence_loop.py \
             tests/unit/test_mobile_chat_hunt.py \
             tests/unit/test_mobile_hunt_runtime.py \
+            tests/unit/test_mobile_infrastructure_runtime.py \
             tests/unit/test_redaction.py
       - name: Verify launcher and configuration syntax
         run: |
           python -m json.tool .devcontainer/devcontainer.json >/dev/null
           python -m json.tool config/security_tools/mobile_yara/manifest.json >/dev/null
           python -m py_compile \
+            scripts/configure_mobsf.py \
             scripts/install_mobile_release_tools.py \
             scripts/mobile_androguard_adapter.py \
+            scripts/mobile_frida_inventory.py \
             scripts/mobile_yara_adapter.py \
-            scripts/prepare_mobile_static_worker.py
+            scripts/prepare_mobile_static_worker.py \
+            scripts/register_mobile_runtime.py
           bash -n .devcontainer/first-run.sh
           bash -n .devcontainer/install-codex.sh
           bash -n .devcontainer/install-mobile-static-tools.sh
           bash -n .devcontainer/post-create.sh
           bash -n .devcontainer/start-vulnhunter.sh
           bash -n .devcontainer/start-phone-lab.sh
+          bash -n scripts/start-mobsf-private.sh

@@ -415,7 +415,14 @@ class MobileRuntimeExecutor:
             failure = exc
         finally:
             if installed:
-                captures.extend(self._cleanup(package_name))
+                try:
+                    cleanup_captures = self._cleanup(package_name)
+                except (OSError, subprocess.SubprocessError, MobileRuntimeError) as exc:
+                    failure = failure or exc
+                else:
+                    captures.extend(cleanup_captures)
+                    if any(item.return_code != 0 for item in cleanup_captures):
+                        failure = failure or MobileRuntimeError("runtime cleanup did not complete")
         if time.monotonic() - started > self.policy.maximum_session_seconds:
             failure = MobileRuntimeError("runtime session exceeded the configured duration")
         if failure is not None:

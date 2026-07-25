@@ -257,17 +257,30 @@ class MobileExtensionSpool:
             raw = json.loads(claimed.read_text(encoding="utf-8"))
         except (OSError, ValueError):
             raw = {}
-        job_id = str(raw.get("job_id") or claimed.stem)
-        raw_kind = str(raw.get("kind") or "mobsf")
-        kind: ExtensionKind = "runtime" if raw_kind == "runtime" else "mobsf"
-        artifact_id = str(raw.get("artifact_id") or "unknown-artifact")
+        raw_job_id = str(raw.get("job_id") or claimed.stem)
+        if _IDENTIFIER.fullmatch(raw_job_id) is None:
+            identity = hashlib.sha256(claimed.name.encode()).hexdigest()[:20]
+            job_id = f"rejected-{identity}"
+        else:
+            job_id = raw_job_id
+        raw_kind = str(raw.get("kind") or "")
+        kind: ExtensionKind = raw_kind if raw_kind in {"mobsf", "runtime"} else "mobsf"
+        raw_artifact_id = str(raw.get("artifact_id") or "")
+        artifact_id = (
+            raw_artifact_id
+            if _IDENTIFIER.fullmatch(raw_artifact_id) is not None
+            else "unknown-artifact"
+        )
+        safe_reason = " ".join(reason.split())[:500]
+        if len(safe_reason) < 3:
+            safe_reason = "Extension job was rejected."
         unsigned = {
             "job_id": job_id,
             "kind": kind,
             "artifact_id": artifact_id,
             "state": "rejected",
             "completed_at": _utc(now).isoformat(),
-            "reason": reason[:500],
+            "reason": safe_reason,
             "evidence": {},
         }
         receipt = MobileExtensionReceipt(
@@ -276,7 +289,10 @@ class MobileExtensionSpool:
                 json.dumps(unsigned, sort_keys=True, separators=(",", ":")).encode()
             ).hexdigest(),
         )
-        return self.finish(claimed, receipt=receipt, success=False)
+        target = self.failed / self._filename(job_id)
+        self._write_exclusive(target, receipt.model_dump_json(indent=2) + "\n")
+        claimed.unlink(missing_ok=True)
+        return target
 
     def recover_processing(self, *, now: datetime) -> None:
         for claimed in sorted(self.processing.glob("*.json")):

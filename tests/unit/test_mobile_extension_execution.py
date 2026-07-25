@@ -94,9 +94,7 @@ def test_malformed_extension_job_is_rejected_with_safe_identity(tmp_path):
     assert not claimed.exists()
     assert rejected.parent == spool.failed
     assert rejected.name.startswith("rejected-")
-    receipt = MobileExtensionReceipt.model_validate_json(
-        rejected.read_text(encoding="utf-8")
-    )
+    receipt = MobileExtensionReceipt.model_validate_json(rejected.read_text(encoding="utf-8"))
     assert receipt.state == "rejected"
     assert receipt.kind == "mobsf"
     assert receipt.artifact_id == "unknown-artifact"
@@ -244,10 +242,7 @@ def test_runtime_cleanup_failure_marks_session_failed(tmp_path, monkeypatch):
     )
 
     assert result.state == "failed"
-    assert any(
-        item.action == "adb-uninstall" and item.return_code == 1
-        for item in result.captures
-    )
+    assert any(item.action == "adb-uninstall" and item.return_code == 1 for item in result.captures)
 
 
 def test_mobsf_approval_helper_rechecks_readiness_and_enqueues(tmp_path, monkeypatch):

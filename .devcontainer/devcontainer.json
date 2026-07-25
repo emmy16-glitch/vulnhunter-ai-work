@@ -41,7 +41,7 @@
       "visibility": "private"
     }
   },
-  "postCreateCommand": "bash .devcontainer/post-create.sh",
+  "postCreateCommand": "bash .devcontainer/post-create.sh && bash .devcontainer/configure-mobile-extensions.sh",
   "remoteUser": "vscode",
   "customizations": {
     "vscode": {

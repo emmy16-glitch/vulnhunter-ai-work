@@ -152,7 +152,7 @@ def main() -> int:
     from vulnhunter.security_tools.nuclei_pilot_service import NucleiPilotWorkerService
     from vulnhunter.security_tools.nuclei_worker_pilot import NucleiPilotPolicy
     from vulnhunter.security_tools.scanner_protocol import ScannerCompatibilityManifest
-    from vulnhunter.security_tools.worker_spool import SignedWorkerSpool
+    from vulnhunter.security_tools.worker_spool import SignedWorkerSpool, load_worker_signing_key
     from vulnhunter.web.assessment_workflow import (
         AssessmentWorkflowService,
         bind_nuclei_authorization,
@@ -232,7 +232,7 @@ def main() -> int:
     )
     worker = NucleiPilotWorkerService(
         spool=SignedWorkerSpool(paths["spool"]),
-        signing_key=paths["key"].read_bytes(),
+        signing_key=load_worker_signing_key(paths["key"]),
         policy=NucleiPilotPolicy.from_path(paths["policy"]),
         compatibility_manifest=compatibility,
         template_manifest=template_manifest,

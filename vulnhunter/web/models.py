@@ -35,7 +35,9 @@ class WebUserMapping(models.Model):
                 normalized.append(role_id)
         self.product_roles = normalized
         for field_name in ("governance_identity_id", "registry_role_id", "registry_skill_id"):
-            value = getattr(self, field_name).strip()
+            value = getattr(self, field_name).strip().casefold()
+            if value and _ROLE_PATTERN.fullmatch(value) is None:
+                raise ValidationError({field_name: f"Invalid stable identifier: {value!r}"})
             setattr(self, field_name, value)
 
     def __str__(self) -> str:

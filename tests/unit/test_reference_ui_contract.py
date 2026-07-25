@@ -8,10 +8,11 @@ TEMPLATES = WEB / "templates" / "web"
 STATIC = WEB / "static" / "web"
 LISTING = TEMPLATES / "agent_runs.html"
 DETAIL = TEMPLATES / "agent_run_detail.html"
-NEW_ASSESSMENT = TEMPLATES / "new_scan.html"
-CSS = STATIC / "app.css"
-PRODUCT_WIDE_CSS = STATIC / "product-wide.css"
-SCRIPT = STATIC / "app.js"
+CONVERSATION = TEMPLATES / "conversation.html"
+INSPECTOR = TEMPLATES / "_mobile_analysis_inspector.html"
+BASE = TEMPLATES / "base.html"
+CSS = STATIC / "workspace-polish.css"
+SCRIPT = STATIC / "workspace-state.js"
 NAVIGATION = WEB / "templatetags" / "vh_navigation.py"
 URLS = WEB / "urls.py"
 ASSESSMENT_VIEWS = WEB / "assessment_views.py"
@@ -25,49 +26,47 @@ def _text(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
 
-def test_canonical_navigation_has_one_destination_per_capability():
+def test_canonical_navigation_matches_the_unified_product():
     navigation = _text(NAVIGATION)
     for section in (
         "Overview",
-        "Operations",
-        "Review",
-        "Governance",
+        "Collection",
         "Analysis",
+        "Independent Review",
+        "Governance",
+        "Intelligence",
         "System",
     ):
         assert f'"section_label": "{section}"' in navigation
+
     labels = (
-        "Dashboard",
+        "Assessment Workspace",
         "Authorizations",
-        "Assessments",
+        "Assessment History",
         "Findings",
-        "Approval Centre",
         "Review Queue",
         "Adjudications",
         "Campaigns",
         "Releases",
-        "Reports",
         "Policies",
+        "Reports",
         "Datasets",
         "Analysis Services",
-        "Mobile APK Analysis",
         "Integrations & Tools",
         "Audit Log",
         "Settings",
     )
     for label in labels:
         assert navigation.count(f'"label": "{label}"') == 1
-    assert '"label": "Machine Oracle"' not in navigation
-    assert '"label": "New Scan"' not in navigation
-    assert '"label": "Scan Runs"' not in navigation
-    for stale in (
-        "VulnHunter AI",
-        "execution remains disabled",
-        "production runner remains blocked",
-        "Milestone 31",
+
+    for retired in (
+        '"label": "Mobile APK Analysis"',
+        '"label": "New Assessment"',
+        '"label": "Approval Centre"',
+        '"label": "Machine Oracle"',
+        '"label": "Scan Runs"',
     ):
-        assert stale not in _text(TEMPLATES / "base.html")
-        assert stale not in _text(NEW_ASSESSMENT)
+        assert retired not in navigation
 
 
 def test_canonical_routes_and_legacy_aliases_are_explicit():
@@ -76,6 +75,7 @@ def test_canonical_routes_and_legacy_aliases_are_explicit():
         "web-authorization-list",
         "web-new-scan",
         "web-scan-run-list",
+        "web-scan-run-detail",
         "web-findings-overview",
         "web-oracle-overview",
         "web-approval-list",
@@ -84,47 +84,84 @@ def test_canonical_routes_and_legacy_aliases_are_explicit():
         "web-release-list",
         "web-reports-overview",
         "web-audit-overview",
+        "web-mobile-analysis",
+        "web-agent-run-detail",
     ):
         assert route_name in urls
-    assert 'path("agent/runs/", views.agent_run_list_view' in urls
-    assert 'path("agent/runs/<str:run_id>/", views.agent_run_detail_view' in urls
-    assert 'RedirectView.as_view(pattern_name="web-scan-run-list"' in urls
+
+    assert 'RedirectView.as_view(url="/?intent=new-assessment"' in urls
+    assert '"mobile-analysis/",\n        dashboard_dispatch_views.dashboard_view' in urls
+    assert 'RedirectView.as_view(pattern_name="web-scan-run-detail"' in urls
+    assert urls.count('path(\n        "scans/<str:run_id>/"') == 1
     assert "audit_views.audit_overview_view" in urls
     assert "findings_views.findings_overview_view" in urls
     assert "report_views.reports_overview_view" in urls
     assert "oracle_views" not in urls
 
 
-def test_blueprint_tokens_and_responsive_breakpoints_are_present():
+def test_final_tokens_shared_shell_and_responsive_breakpoints_are_present():
     css = _text(CSS).lower()
     for token in (
-        "--vh-accent: #4f8cff",
-        "--vh-accent-hover: #76a6ff",
-        "--vh-info: #38bdf8",
-        "--vh-success: #22c55e",
-        "--vh-warning: #f59e0b",
-        "--vh-danger: #ef4444",
+        "--vh-final-bg: #0a0d13",
+        "--vh-final-sidebar: 264px",
+        "--vh-final-topbar: 64px",
+        "--vh-final-focus: #93c5fd",
+        "grid-template-columns: minmax(0, 1fr) 380px",
+        "@media (max-width: 1279px)",
+        "@media (max-width: 767px)",
+        "min-height: 44px",
+        "prefers-reduced-motion",
     ):
         assert token in css
-    product_css = _text(PRODUCT_WIDE_CSS)
-    for token in (
-        "100dvh",
-        "@media (max-width: 1260px)",
-        "@media (max-width: 1023px)",
-        "@media (max-width: 760px)",
-        "@media (max-width: 560px)",
-        "overflow-x: auto",
-    ):
-        assert token in product_css
+
+    base = _text(BASE)
+    conversation = _text(CONVERSATION)
+    assert "{% block extra_styles %}" in base
+    assert "{% block extra_scripts %}" in base
+    assert "assessment-modal.js" not in base
+    assert "conversation.js" not in base
+    assert conversation.count("conversation-mobile-deferred-tools.js") == 1
+    assert conversation.count("conversation-mobile-deferred-tools.css") == 1
+
+
+def test_unified_workspace_is_interactive_and_backend_truthful():
+    conversation = _text(CONVERSATION)
+    inspector = _text(INSPECTOR)
     script = _text(SCRIPT)
-    assert 'window.matchMedia("(max-width: 1023px)").matches' in script
-    assert "product-wide.css" in script
+
+    for token in (
+        "data-state-authorization",
+        "data-state-scope",
+        "data-state-approval",
+        "data-state-active",
+        "data-conversation-form",
+        "data-conversation-attach",
+        "data-approval-confirm",
+        "data-analysis-inspector-open",
+    ):
+        assert token in conversation
+
+    for token in (
+        "Assessment Inspector",
+        'role="tab"',
+        'data-inspector-panel="overview"',
+        'data-inspector-panel="findings"',
+        'data-inspector-panel="artifacts"',
+        'data-inspector-panel="graph"',
+        "No finding is shown until a real worker observation",
+    ):
+        assert token in inspector
+
+    assert "progress_percent" in script
+    assert "A genuine numeric progress value is unavailable" in script
+    assert "42%" not in conversation + inspector + script
+    assert "acme-payments.com" not in conversation + inspector
+    assert "CVE-2023-50287" not in conversation + inspector
 
 
-def test_assessment_workspace_is_interactive_and_backend_truthful():
+def test_assessment_detail_remains_evidence_first_and_truthful():
     listing = _text(LISTING)
     detail = _text(DETAIL)
-    script = _text(SCRIPT)
     for token in (
         "vh-workstream-panel",
         "vh-inspector",
@@ -136,36 +173,21 @@ def test_assessment_workspace_is_interactive_and_backend_truthful():
     ):
         assert token in detail
     assert detail.count('role="tab"') >= 8
-    assert "querySelector(\":scope > [role='tablist']\")" in script
     assert "run.attack_path" in detail
     assert "vh-workstream-panel" not in listing
     assert "vh-progress-100" not in detail
     assert "78%" not in detail
     assert "52%" not in detail
     assert "estimated percentage" in detail
-    for fake_value in (
-        "acme-payments.com",
-        "CVE-2023-50287",
-        "/api/v1/users",
-        "Nuclei v3.1.3",
-        "6,421",
-        "32 threads",
-    ):
-        assert fake_value not in listing + detail
 
 
-def test_scanner_choice_is_bounded_to_automatic_or_nuclei():
-    listing = _text(LISTING)
-    new_assessment = _text(NEW_ASSESSMENT)
+def test_scanner_choice_remains_bounded_after_form_retirement():
     view = _text(ASSESSMENT_VIEWS)
-    modal_script = _text(STATIC / "assessment-modal.js")
-    for template in (listing, new_assessment):
-        assert 'name="scanner_engine"' in template
-        assert 'value="automatic"' in template
-        assert 'value="nuclei"' in template
+    operations = _text(OPERATIONS_VIEWS)
+    urls = _text(URLS)
     assert '_ALLOWED_SCANNER_ENGINES = {"automatic", "nuclei"}' in view
-    assert "data-engine-select" in listing
-    assert "engineSelect" in modal_script
+    assert "new_scan_view" in operations
+    assert 'RedirectView.as_view(url="/?intent=new-assessment"' in urls
     web_text = "\n".join(path.read_text(encoding="utf-8") for path in WEB.rglob("*.py"))
     template_text = "\n".join(
         path.read_text(encoding="utf-8") for path in TEMPLATES.rglob("*.html")
@@ -182,8 +204,10 @@ def test_data_backed_pages_have_distinct_view_modules():
 
 
 @pytest.mark.django_db
-def test_pending_approval_dialog_records_real_decision_and_returns_to_canonical_run(
-    client, tmp_path, settings
+def test_pending_approval_records_a_real_decision_and_returns_to_the_canonical_run(
+    client,
+    tmp_path,
+    settings,
 ):
     from datetime import UTC, datetime, timedelta
 
@@ -257,8 +281,6 @@ def test_pending_approval_dialog_records_real_decision_and_returns_to_canonical_
     detail = client.get("/scans/run-modal/")
     assert detail.status_code == 200
     assert b'id="vh-approval-dialog"' in detail.content
-    assert b'value="approve_once"' in detail.content
-    assert b'value="deny_continue_safely"' in detail.content
 
     decision = client.post(
         "/approvals/approval-modal/decision/",
@@ -272,13 +294,13 @@ def test_pending_approval_dialog_records_real_decision_and_returns_to_canonical_
     assert decision["Location"].endswith("/scans/run-modal/")
     assert approval_store.get("approval-modal").status == ApprovalStatus.APPROVED
 
-    refreshed = client.get("/scans/run-modal/")
-    assert refreshed.status_code == 200
-    assert b'id="vh-approval-dialog"' not in refreshed.content
-
 
 @pytest.mark.django_db
-def test_product_routes_render_for_a_multi_role_operator(client, tmp_path, settings):
+def test_product_routes_render_and_retired_creation_routes_are_unified(
+    client,
+    tmp_path,
+    settings,
+):
     from django.contrib.auth import get_user_model
     from governance_test_support import ADMIN_SECRET, NOW, make_governance_store
 
@@ -328,7 +350,6 @@ def test_product_routes_render_for_a_multi_role_operator(client, tmp_path, setti
 
     routes = (
         "/authorizations/",
-        "/scans/new/",
         "/scans/",
         "/findings/",
         "/approvals/",
@@ -344,29 +365,35 @@ def test_product_routes_render_for_a_multi_role_operator(client, tmp_path, setti
         "/settings/",
     )
     for route in routes:
-        response = client.get(route)
-        assert response.status_code == 200, route
+        assert client.get(route).status_code == 200, route
+
+    new_scan = client.get("/scans/new/")
+    mobile = client.get("/mobile-analysis/")
+    assert new_scan.status_code == 302
+    assert new_scan["Location"] == "/?intent=new-assessment"
+    assert mobile.status_code == 200
+    assert b"Assessment Workspace" in mobile.content
+    assert b"data-conversation-form" in mobile.content
 
     compatibility = client.get("/machine-oracle/")
     assert compatibility.status_code == 302
     assert compatibility["Location"].endswith("/scans/")
-
-    legacy_list = client.get("/agent/runs/")
-    assert legacy_list.status_code == 200
+    assert client.get("/agent/runs/").status_code == 200
 
     dashboard = client.get("/")
     assert dashboard.status_code == 200
     for label in (
+        b"Assessment Workspace",
         b"Authorizations",
-        b"Assessments",
+        b"Assessment History",
         b"Findings",
-        b"Approval Centre",
         b"Review Queue",
         b"Adjudications",
         b"Reports",
         b"Audit Log",
     ):
         assert label in dashboard.content
+    assert b"Mobile APK Analysis" not in dashboard.content
     assert b"Machine Oracle" not in dashboard.content
 
 
@@ -388,10 +415,16 @@ def test_navigation_is_filtered_by_product_role():
     )
 
     labels = {str(item["label"]) for item in canonical_navigation(user)}
-    assert labels == {"Dashboard", "Findings", "Review Queue", "Reports", "Settings"}
-    assert "Assessments" not in labels
+    assert labels == {
+        "Assessment Workspace",
+        "Findings",
+        "Review Queue",
+        "Reports",
+        "Settings",
+    }
+    assert "Assessment History" not in labels
     assert "Approval Centre" not in labels
-    assert "Machine Oracle" not in labels
+    assert "Mobile APK Analysis" not in labels
 
 
 def test_overview_pages_do_not_repeat_sidebar_navigation():

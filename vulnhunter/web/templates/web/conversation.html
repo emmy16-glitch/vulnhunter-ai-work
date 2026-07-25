@@ -1,33 +1,66 @@
 {% extends "web/base.html" %}
 {% load static %}
+
+{% block extra_styles %}
+  <link rel="stylesheet" href="{% static 'web/conversation.css' %}?v=20260725-consolidate1">
+  <link rel="stylesheet" href="{% static 'web/conversation-layout.css' %}?v=20260725-consolidate1">
+  <link rel="stylesheet" href="{% static 'web/conversation-mobile.css' %}?v=20260725-consolidate1">
+  <link rel="stylesheet" href="{% static 'web/conversation-upload.css' %}?v=20260725-consolidate1">
+  <link rel="stylesheet" href="{% static 'web/conversation-mobile-execution.css' %}?v=20260725-consolidate1">
+  <link rel="stylesheet" href="{% static 'web/conversation-mobile-inspector.css' %}?v=20260725-consolidate1">
+  <link rel="stylesheet" href="{% static 'web/conversation-mobile-deferred-tools.css' %}?v=20260725-consolidate1">
+{% endblock %}
+
+{% block extra_scripts %}
+  <script src="{% static 'web/conversation-runtime-compat.js' %}?v=20260725-consolidate1"></script>
+  <script src="{% static 'web/conversation.js' %}?v=20260725-consolidate1" defer></script>
+  <script src="{% static 'web/conversation-autoscroll.js' %}?v=20260725-consolidate1" defer></script>
+  <script src="{% static 'web/conversation-mobile-bridge.js' %}?v=20260725-consolidate1" defer></script>
+  <script src="{% static 'web/conversation-mobile.js' %}?v=20260725-consolidate1" defer></script>
+  <script src="{% static 'web/conversation-mobile-context.js' %}?v=20260725-consolidate1" defer></script>
+  <script src="{% static 'web/conversation-mobile-inspector.js' %}?v=20260725-consolidate1" defer></script>
+  <script src="{% static 'web/conversation-mobile-deferred-tools.js' %}?v=20260725-consolidate1" defer></script>
+{% endblock %}
+
 {% block content %}
-<link rel="stylesheet" href="{% static 'web/conversation-mobile.css' %}?v=20260725-mobile1">
-<link rel="stylesheet" href="{% static 'web/conversation-upload.css' %}?v=20260725-upload1">
-<link rel="stylesheet" href="{% static 'web/conversation-mobile-execution.css' %}?v=20260725-mobile2">
-<link rel="stylesheet" href="{% static 'web/conversation-mobile-inspector.css' %}?v=20260725-inspector1">
-<link rel="stylesheet" href="{% static 'web/conversation-mobile-deferred-tools.css' %}?v=20260725-extension1">
-<script src="{% static 'web/conversation-runtime-compat.js' %}?v=20260723-chat4"></script>
-<script src="{% static 'web/conversation-mobile-bridge.js' %}?v=20260725-inspector1" defer></script>
-<script src="{% static 'web/conversation-mobile.js' %}?v=20260725-mobile5" defer></script>
-<script src="{% static 'web/conversation-mobile-context.js' %}?v=20260725-mobile3" defer></script>
-<script src="{% static 'web/conversation-mobile-inspector.js' %}?v=20260725-inspector1" defer></script>
-<script src="{% static 'web/conversation-mobile-deferred-tools.js' %}?v=20260725-extension1" defer></script>
-<section class="vh-chat-workspace" data-conversation-workspace data-mobile-workspace-view="chat" aria-labelledby="vh-chat-title">
+<section class="vh-chat-workspace" data-product-name="VulnHunter Workspace" data-conversation-workspace data-mobile-workspace-view="chat" aria-labelledby="vh-chat-title">
   <header class="vh-chat-header">
     <div class="vh-chat-title-group">
       <span class="vh-chat-orb" aria-hidden="true"><svg><use href="#vh-i-shield"></use></svg></span>
       <div>
-        <p class="vh-eyebrow">Security assessment</p>
-        <h1 id="vh-chat-title">VulnHunter Workspace</h1>
+        <p class="vh-eyebrow">Governed security assessment</p>
+        <h1 id="vh-chat-title">Assessment Workspace</h1>
+        <p class="vh-chat-subtitle">Conversational analysis for authorised websites and APKs</p>
       </div>
     </div>
-    <div class="vh-chat-runtime" aria-label="Workspace status">
-      <span class="vh-runtime-chip is-ready"><i></i><strong>{% if groq.configured %}Conversation ready{% else %}Command mode{% endif %}</strong></span>
-      <span class="vh-runtime-chip is-ready"><i></i><strong>Tools ready</strong></span>
+    <div class="vh-chat-runtime" aria-label="Workspace actions">
       <button type="button" class="vh-chat-history-toggle" data-history-toggle aria-expanded="false" aria-controls="vh-chat-history">History</button>
       <button type="button" class="vh-chat-reset" data-conversation-reset>New conversation</button>
     </div>
   </header>
+
+  <section class="vh-state-strip" aria-label="Current assessment state" data-state-strip>
+    <button type="button" class="vh-state-card is-authorization" data-state-card="authorization">
+      <span class="vh-state-label"><i></i>Authorization</span>
+      <strong data-state-authorization>{% if conversation.active_run %}Bound to run{% else %}Not selected{% endif %}</strong>
+    </button>
+    <button type="button" class="vh-state-card is-scope" data-state-card="scope">
+      <span class="vh-state-label"><i></i>Scope</span>
+      <strong data-state-scope>{% if conversation.active_run %}{{ conversation.active_run.target|truncatechars:44 }}{% else %}No target selected{% endif %}</strong>
+    </button>
+    <button type="button" class="vh-state-card is-approval" data-state-card="approval">
+      <span class="vh-state-label"><i></i>Approval</span>
+      <strong data-state-approval>{% if conversation.active_run %}{{ conversation.active_run.approval_state|default:"Not required" }}{% else %}Not required{% endif %}</strong>
+    </button>
+    <button type="button" class="vh-state-card is-active" data-state-card="active" data-analysis-inspector-open>
+      <span class="vh-state-label"><i></i>Active</span>
+      <strong data-state-active>{% if conversation.active_run %}{{ conversation.active_run.state }}{% else %}Idle{% endif %}</strong>
+    </button>
+  </section>
+
+  <button type="button" class="vh-mobile-status-summary" data-analysis-inspector-open hidden>
+    <i></i><span data-mobile-status-copy>{% if conversation.active_run %}{{ conversation.active_run.state }}{% else %}Ready for an authorised target{% endif %}</span>
+  </button>
 
   <div class="vh-chat-layout">
     <main class="vh-chat-main" aria-label="Assessment conversation">
@@ -62,13 +95,13 @@
             <span aria-hidden="true">+</span>
           </button>
           <input type="file" name="attachment" accept=".apk,application/vnd.android.package-archive" data-conversation-file hidden>
-          <textarea id="vh-chat-message" name="message" rows="1" maxlength="4000" autocomplete="off" spellcheck="true" placeholder="Message VulnHunter or attach an APK" data-conversation-input required></textarea>
+          <textarea id="vh-chat-message" name="message" rows="1" maxlength="4000" autocomplete="off" spellcheck="true" placeholder="Message VulnHunter — describe a target, attach an APK, or ask about a finding" data-conversation-input required></textarea>
           <button type="submit" class="vh-chat-send" data-conversation-send aria-label="Send message">
             <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m4 12 16-8-5.5 16-3.2-6.8z"/><path d="m11.3 13.2 4.6-4.6"/></svg>
           </button>
         </div>
         <div class="vh-chat-composer-meta">
-          <span>Enter to send · Shift+Enter for a new line</span>
+          <span>Website and APK assessments both start here · Enter to send · Shift+Enter for a new line</span>
         </div>
       </form>
     </main>
@@ -90,7 +123,7 @@
             <span><strong>{{ item.target|truncatechars:38 }}</strong><small>{{ item.state }} · {{ item.profile }}</small></span>
           </a>
         {% empty %}
-          <p class="vh-chat-history-empty">No assessments yet.</p>
+          <p class="vh-chat-history-empty">No assessments yet. Paste an authorised website URL or attach an APK to begin.</p>
         {% endfor %}
       </div>
       <a class="vh-chat-history-link" href="{% url 'web-findings-overview' %}">Open findings</a>
@@ -151,37 +184,17 @@
     <div class="vh-run-stage-track" data-run-stages aria-label="Current assessment progress" aria-live="polite"></div>
 
     <div class="vh-run-disclosures">
-      <details data-section="summary">
-        <summary><span><svg aria-hidden="true"><use href="#vh-i-assessment"></use></svg><strong>Summary</strong></span><b data-section-summary-state>In progress</b></summary>
-        <div class="vh-disclosure-body" data-summary-body></div>
-      </details>
-      <details data-section="progress">
-        <summary><span><svg aria-hidden="true"><use href="#vh-i-activity"></use></svg><strong>Activity</strong></span><b data-progress-count>0 events</b></summary>
-        <div class="vh-disclosure-body"><ol class="vh-run-event-list" data-event-list></ol></div>
-      </details>
-      <details data-section="findings">
-        <summary><span><svg aria-hidden="true"><use href="#vh-i-finding"></use></svg><strong>Findings</strong></span><b data-findings-count>0</b></summary>
-        <div class="vh-disclosure-body" data-findings-list></div>
-      </details>
-      <details data-section="evidence">
-        <summary><span><svg aria-hidden="true"><use href="#vh-i-checkdoc"></use></svg><strong>Evidence</strong></span><b data-evidence-count>0</b></summary>
-        <div class="vh-disclosure-body" data-evidence-list></div>
-      </details>
-      <details data-section="verification">
-        <summary><span><svg aria-hidden="true"><use href="#vh-i-oracle"></use></svg><strong>Verification</strong></span><b data-verification-state>Pending</b></summary>
-        <div class="vh-disclosure-body" data-verification-body></div>
-      </details>
-      <details data-section="guidance">
-        <summary><span><svg aria-hidden="true"><use href="#vh-i-checkdoc"></use></svg><strong>Remediation guidance</strong></span><b>Available</b></summary>
-        <div class="vh-disclosure-body" data-guidance-body></div>
-      </details>
-      <details data-section="technical">
-        <summary><span><svg aria-hidden="true"><use href="#vh-i-audit"></use></svg><strong>Technical and audit details</strong></span><b data-audit-count>0 events</b></summary>
-        <div class="vh-disclosure-body" data-technical-body></div>
-      </details>
+      <details data-section="summary"><summary><span><svg aria-hidden="true"><use href="#vh-i-assessment"></use></svg><strong>Summary</strong></span><b data-section-summary-state>In progress</b></summary><div class="vh-disclosure-body" data-summary-body></div></details>
+      <details data-section="progress"><summary><span><svg aria-hidden="true"><use href="#vh-i-activity"></use></svg><strong>Activity</strong></span><b data-progress-count>0 events</b></summary><div class="vh-disclosure-body"><ol class="vh-run-event-list" data-event-list></ol></div></details>
+      <details data-section="findings"><summary><span><svg aria-hidden="true"><use href="#vh-i-finding"></use></svg><strong>Findings</strong></span><b data-findings-count>0</b></summary><div class="vh-disclosure-body" data-findings-list></div></details>
+      <details data-section="evidence"><summary><span><svg aria-hidden="true"><use href="#vh-i-checkdoc"></use></svg><strong>Evidence</strong></span><b data-evidence-count>0</b></summary><div class="vh-disclosure-body" data-evidence-list></div></details>
+      <details data-section="verification"><summary><span><svg aria-hidden="true"><use href="#vh-i-oracle"></use></svg><strong>Verification</strong></span><b data-verification-state>Pending</b></summary><div class="vh-disclosure-body" data-verification-body></div></details>
+      <details data-section="guidance"><summary><span><svg aria-hidden="true"><use href="#vh-i-checkdoc"></use></svg><strong>Remediation guidance</strong></span><b>Available when evidence supports it</b></summary><div class="vh-disclosure-body" data-guidance-body></div></details>
+      <details data-section="technical"><summary><span><svg aria-hidden="true"><use href="#vh-i-audit"></use></svg><strong>Technical and audit details</strong></span><b data-audit-count>0 events</b></summary><div class="vh-disclosure-body" data-technical-body></div></details>
     </div>
 
     <footer class="vh-run-card-footer">
+      <button type="button" data-analysis-inspector-open>View in inspector</button>
       <a data-findings-link>View findings</a>
       <a data-run-detail-link>View details</a>
     </footer>

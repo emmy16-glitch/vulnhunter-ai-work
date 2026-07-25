@@ -40,18 +40,33 @@ class ControlledMemoryStore:
 
     @contextmanager
     def _connect(self, *, write: bool = False) -> Iterator[sqlite3.Connection]:
-        connection = sqlite3.connect(self.database, timeout=30)
+        try:
+            connection = sqlite3.connect(self.database, timeout=30)
+        except sqlite3.Error as exc:
+            raise ControlledMemoryStoreError(
+                "controlled memory database could not be opened safely"
+            ) from exc
         connection.row_factory = sqlite3.Row
         try:
             connection.execute("PRAGMA journal_mode=WAL")
             if write:
                 connection.execute("BEGIN IMMEDIATE")
             yield connection
+        except sqlite3.Error as exc:
+            connection.rollback()
+            raise ControlledMemoryStoreError(
+                "controlled memory database operation failed safely"
+            ) from exc
         except BaseException:
             connection.rollback()
             raise
         else:
-            connection.commit()
+            try:
+                connection.commit()
+            except sqlite3.Error as exc:
+                raise ControlledMemoryStoreError(
+                    "controlled memory database commit failed safely"
+                ) from exc
         finally:
             connection.close()
 
@@ -98,6 +113,10 @@ class ControlledMemoryStore:
             )
 
     def add_candidate(self, candidate: MemoryCandidate) -> bool:
+        if candidate.status != CandidateStatus.PENDING_REVIEW:
+            raise ControlledMemoryStoreError(
+                "new learning candidates must enter storage as pending review"
+            )
         with self._connect(write=True) as connection:
             try:
                 connection.execute(
@@ -227,6 +246,8 @@ class ControlledMemoryStore:
             raise ControlledMemoryStoreError("stored learning evaluation is invalid") from exc
 
     def promote(self, record: PromotionRecord, candidate: MemoryCandidate) -> None:
+        if candidate.status != CandidateStatus.PROMOTED:
+            raise ControlledMemoryStoreError("promotion must persist a promoted candidate state")
         with self._connect(write=True) as connection:
             connection.execute(
                 """
@@ -251,12 +272,16 @@ class ControlledMemoryStore:
     ) -> tuple[MemoryCandidate, ...]:
         if not 1 <= limit <= 32:
             raise ControlledMemoryStoreError("memory retrieval limit must be between 1 and 32")
-        query = "SELECT candidate_json FROM memory_candidates WHERE status = ?"
+        query = (
+            "SELECT c.candidate_json FROM memory_candidates AS c "
+            "INNER JOIN memory_promotions AS p ON p.candidate_id = c.candidate_id "
+            "WHERE c.status = ?"
+        )
         params: list[object] = [CandidateStatus.PROMOTED.value]
         if kind is not None:
-            query += " AND kind = ?"
+            query += " AND c.kind = ?"
             params.append(kind.value)
-        query += " ORDER BY updated_at DESC, candidate_id LIMIT ?"
+        query += " ORDER BY c.updated_at DESC, c.candidate_id LIMIT ?"
         params.append(limit)
         with self._connect() as connection:
             rows = connection.execute(query, tuple(params)).fetchall()

@@ -70,7 +70,10 @@ def test_chunked_apk_upload_auto_starts_the_mobile_worker_plan(
             )
             assert final.status_code == 200
             payload = final.json()
-            offset = int(payload.get("received_bytes", payload.get("upload", {})["received_bytes"]))
+            if "received_bytes" in payload:
+                offset = int(payload["received_bytes"])
+            else:
+                offset = int(payload["upload"]["received_bytes"])
 
         assert final is not None
         result = final.json()
@@ -121,6 +124,7 @@ def test_workspace_uses_resumable_uploads_and_codespaces_sets_one_gigabyte():
         encoding="utf-8"
     )
     post_create = (ROOT / ".devcontainer/post-create.sh").read_text(encoding="utf-8")
+    start_script = (ROOT / ".devcontainer/start-vulnhunter.sh").read_text(encoding="utf-8")
 
     assert "data-upload-start-url" in template
     assert "uploadInChunks" in script
@@ -128,3 +132,5 @@ def test_workspace_uses_resumable_uploads_and_codespaces_sets_one_gigabyte():
     assert "consumeUploadResponse" in script
     assert "VULNHUNTER_MOBILE_MAX_APK_BYTES=1000000000" in post_create
     assert "VULNHUNTER_MOBILE_UPLOAD_CHUNK_BYTES=8388608" in post_create
+    assert "prepare_mobile_static_worker.py" in start_script
+    assert "automatic isolated static/native worker ready" in start_script

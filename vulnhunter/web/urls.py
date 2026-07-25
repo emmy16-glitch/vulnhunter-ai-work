@@ -43,6 +43,21 @@ urlpatterns = [
         name="web-conversation-mobile-message",
     ),
     path(
+        "workspace/mobile-followup/",
+        conversation_mobile_views.mobile_followup_view,
+        name="web-conversation-mobile-followup",
+    ),
+    path(
+        "workspace/mobile-context/",
+        conversation_mobile_views.mobile_context_view,
+        name="web-conversation-mobile-context",
+    ),
+    path(
+        "workspace/mobile-context/reset/",
+        conversation_mobile_views.mobile_context_reset_view,
+        name="web-conversation-mobile-context-reset",
+    ),
+    path(
         "workspace/mobile-runs/<str:job_id>/status/",
         conversation_mobile_views.mobile_status_view,
         name="web-conversation-mobile-status",

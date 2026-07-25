@@ -92,7 +92,48 @@ else
   printf 'Groq key file is ready: %s\n' "$GROQ_KEY_FILE"
 fi
 
+MOBSF_POLICY="${VULNHUNTER_MOBSF_POLICY:-$ROOT/.codespaces/runtime/mobsf.json}"
+MOBSF_KEY="${VULNHUNTER_MOBSF_API_KEY_FILE:-$ROOT/.codespaces/runtime/mobsf-api.key}"
+if [[ -s "$MOBSF_POLICY" && -s "$MOBSF_KEY" ]]; then
+  printf 'Private MobSF policy and protected API key are already configured.\n'
+elif command -v docker >/dev/null 2>&1; then
+  printf '\nMobSF provides the separately isolated static-analysis service.\n'
+  read -r -p "Start and configure private MobSF now? [Y/n]: " CONFIGURE_MOBSF
+  CONFIGURE_MOBSF="${CONFIGURE_MOBSF:-Y}"
+  if [[ "${CONFIGURE_MOBSF,,}" != "n" && "${CONFIGURE_MOBSF,,}" != "no" ]]; then
+    bash scripts/start-mobsf-private.sh
+    cat <<'MOBSF'
+Open the private Codespaces port 8008 page. Sign in to the private MobSF instance,
+change the default web password, then copy the REST API key from the API page.
+Return to this terminal when the key is ready. The key prompt below is hidden.
+MOBSF
+    python scripts/configure_mobsf.py \
+      --policy "$MOBSF_POLICY" \
+      --api-key-file "$MOBSF_KEY"
+  else
+    printf 'MobSF remains gated until its private service policy is configured.\n'
+  fi
+else
+  printf 'Docker is unavailable, so the private MobSF service remains gated.\n'
+fi
+
+RUNTIME_POLICY="${VULNHUNTER_MOBILE_RUNTIME_POLICY:-$ROOT/.codespaces/runtime/mobile-runtime.json}"
+if [[ -s "$RUNTIME_POLICY" ]]; then
+  printf 'A disposable Android runtime registration is present: %s\n' "$RUNTIME_POLICY"
+else
+  cat <<RUNTIME
+ADB and Frida remain correctly gated because no disposable emulator is registered.
+After an authorised emulator and matching Frida server are available, register its
+exact identity with:
+  python scripts/register_mobile_runtime.py \\
+    --policy "$RUNTIME_POLICY" \\
+    --runtime-id emulator-lab-01 \\
+    --adb-serial emulator-5554 \\
+    --frida-device-id emulator-5554
+RUNTIME
+fi
+
 printf '\nVulnHunter setup is complete. Start the workspace with:\n'
 printf '  bash .devcontainer/start-vulnhunter.sh\n\n'
 printf 'Login username: %s\n' "$USERNAME"
-printf 'This account requests, confirms and monitors reviewed passive assessments in one chat.\n'
+printf 'This account requests, confirms and monitors governed assessments in one chat.\n'

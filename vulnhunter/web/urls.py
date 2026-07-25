@@ -7,6 +7,8 @@ from vulnhunter.web import (
     assessment_views,
     audit_views,
     conversation_approval_views,
+    conversation_mobile_extension_views,
+    conversation_mobile_views,
     conversational_views,
     dashboard_dispatch_views,
     findings_views,
@@ -30,6 +32,46 @@ urlpatterns = [
         "workspace/message/",
         conversational_views.message_view,
         name="web-conversation-message",
+    ),
+    path(
+        "workspace/attachments/",
+        conversation_mobile_views.attachment_view,
+        name="web-conversation-attachment",
+    ),
+    path(
+        "workspace/mobile-message/",
+        conversation_mobile_views.mobile_message_view,
+        name="web-conversation-mobile-message",
+    ),
+    path(
+        "workspace/mobile-followup/",
+        conversation_mobile_views.mobile_followup_view,
+        name="web-conversation-mobile-followup",
+    ),
+    path(
+        "workspace/mobile-context/",
+        conversation_mobile_views.mobile_context_view,
+        name="web-conversation-mobile-context",
+    ),
+    path(
+        "workspace/mobile-context/reset/",
+        conversation_mobile_views.mobile_context_reset_view,
+        name="web-conversation-mobile-context-reset",
+    ),
+    path(
+        "workspace/mobile-runs/<str:job_id>/status/",
+        conversation_mobile_views.mobile_status_view,
+        name="web-conversation-mobile-status",
+    ),
+    path(
+        "workspace/mobile-extensions/approve/",
+        conversation_mobile_extension_views.mobile_extension_approve_view,
+        name="web-conversation-mobile-extension-approve",
+    ),
+    path(
+        "workspace/mobile-extensions/<str:job_id>/status/",
+        conversation_mobile_extension_views.mobile_extension_status_view,
+        name="web-conversation-mobile-extension-status",
     ),
     path(
         "workspace/approve/",

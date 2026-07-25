@@ -10,7 +10,7 @@ permissions:
 jobs:
   conversation:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     env:
       VULNHUNTER_WEB_DEBUG: "true"
       VULNHUNTER_WEB_DATABASE: /tmp/vh-conversation/web.sqlite3
@@ -20,6 +20,9 @@ jobs:
       VULNHUNTER_APPROVAL_DATABASE: /tmp/vh-conversation/approvals.sqlite3
       VULNHUNTER_AGENT_ACTIVITY_ROOT: /tmp/vh-conversation/activity
       VULNHUNTER_SECURITY_EVIDENCE_ROOT: /tmp/vh-conversation/evidence
+      VULNHUNTER_MOBILE_ARTIFACT_ROOT: /tmp/vh-conversation/mobile-artifacts
+      VULNHUNTER_MOBILE_STATIC_SPOOL_ROOT: /tmp/vh-conversation/mobile-static-spool
+      VULNHUNTER_MOBILE_STATIC_ENQUEUE_ENABLED: "false"
       VULNHUNTER_ADVERSARY_LAB_DATABASE: /tmp/vh-conversation/lab.sqlite3
       VULNHUNTER_GROQ_ENABLED: "false"
       VULNHUNTER_INTELLIGENCE_ENABLED: "false"
@@ -41,15 +44,44 @@ jobs:
         run: |
           node --check vulnhunter/web/static/web/conversation-runtime-compat.js
           node --check vulnhunter/web/static/web/conversation.js
+          node --check vulnhunter/web/static/web/conversation-mobile-bridge.js
+          node --check vulnhunter/web/static/web/conversation-mobile.js
+          node --check vulnhunter/web/static/web/conversation-mobile-context.js
+          node --check vulnhunter/web/static/web/conversation-mobile-inspector.js
+          node --check vulnhunter/web/static/web/conversation-mobile-deferred-tools.js
           node --check vulnhunter/web/static/web/conversation-autoscroll.js
           node tests/ui/chat_runtime_compat.cjs
-      - name: Check conversational and intelligence Python
+      - name: Check conversational, mobile and intelligence Python
         run: |
           set +e
           python -m ruff check \
+            scripts/configure_mobsf.py \
+            scripts/install_mobile_release_tools.py \
+            scripts/mobile_androguard_adapter.py \
+            scripts/mobile_frida_inventory.py \
+            scripts/mobile_yara_adapter.py \
+            scripts/prepare_mobile_static_worker.py \
+            scripts/register_mobile_runtime.py \
             vulnhunter/scope/validator.py \
+            vulnhunter/mobile/extension_service.py \
+            vulnhunter/mobile/extension_spool.py \
+            vulnhunter/mobile/mobsf.py \
+            vulnhunter/mobile/runtime.py \
+            vulnhunter/mobile/static_progress.py \
+            vulnhunter/mobile/static_service.py \
+            vulnhunter/mobile/static_spool.py \
+            vulnhunter/mobile/static_toolchain.py \
+            vulnhunter/mobile/static_worker.py \
             vulnhunter/web/conversation_service.py \
             vulnhunter/web/conversation_state.py \
+            vulnhunter/web/conversation_attachments.py \
+            vulnhunter/web/conversation_mobile_extension_views.py \
+            vulnhunter/web/conversation_mobile_views.py \
+            vulnhunter/web/mobile_conversation.py \
+            vulnhunter/web/mobile_conversation_state.py \
+            vulnhunter/web/mobile_execution.py \
+            vulnhunter/web/mobile_extension_execution.py \
+            vulnhunter/web/mobile_infrastructure.py \
             vulnhunter/web/conversational_authorization.py \
             vulnhunter/web/conversational_views.py \
             vulnhunter/web/conversation_approval_views.py \
@@ -58,6 +90,9 @@ jobs:
             vulnhunter/web/management/commands/vh_configure_groq.py \
             vulnhunter/web/management/commands/vh_prepare_private_lab.py \
             vulnhunter/web/management/commands/vh_run_intelligence_worker.py \
+            vulnhunter/web/management/commands/vh_run_mobile_extension_worker.py \
+            vulnhunter/web/management/commands/vh_run_mobile_static_worker.py \
+            vulnhunter/hunt \
             vulnhunter/intelligence \
             vulnhunter/security/redaction.py \
             vulnhunter/security/sensitive_patterns.py \
@@ -69,13 +104,43 @@ jobs:
             tests/unit/test_inline_confirmation_endpoint.py \
             tests/unit/test_inline_confirmation_store.py \
             tests/unit/test_intelligence_loop.py \
+            tests/unit/test_mobile_chat_hunt.py \
+            tests/unit/test_mobile_extension_endpoints.py \
+            tests/unit/test_mobile_extension_execution.py \
+            tests/unit/test_mobile_extension_ui.py \
+            tests/unit/test_mobile_hunt_runtime.py \
+            tests/unit/test_mobile_infrastructure_runtime.py \
             tests/unit/test_redaction.py \
             >conversation-quality.log 2>&1
           lint_status=$?
           python -m ruff format --check \
+            scripts/configure_mobsf.py \
+            scripts/install_mobile_release_tools.py \
+            scripts/mobile_androguard_adapter.py \
+            scripts/mobile_frida_inventory.py \
+            scripts/mobile_yara_adapter.py \
+            scripts/prepare_mobile_static_worker.py \
+            scripts/register_mobile_runtime.py \
             vulnhunter/scope/validator.py \
+            vulnhunter/mobile/extension_service.py \
+            vulnhunter/mobile/extension_spool.py \
+            vulnhunter/mobile/mobsf.py \
+            vulnhunter/mobile/runtime.py \
+            vulnhunter/mobile/static_progress.py \
+            vulnhunter/mobile/static_service.py \
+            vulnhunter/mobile/static_spool.py \
+            vulnhunter/mobile/static_toolchain.py \
+            vulnhunter/mobile/static_worker.py \
             vulnhunter/web/conversation_service.py \
             vulnhunter/web/conversation_state.py \
+            vulnhunter/web/conversation_attachments.py \
+            vulnhunter/web/conversation_mobile_extension_views.py \
+            vulnhunter/web/conversation_mobile_views.py \
+            vulnhunter/web/mobile_conversation.py \
+            vulnhunter/web/mobile_conversation_state.py \
+            vulnhunter/web/mobile_execution.py \
+            vulnhunter/web/mobile_extension_execution.py \
+            vulnhunter/web/mobile_infrastructure.py \
             vulnhunter/web/conversational_authorization.py \
             vulnhunter/web/conversational_views.py \
             vulnhunter/web/conversation_approval_views.py \
@@ -84,6 +149,9 @@ jobs:
             vulnhunter/web/management/commands/vh_configure_groq.py \
             vulnhunter/web/management/commands/vh_prepare_private_lab.py \
             vulnhunter/web/management/commands/vh_run_intelligence_worker.py \
+            vulnhunter/web/management/commands/vh_run_mobile_extension_worker.py \
+            vulnhunter/web/management/commands/vh_run_mobile_static_worker.py \
+            vulnhunter/hunt \
             vulnhunter/intelligence \
             vulnhunter/security/redaction.py \
             vulnhunter/security/sensitive_patterns.py \
@@ -95,6 +163,12 @@ jobs:
             tests/unit/test_inline_confirmation_endpoint.py \
             tests/unit/test_inline_confirmation_store.py \
             tests/unit/test_intelligence_loop.py \
+            tests/unit/test_mobile_chat_hunt.py \
+            tests/unit/test_mobile_extension_endpoints.py \
+            tests/unit/test_mobile_extension_execution.py \
+            tests/unit/test_mobile_extension_ui.py \
+            tests/unit/test_mobile_hunt_runtime.py \
+            tests/unit/test_mobile_infrastructure_runtime.py \
             tests/unit/test_redaction.py \
             >>conversation-quality.log 2>&1
           format_status=$?
@@ -109,8 +183,9 @@ jobs:
           name: conversational-quality-log
           path: conversation-quality.log
           retention-days: 3
-      - name: Run conversational and intelligence tests
+      - name: Run conversational, mobile and intelligence tests
         run: |
+          set -o pipefail
           python manage.py migrate --noinput
           python -m pytest -q \
             tests/unit/test_chat_runtime_reply.py \
@@ -121,10 +196,43 @@ jobs:
             tests/unit/test_inline_confirmation_endpoint.py \
             tests/unit/test_inline_confirmation_store.py \
             tests/unit/test_intelligence_loop.py \
-            tests/unit/test_redaction.py
-      - name: Verify launcher syntax
+            tests/unit/test_mobile_chat_hunt.py \
+            tests/unit/test_mobile_extension_endpoints.py \
+            tests/unit/test_mobile_extension_execution.py \
+            tests/unit/test_mobile_extension_ui.py \
+            tests/unit/test_mobile_hunt_runtime.py \
+            tests/unit/test_mobile_infrastructure_runtime.py \
+            tests/unit/test_redaction.py \
+            2>&1 | tee focused-pytest.log
+      - name: Upload focused pytest diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: focused-pytest-log
+          path: focused-pytest.log
+          retention-days: 3
+      - name: Verify launcher and configuration syntax
         run: |
+          python -m json.tool .devcontainer/devcontainer.json >/dev/null
+          python -m json.tool config/security_tools/mobile_yara/manifest.json >/dev/null
+          python -m py_compile \
+            scripts/configure_mobsf.py \
+            scripts/install_mobile_release_tools.py \
+            scripts/mobile_androguard_adapter.py \
+            scripts/mobile_frida_inventory.py \
+            scripts/mobile_yara_adapter.py \
+            scripts/prepare_mobile_static_worker.py \
+            scripts/register_mobile_runtime.py \
+            vulnhunter/mobile/extension_service.py \
+            vulnhunter/mobile/extension_spool.py \
+            vulnhunter/web/conversation_mobile_extension_views.py \
+            vulnhunter/web/mobile_extension_execution.py \
+            vulnhunter/web/management/commands/vh_run_mobile_extension_worker.py
+          bash -n .devcontainer/configure-mobile-extensions.sh
           bash -n .devcontainer/first-run.sh
+          bash -n .devcontainer/install-codex.sh
+          bash -n .devcontainer/install-mobile-static-tools.sh
           bash -n .devcontainer/post-create.sh
           bash -n .devcontainer/start-vulnhunter.sh
           bash -n .devcontainer/start-phone-lab.sh
+          bash -n scripts/start-mobsf-private.sh

@@ -152,9 +152,11 @@ jobs:
             tests/unit/test_intelligence_loop.py \
             tests/unit/test_mobile_chat_hunt.py \
             tests/unit/test_redaction.py
-      - name: Verify launcher syntax
+      - name: Verify launcher and devcontainer syntax
         run: |
+          python -m json.tool .devcontainer/devcontainer.json >/dev/null
           bash -n .devcontainer/first-run.sh
+          bash -n .devcontainer/install-codex.sh
           bash -n .devcontainer/install-mobile-static-tools.sh
           bash -n .devcontainer/post-create.sh
           bash -n .devcontainer/start-vulnhunter.sh

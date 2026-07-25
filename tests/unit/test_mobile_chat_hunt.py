@@ -244,15 +244,11 @@ def test_signed_mobile_static_queue_rejects_tampered_job(tmp_path):
 
 
 def test_conversation_ui_exposes_plus_button_progress_live_status_and_context():
-    template = (ROOT / "vulnhunter/web/templates/web/conversation.html").read_text(
+    template = (ROOT / "vulnhunter/web/templates/web/conversation.html").read_text(encoding="utf-8")
+    script = (ROOT / "vulnhunter/web/static/web/conversation-mobile.js").read_text(encoding="utf-8")
+    context_script = (ROOT / "vulnhunter/web/static/web/conversation-mobile-context.js").read_text(
         encoding="utf-8"
     )
-    script = (ROOT / "vulnhunter/web/static/web/conversation-mobile.js").read_text(
-        encoding="utf-8"
-    )
-    context_script = (
-        ROOT / "vulnhunter/web/static/web/conversation-mobile-context.js"
-    ).read_text(encoding="utf-8")
 
     assert "data-conversation-attach" in template
     assert "data-conversation-file" in template
@@ -271,9 +267,7 @@ def test_conversation_ui_exposes_plus_button_progress_live_status_and_context():
 
 
 @pytest.mark.django_db
-def test_chat_uploads_apk_answers_followups_then_hands_off_to_web_scan(
-    client, settings, tmp_path
-):
+def test_chat_uploads_apk_answers_followups_then_hands_off_to_web_scan(client, settings, tmp_path):
     settings.ALLOWED_HOSTS = ["testserver"]
     settings.VULNHUNTER_MOBILE_ARTIFACT_ROOT = str(tmp_path / "mobile-artifacts")
     settings.VULNHUNTER_MOBILE_MAX_APK_BYTES = 10_000_000

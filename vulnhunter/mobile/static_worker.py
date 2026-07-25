@@ -129,7 +129,10 @@ class MobileStaticWorker:
                 completed_at=now,
                 reason="Mobile static worker is disabled by worker policy.",
             )
-        if analysis_reference is not None and _ANALYSIS_REFERENCE.fullmatch(analysis_reference) is None:
+        if (
+            analysis_reference is not None
+            and _ANALYSIS_REFERENCE.fullmatch(analysis_reference) is None
+        ):
             return MobileStaticAnalysisResult(
                 artifact_id=record.artifact_id,
                 state="failed",
@@ -191,7 +194,11 @@ class MobileStaticWorker:
                 )
         apktool_capture = next((item for item in captures if item.tool == "apktool"), None)
         decoded_manifest = workspace / "apktool-decoded" / "AndroidManifest.xml"
-        if apktool_capture is not None and apktool_capture.return_code == 0 and decoded_manifest.is_file():
+        if (
+            apktool_capture is not None
+            and apktool_capture.return_code == 0
+            and decoded_manifest.is_file()
+        ):
             observations.extend(
                 {
                     "observation_id": finding.finding_id,

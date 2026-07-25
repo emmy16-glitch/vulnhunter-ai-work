@@ -8,6 +8,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: temporary-runtime-safety-repair
+  cancel-in-progress: true
+
 jobs:
   repair:
     if: ${{ !contains(github.event.head_commit.message, '[runtime-safety-repair]') }}
@@ -146,7 +150,6 @@ jobs:
       - name: Format and validate repaired files
         run: |
           python -m pip install 'ruff>=0.9,<1'
-          python -m ruff check vulnhunter/mobile/runtime.py vulnhunter/mobile/extension_spool.py
           python -m ruff format vulnhunter/mobile/runtime.py vulnhunter/mobile/extension_spool.py
           python -m ruff check vulnhunter/mobile/runtime.py vulnhunter/mobile/extension_spool.py
           python -m ruff format --check vulnhunter/mobile/runtime.py vulnhunter/mobile/extension_spool.py
@@ -159,4 +162,15 @@ jobs:
             exit 0
           fi
           git commit -m 'Fail closed on malformed extension jobs and cleanup errors [runtime-safety-repair]'
-          git push origin HEAD:feature/unified-chat-mobile-hunt
+          for attempt in 1 2 3 4 5; do
+            git pull --rebase -X theirs origin feature/unified-chat-mobile-hunt || {
+              git rebase --abort || true
+              sleep 2
+              continue
+            }
+            if git push origin HEAD:feature/unified-chat-mobile-hunt; then
+              exit 0
+            fi
+            sleep 2
+          done
+          exit 1

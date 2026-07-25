@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import re
 import resource
 import stat
 import subprocess
@@ -14,8 +15,11 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from vulnhunter.mobile.artifacts import MobileArtifactError, copy_artifact_for_analysis
+from vulnhunter.mobile.manifest import analyze_decoded_manifest
 from vulnhunter.mobile.models import MobileArtifactRecord
 from vulnhunter.security import redact_text
+
+_ANALYSIS_REFERENCE = re.compile(r"^[a-z0-9][a-z0-9._-]{1,127}$")
 
 
 class MobileStaticWorkerError(RuntimeError):
@@ -32,6 +36,7 @@ class MobileStaticWorkerPolicy(BaseModel):
     aapt2_executable: Path | None = None
     apksigner_executable: Path | None = None
     apkid_executable: Path | None = None
+    apktool_executable: Path | None = None
     timeout_seconds: int = Field(default=60, ge=5, le=300)
     maximum_output_bytes: int = Field(default=500_000, ge=4_096, le=2_000_000)
     networkless_runtime_required: Literal[True] = True
@@ -41,6 +46,7 @@ class MobileStaticWorkerPolicy(BaseModel):
         "aapt2_executable",
         "apksigner_executable",
         "apkid_executable",
+        "apktool_executable",
     )
     @classmethod
     def validate_paths(cls, value: Path | None) -> Path | None:
@@ -54,7 +60,12 @@ class MobileStaticWorkerPolicy(BaseModel):
     @model_validator(mode="after")
     def require_tool_when_enabled(self):
         if self.enabled and not any(
-            (self.aapt2_executable, self.apksigner_executable, self.apkid_executable)
+            (
+                self.aapt2_executable,
+                self.apksigner_executable,
+                self.apkid_executable,
+                self.apktool_executable,
+            )
         ):
             raise ValueError("enabled mobile static worker requires at least one fixed tool")
         return self
@@ -104,7 +115,12 @@ class MobileStaticWorker:
     def __init__(self, policy: MobileStaticWorkerPolicy) -> None:
         self.policy = policy
 
-    def analyze(self, record: MobileArtifactRecord) -> MobileStaticAnalysisResult:
+    def analyze(
+        self,
+        record: MobileArtifactRecord,
+        *,
+        analysis_reference: str | None = None,
+    ) -> MobileStaticAnalysisResult:
         now = datetime.now(UTC)
         if not self.policy.enabled:
             return MobileStaticAnalysisResult(
@@ -113,17 +129,45 @@ class MobileStaticWorker:
                 completed_at=now,
                 reason="Mobile static worker is disabled by worker policy.",
             )
+        if analysis_reference is not None and _ANALYSIS_REFERENCE.fullmatch(analysis_reference) is None:
+            return MobileStaticAnalysisResult(
+                artifact_id=record.artifact_id,
+                state="failed",
+                completed_at=now,
+                reason="Mobile static analysis failed closed: invalid analysis reference.",
+            )
         workspace = self.policy.workspace_root / record.artifact_id
+        if analysis_reference:
+            workspace /= analysis_reference
         try:
             apk = copy_artifact_for_analysis(record, workspace)
             captures = tuple(self._run_all(apk, workspace))
-        except (OSError, MobileArtifactError, MobileStaticWorkerError) as exc:
+            observations = self._observations(record, captures, workspace)
+        except (OSError, MobileArtifactError, MobileStaticWorkerError, ValueError) as exc:
             return MobileStaticAnalysisResult(
                 artifact_id=record.artifact_id,
                 state="failed",
                 completed_at=datetime.now(UTC),
                 reason=f"Mobile static analysis failed closed: {type(exc).__name__}.",
             )
+        result = MobileStaticAnalysisResult(
+            artifact_id=record.artifact_id,
+            state="completed",
+            captures=captures,
+            candidate_observations=tuple(observations),
+            completed_at=datetime.now(UTC),
+            reason="Read-only static APK inspection completed.",
+        )
+        output = workspace / "static-analysis.json"
+        self._write_exclusive(output, result.model_dump_json(indent=2) + "\n")
+        return result
+
+    def _observations(
+        self,
+        record: MobileArtifactRecord,
+        captures: tuple[MobileToolCapture, ...],
+        workspace: Path,
+    ) -> list[dict[str, object]]:
         observations: list[dict[str, object]] = []
         if record.native_libraries:
             observations.append(
@@ -139,23 +183,31 @@ class MobileStaticWorker:
             if capture.return_code != 0:
                 observations.append(
                     {
-                        "observation_id": (f"mobile-tool-{capture.tool}-{record.sha256[:16]}"),
+                        "observation_id": f"mobile-tool-{capture.tool}-{record.sha256[:16]}",
                         "title": f"{capture.tool} could not complete static inspection",
                         "status": "candidate",
                         "return_code": capture.return_code,
                     }
                 )
-        result = MobileStaticAnalysisResult(
-            artifact_id=record.artifact_id,
-            state="completed",
-            captures=captures,
-            candidate_observations=tuple(observations),
-            completed_at=datetime.now(UTC),
-            reason="Read-only static APK inspection completed.",
-        )
-        output = workspace / "static-analysis.json"
-        self._write_exclusive(output, result.model_dump_json(indent=2) + "\n")
-        return result
+        apktool_capture = next((item for item in captures if item.tool == "apktool"), None)
+        decoded_manifest = workspace / "apktool-decoded" / "AndroidManifest.xml"
+        if apktool_capture is not None and apktool_capture.return_code == 0 and decoded_manifest.is_file():
+            observations.extend(
+                {
+                    "observation_id": finding.finding_id,
+                    "weakness_id": finding.weakness_id,
+                    "title": finding.title,
+                    "severity": finding.severity,
+                    "status": finding.confidence,
+                    "component": finding.component,
+                    "evidence": finding.evidence,
+                }
+                for finding in analyze_decoded_manifest(
+                    decoded_manifest,
+                    artifact_sha256=record.sha256,
+                )
+            )
+        return observations
 
     def _run_all(self, apk: Path, workspace: Path):
         commands = (
@@ -166,6 +218,17 @@ class MobileStaticWorker:
                 ("verify", "--print-certs", str(apk)),
             ),
             ("apkid", self.policy.apkid_executable, ("-j", str(apk))),
+            (
+                "apktool",
+                self.policy.apktool_executable,
+                (
+                    "decode",
+                    "--force",
+                    "--output",
+                    str(workspace / "apktool-decoded"),
+                    str(apk),
+                ),
+            ),
         )
         for tool, executable, arguments in commands:
             if executable is None:

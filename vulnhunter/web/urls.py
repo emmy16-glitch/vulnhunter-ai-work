@@ -4,7 +4,6 @@ from django.urls import path
 from django.views.generic import RedirectView
 
 from vulnhunter.web import (
-    assessment_views,
     audit_views,
     conversation_approval_views,
     conversation_mobile_extension_views,
@@ -101,7 +100,11 @@ urlpatterns = [
     path("status/", views.status_view, name="web-status"),
     path("audit/", audit_views.audit_overview_view, name="web-audit-overview"),
     path("authorizations/", views.authorization_list_view, name="web-authorization-list"),
-    path("scans/new/", assessment_views.new_assessment_view, name="web-new-scan"),
+    path(
+        "scans/new/",
+        RedirectView.as_view(url="/?intent=new-assessment", permanent=False),
+        name="web-new-scan",
+    ),
     path(
         "scans/authorizations/",
         operations_views.active_authorizations_view,
@@ -112,11 +115,6 @@ urlpatterns = [
         "scans/<str:run_id>/",
         unified_assessment_views.assessment_detail_view,
         name="web-scan-run-detail",
-    ),
-    path(
-        "scans/<str:run_id>/",
-        unified_assessment_views.assessment_detail_view,
-        name="web-agent-run-detail",
     ),
     path(
         "scans/<str:run_id>/activity/",
@@ -215,9 +213,11 @@ urlpatterns = [
     path("skills/", views.skill_list_view, name="web-skill-list"),
     path("skills/<str:skill_id>/", views.skill_detail_view, name="web-skill-detail"),
     path("agent/runs/", views.agent_run_list_view, name="web-agent-run-list"),
-    # fmt: off
-    path("agent/runs/<str:run_id>/", views.agent_run_detail_view, name="legacy-run-detail"),
-    # fmt: on
+    path(
+        "agent/runs/<str:run_id>/",
+        RedirectView.as_view(pattern_name="web-scan-run-detail", permanent=False),
+        name="legacy-run-detail",
+    ),
     path(
         "agent/runs/<str:run_id>/activity/",
         views.agent_activity_view,
@@ -252,7 +252,7 @@ urlpatterns = [
     ),
     path(
         "mobile-analysis/",
-        dashboard_dispatch_views.dashboard_view,
+        RedirectView.as_view(url="/?intent=apk-analysis", permanent=False),
         name="web-mobile-analysis",
     ),
     path("pilot/plans/", views.pilot_plan_list_view, name="web-pilot-plan-list"),

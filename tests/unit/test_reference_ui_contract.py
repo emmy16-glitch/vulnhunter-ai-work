@@ -144,10 +144,10 @@ def test_unified_workspace_is_interactive_and_backend_truthful():
     for token in (
         "Assessment Inspector",
         'role="tab"',
-        "data-inspector-panel=\"overview\"",
-        "data-inspector-panel=\"findings\"",
-        "data-inspector-panel=\"artifacts\"",
-        "data-inspector-panel=\"graph\"",
+        'data-inspector-panel="overview"',
+        'data-inspector-panel="findings"',
+        'data-inspector-panel="artifacts"',
+        'data-inspector-panel="graph"',
         "No finding is shown until a real worker observation",
     ):
         assert token in inspector

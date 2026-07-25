@@ -57,17 +57,59 @@
     };
   };
 
-  const copyRows = (sourceRows, targetSelector, emptySelector) => {
+  const findingNode = (finding) => {
+    if (finding instanceof Element) return finding.cloneNode(true);
+    const article = document.createElement("article");
+    article.className = "vh-finding-row";
+    const severity = document.createElement("span");
+    severity.className = `vh-finding-severity is-${text(finding?.severity || "info").toLowerCase()}`;
+    severity.textContent = pretty(finding?.severity || "info");
+    const copy = document.createElement("div");
+    const strong = document.createElement("strong");
+    strong.textContent = text(finding?.title || "Candidate finding");
+    const small = document.createElement("small");
+    small.textContent = `${pretty(finding?.verification || "candidate")} · ${text(finding?.target || "Scope recorded in assessment")}`;
+    copy.append(strong, small);
+    article.append(severity, copy);
+    return article;
+  };
+
+  const artifactNode = (artifact) => {
+    if (artifact instanceof Element) return artifact.cloneNode(true);
+    const article = document.createElement("article");
+    article.className = "vh-evidence-row";
+    const icon = document.createElement("span");
+    icon.textContent = "EV";
+    const copy = document.createElement("div");
+    const strong = document.createElement("strong");
+    strong.textContent = text(artifact?.filename || "Evidence artifact");
+    const code = document.createElement("code");
+    const size = Number(artifact?.size || 0).toLocaleString();
+    const checksum = text(artifact?.checksum || "");
+    code.textContent = `${text(artifact?.type || "evidence")} · ${size} bytes${checksum ? ` · ${checksum.slice(0, 24)}…` : ""}`;
+    copy.append(strong, code);
+    article.append(icon, copy);
+    return article;
+  };
+
+  const copyRows = (sourceRows, targetSelector, emptySelector, factory) => {
     const target = inspector.querySelector(targetSelector);
     const empty = inspector.querySelector(emptySelector);
-    if (!target) return;
+    if (!target) return 0;
     target.replaceChildren();
-    sourceRows.forEach((source) => {
-      const copy = source.cloneNode(true);
-      copy.removeAttribute("id");
+    const rows = Array.isArray(sourceRows) ? sourceRows : [];
+    rows.forEach((source) => {
+      const copy = factory(source);
+      copy.removeAttribute?.("id");
       target.append(copy);
     });
-    if (empty) empty.hidden = sourceRows.length > 0;
+    if (empty) empty.hidden = rows.length > 0;
+    return rows.length;
+  };
+
+  const eventCopy = (source) => {
+    if (source instanceof Element) return source.textContent?.trim() || "Recorded assessment activity";
+    return text(source?.summary || source?.message || source?.event_type || source?.type || "Recorded assessment activity");
   };
 
   const populateTimeline = (run) => {
@@ -78,13 +120,15 @@
     events.slice(-8).forEach((source) => {
       const item = document.createElement("li");
       item.className = "vh-inspector-event";
-      item.textContent = source.textContent?.trim() || "Recorded assessment activity";
+      item.textContent = eventCopy(source);
       target.append(item);
     });
     if (!events.length) {
       const item = document.createElement("li");
       item.className = "vh-inspector-empty";
-      item.textContent = run ? "Waiting for persisted assessment activity." : "No assessment activity is selected.";
+      item.textContent = run
+        ? "Waiting for persisted assessment activity."
+        : "No assessment activity is selected.";
       target.append(item);
     }
   };
@@ -114,7 +158,7 @@
     const worker = inspector.querySelector("[data-inspector-worker]");
     if (worker) {
       worker.textContent = run
-        ? "Worker readiness remains governed by the server policy and current run receipts."
+        ? "Worker readiness remains governed by server policy and authoritative run receipts."
         : "No worker is assigned to the current view.";
     }
   };
@@ -126,9 +170,13 @@
     const approval = text(run?.approval_state).trim();
     const mode = /apk|mobile/i.test(text(run?.scanner)) ? "APK" : "Website";
 
-    if (stateAuthorization) stateAuthorization.textContent = run ? "Bound to authorised run" : "Not selected";
+    if (stateAuthorization) {
+      stateAuthorization.textContent = run ? "Bound to authorised run" : "Not selected";
+    }
     if (stateScope) stateScope.textContent = target || "No target selected";
-    if (stateApproval) stateApproval.textContent = run ? pretty(approval || "not required") : "Not required";
+    if (stateApproval) {
+      stateApproval.textContent = run ? pretty(approval || "not required") : "Not required";
+    }
     if (stateActive) stateActive.textContent = run ? pretty(state || "preparing") : "Idle";
     if (mobileSummary) {
       mobileSummary.textContent = run
@@ -139,29 +187,51 @@
     setText("[data-inspector-state]", run ? pretty(state || "preparing") : "Ready");
     setText(
       "[data-inspector-stage]",
-      run?.current_step || (run ? "Waiting for the next authoritative run receipt." : "Select or start an assessment to view authoritative details."),
+      run?.current_step ||
+        (run
+          ? "Waiting for the next authoritative run receipt."
+          : "Select or start an assessment to view authoritative details."),
     );
     setText("[data-inspector-target]", target || "No active assessment");
     setText("[data-inspector-run-id]", run?.run_id || "Pending");
     setText("[data-inspector-mode]", run ? mode : "Website or APK");
-    setText("[data-inspector-scope]", target || "Waiting for an authorised target or validated APK");
+    setText(
+      "[data-inspector-scope]",
+      target || "Waiting for an authorised target or validated APK",
+    );
 
     const progress = inspector.querySelector("[data-inspector-progress-value]");
     if (progress) {
-      progress.textContent = "—";
-      progress.setAttribute("aria-label", "A genuine numeric progress value is unavailable");
+      const numeric = Number(run?.progress_percent);
+      if (Number.isFinite(numeric) && numeric >= 0 && numeric <= 100) {
+        progress.textContent = `${Math.round(numeric)}%`;
+        progress.setAttribute("aria-label", `${Math.round(numeric)} percent complete`);
+      } else {
+        progress.textContent = "—";
+        progress.setAttribute("aria-label", "A genuine numeric progress value is unavailable");
+      }
     }
 
     populateTools(run);
     populateTimeline(run);
-    copyRows(run?.findings || [], "[data-inspector-findings]", "[data-inspector-empty-findings]");
-    copyRows(run?.artifacts || [], "[data-inspector-artifacts]", "[data-inspector-empty-artifacts]");
+    const findings = copyRows(
+      run?.findings,
+      "[data-inspector-findings]",
+      "[data-inspector-empty-findings]",
+      findingNode,
+    );
+    const artifacts = copyRows(
+      run?.artifacts,
+      "[data-inspector-artifacts]",
+      "[data-inspector-empty-artifacts]",
+      artifactNode,
+    );
 
     const findingCount = inspector.querySelector("[data-inspector-findings-count]");
     const artifactCount = inspector.querySelector("[data-inspector-artifacts-count]");
     const graphCount = inspector.querySelector("[data-inspector-graph-count]");
-    if (findingCount) findingCount.textContent = String(run?.findings?.length || 0);
-    if (artifactCount) artifactCount.textContent = String(run?.artifacts?.length || 0);
+    if (findingCount) findingCount.textContent = String(findings);
+    if (artifactCount) artifactCount.textContent = String(artifacts);
     if (graphCount) graphCount.textContent = "0";
   };
 
@@ -201,7 +271,7 @@
   tabs.forEach((tab, index) => {
     tab.addEventListener("click", () => selectTab(tab.dataset.inspectorTab || "overview"));
     tab.addEventListener("keydown", (event) => {
-      if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+      if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
       event.preventDefault();
       let next = index;
       if (event.key === "ArrowRight") next = (index + 1) % tabs.length;
@@ -221,7 +291,10 @@
         closeInspector();
         return;
       }
-      openInspector(button, view === "analysis" ? "overview" : view === "findings" ? "findings" : "graph");
+      openInspector(
+        button,
+        view === "analysis" ? "overview" : view === "findings" ? "findings" : "graph",
+      );
     });
   });
 
@@ -231,7 +304,12 @@
 
   if (feed) {
     const observer = new MutationObserver(update);
-    observer.observe(feed, { childList: true, subtree: true, characterData: true, attributes: true });
+    observer.observe(feed, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+      attributes: true,
+    });
   }
 
   update();

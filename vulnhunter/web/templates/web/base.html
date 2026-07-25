@@ -21,10 +21,12 @@
   <link rel="stylesheet" href="{% static 'web/unified-mobile.css' %}?v=20260723-unified1">
   <link rel="stylesheet" href="{% static 'web/conversation.css' %}?v=20260723-chat1">
   <link rel="stylesheet" href="{% static 'web/conversation-layout.css' %}?v=20260723-chat2">
+  <link rel="stylesheet" href="{% static 'web/workspace-polish.css' %}?v=20260725-polish1">
   <script src="{% static 'web/app.js' %}?v=20260722-console" defer></script>
   <script src="{% static 'web/activity.js' %}?v=20260722-console" defer></script>
   <script src="{% static 'web/assessment-modal.js' %}?v=20260723-unified1" defer></script>
-  <script src="{% static 'web/conversation.js' %}?v=20260723-chat1" defer></script>
+  <script src="{% static 'web/json-response-guard.js' %}?v=20260725-json1"></script>
+  <script src="{% static 'web/conversation.js' %}?v=20260725-chat2" defer></script>
   <script src="{% static 'web/conversation-autoscroll.js' %}?v=20260723-chat2" defer></script>
 </head>
 <body data-route="{{ current_route }}"{% if conversation %} class="vh-conversation-body"{% endif %}>

@@ -122,7 +122,7 @@ def test_web_mapping_normalizes_governance_identity():
 
 
 @pytest.mark.django_db
-def test_consolidated_routes_redirect_to_the_workspace(client, settings):
+def test_consolidated_routes_use_one_workspace(client, settings):
     settings.ALLOWED_HOSTS = ["testserver"]
     user = get_user_model().objects.create_user(
         username="route-user",
@@ -141,8 +141,9 @@ def test_consolidated_routes_redirect_to_the_workspace(client, settings):
 
     assert new_scan.status_code == 302
     assert new_scan["Location"] == "/?intent=new-assessment"
-    assert mobile.status_code == 302
-    assert mobile["Location"] == "/?intent=apk-analysis"
+    assert mobile.status_code == 200
+    assert b"Assessment Workspace" in mobile.content
+    assert b"data-conversation-form" in mobile.content
     assert legacy.status_code == 302
     assert legacy["Location"].endswith("/scans/run-test/")
 

@@ -81,7 +81,11 @@ def _judge_candidate(
     observation: dict[str, object],
 ) -> CandidateRecord:
     observation_receipt = candidate.evidence_receipts[0]
-    judge_receipt = f"judge:{sha256_json({'candidate': candidate.candidate_id, 'evidence': observation_receipt})}"
+    judge_payload = {
+        "candidate": candidate.candidate_id,
+        "evidence": observation_receipt,
+    }
+    judge_receipt = f"judge:{sha256_json(judge_payload)}"
     judging = transition_candidate(
         candidate,
         new_state=CandidateState.JUDGING,

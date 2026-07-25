@@ -1,7 +1,9 @@
 {% extends "web/base.html" %}
 {% load static %}
 {% block content %}
+<link rel="stylesheet" href="{% static 'web/conversation-mobile.css' %}?v=20260725-mobile1">
 <script src="{% static 'web/conversation-runtime-compat.js' %}?v=20260723-chat4"></script>
+<script src="{% static 'web/conversation-mobile.js' %}?v=20260725-mobile1" defer></script>
 <section class="vh-chat-workspace" data-conversation-workspace aria-labelledby="vh-chat-title">
   <header class="vh-chat-header">
     <div class="vh-chat-title-group">
@@ -9,12 +11,12 @@
       <div>
         <p class="vh-eyebrow">Conversational security assessment</p>
         <h1 id="vh-chat-title">VulnHunter Workspace</h1>
-        <p>Paste an authorised website or link. VulnHunter identifies the path and port, prepares the exact plan, pauses for confirmation and explains progress as the assessment runs.</p>
+        <p>Ask a security question, paste an authorised target, or attach an Android APK. VulnHunter prepares the exact governed plan and reveals progress as evidence is collected and verified.</p>
       </div>
     </div>
     <div class="vh-chat-runtime" aria-label="Connected services">
       <span class="vh-runtime-chip is-ready"><i></i><strong>{% if groq.configured %}AI conversation ready{% else %}Reliable command mode{% endif %}</strong><small>{% if groq.configured %}Natural explanations enabled{% else %}Core assessment workflow available{% endif %}</small></span>
-      <span class="vh-runtime-chip is-ready"><i></i><strong>Nuclei ready</strong><small>Governed passive execution</small></span>
+      <span class="vh-runtime-chip is-ready"><i></i><strong>Governed tools</strong><small>Web and mobile planning</small></span>
       <button type="button" class="vh-chat-history-toggle" data-history-toggle aria-expanded="false" aria-controls="vh-chat-history">History</button>
       <button type="button" class="vh-chat-reset" data-conversation-reset>New conversation</button>
     </div>
@@ -31,17 +33,30 @@
         <span data-thinking-copy>Understanding the request…</span>
       </div>
 
-      <form class="vh-chat-composer" data-conversation-form method="post" action="{{ conversation.message_url }}">
+      <form
+        class="vh-chat-composer"
+        data-conversation-form
+        data-attachment-url="{% url 'web-conversation-attachment' %}"
+        data-mobile-message-url="{% url 'web-conversation-mobile-message' %}"
+        method="post"
+        action="{{ conversation.message_url }}"
+        enctype="multipart/form-data"
+      >
         {% csrf_token %}
         <label class="vh-visually-hidden" for="vh-chat-message">Describe the assessment</label>
+        <div class="vh-chat-attachment-tray" data-attachment-tray hidden aria-live="polite"></div>
         <div class="vh-chat-input-shell">
-          <textarea id="vh-chat-message" name="message" rows="1" maxlength="4000" autocomplete="off" spellcheck="true" placeholder="Ask a question or request an authorised assessment" data-conversation-input required></textarea>
+          <button type="button" class="vh-chat-attach" data-conversation-attach aria-label="Attach an Android APK" title="Attach an Android APK">
+            <span aria-hidden="true">+</span>
+          </button>
+          <input type="file" name="attachment" accept=".apk,application/vnd.android.package-archive" data-conversation-file hidden>
+          <textarea id="vh-chat-message" name="message" rows="1" maxlength="4000" autocomplete="off" spellcheck="true" placeholder="Ask anything, paste an authorised target, or attach an APK" data-conversation-input required></textarea>
           <button type="submit" class="vh-chat-send" data-conversation-send aria-label="Send message">
             <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m4 12 16-8-5.5 16-3.2-6.8z"/><path d="m11.3 13.2 4.6-4.6"/></svg>
           </button>
         </div>
         <div class="vh-chat-composer-meta">
-          <span>Only authorised targets can proceed.</span>
+          <span>Uploaded APKs are validated and stored before any tool is planned.</span>
           <span>Enter to send · Shift+Enter for a new line</span>
         </div>
       </form>

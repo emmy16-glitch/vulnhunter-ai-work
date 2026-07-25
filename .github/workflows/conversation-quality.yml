@@ -21,6 +21,8 @@ jobs:
       VULNHUNTER_AGENT_ACTIVITY_ROOT: /tmp/vh-conversation/activity
       VULNHUNTER_SECURITY_EVIDENCE_ROOT: /tmp/vh-conversation/evidence
       VULNHUNTER_MOBILE_ARTIFACT_ROOT: /tmp/vh-conversation/mobile-artifacts
+      VULNHUNTER_MOBILE_STATIC_SPOOL_ROOT: /tmp/vh-conversation/mobile-static-spool
+      VULNHUNTER_MOBILE_STATIC_ENQUEUE_ENABLED: "false"
       VULNHUNTER_ADVERSARY_LAB_DATABASE: /tmp/vh-conversation/lab.sqlite3
       VULNHUNTER_GROQ_ENABLED: "false"
       VULNHUNTER_INTELLIGENCE_ENABLED: "false"
@@ -50,11 +52,15 @@ jobs:
           set +e
           python -m ruff check \
             vulnhunter/scope/validator.py \
+            vulnhunter/mobile/static_service.py \
+            vulnhunter/mobile/static_spool.py \
+            vulnhunter/mobile/static_worker.py \
             vulnhunter/web/conversation_service.py \
             vulnhunter/web/conversation_state.py \
             vulnhunter/web/conversation_attachments.py \
             vulnhunter/web/conversation_mobile_views.py \
             vulnhunter/web/mobile_conversation.py \
+            vulnhunter/web/mobile_execution.py \
             vulnhunter/web/conversational_authorization.py \
             vulnhunter/web/conversational_views.py \
             vulnhunter/web/conversation_approval_views.py \
@@ -63,6 +69,7 @@ jobs:
             vulnhunter/web/management/commands/vh_configure_groq.py \
             vulnhunter/web/management/commands/vh_prepare_private_lab.py \
             vulnhunter/web/management/commands/vh_run_intelligence_worker.py \
+            vulnhunter/web/management/commands/vh_run_mobile_static_worker.py \
             vulnhunter/hunt \
             vulnhunter/intelligence \
             vulnhunter/security/redaction.py \
@@ -81,11 +88,15 @@ jobs:
           lint_status=$?
           python -m ruff format --check \
             vulnhunter/scope/validator.py \
+            vulnhunter/mobile/static_service.py \
+            vulnhunter/mobile/static_spool.py \
+            vulnhunter/mobile/static_worker.py \
             vulnhunter/web/conversation_service.py \
             vulnhunter/web/conversation_state.py \
             vulnhunter/web/conversation_attachments.py \
             vulnhunter/web/conversation_mobile_views.py \
             vulnhunter/web/mobile_conversation.py \
+            vulnhunter/web/mobile_execution.py \
             vulnhunter/web/conversational_authorization.py \
             vulnhunter/web/conversational_views.py \
             vulnhunter/web/conversation_approval_views.py \
@@ -94,6 +105,7 @@ jobs:
             vulnhunter/web/management/commands/vh_configure_groq.py \
             vulnhunter/web/management/commands/vh_prepare_private_lab.py \
             vulnhunter/web/management/commands/vh_run_intelligence_worker.py \
+            vulnhunter/web/management/commands/vh_run_mobile_static_worker.py \
             vulnhunter/hunt \
             vulnhunter/intelligence \
             vulnhunter/security/redaction.py \

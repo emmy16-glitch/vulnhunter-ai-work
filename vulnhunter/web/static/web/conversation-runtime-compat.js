@@ -12,16 +12,26 @@
   }
 
   const current = document.currentScript?.src;
-  if (!current || document.querySelector("script[data-workspace-state-loader]")) return;
-  const url = new URL(current, window.location.href);
-  url.pathname = url.pathname.replace(
-    /conversation-runtime-compat\.js$/,
-    "workspace-state.js",
-  );
-  url.search = "?v=20260725-consolidate1";
-  const script = document.createElement("script");
-  script.src = url.toString();
-  script.async = false;
-  script.dataset.workspaceStateLoader = "true";
-  document.head.append(script);
+  if (!current) return;
+
+  const loadWorkspaceState = () => {
+    if (document.querySelector("script[data-workspace-state-loader]")) return;
+    const url = new URL(current, window.location.href);
+    url.pathname = url.pathname.replace(
+      /conversation-runtime-compat\.js$/,
+      "workspace-state.js",
+    );
+    url.search = "?v=20260725-consolidate2";
+    const script = document.createElement("script");
+    script.src = url.toString();
+    script.async = false;
+    script.dataset.workspaceStateLoader = "true";
+    document.head.append(script);
+  };
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", loadWorkspaceState, { once: true });
+  } else {
+    loadWorkspaceState();
+  }
 })();

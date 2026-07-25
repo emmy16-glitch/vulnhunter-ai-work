@@ -105,6 +105,7 @@ jobs:
             tests/unit/test_inline_confirmation_store.py \
             tests/unit/test_intelligence_loop.py \
             tests/unit/test_mobile_chat_hunt.py \
+            tests/unit/test_mobile_extension_endpoints.py \
             tests/unit/test_mobile_extension_execution.py \
             tests/unit/test_mobile_extension_ui.py \
             tests/unit/test_mobile_hunt_runtime.py \
@@ -163,6 +164,7 @@ jobs:
             tests/unit/test_inline_confirmation_store.py \
             tests/unit/test_intelligence_loop.py \
             tests/unit/test_mobile_chat_hunt.py \
+            tests/unit/test_mobile_extension_endpoints.py \
             tests/unit/test_mobile_extension_execution.py \
             tests/unit/test_mobile_extension_ui.py \
             tests/unit/test_mobile_hunt_runtime.py \
@@ -183,6 +185,7 @@ jobs:
           retention-days: 3
       - name: Run conversational, mobile and intelligence tests
         run: |
+          set -o pipefail
           python manage.py migrate --noinput
           python -m pytest -q \
             tests/unit/test_chat_runtime_reply.py \
@@ -194,11 +197,20 @@ jobs:
             tests/unit/test_inline_confirmation_store.py \
             tests/unit/test_intelligence_loop.py \
             tests/unit/test_mobile_chat_hunt.py \
+            tests/unit/test_mobile_extension_endpoints.py \
             tests/unit/test_mobile_extension_execution.py \
             tests/unit/test_mobile_extension_ui.py \
             tests/unit/test_mobile_hunt_runtime.py \
             tests/unit/test_mobile_infrastructure_runtime.py \
-            tests/unit/test_redaction.py
+            tests/unit/test_redaction.py \
+            2>&1 | tee focused-pytest.log
+      - name: Upload focused pytest diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: focused-pytest-log
+          path: focused-pytest.log
+          retention-days: 3
       - name: Verify launcher and configuration syntax
         run: |
           python -m json.tool .devcontainer/devcontainer.json >/dev/null

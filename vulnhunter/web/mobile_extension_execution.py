@@ -21,8 +21,10 @@ from vulnhunter.mobile.runtime import (
     SignedMobileRuntimeApproval,
 )
 from vulnhunter.security_tools.worker_spool import WorkerSpoolError, load_worker_signing_key
+from vulnhunter.web.mobile_infrastructure import mobile_infrastructure_status
 
 _SESSION_EXTENSION_JOBS = "vulnhunter_mobile_extension_jobs"
+_MAX_SESSION_JOBS = 16
 
 
 def _path(name: str, fallback: str) -> Path:
@@ -70,8 +72,42 @@ def _remember_job(
     raw = request.session.get(_SESSION_EXTENSION_JOBS, {})
     jobs = dict(raw) if isinstance(raw, dict) else {}
     jobs[job_id] = requested_by
-    request.session[_SESSION_EXTENSION_JOBS] = jobs
+    request.session[_SESSION_EXTENSION_JOBS] = dict(list(jobs.items())[-_MAX_SESSION_JOBS:])
     request.session.modified = True
+
+
+def _planned_tool(plan: dict[str, object], *, kind: str) -> dict[str, object] | None:
+    deferred = plan.get("deferred_tools")
+    if not isinstance(deferred, list):
+        return None
+    accepted = {"mobsf"} if kind == "mobsf" else {"adb", "frida"}
+    return next(
+        (
+            item
+            for item in deferred
+            if isinstance(item, dict) and str(item.get("tool_id")) in accepted
+        ),
+        None,
+    )
+
+
+def _already_active(plan: dict[str, object], *, kind: str, spool: MobileExtensionSpool) -> bool:
+    jobs = plan.get("extension_jobs")
+    if not isinstance(jobs, list):
+        return False
+    for item in reversed(jobs):
+        if not isinstance(item, dict) or item.get("kind") != kind:
+            continue
+        job_id = str(item.get("job_id") or "")
+        if not job_id:
+            continue
+        try:
+            status = spool.status(job_id)
+        except (OSError, ValueError, MobileExtensionSpoolError):
+            return True
+        if isinstance(status, dict) and status.get("state") in {"queued", "running"}:
+            return True
+    return False
 
 
 def enqueue_mobile_extension(
@@ -96,27 +132,33 @@ def enqueue_mobile_extension(
     artifact = plan.get("artifact")
     if not isinstance(artifact, dict):
         return {"state": "gated", "reason": "Mobile artifact identity is unavailable."}
-    deferred = plan.get("deferred_tools")
-    selected = next(
-        (
-            item
-            for item in deferred
-            if isinstance(deferred, list)
-            and isinstance(item, dict)
-            and item.get("tool_id")
-            == ("mobsf" if kind == "mobsf" else "adb")
-        ),
-        None,
-    )
-    if not isinstance(selected, dict) or selected.get("state") != "approval_required":
+    if _planned_tool(plan, kind=kind) is None:
         return {
             "state": "gated",
-            "reason": "The requested extension infrastructure is not ready for approval.",
+            "reason": "The requested extension was not part of this immutable mobile plan.",
         }
+
     now = datetime.now(UTC)
-    job_id = f"mobile-{kind}-{uuid4().hex[:20]}"
-    runtime_approval: dict[str, object] | None = None
+    readiness_key = "mobsf" if kind == "mobsf" else "adb"
+    readiness = mobile_infrastructure_status(now=now).get(readiness_key, {})
+    if readiness.get("state") != "approval_required":
+        return {
+            "state": "gated",
+            "reason": str(
+                readiness.get("reason")
+                or "The requested extension infrastructure is not currently ready."
+            ),
+        }
+
     try:
+        spool = MobileExtensionSpool(_spool_root())
+        if _already_active(plan, kind=kind, spool=spool):
+            return {
+                "state": "gated",
+                "reason": "An exact job for this extension is already queued or running.",
+            }
+
+        runtime_approval: dict[str, object] | None = None
         if kind == "runtime":
             if not package_name:
                 return {
@@ -143,8 +185,9 @@ def enqueue_mobile_extension(
                 key=_runtime_approval_key(),
             )
             runtime_approval = approval.model_dump(mode="json")
+
         job = SignedMobileExtensionJob.create(
-            job_id=job_id,
+            job_id=f"mobile-{kind}-{uuid4().hex[:20]}",
             kind=kind,
             artifact_id=str(artifact["artifact_id"]),
             artifact_sha256=str(artifact["artifact_sha256"]),
@@ -157,7 +200,7 @@ def enqueue_mobile_extension(
             expires_at=now + timedelta(hours=2),
             key=_extension_key(),
         )
-        MobileExtensionSpool(_spool_root()).enqueue(job)
+        spool.enqueue(job)
     except (
         KeyError,
         OSError,
@@ -170,6 +213,7 @@ def enqueue_mobile_extension(
             "state": "gated",
             "reason": f"Extension approval failed closed: {type(exc).__name__}.",
         }
+
     _remember_job(request, job_id=job.job_id, requested_by=requested_by)
     return {
         "state": "queued",

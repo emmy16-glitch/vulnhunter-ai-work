@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import io
+import json
 import zipfile
+from datetime import UTC, datetime
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -19,11 +21,16 @@ from vulnhunter.hunt import (
     raise_scrutiny,
     transition_candidate,
 )
+from vulnhunter.mobile import MobileArtifactIngestor
 from vulnhunter.mobile.models import MobileArtifactRecord
+from vulnhunter.mobile.static_service import MobileStaticQueueService, create_mobile_static_job
+from vulnhunter.mobile.static_spool import MobileStaticSpool, MobileStaticSpoolError
+from vulnhunter.mobile.static_worker import MobileStaticWorkerPolicy
 from vulnhunter.web.conversation_attachments import ConversationAttachment
 from vulnhunter.web.mobile_conversation import build_mobile_chat_plan
 
 ROOT = Path(__file__).resolve().parents[2]
+NOW = datetime(2026, 7, 25, 12, 0, tzinfo=UTC)
 
 
 def _artifact(tmp_path: Path, *, native: bool) -> MobileArtifactRecord:
@@ -60,17 +67,28 @@ def _attachment(*, native: bool) -> ConversationAttachment:
     )
 
 
-def _apk_upload() -> SimpleUploadedFile:
+def _apk_bytes() -> bytes:
     payload = io.BytesIO()
     with zipfile.ZipFile(payload, "w") as archive:
         archive.writestr("AndroidManifest.xml", b"manifest")
         archive.writestr("classes.dex", b"dex")
         archive.writestr("lib/arm64-v8a/libsecure.so", b"native")
+    return payload.getvalue()
+
+
+def _apk_upload() -> SimpleUploadedFile:
     return SimpleUploadedFile(
         "banking-app.apk",
-        payload.getvalue(),
+        _apk_bytes(),
         content_type="application/vnd.android.package-archive",
     )
+
+
+def _fake_aapt2(tmp_path: Path) -> Path:
+    tool = tmp_path / "aapt2"
+    tool.write_text("#!/bin/sh\necho package: name=com.example.safe\n", encoding="utf-8")
+    tool.chmod(0o700)
+    return tool.resolve()
 
 
 def test_full_mobile_chat_request_prepares_static_native_hunt_and_defers_runtime(tmp_path):
@@ -156,7 +174,76 @@ def test_candidate_cannot_jump_to_confirmed_or_be_rejected_without_receipt():
         )
 
 
-def test_conversation_ui_exposes_plus_button_and_progressive_mobile_assets():
+def test_signed_mobile_static_queue_runs_fixed_networkless_worker(tmp_path):
+    apk = tmp_path / "banking-app.apk"
+    apk.write_bytes(_apk_bytes())
+    ingestor = MobileArtifactIngestor(tmp_path / "artifacts")
+    artifact = ingestor.ingest_file(apk.resolve())
+    policy = MobileStaticWorkerPolicy(
+        enabled=True,
+        worker_id="mobile-static-worker",
+        workspace_root=(tmp_path / "workspace").resolve(),
+        aapt2_executable=_fake_aapt2(tmp_path),
+        timeout_seconds=10,
+        maximum_output_bytes=10_000,
+    )
+    key = b"m" * 48
+    spool = MobileStaticSpool(tmp_path / "spool")
+    job = create_mobile_static_job(
+        run_id="mobile-run-01",
+        artifact_id=artifact.artifact_id,
+        artifact_sha256=artifact.sha256,
+        hunt_plan_sha256="b" * 64,
+        requested_by="mobile-analyst",
+        signing_key=key,
+        now=NOW,
+    )
+    spool.enqueue(job)
+    assert spool.status(job.job_id) == {"job_id": job.job_id, "state": "queued"}
+
+    receipt = MobileStaticQueueService(
+        spool=spool,
+        signing_key=key,
+        policy=policy,
+        ingestor=ingestor,
+        clock=lambda: NOW,
+    ).run_once()
+
+    assert receipt is not None
+    assert receipt.state == "completed"
+    assert receipt.captures[0].tool == "aapt2"
+    assert receipt.captures[0].return_code == 0
+    assert receipt.candidate_observations[0]["title"] == "APK contains native libraries"
+    status = spool.status(job.job_id)
+    assert status is not None
+    assert status["state"] == "completed"
+    assert status["receipt"]["result_sha256"] == receipt.result_sha256
+
+
+def test_signed_mobile_static_queue_rejects_tampered_job(tmp_path):
+    spool = MobileStaticSpool(tmp_path / "spool")
+    key = b"t" * 48
+    job = create_mobile_static_job(
+        run_id="mobile-tamper-01",
+        artifact_id="apk-tamper-01",
+        artifact_sha256="a" * 64,
+        hunt_plan_sha256="b" * 64,
+        requested_by="mobile-analyst",
+        signing_key=key,
+        now=NOW,
+    )
+    path = spool.enqueue(job)
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    payload["requested_by"] = "tampered-user"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    claimed = spool.claim_next()
+    assert claimed is not None
+
+    with pytest.raises(MobileStaticSpoolError, match="signature"):
+        spool.load_claimed(claimed, key=key, now=NOW)
+
+
+def test_conversation_ui_exposes_plus_button_progress_and_live_worker_status():
     template = (ROOT / "vulnhunter/web/templates/web/conversation.html").read_text(encoding="utf-8")
     script = (ROOT / "vulnhunter/web/static/web/conversation-mobile.js").read_text(encoding="utf-8")
 
@@ -164,7 +251,10 @@ def test_conversation_ui_exposes_plus_button_and_progressive_mobile_assets():
     assert "data-conversation-file" in template
     assert "web-conversation-attachment" in template
     assert "web-conversation-mobile-message" in template
+    assert "conversation-mobile-execution.css" in template
     assert 'setTimeout(() => item.classList.add("is-visible")' in script
+    assert "watchMobileExecution" in script
+    assert "data-mobile-execution-results" in script
     assert "stopImmediatePropagation" in script
 
 
@@ -207,4 +297,5 @@ def test_chat_uploads_real_apk_then_prepares_mobile_hunt(client, settings, tmp_p
     assert payload["message"]["kind"] == "mobile_plan"
     assert payload["mobile_plan"]["profile"] == "static_and_native"
     assert payload["mobile_plan"]["dynamic_deferred"] is True
+    assert payload["mobile_plan"]["execution"]["state"] == "gated"
     assert payload["mobile_plan"]["artifact"]["artifact_sha256"] == attachment["artifact_sha256"]

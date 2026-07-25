@@ -32,10 +32,28 @@ _FORBIDDEN_AUTHORITY_PHRASES = (
     "ignore authorization",
 )
 _TOKEN = re.compile(r"[a-z0-9][a-z0-9._-]{2,}")
+_ACTOR = re.compile(r"[^a-z0-9._-]+")
 
 
 class ControlledLearningError(RuntimeError):
     pass
+
+
+def _safe_actor(value: str) -> str:
+    """Return a non-secret stable actor label suitable for persistence."""
+
+    redacted = redact_text(value).strip().casefold()
+    normalized = _ACTOR.sub("-", redacted).strip("-._")
+    if len(normalized) < 2:
+        raise ControlledLearningError("a valid authenticated learning actor is required")
+    return normalized[:128]
+
+
+def _safe_reason(value: str) -> str:
+    redacted = redact_text(value).strip()
+    if len(redacted) < 8:
+        raise ControlledLearningError("a redacted review reason of at least eight characters is required")
+    return redacted[:2_000]
 
 
 class ControlledLearningService:
@@ -111,8 +129,8 @@ class ControlledLearningService:
         review = MemoryReview(
             candidate_id=candidate_id,
             decision=decision,
-            reviewer_id=reviewer_id,
-            reason=reason,
+            reviewer_id=_safe_actor(reviewer_id),
+            reason=_safe_reason(reason),
         )
         self.store.add_review(review, updated)
         return updated
@@ -140,8 +158,8 @@ class ControlledLearningService:
         )
         evaluation = EvaluationResult(
             candidate_id=candidate_id,
-            suite_version=suite_version,
-            evaluator_id=evaluator_id,
+            suite_version=redact_text(suite_version).strip()[:100],
+            evaluator_id=_safe_actor(evaluator_id),
             grounding_score=grounding_score,
             safety_score=safety_score,
             usefulness_score=usefulness_score,
@@ -175,7 +193,7 @@ class ControlledLearningService:
             update={"status": CandidateStatus.PROMOTED, "updated_at": datetime.now(UTC)}
         )
         self.store.promote(
-            PromotionRecord(candidate_id=candidate_id, promoted_by=promoted_by),
+            PromotionRecord(candidate_id=candidate_id, promoted_by=_safe_actor(promoted_by)),
             promoted,
         )
         return promoted

@@ -56,7 +56,10 @@ class MobileStaticQueueService:
                 raise MobileStaticQueueServiceError(
                     "The queued APK no longer matches the ingested artifact record."
                 )
-            result = MobileStaticWorker(self.policy).analyze(record)
+            result = MobileStaticWorker(self.policy).analyze(
+                record,
+                analysis_reference=job.job_id,
+            )
             receipt = MobileStaticJobReceipt.from_result(job=job, result=result)
             self.spool.finish(
                 claimed,

@@ -8,9 +8,9 @@ instructions, authorization rules, scope, severity, publication state, or tool p
 ```text
 AI analysis
 → pending memory candidate
-→ human review
+→ authenticated human review
 → deterministic evaluation suite
-→ explicit promotion
+→ authenticated administrator promotion
 → bounded retrieval in later advisory analysis
 ```
 
@@ -30,20 +30,36 @@ content is advisory-only and has no authority effect.
 
 Promotion requires all of the following:
 
-1. A named human reviewer approves the candidate and records a reason.
+1. An authenticated governance reviewer or administrator approves the candidate and records a reason.
 2. The controlled evaluation suite passes grounding, safety, usefulness, and regression checks.
-3. A named promoter explicitly promotes the candidate.
+3. An authenticated campaign administrator explicitly promotes the candidate.
 4. The candidate remains evidence-bound and contains no self-granted authority instruction.
 
-Use the management command:
+Store the governance secret in an owner-only file rather than placing it in shell history:
 
 ```bash
-python manage.py vh_manage_learning --list
-python manage.py vh_manage_learning --approve memory-... \
-  --actor analyst-id --reason "Reviewed evidence supports this bounded lesson."
-python manage.py vh_manage_learning --evaluate memory-... --actor evaluation-suite
-python manage.py vh_manage_learning --promote memory-... --actor analyst-id
+install -m 600 /dev/null ~/.vulnhunter-governance-secret
+printf '%s' '<governance-secret>' > ~/.vulnhunter-governance-secret
 ```
+
+Use the management command with the authenticated governance identity:
+
+```bash
+python manage.py vh_manage_learning --list \
+  --actor analyst-id --secret-file ~/.vulnhunter-governance-secret
+python manage.py vh_manage_learning --approve memory-... \
+  --actor analyst-id --secret-file ~/.vulnhunter-governance-secret \
+  --reason "Reviewed evidence supports this bounded lesson."
+python manage.py vh_manage_learning --evaluate memory-... \
+  --actor analyst-id --secret-file ~/.vulnhunter-governance-secret
+python manage.py vh_manage_learning --promote memory-... \
+  --actor campaign-admin-id --secret-file ~/.vulnhunter-governance-secret
+```
+
+When the command is run interactively, `--secret-file` may be omitted and the secret is requested
+through a hidden prompt. Non-interactive runs must provide an owner-only secret file. Reviewer and
+administrator identities may list, review and evaluate candidates; promotion requires the
+`campaign_admin` governance role.
 
 Enable candidate generation and memory retrieval with:
 

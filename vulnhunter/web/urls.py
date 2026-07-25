@@ -216,6 +216,11 @@ urlpatterns = [
     path(
         "agent/runs/<str:run_id>/",
         RedirectView.as_view(pattern_name="web-scan-run-detail", permanent=False),
+        name="web-agent-run-detail",
+    ),
+    path(
+        "agent/runs/<str:run_id>/legacy/",
+        RedirectView.as_view(pattern_name="web-scan-run-detail", permanent=False),
         name="legacy-run-detail",
     ),
     path(

@@ -1,3 +1,5 @@
+{% load static %}
+<link rel="stylesheet" href="{% static 'web/conversation-mobile-deferred-tools.css' %}?v=20260725-infrastructure1">
 <aside class="vh-analysis-inspector" data-analysis-inspector hidden aria-label="Current APK analysis">
   <div class="vh-analysis-inspector-inner">
     <header class="vh-analysis-inspector-header">
@@ -62,3 +64,4 @@
   <button type="button" data-mobile-workspace-view="findings">Findings</button>
   <button type="button" data-mobile-workspace-view="graph">Graph</button>
 </nav>
+<script src="{% static 'web/conversation-mobile-deferred-tools.js' %}?v=20260725-infrastructure1" defer></script>

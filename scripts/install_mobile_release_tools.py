@@ -3,7 +3,7 @@
 
 GitHub release metadata supplies the asset URL and SHA-256 digest. Ghidra is
 also checked against the digest published in the official release notes.
-Archives are extracted without symbolic links or path traversal.
+Archives are extracted without path traversal or out-of-root symbolic links.
 """
 
 from __future__ import annotations
@@ -78,22 +78,39 @@ def _asset(owner: str, repository: str, tag: str, predicate) -> ReleaseAsset:
             raise RuntimeError(f"release asset {name} has no SHA-256 digest")
         url = str(raw.get("browser_download_url") or "")
         size = int(raw.get("size") or 0)
-        if not url.startswith("https://github.com/") or not 0 < size <= _MAX_ARCHIVE_BYTES:
-            raise RuntimeError(f"release asset {name} has unsafe metadata")
-        return ReleaseAsset(name=name, url=url, sha256=digest.removeprefix("sha256:"), size=size)
+        if not url.startswith("https://github.com/"):
+            raise RuntimeError(f"release asset {name} has an unsafe URL")
+        if not 0 < size <= _MAX_ARCHIVE_BYTES:
+            raise RuntimeError(f"release asset {name} has an unsafe size")
+        return ReleaseAsset(
+            name=name,
+            url=url,
+            sha256=digest.removeprefix("sha256:"),
+            size=size,
+        )
     raise RuntimeError(f"no matching release asset found for {repository} {tag}")
 
 
-def _download(asset: ReleaseAsset, cache: Path, *, expected: str | None = None) -> Path:
+def _download(
+    asset: ReleaseAsset,
+    cache: Path,
+    *,
+    expected: str | None = None,
+) -> Path:
     cache.mkdir(parents=True, exist_ok=True)
     destination = cache / asset.name
     expected_digest = expected or asset.sha256
     if expected and asset.sha256 != expected:
-        raise RuntimeError(f"GitHub digest for {asset.name} disagrees with the pinned digest")
+        raise RuntimeError(
+            f"GitHub digest for {asset.name} disagrees with the pinned digest"
+        )
     if destination.is_file() and _sha256(destination) == expected_digest:
         return destination
     destination.unlink(missing_ok=True)
-    descriptor, temporary_name = tempfile.mkstemp(prefix=f".{asset.name}.", dir=cache)
+    descriptor, temporary_name = tempfile.mkstemp(
+        prefix=f".{asset.name}.",
+        dir=cache,
+    )
     temporary = Path(temporary_name)
     os.close(descriptor)
     request = urllib.request.Request(
@@ -103,14 +120,18 @@ def _download(asset: ReleaseAsset, cache: Path, *, expected: str | None = None) 
     digest = hashlib.sha256()
     total = 0
     try:
-        with urllib.request.urlopen(request, timeout=120) as response, temporary.open("wb") as target:
+        with urllib.request.urlopen(request, timeout=120) as response, temporary.open(
+            "wb"
+        ) as target:
             while True:
                 chunk = response.read(1024 * 1024)
                 if not chunk:
                     break
                 total += len(chunk)
                 if total > asset.size or total > _MAX_ARCHIVE_BYTES:
-                    raise RuntimeError(f"downloaded asset {asset.name} exceeded its declared size")
+                    raise RuntimeError(
+                        f"downloaded asset {asset.name} exceeded its declared size"
+                    )
                 digest.update(chunk)
                 target.write(chunk)
             target.flush()
@@ -149,7 +170,9 @@ def _safe_extract_zip(archive: Path, destination: Path) -> Path:
                     raise RuntimeError(f"unsafe archive entry in {archive.name}")
                 total += max(0, info.file_size)
                 if total > _MAX_EXTRACTED_BYTES:
-                    raise RuntimeError(f"archive {archive.name} exceeds the extraction boundary")
+                    raise RuntimeError(
+                        f"archive {archive.name} exceeds the extraction boundary"
+                    )
                 target = temporary.joinpath(*pure.parts)
                 if info.is_dir():
                     target.mkdir(parents=True, mode=0o700, exist_ok=True)
@@ -157,10 +180,16 @@ def _safe_extract_zip(archive: Path, destination: Path) -> Path:
                 target.parent.mkdir(parents=True, mode=0o700, exist_ok=True)
                 descriptor = os.open(
                     target,
-                    os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0),
+                    os.O_WRONLY
+                    | os.O_CREAT
+                    | os.O_EXCL
+                    | getattr(os, "O_NOFOLLOW", 0),
                     0o600,
                 )
-                with bundle.open(info) as source, os.fdopen(descriptor, "wb") as output:
+                with bundle.open(info) as source, os.fdopen(
+                    descriptor,
+                    "wb",
+                ) as output:
                     shutil.copyfileobj(source, output, length=1024 * 1024)
                 if mode & 0o111:
                     target.chmod(0o700)
@@ -171,8 +200,30 @@ def _safe_extract_zip(archive: Path, destination: Path) -> Path:
         raise
 
 
+def _validate_extracted_tree(root: Path) -> None:
+    resolved_root = root.resolve(strict=True)
+    total = 0
+    for path in root.rglob("*"):
+        metadata = path.lstat()
+        if stat.S_ISLNK(metadata.st_mode):
+            try:
+                target = path.resolve(strict=True)
+                target.relative_to(resolved_root)
+            except (OSError, ValueError) as exc:
+                raise RuntimeError("package link escapes the extraction root") from exc
+            continue
+        if stat.S_ISDIR(metadata.st_mode):
+            continue
+        if not stat.S_ISREG(metadata.st_mode):
+            raise RuntimeError("package contains an unsupported special file")
+        total += metadata.st_size
+        if total > _MAX_EXTRACTED_BYTES:
+            raise RuntimeError("package exceeds the extraction boundary")
+
+
 def _extract_deb(archive: Path, destination: Path) -> Path:
     if destination.exists():
+        _validate_extracted_tree(destination)
         return destination
     temporary = destination.with_name(f".{destination.name}.extracting")
     shutil.rmtree(temporary, ignore_errors=True)
@@ -186,8 +237,7 @@ def _extract_deb(archive: Path, destination: Path) -> Path:
             stderr=subprocess.PIPE,
             timeout=180,
         )
-        if any(path.is_symlink() for path in temporary.rglob("*")):
-            raise RuntimeError("Radare2 package contains symbolic links")
+        _validate_extracted_tree(temporary)
         os.replace(temporary, destination)
         return destination
     except BaseException:
@@ -200,8 +250,13 @@ def _single_child(path: Path) -> Path:
     return children[0] if len(children) == 1 and children[0].is_dir() else path
 
 
-def _link(link: Path, target: Path) -> None:
+def _link(link: Path, target: Path, *, tool_root: Path) -> None:
+    resolved_root = tool_root.resolve(strict=True)
     resolved = target.resolve(strict=True)
+    try:
+        resolved.relative_to(resolved_root)
+    except ValueError as exc:
+        raise RuntimeError(f"tool executable escapes its release root: {target}") from exc
     if not resolved.is_file() or not os.access(resolved, os.X_OK):
         raise RuntimeError(f"tool executable is unavailable: {target}")
     link.parent.mkdir(parents=True, exist_ok=True)
@@ -224,17 +279,22 @@ def install(root: Path, *, include_ghidra: bool) -> dict[str, str]:
         lambda name: name == f"jadx-{JADX_VERSION}.zip",
     )
     jadx_archive = _download(jadx_asset, cache)
-    jadx_bundle = _single_child(
-        _safe_extract_zip(jadx_archive, root / f"jadx-{JADX_VERSION}")
+    jadx_release = _safe_extract_zip(
+        jadx_archive,
+        root / f"jadx-{JADX_VERSION}",
     )
+    jadx_bundle = _single_child(jadx_release)
     jadx = jadx_bundle / "bin" / "jadx"
     jadx.chmod(jadx.stat().st_mode | 0o100)
-    _link(bin_root / "jadx", jadx)
+    _link(bin_root / "jadx", jadx, tool_root=jadx_release)
     installed["jadx"] = str(jadx.resolve())
 
     machine = platform.machine().casefold()
-    architecture = "amd64" if machine in {"x86_64", "amd64"} else "arm64" if machine in {"aarch64", "arm64"} else ""
-    if not architecture:
+    if machine in {"x86_64", "amd64"}:
+        architecture = "amd64"
+    elif machine in {"aarch64", "arm64"}:
+        architecture = "arm64"
+    else:
         raise RuntimeError(f"unsupported Radare2 architecture: {machine}")
     radare_asset = _asset(
         "radareorg",
@@ -243,9 +303,12 @@ def install(root: Path, *, include_ghidra: bool) -> dict[str, str]:
         lambda name: name == f"radare2_{RADARE2_VERSION}_{architecture}.deb",
     )
     radare_archive = _download(radare_asset, cache)
-    radare_root = _extract_deb(radare_archive, root / f"radare2-{RADARE2_VERSION}-{architecture}")
+    radare_root = _extract_deb(
+        radare_archive,
+        root / f"radare2-{RADARE2_VERSION}-{architecture}",
+    )
     rabin2 = radare_root / "usr" / "bin" / "rabin2"
-    _link(bin_root / "rabin2", rabin2)
+    _link(bin_root / "rabin2", rabin2, tool_root=radare_root)
     installed["radare2"] = str(rabin2.resolve())
 
     if include_ghidra:
@@ -253,15 +316,28 @@ def install(root: Path, *, include_ghidra: bool) -> dict[str, str]:
             "NationalSecurityAgency",
             "ghidra",
             f"Ghidra_{GHIDRA_VERSION}_build",
-            lambda name: name.startswith(f"ghidra_{GHIDRA_VERSION}_PUBLIC_") and name.endswith(".zip"),
+            lambda name: (
+                name.startswith(f"ghidra_{GHIDRA_VERSION}_PUBLIC_")
+                and name.endswith(".zip")
+            ),
         )
-        ghidra_archive = _download(ghidra_asset, cache, expected=GHIDRA_SHA256)
-        ghidra_root = _single_child(
-            _safe_extract_zip(ghidra_archive, root / f"ghidra-{GHIDRA_VERSION}")
+        ghidra_archive = _download(
+            ghidra_asset,
+            cache,
+            expected=GHIDRA_SHA256,
         )
+        ghidra_release = _safe_extract_zip(
+            ghidra_archive,
+            root / f"ghidra-{GHIDRA_VERSION}",
+        )
+        ghidra_root = _single_child(ghidra_release)
         headless = ghidra_root / "support" / "analyzeHeadless"
         headless.chmod(headless.stat().st_mode | 0o100)
-        _link(bin_root / "analyzeHeadless", headless)
+        _link(
+            bin_root / "analyzeHeadless",
+            headless,
+            tool_root=ghidra_release,
+        )
         installed["ghidra"] = str(headless.resolve())
 
     return installed
@@ -273,9 +349,22 @@ def main() -> int:
     parser.add_argument("--without-ghidra", action="store_true")
     args = parser.parse_args()
     try:
-        installed = install(args.root.expanduser().resolve(), include_ghidra=not args.without_ghidra)
-    except (OSError, RuntimeError, subprocess.SubprocessError, urllib.error.URLError, zipfile.BadZipFile) as exc:
-        print(f"Mobile release tool installation failed closed: {type(exc).__name__}: {exc}", file=sys.stderr)
+        installed = install(
+            args.root.expanduser().resolve(),
+            include_ghidra=not args.without_ghidra,
+        )
+    except (
+        OSError,
+        RuntimeError,
+        subprocess.SubprocessError,
+        urllib.error.URLError,
+        zipfile.BadZipFile,
+    ) as exc:
+        print(
+            f"Mobile release tool installation failed closed: "
+            f"{type(exc).__name__}: {exc}",
+            file=sys.stderr,
+        )
         return 2
     for name, path in installed.items():
         print(f"Installed {name}: {path}")

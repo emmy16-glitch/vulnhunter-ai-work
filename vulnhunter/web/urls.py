@@ -7,6 +7,7 @@ from vulnhunter.web import (
     assessment_views,
     audit_views,
     conversation_approval_views,
+    conversation_mobile_views,
     conversational_views,
     dashboard_dispatch_views,
     findings_views,
@@ -30,6 +31,16 @@ urlpatterns = [
         "workspace/message/",
         conversational_views.message_view,
         name="web-conversation-message",
+    ),
+    path(
+        "workspace/attachments/",
+        conversation_mobile_views.attachment_view,
+        name="web-conversation-attachment",
+    ),
+    path(
+        "workspace/mobile-message/",
+        conversation_mobile_views.mobile_message_view,
+        name="web-conversation-mobile-message",
     ),
     path(
         "workspace/approve/",

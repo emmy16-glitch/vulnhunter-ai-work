@@ -34,31 +34,43 @@
   display: block;
   margin-top: 4px;
   color: #64748b;
-  font-size: 8.5px;
+  font-size: .72rem;
   font-style: normal;
   line-height: 1.4;
 }
 
 .vh-inspector-extension-approve {
+  min-height: 36px;
   margin-top: 8px;
-  padding: 7px 10px;
+  padding: 8px 12px;
   border: 1px solid rgba(252, 211, 77, .3);
   border-radius: 9px;
   background: rgba(180, 83, 9, .1);
   color: #fde68a;
-  font-size: 8.5px;
+  font-size: .75rem;
   font-weight: 800;
+  line-height: 1.25;
   cursor: pointer;
+  touch-action: manipulation;
 }
 
 .vh-inspector-extension-approve:hover,
 .vh-inspector-extension-approve:focus-visible {
   border-color: rgba(252, 211, 77, .58);
   background: rgba(180, 83, 9, .18);
-  outline: none;
+  outline: 2px solid rgba(103, 232, 249, .45);
+  outline-offset: 2px;
 }
 
 .vh-inspector-extension-approve:disabled {
   cursor: wait;
   opacity: .6;
+}
+
+@media (max-width: 720px) {
+  .vh-inspector-extension-approve {
+    width: 100%;
+    min-height: 44px;
+    font-size: .82rem;
+  }
 }

@@ -1,9 +1,9 @@
 name: Temporary runtime safety repair
 
 on:
-  push:
+  pull_request:
     branches:
-      - feature/unified-chat-mobile-hunt
+      - main
 
 permissions:
   contents: write
@@ -14,7 +14,6 @@ concurrency:
 
 jobs:
   repair:
-    if: ${{ !contains(github.event.head_commit.message, '[runtime-safety-repair]') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -51,9 +50,11 @@ jobs:
                           )
           if time.monotonic() - started > self.policy.maximum_session_seconds:
           '''
-          if runtime.count(old_runtime) != 1:
-              raise SystemExit("runtime cleanup anchor did not match exactly once")
-          runtime_path.write_text(runtime.replace(old_runtime, new_runtime), encoding="utf-8")
+          if runtime.count(old_runtime) == 1:
+              runtime = runtime.replace(old_runtime, new_runtime)
+              runtime_path.write_text(runtime, encoding="utf-8")
+          elif runtime.count(new_runtime) != 1:
+              raise SystemExit("runtime cleanup contract is neither original nor repaired")
 
           spool_path = Path("vulnhunter/mobile/extension_spool.py")
           spool = spool_path.read_text(encoding="utf-8")
@@ -143,9 +144,11 @@ jobs:
                   return target
               return self.finish(claimed, receipt=receipt, success=False)
           '''
-          if spool.count(old_spool) != 1:
-              raise SystemExit("extension reject anchor did not match exactly once")
-          spool_path.write_text(spool.replace(old_spool, new_spool), encoding="utf-8")
+          if spool.count(old_spool) == 1:
+              spool = spool.replace(old_spool, new_spool)
+              spool_path.write_text(spool, encoding="utf-8")
+          elif spool.count(new_spool) != 1:
+              raise SystemExit("extension rejection contract is neither original nor repaired")
           PY
       - name: Format and validate repaired files
         run: |
@@ -153,11 +156,14 @@ jobs:
           python -m ruff format vulnhunter/mobile/runtime.py vulnhunter/mobile/extension_spool.py
           python -m ruff check vulnhunter/mobile/runtime.py vulnhunter/mobile/extension_spool.py
           python -m ruff format --check vulnhunter/mobile/runtime.py vulnhunter/mobile/extension_spool.py
-      - name: Commit exact repair
+      - name: Commit exact repair if needed
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add vulnhunter/mobile/runtime.py vulnhunter/mobile/extension_spool.py
+          if git diff --cached --quiet; then
+            exit 0
+          fi
           git commit -m 'Fail closed on malformed extension jobs and cleanup errors [runtime-safety-repair]'
           for attempt in 1 2 3 4 5; do
             git pull --rebase -X theirs origin feature/unified-chat-mobile-hunt || {

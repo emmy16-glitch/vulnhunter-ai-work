@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 from pathlib import Path
 
 from django.conf import settings
@@ -20,6 +21,7 @@ from vulnhunter.security_tools.worker_spool import WorkerSpoolError, load_worker
 from vulnhunter.web.conversation_attachments import ConversationAttachment
 
 _SESSION_MOBILE_JOBS = "vulnhunter_conversation_mobile_jobs"
+_DEFAULT_ANALYSIS_RESERVE_BYTES = 1024 * 1024 * 1024
 
 
 def _env_bool(name: str, default: bool = False) -> bool:
@@ -27,6 +29,12 @@ def _env_bool(name: str, default: bool = False) -> bool:
     if raw is None:
         return default
     return raw.strip().casefold() in {"1", "true", "yes", "on"}
+
+
+def _configured_int(name: str, default: int) -> int:
+    configured = getattr(settings, name, None)
+    raw = configured if configured is not None else os.environ.get(name, str(default))
+    return int(raw)
 
 
 def _spool_root() -> Path:
@@ -47,6 +55,50 @@ def _signing_key_path() -> Path:
     )
 
 
+def _format_bytes(value: int) -> str:
+    amount = float(value)
+    for unit in ("B", "KiB", "MiB", "GiB", "TiB"):
+        if amount < 1024 or unit == "TiB":
+            return f"{amount:.1f} {unit}"
+        amount /= 1024
+    return f"{value} B"
+
+
+def _analysis_capacity_reason(
+    policy: MobileStaticWorkerPolicy,
+    artifact: MobileArtifactRecord,
+) -> str | None:
+    """Fail before queueing when the bounded analysis cannot fit safely."""
+
+    if artifact.total_uncompressed_bytes > policy.maximum_generated_bytes:
+        return (
+            "The APK declares more uncompressed content than the configured mobile-analysis "
+            "workspace can safely contain."
+        )
+
+    root = policy.workspace_root.expanduser()
+    if root.is_symlink():
+        return "The mobile-analysis workspace must not be a symbolic link."
+    root.mkdir(parents=True, exist_ok=True)
+    root.chmod(0o700)
+    resolved = root.resolve(strict=True)
+    reserve = max(
+        0,
+        _configured_int(
+            "VULNHUNTER_MOBILE_ANALYSIS_MIN_FREE_BYTES",
+            _DEFAULT_ANALYSIS_RESERVE_BYTES,
+        ),
+    )
+    required = artifact.size_bytes + policy.maximum_generated_bytes + reserve
+    available = shutil.disk_usage(resolved).free
+    if available < required:
+        return (
+            "There is not enough free storage to start bounded APK analysis safely. "
+            f"Required {_format_bytes(required)}; available {_format_bytes(available)}."
+        )
+    return None
+
+
 def _remember_job(request: HttpRequest, *, job_id: str, requested_by: str) -> None:
     raw = request.session.get(_SESSION_MOBILE_JOBS, {})
     jobs = dict(raw) if isinstance(raw, dict) else {}
@@ -63,7 +115,7 @@ def enqueue_mobile_static_if_ready(
     artifact: MobileArtifactRecord,
     requested_by: str,
 ) -> dict[str, object]:
-    """Enqueue only when deployment policy, key and worker tools are activated."""
+    """Enqueue only when deployment policy, capacity, key and worker tools are activated."""
 
     if not _env_bool("VULNHUNTER_MOBILE_STATIC_ENQUEUE_ENABLED"):
         return {
@@ -78,6 +130,9 @@ def enqueue_mobile_static_if_ready(
                 "state": "gated",
                 "reason": "The mobile analysis worker policy is present but disabled.",
             }
+        capacity_reason = _analysis_capacity_reason(policy, artifact)
+        if capacity_reason is not None:
+            return {"state": "gated", "reason": capacity_reason}
         signing_key = load_worker_signing_key(_signing_key_path())
         spool = MobileStaticSpool(_spool_root())
         run_id = str(plan["run_id"])
@@ -93,6 +148,7 @@ def enqueue_mobile_static_if_ready(
     except (
         KeyError,
         OSError,
+        TypeError,
         ValueError,
         MobileStaticSpoolError,
         MobileStaticWorkerError,

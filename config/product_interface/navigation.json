@@ -4,7 +4,7 @@
       "items": [
         {
           "icon": "layout-dashboard",
-          "label": "Dashboard",
+          "label": "Assessment Workspace",
           "page_id": "dashboard"
         }
       ],
@@ -20,13 +20,8 @@
           "page_id": "authorizations"
         },
         {
-          "icon": "radar",
-          "label": "New Scan",
-          "page_id": "new-scan"
-        },
-        {
           "icon": "activity",
-          "label": "Scan Runs",
+          "label": "Assessment History",
           "page_id": "scan-runs"
         }
       ],
@@ -89,7 +84,7 @@
         },
         {
           "icon": "brain-circuit",
-          "label": "Models",
+          "label": "Analysis Services",
           "page_id": "models"
         }
       ],
@@ -101,7 +96,7 @@
       "items": [
         {
           "icon": "fingerprint",
-          "label": "Audit",
+          "label": "Audit Log",
           "page_id": "audit"
         },
         {

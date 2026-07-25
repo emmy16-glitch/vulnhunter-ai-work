@@ -8,6 +8,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: temporary-extension-hardening
+  cancel-in-progress: true
+
 jobs:
   harden:
     if: ${{ !contains(github.event.head_commit.message, '[extension-hardening]') }}
@@ -163,4 +167,15 @@ jobs:
             vulnhunter/web/mobile_extension_execution.py \
             vulnhunter/web/management/commands/vh_run_mobile_extension_worker.py
           git commit -m 'Harden mobile extension execution [extension-hardening]'
-          git push origin HEAD:feature/unified-chat-mobile-hunt
+          for attempt in 1 2 3 4 5; do
+            git pull --rebase -X theirs origin feature/unified-chat-mobile-hunt || {
+              git rebase --abort || true
+              sleep 2
+              continue
+            }
+            if git push origin HEAD:feature/unified-chat-mobile-hunt; then
+              exit 0
+            fi
+            sleep 2
+          done
+          exit 1

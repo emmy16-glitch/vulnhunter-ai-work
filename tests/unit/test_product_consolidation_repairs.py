@@ -1,17 +1,14 @@
 from __future__ import annotations
 
-import json
 import os
 import sqlite3
 import time
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import patch
 
 import pytest
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import RequestFactory
 from django.urls import reverse
 
 from vulnhunter.learning.models import CandidateStatus, MemoryCandidate, MemoryKind
@@ -221,7 +218,9 @@ def test_apk_upload_updates_activity_timestamp(settings, tmp_path):
     settings.VULNHUNTER_MOBILE_MIN_FREE_BYTES = 0
     request = _Request(SimpleNamespace(pk=1))
     staged = begin_apk_upload(request, filename="sample.apk", expected_bytes=4)
-    before = float(request.session["vulnhunter_conversation_apk_uploads"][staged.upload_id]["updated_at"])
+    before = float(
+        request.session["vulnhunter_conversation_apk_uploads"][staged.upload_id]["updated_at"]
+    )
 
     append_apk_chunk(
         request,
@@ -229,7 +228,9 @@ def test_apk_upload_updates_activity_timestamp(settings, tmp_path):
         offset=0,
         chunk=SimpleUploadedFile("chunk", b"PK12"),
     )
-    after = float(request.session["vulnhunter_conversation_apk_uploads"][staged.upload_id]["updated_at"])
+    after = float(
+        request.session["vulnhunter_conversation_apk_uploads"][staged.upload_id]["updated_at"]
+    )
 
     assert after >= before
     assert staged.path.read_bytes() == b"PK12"

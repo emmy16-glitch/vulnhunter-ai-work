@@ -51,7 +51,9 @@ def current_mobile_plan(
 def _round_summary(plan: dict[str, object]) -> str:
     raw = plan.get("rounds")
     rounds = raw if isinstance(raw, list) else []
-    labels = [str(item.get("label")) for item in rounds if isinstance(item, dict) and item.get("label")]
+    labels = [
+        str(item.get("label")) for item in rounds if isinstance(item, dict) and item.get("label")
+    ]
     if not labels:
         return "The mobile hunt has no recorded rounds."
     return "The hunt moves through: " + "; ".join(labels) + "."
@@ -60,7 +62,9 @@ def _round_summary(plan: dict[str, object]) -> str:
 def _tool_summary(plan: dict[str, object]) -> str:
     raw = plan.get("tools")
     tools = raw if isinstance(raw, list) else []
-    names = [str(item.get("name") or item.get("tool_id")) for item in tools if isinstance(item, dict)]
+    names = [
+        str(item.get("name") or item.get("tool_id")) for item in tools if isinstance(item, dict)
+    ]
     execution = plan.get("execution")
     active: list[str] = []
     if isinstance(execution, dict):
@@ -132,7 +136,9 @@ def mobile_chat_reply(
         return _results_summary(plan)
     if intent == "next_step":
         execution = plan.get("execution")
-        state = str(execution.get("state") or "prepared") if isinstance(execution, dict) else "prepared"
+        state = (
+            str(execution.get("state") or "prepared") if isinstance(execution, dict) else "prepared"
+        )
         if state in {"queued", "running"}:
             return "No action is required while the networkless static worker is running."
         if state == "completed":

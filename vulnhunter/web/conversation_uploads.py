@@ -56,9 +56,7 @@ class StagedApkUpload:
 
 
 def apk_upload_chunk_bytes() -> int:
-    return int(
-        getattr(settings, "VULNHUNTER_MOBILE_UPLOAD_CHUNK_BYTES", _DEFAULT_CHUNK_BYTES)
-    )
+    return int(getattr(settings, "VULNHUNTER_MOBILE_UPLOAD_CHUNK_BYTES", _DEFAULT_CHUNK_BYTES))
 
 
 def _upload_root() -> Path:

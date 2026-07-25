@@ -2,12 +2,13 @@
 {% load static %}
 {% block content %}
 <link rel="stylesheet" href="{% static 'web/conversation-mobile.css' %}?v=20260725-mobile1">
+<link rel="stylesheet" href="{% static 'web/conversation-upload.css' %}?v=20260725-upload1">
 <link rel="stylesheet" href="{% static 'web/conversation-mobile-execution.css' %}?v=20260725-mobile2">
 <link rel="stylesheet" href="{% static 'web/conversation-mobile-inspector.css' %}?v=20260725-inspector1">
 <link rel="stylesheet" href="{% static 'web/conversation-mobile-deferred-tools.css' %}?v=20260725-extension1">
 <script src="{% static 'web/conversation-runtime-compat.js' %}?v=20260723-chat4"></script>
 <script src="{% static 'web/conversation-mobile-bridge.js' %}?v=20260725-inspector1" defer></script>
-<script src="{% static 'web/conversation-mobile.js' %}?v=20260725-mobile4" defer></script>
+<script src="{% static 'web/conversation-mobile.js' %}?v=20260725-mobile5" defer></script>
 <script src="{% static 'web/conversation-mobile-context.js' %}?v=20260725-mobile3" defer></script>
 <script src="{% static 'web/conversation-mobile-inspector.js' %}?v=20260725-inspector1" defer></script>
 <script src="{% static 'web/conversation-mobile-deferred-tools.js' %}?v=20260725-extension1" defer></script>
@@ -43,6 +44,7 @@
         class="vh-chat-composer"
         data-conversation-form
         data-attachment-url="{% url 'web-conversation-attachment' %}"
+        data-upload-start-url="{% url 'web-conversation-upload-start' %}"
         data-mobile-message-url="{% url 'web-conversation-mobile-message' %}"
         data-mobile-followup-url="{% url 'web-conversation-mobile-followup' %}"
         data-mobile-context-url="{% url 'web-conversation-mobile-context' %}"

@@ -1,0 +1,42 @@
+.vh-apk-uploading > div {
+  display: grid;
+  flex: 1 1 auto;
+  gap: .26rem;
+  min-width: 0;
+}
+
+.vh-apk-uploading strong,
+.vh-apk-uploading small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vh-apk-uploading small {
+  color: rgba(232, 237, 246, .68);
+  font-size: .75rem;
+}
+
+.vh-apk-uploading progress {
+  width: 100%;
+  height: .38rem;
+  overflow: hidden;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .08);
+}
+
+.vh-apk-uploading progress::-webkit-progress-bar {
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .08);
+}
+
+.vh-apk-uploading progress::-webkit-progress-value {
+  border-radius: 999px;
+  background: linear-gradient(90deg, #548eff, #70a4ff);
+}
+
+.vh-apk-uploading progress::-moz-progress-bar {
+  border-radius: 999px;
+  background: linear-gradient(90deg, #548eff, #70a4ff);
+}

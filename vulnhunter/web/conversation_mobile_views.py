@@ -1,4 +1,4 @@
-"""APK attachment and mobile-hunt endpoints for the conversational workspace."""
+"""APK upload and mobile-hunt endpoints for the conversational workspace."""
 
 from __future__ import annotations
 
@@ -20,6 +20,12 @@ from vulnhunter.web.conversation_attachments import (
     remember_apk_attachment,
 )
 from vulnhunter.web.conversation_service import interpret_request
+from vulnhunter.web.conversation_uploads import (
+    ConversationUploadError,
+    append_apk_chunk,
+    begin_apk_upload,
+    discard_apk_upload,
+)
 from vulnhunter.web.conversational_views import _actor, _append_message, _messages
 from vulnhunter.web.mobile_conversation import build_mobile_chat_plan, mobile_plan_reply
 from vulnhunter.web.mobile_conversation_state import (
@@ -30,6 +36,11 @@ from vulnhunter.web.mobile_conversation_state import (
 )
 from vulnhunter.web.mobile_execution import enqueue_mobile_static_if_ready, mobile_static_status
 from vulnhunter.web.services import WebPermissionDenied
+
+_AUTO_ANALYSIS_TEXT = (
+    "Run a full automatic security analysis of this APK using every available safe static and "
+    "native tool. Record verified findings and list any approval-gated follow-up checks."
+)
 
 
 def _ingestor() -> MobileArtifactIngestor:
@@ -57,69 +68,19 @@ def _conversation_context(request: HttpRequest) -> tuple[tuple[str, str], ...]:
     )
 
 
-@cache_control(private=True, no_store=True)
-@login_required
-@require_POST
-def attachment_view(request: HttpRequest) -> JsonResponse:
-    try:
-        _actor(request, "scan.create")
-    except WebPermissionDenied as exc:
-        return JsonResponse({"detail": str(exc)}, status=403)
-
-    uploaded = request.FILES.get("attachment")
-    if uploaded is None:
-        return JsonResponse({"detail": "Choose an Android APK to attach."}, status=400)
-    try:
-        record = _ingestor().ingest_chunks(uploaded.name, uploaded.chunks())
-    except MobileArtifactError as exc:
-        return JsonResponse({"detail": str(exc)}, status=400)
-
-    attachment = remember_apk_attachment(request, record)
-    return JsonResponse(
-        {
-            "attachment": attachment.payload(),
-            "message": (
-                "APK validated and stored by content hash. No tool, emulator or network scan "
-                "was started by the upload."
-            ),
-        }
-    )
-
-
-@cache_control(private=True, no_store=True)
-@login_required
-@require_POST
-def mobile_message_view(request: HttpRequest) -> JsonResponse:
-    try:
-        actor = _actor(request, "scan.create")
-    except WebPermissionDenied as exc:
-        return JsonResponse({"detail": str(exc)}, status=403)
-
-    text = request.POST.get("message", "").strip()
-    if not text or len(text) > 4_000:
-        return JsonResponse(
-            {"detail": "Enter a message between 1 and 4,000 characters."},
-            status=400,
-        )
-    attachment_id = request.POST.get("attachment_id", "").strip()
-    attachment = get_attachment(request, attachment_id)
-    if attachment is None or attachment.kind != "android_apk":
-        return JsonResponse(
-            {"detail": "The APK attachment is missing, expired or does not belong to this chat."},
-            status=409,
-        )
-    artifact = _resolve_artifact(attachment)
-    if artifact is None:
-        return JsonResponse(
-            {"detail": "The stored APK failed attachment-to-artifact verification."},
-            status=409,
-        )
-
-    _append_message(
+def _start_mobile_hunt(
+    request: HttpRequest,
+    *,
+    actor: object,
+    text: str,
+    attachment: ConversationAttachment,
+    artifact: MobileArtifactRecord,
+) -> dict[str, object]:
+    user_message = _append_message(
         request,
         role="user",
         content=text,
-        metadata={"attachment": attachment.payload()},
+        metadata={"attachment": attachment.payload(), "automatic": text == _AUTO_ANALYSIS_TEXT},
     )
     requested_by = actor.governance_identity.reviewer_id
     plan = build_mobile_chat_plan(
@@ -162,8 +123,196 @@ def mobile_message_view(request: HttpRequest) -> JsonResponse:
             ],
         },
     )
-    forget_attachment(request, attachment_id)
-    return JsonResponse({"message": message, "mobile_plan": plan})
+    forget_attachment(request, attachment.attachment_id)
+    return {
+        "attachment": attachment.payload(),
+        "user_message": user_message,
+        "message": message,
+        "mobile_plan": plan,
+        "auto_started": text == _AUTO_ANALYSIS_TEXT,
+    }
+
+
+@cache_control(private=True, no_store=True)
+@login_required
+@require_POST
+def upload_start_view(request: HttpRequest) -> JsonResponse:
+    try:
+        _actor(request, "scan.create")
+    except WebPermissionDenied as exc:
+        return JsonResponse({"detail": str(exc)}, status=403)
+
+    filename = request.POST.get("filename", "").strip()
+    try:
+        expected_bytes = int(request.POST.get("size_bytes", ""))
+        staged = begin_apk_upload(
+            request,
+            filename=filename,
+            expected_bytes=expected_bytes,
+        )
+    except (TypeError, ValueError, ConversationUploadError) as exc:
+        detail = str(exc) or "The APK upload request is invalid."
+        return JsonResponse({"detail": detail}, status=400)
+
+    return JsonResponse(
+        {
+            "upload_id": staged.upload_id,
+            "chunk_url": reverse(
+                "web-conversation-upload-chunk",
+                kwargs={"upload_id": staged.upload_id},
+            ),
+            "chunk_bytes": int(
+                getattr(settings, "VULNHUNTER_MOBILE_UPLOAD_CHUNK_BYTES", 8 * 1024 * 1024)
+            ),
+            "maximum_bytes": int(settings.VULNHUNTER_MOBILE_MAX_APK_BYTES),
+            "received_bytes": 0,
+            "auto_start": True,
+        }
+    )
+
+
+@cache_control(private=True, no_store=True)
+@login_required
+@require_POST
+def upload_chunk_view(request: HttpRequest, upload_id: str) -> JsonResponse:
+    try:
+        actor = _actor(request, "scan.create")
+    except WebPermissionDenied as exc:
+        return JsonResponse({"detail": str(exc)}, status=403)
+
+    uploaded = request.FILES.get("chunk")
+    if uploaded is None:
+        return JsonResponse({"detail": "The APK upload chunk is missing."}, status=400)
+    try:
+        offset = int(request.POST.get("offset", ""))
+        staged = append_apk_chunk(
+            request,
+            upload_id=upload_id,
+            offset=offset,
+            chunk=uploaded,
+        )
+    except (TypeError, ValueError, ConversationUploadError) as exc:
+        return JsonResponse({"detail": str(exc) or "The APK upload chunk is invalid."}, status=409)
+
+    if not staged.complete:
+        return JsonResponse(
+            {
+                "upload_id": staged.upload_id,
+                "received_bytes": staged.received_bytes,
+                "expected_bytes": staged.expected_bytes,
+                "complete": False,
+            }
+        )
+
+    try:
+        artifact = _ingestor().ingest_file(
+            staged.path.resolve(strict=True),
+            original_filename=staged.filename,
+        )
+    except (MobileArtifactError, OSError) as exc:
+        discard_apk_upload(request, upload_id=upload_id)
+        return JsonResponse({"detail": str(exc)}, status=400)
+    discard_apk_upload(request, upload_id=upload_id)
+
+    attachment = remember_apk_attachment(request, artifact)
+    payload = _start_mobile_hunt(
+        request,
+        actor=actor,
+        text=_AUTO_ANALYSIS_TEXT,
+        attachment=attachment,
+        artifact=artifact,
+    )
+    payload["upload"] = {
+        "upload_id": upload_id,
+        "received_bytes": staged.received_bytes,
+        "expected_bytes": staged.expected_bytes,
+        "complete": True,
+    }
+    return JsonResponse(payload)
+
+
+@cache_control(private=True, no_store=True)
+@login_required
+@require_POST
+def attachment_view(request: HttpRequest) -> JsonResponse:
+    try:
+        actor = _actor(request, "scan.create")
+    except WebPermissionDenied as exc:
+        return JsonResponse({"detail": str(exc)}, status=403)
+
+    uploaded = request.FILES.get("attachment")
+    if uploaded is None:
+        return JsonResponse({"detail": "Choose an Android APK to attach."}, status=400)
+    try:
+        record = _ingestor().ingest_chunks(uploaded.name, uploaded.chunks())
+    except MobileArtifactError as exc:
+        return JsonResponse({"detail": str(exc)}, status=400)
+
+    attachment = remember_apk_attachment(request, record)
+    auto_start = request.POST.get("auto_start", "").strip().casefold() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+    if auto_start:
+        return JsonResponse(
+            _start_mobile_hunt(
+                request,
+                actor=actor,
+                text=_AUTO_ANALYSIS_TEXT,
+                attachment=attachment,
+                artifact=record,
+            )
+        )
+    return JsonResponse(
+        {
+            "attachment": attachment.payload(),
+            "message": (
+                "APK validated and stored by content hash. Send a mobile-analysis message to "
+                "prepare and queue its governed tools."
+            ),
+        }
+    )
+
+
+@cache_control(private=True, no_store=True)
+@login_required
+@require_POST
+def mobile_message_view(request: HttpRequest) -> JsonResponse:
+    try:
+        actor = _actor(request, "scan.create")
+    except WebPermissionDenied as exc:
+        return JsonResponse({"detail": str(exc)}, status=403)
+
+    text = request.POST.get("message", "").strip()
+    if not text or len(text) > 4_000:
+        return JsonResponse(
+            {"detail": "Enter a message between 1 and 4,000 characters."},
+            status=400,
+        )
+    attachment_id = request.POST.get("attachment_id", "").strip()
+    attachment = get_attachment(request, attachment_id)
+    if attachment is None or attachment.kind != "android_apk":
+        return JsonResponse(
+            {"detail": "The APK attachment is missing, expired or does not belong to this chat."},
+            status=409,
+        )
+    artifact = _resolve_artifact(attachment)
+    if artifact is None:
+        return JsonResponse(
+            {"detail": "The stored APK failed attachment-to-artifact verification."},
+            status=409,
+        )
+    return JsonResponse(
+        _start_mobile_hunt(
+            request,
+            actor=actor,
+            text=text,
+            attachment=attachment,
+            artifact=artifact,
+        )
+    )
 
 
 @cache_control(private=True, no_store=True)

@@ -17,6 +17,7 @@
 
   const csrfToken = form.querySelector("input[name='csrfmiddlewaretoken']")?.value || "";
   const attachmentUrl = form.dataset.attachmentUrl || "";
+  const uploadStartUrl = form.dataset.uploadStartUrl || "";
   const mobileMessageUrl = form.dataset.mobileMessageUrl || "";
   let activeAttachment = null;
   let mobileBusy = false;
@@ -122,6 +123,26 @@
 
   const renderTray = (attachment) => {
     tray.replaceChildren(attachmentCard(attachment, { removable: true }));
+    tray.hidden = false;
+  };
+
+  const renderUploadProgress = (file, received) => {
+    const total = Math.max(1, Number(file.size) || 1);
+    const transferred = Math.min(total, Math.max(0, Number(received) || 0));
+    const shell = document.createElement("div");
+    shell.className = "vh-apk-uploading";
+    const marker = document.createElement("span");
+    const copy = document.createElement("div");
+    const title = document.createElement("strong");
+    title.textContent = `Uploading ${file.name}`;
+    const detail = document.createElement("small");
+    detail.textContent = `${formatBytes(transferred)} of ${formatBytes(total)} · ${Math.floor((transferred / total) * 100)}%`;
+    const progress = document.createElement("progress");
+    progress.max = total;
+    progress.value = transferred;
+    copy.append(title, detail, progress);
+    shell.append(marker, copy);
+    tray.replaceChildren(shell);
     tray.hidden = false;
   };
 
@@ -378,20 +399,90 @@
     }
   };
 
-  const uploadAttachment = async (file) => {
-    if (!attachmentUrl) throw new Error("The APK attachment endpoint is unavailable.");
-    const payload = new FormData();
-    payload.append("attachment", file);
-    setBusy(true, "Validating the APK archive and computing its content hash…");
-    tray.hidden = false;
-    tray.innerHTML = '<div class="vh-apk-uploading"><span></span><strong>Checking APK structure…</strong></div>';
-    try {
-      const data = await postForm(attachmentUrl, payload);
-      activeAttachment = data.attachment;
-      renderTray(activeAttachment);
-      if (!input.value.trim()) input.value = "Test this APK and find security weaknesses.";
+  const consumeUploadResponse = (data) => {
+    const attachment = data.attachment;
+    if (!attachment) throw new Error("The server did not return the validated APK attachment.");
+    const plan = data.mobile_plan || data.message?.metadata?.mobile_plan;
+    if (plan || data.auto_started) {
+      appendMessage(
+        data.user_message || {
+          role: "user",
+          kind: "text",
+          content: "Run a full automatic security analysis of this APK.",
+        },
+        { attachment },
+      );
+      appendMessage(
+        data.message || {
+          role: "assistant",
+          kind: "mobile_plan",
+          content: "The mobile hunt was prepared and queued.",
+        },
+        { attachment, plan },
+      );
+      activeAttachment = null;
+      fileInput.value = "";
+      tray.replaceChildren();
+      tray.hidden = true;
+      input.value = "";
       input.dispatchEvent(new Event("input", { bubbles: true }));
-      input.focus();
+      return;
+    }
+    activeAttachment = attachment;
+    renderTray(activeAttachment);
+    if (!input.value.trim()) input.value = "Test this APK and find security weaknesses.";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  };
+
+  const uploadInChunks = async (file) => {
+    if (!uploadStartUrl) return null;
+    const startPayload = new FormData();
+    startPayload.append("filename", file.name);
+    startPayload.append("size_bytes", String(file.size));
+    const started = await postForm(uploadStartUrl, startPayload);
+    const maximum = Number(started.maximum_bytes || 0);
+    if (maximum && file.size > maximum) {
+      throw new Error(`The APK exceeds the ${formatBytes(maximum)} upload limit.`);
+    }
+    const chunkBytes = Math.max(1024 * 1024, Number(started.chunk_bytes) || 8 * 1024 * 1024);
+    const chunkUrl = text(started.chunk_url);
+    if (!chunkUrl) throw new Error("The server did not return an APK chunk endpoint.");
+
+    let offset = 0;
+    let result = null;
+    renderUploadProgress(file, 0);
+    while (offset < file.size) {
+      const end = Math.min(file.size, offset + chunkBytes);
+      const payload = new FormData();
+      payload.append("offset", String(offset));
+      payload.append("chunk", file.slice(offset, end), `${file.name}.part`);
+      result = await postForm(chunkUrl, payload);
+      const nextOffset = Number(result.received_bytes ?? result.upload?.received_bytes);
+      if (!Number.isFinite(nextOffset) || nextOffset <= offset || nextOffset > file.size) {
+        throw new Error("The server returned an invalid APK upload offset.");
+      }
+      offset = nextOffset;
+      renderUploadProgress(file, offset);
+      setBusy(true, `Uploading APK… ${Math.floor((offset / file.size) * 100)}%`);
+    }
+    return result;
+  };
+
+  const uploadAttachment = async (file) => {
+    if (!attachmentUrl && !uploadStartUrl) {
+      throw new Error("The APK attachment endpoint is unavailable.");
+    }
+    setBusy(true, "Uploading and validating the APK…");
+    renderUploadProgress(file, 0);
+    try {
+      let data = await uploadInChunks(file);
+      if (!data) {
+        const payload = new FormData();
+        payload.append("attachment", file);
+        payload.append("auto_start", "true");
+        data = await postForm(attachmentUrl, payload);
+      }
+      consumeUploadResponse(data);
     } catch (error) {
       activeAttachment = null;
       fileInput.value = "";
@@ -403,6 +494,7 @@
       );
     } finally {
       setBusy(false);
+      input.focus();
     }
   };
 

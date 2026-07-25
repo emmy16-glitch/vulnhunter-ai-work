@@ -111,6 +111,8 @@ export VULNHUNTER_APPROVAL_DATABASE="$ROOT/.local/approvals.sqlite3"
 export VULNHUNTER_AGENT_ACTIVITY_ROOT="$ROOT/.local/agent-activity"
 export VULNHUNTER_SECURITY_EVIDENCE_ROOT="$ROOT/.local/security-evidence"
 export VULNHUNTER_MOBILE_ARTIFACT_ROOT="$MOBILE_ARTIFACT_ROOT"
+export VULNHUNTER_MOBILE_MAX_APK_BYTES=1000000000
+export VULNHUNTER_MOBILE_UPLOAD_CHUNK_BYTES=8388608
 export VULNHUNTER_MOBILE_STATIC_WORKER_POLICY="$MOBILE_POLICY_FILE"
 export VULNHUNTER_MOBILE_STATIC_SIGNING_KEY_FILE="$MOBILE_SIGNING_KEY"
 export VULNHUNTER_MOBILE_STATIC_SPOOL_ROOT="$MOBILE_SPOOL_ROOT"
@@ -181,6 +183,7 @@ python manage.py vh_init_agent_store
 
 printf '\nVulnHunter Codespace is prepared with Codex, bounded reasoning, the pinned Nuclei worker, and the governed mobile worker stack.\n'
 printf 'Codex: %s\n' "$(codex --version)"
+printf 'Mobile APK upload limit: %s bytes\n' "$VULNHUNTER_MOBILE_MAX_APK_BYTES"
 printf 'Mobile static enqueue enabled: %s\n' "$VULNHUNTER_MOBILE_STATIC_ENQUEUE_ENABLED"
 printf 'MobSF policy path: %s\n' "$VULNHUNTER_MOBSF_POLICY"
 printf 'Disposable runtime policy path: %s\n' "$VULNHUNTER_MOBILE_RUNTIME_POLICY"

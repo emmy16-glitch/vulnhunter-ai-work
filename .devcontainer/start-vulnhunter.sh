@@ -14,11 +14,14 @@ fi
 export VULNHUNTER_GROQ_ENABLED="${VULNHUNTER_GROQ_ENABLED:-true}"
 export VULNHUNTER_GROQ_API_KEY_FILE="${VULNHUNTER_GROQ_API_KEY_FILE:-$ROOT/.codespaces/groq-api-key}"
 export VULNHUNTER_INTELLIGENCE_ENABLED="${VULNHUNTER_INTELLIGENCE_ENABLED:-true}"
+export VULNHUNTER_MOBILE_MAX_APK_BYTES="${VULNHUNTER_MOBILE_MAX_APK_BYTES:-1000000000}"
+export VULNHUNTER_MOBILE_UPLOAD_CHUNK_BYTES="${VULNHUNTER_MOBILE_UPLOAD_CHUNK_BYTES:-8388608}"
 
 LAB_PORT="${VULNHUNTER_LAB_TARGET_PORT:-${VULNHUNTER_PHONE_LAB_TARGET_PORT:-8010}}"
 LAB_ADDRESS="$(python scripts/phone_lab_target.py --print-address)"
 LAB_URL="http://${LAB_ADDRESS}:${LAB_PORT}/"
 LOG_ROOT="$ROOT/.codespaces/runtime"
+MOBILE_WORKSPACE="${VULNHUNTER_MOBILE_STATIC_WORKSPACE:-$ROOT/.local/mobile-static-workspace}"
 mkdir -p "$LOG_ROOT"
 
 TARGET_PID=""
@@ -82,12 +85,36 @@ python manage.py vh_run_nuclei_worker --watch --poll-seconds 0.5 \
   >"$LOG_ROOT/worker.log" 2>&1 &
 WORKER_PID=$!
 
-MOBILE_STATE="gated"
-if [[ "${VULNHUNTER_MOBILE_STATIC_ENQUEUE_ENABLED:-false}" == "true" ]]; then
+python scripts/prepare_mobile_static_worker.py \
+  --policy "$VULNHUNTER_MOBILE_STATIC_WORKER_POLICY" \
+  --workspace "$MOBILE_WORKSPACE" \
+  --worker-id codespaces-mobile-static-worker \
+  >"$LOG_ROOT/mobile-policy.log" 2>&1
+VULNHUNTER_MOBILE_STATIC_ENQUEUE_ENABLED="$(python - <<'PY'
+import json
+import os
+from pathlib import Path
+
+payload = json.loads(
+    Path(os.environ["VULNHUNTER_MOBILE_STATIC_WORKER_POLICY"]).read_text(encoding="utf-8")
+)
+print("true" if payload.get("enabled") is True else "false")
+PY
+)"
+export VULNHUNTER_MOBILE_STATIC_ENQUEUE_ENABLED
+
+MOBILE_STATE="gated; no verified static APK tools were discovered"
+if [[ "$VULNHUNTER_MOBILE_STATIC_ENQUEUE_ENABLED" == "true" ]]; then
   python manage.py vh_run_mobile_static_worker --watch --poll-seconds 0.5 \
     >"$LOG_ROOT/mobile-static-worker.log" 2>&1 &
   MOBILE_WORKER_PID=$!
-  MOBILE_STATE="isolated read-only static/native worker ready"
+  sleep 0.2
+  if kill -0 "$MOBILE_WORKER_PID" 2>/dev/null; then
+    MOBILE_STATE="automatic isolated static/native worker ready"
+  else
+    MOBILE_STATE="failed closed; see .codespaces/runtime/mobile-static-worker.log"
+    MOBILE_WORKER_PID=""
+  fi
 fi
 
 MOBSF_STATE="gated"
@@ -151,14 +178,15 @@ Login username: $VULNHUNTER_USERNAME
 Groq: $GROQ_STATE
 Reasoning: $INTELLIGENCE_STATE
 Nuclei: pinned passive worker ready
+APK upload limit: $VULNHUNTER_MOBILE_MAX_APK_BYTES bytes via bounded chunks
 Mobile APK: $MOBILE_STATE
 MobSF: $MOBSF_STATE
 ADB/Frida: $RUNTIME_STATE
 Extension worker: $EXTENSION_STATE
 
 Open the private port-8002 Codespaces URL and sign in once. Use the plus button to
-attach an APK or request an authorised web scan. The chat reveals planning,
-worker progress, evidence receipts and verification stages as they happen.
+attach an APK or request an authorised web scan. A valid APK automatically enters
+the available static/native tool queue; dynamic execution remains separately approved.
 
 MESSAGE
 

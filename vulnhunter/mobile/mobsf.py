@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 import stat
 from pathlib import Path
 from typing import Literal, Self
@@ -164,8 +163,12 @@ class MobSFClient:
             report_sha256=hashlib.sha256(encoded).hexdigest(),
             report_bytes=len(encoded),
             report_keys=tuple(sorted(str(key) for key in report)[:512]),
-            package_name=self._optional_text(report.get("package_name") or report.get("package")),
-            app_name=self._optional_text(report.get("app_name") or report.get("file_name")),
+            package_name=self._optional_text(
+                report.get("package_name") or report.get("package")
+            ),
+            app_name=self._optional_text(
+                report.get("app_name") or report.get("file_name")
+            ),
             security_score=self._optional_number(report.get("security_score")),
             report=report,
         )
@@ -191,7 +194,9 @@ class MobSFClient:
         payload, _ = self._json_payload(response)
         scan_hash = str(payload.get("hash") or "")
         scan_type = str(payload.get("scan_type") or payload.get("scanType") or "")
-        file_name = str(payload.get("file_name") or payload.get("fileName") or apk_path.name)
+        file_name = str(
+            payload.get("file_name") or payload.get("fileName") or apk_path.name
+        )
         try:
             return MobSFUploadReceipt(
                 scan_hash=scan_hash,
@@ -233,21 +238,28 @@ class MobSFClient:
                 follow_redirects=False,
                 trust_env=False,
             ) as client:
-                with client.stream(method, path, headers=headers, **kwargs) as response:
+                with client.stream(method, path, headers=headers, **kwargs) as streamed:
                     content = bytearray()
-                    for chunk in response.iter_bytes():
+                    for chunk in streamed.iter_bytes():
                         content.extend(chunk)
                         if len(content) > self.config.maximum_response_bytes:
-                            raise MobSFError("MobSF response exceeded the configured boundary")
-                    response.read()
-                    response._content = bytes(content)
+                            raise MobSFError(
+                                "MobSF response exceeded the configured boundary"
+                            )
+                    response = httpx.Response(
+                        status_code=streamed.status_code,
+                        headers=streamed.headers,
+                        content=bytes(content),
+                        request=streamed.request,
+                    )
         except (httpx.HTTPError, OSError) as exc:
             raise MobSFError("MobSF request failed") from exc
         if response.status_code < 200 or response.status_code >= 300:
             raise MobSFError(f"MobSF returned HTTP {response.status_code}")
         return response
 
-    def _json_payload(self, response: httpx.Response) -> tuple[dict[str, object], bytes]:
+    @staticmethod
+    def _json_payload(response: httpx.Response) -> tuple[dict[str, object], bytes]:
         encoded = bytes(response.content)
         try:
             payload = json.loads(encoded)
@@ -273,7 +285,7 @@ class MobSFClient:
         with resolved.open("rb") as handle:
             for chunk in iter(lambda: handle.read(1024 * 1024), b""):
                 digest.update(chunk)
-        if not os.path.isfile(resolved) or digest.hexdigest() != artifact_sha256:
+        if digest.hexdigest() != artifact_sha256:
             raise MobSFError("MobSF APK input does not match the ingested artifact")
         return resolved
 
@@ -286,7 +298,9 @@ class MobSFClient:
 
     @staticmethod
     def _optional_number(value: object) -> float | int | None:
-        return value if isinstance(value, (float, int)) and not isinstance(value, bool) else None
+        if isinstance(value, bool) or not isinstance(value, (float, int)):
+            return None
+        return value
 
 
 __all__ = [

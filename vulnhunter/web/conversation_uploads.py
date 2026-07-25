@@ -1,7 +1,7 @@
 """Session-bound, resumable APK staging for forwarded web ports.
 
 Large browser uploads are split into bounded requests before the completed file is
-passed to the existing content-addressed APK ingestor.  This avoids relying on a
+passed to the existing content-addressed APK ingestor. This avoids relying on a
 single reverse-proxy request-body allowance while preserving the one-gigabyte
 artifact limit and all archive validation performed by ``MobileArtifactIngestor``.
 """
@@ -22,6 +22,7 @@ from django.core.files.uploadedfile import UploadedFile
 _SESSION_KEY = "vulnhunter_conversation_apk_uploads"
 _UPLOAD_ID = re.compile(r"^upload-[0-9a-f]{32}$")
 _MAX_ACTIVE_UPLOADS = 3
+_DEFAULT_CHUNK_BYTES = 8 * 1024 * 1024
 
 
 class ConversationUploadError(ValueError):
@@ -52,6 +53,12 @@ class StagedApkUpload:
     @property
     def complete(self) -> bool:
         return self.received_bytes == self.expected_bytes
+
+
+def apk_upload_chunk_bytes() -> int:
+    return int(
+        getattr(settings, "VULNHUNTER_MOBILE_UPLOAD_CHUNK_BYTES", _DEFAULT_CHUNK_BYTES)
+    )
 
 
 def _upload_root() -> Path:
@@ -147,7 +154,7 @@ def begin_apk_upload(
         raise ConversationUploadError("The APK upload is empty.")
     if expected_bytes > maximum:
         raise ConversationUploadError(
-            f"The APK is larger than the configured {maximum} byte upload limit."
+            f"The APK exceeds the configured {maximum} byte upload limit."
         )
 
     records = _prune(request)
@@ -200,7 +207,7 @@ def append_apk_chunk(
             f"The APK upload offset is out of sequence; expected {received} bytes."
         )
 
-    maximum_chunk = int(settings.VULNHUNTER_MOBILE_UPLOAD_CHUNK_BYTES)
+    maximum_chunk = apk_upload_chunk_bytes()
     payload = bytearray()
     for block in chunk.chunks():
         payload.extend(block)
@@ -231,10 +238,9 @@ def append_apk_chunk(
             written += os.write(descriptor, view[written:])
         os.fsync(descriptor)
     except Exception:
-        os.close(descriptor)
         discard_apk_upload(request, upload_id=upload_id)
         raise
-    else:
+    finally:
         os.close(descriptor)
 
     record["received_bytes"] = next_received

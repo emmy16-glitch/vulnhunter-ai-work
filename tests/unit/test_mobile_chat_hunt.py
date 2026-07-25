@@ -1,8 +1,14 @@
 from __future__ import annotations
 
+import io
+import zipfile
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
 
 import pytest
+from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile
 
 from vulnhunter.hunt import (
     CandidateRecord,
@@ -51,6 +57,19 @@ def _attachment(*, native: bool) -> ConversationAttachment:
         native_library_count=1 if native else 0,
         native_abis=("arm64-v8a",) if native else (),
         created_at="2026-07-25T12:00:00+00:00",
+    )
+
+
+def _apk_upload() -> SimpleUploadedFile:
+    payload = io.BytesIO()
+    with zipfile.ZipFile(payload, "w") as archive:
+        archive.writestr("AndroidManifest.xml", b"manifest")
+        archive.writestr("classes.dex", b"dex")
+        archive.writestr("lib/arm64-v8a/libsecure.so", b"native")
+    return SimpleUploadedFile(
+        "banking-app.apk",
+        payload.getvalue(),
+        content_type="application/vnd.android.package-archive",
     )
 
 
@@ -147,3 +166,45 @@ def test_conversation_ui_exposes_plus_button_and_progressive_mobile_assets():
     assert "web-conversation-mobile-message" in template
     assert 'setTimeout(() => item.classList.add("is-visible")' in script
     assert "stopImmediatePropagation" in script
+
+
+@pytest.mark.django_db
+def test_chat_uploads_real_apk_then_prepares_mobile_hunt(client, settings, tmp_path):
+    settings.ALLOWED_HOSTS = ["testserver"]
+    settings.VULNHUNTER_MOBILE_ARTIFACT_ROOT = str(tmp_path / "mobile-artifacts")
+    settings.VULNHUNTER_MOBILE_MAX_APK_BYTES = 10_000_000
+    user = get_user_model().objects.create_user(
+        username="mobile-chat-user",
+        password="long-test-password-1234",
+    )
+    client.force_login(user)
+    actor = SimpleNamespace(
+        governance_identity=SimpleNamespace(reviewer_id="mobile-chat-user"),
+        product_roles=("campaign-operator",),
+    )
+
+    with patch("vulnhunter.web.conversation_mobile_views._actor", return_value=actor):
+        upload = client.post(
+            "/workspace/attachments/",
+            {"attachment": _apk_upload()},
+        )
+        assert upload.status_code == 200
+        attachment = upload.json()["attachment"]
+        assert attachment["kind"] == "android_apk"
+        assert attachment["dex_count"] == 1
+        assert attachment["native_library_count"] == 1
+
+        request = client.post(
+            "/workspace/mobile-message/",
+            {
+                "attachment_id": attachment["attachment_id"],
+                "message": "Test this APK thoroughly",
+            },
+        )
+
+    assert request.status_code == 200
+    payload = request.json()
+    assert payload["message"]["kind"] == "mobile_plan"
+    assert payload["mobile_plan"]["profile"] == "static_and_native"
+    assert payload["mobile_plan"]["dynamic_deferred"] is True
+    assert payload["mobile_plan"]["artifact"]["artifact_sha256"] == attachment["artifact_sha256"]

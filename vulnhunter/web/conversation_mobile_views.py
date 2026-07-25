@@ -151,7 +151,8 @@ def upload_start_view(request: HttpRequest) -> JsonResponse:
             expected_bytes=expected_bytes,
         )
     except (TypeError, ValueError, ConversationUploadError) as exc:
-        return JsonResponse({"detail": str(exc) or "The APK upload request is invalid."}, status=400)
+        detail = str(exc) or "The APK upload request is invalid."
+        return JsonResponse({"detail": detail}, status=400)
 
     return JsonResponse(
         {

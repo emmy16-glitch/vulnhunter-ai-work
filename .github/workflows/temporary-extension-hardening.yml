@@ -1,0 +1,180 @@
+name: Temporary extension hardening
+
+on:
+  push:
+    branches:
+      - feature/unified-chat-mobile-hunt
+
+permissions:
+  contents: write
+
+jobs:
+  harden:
+    if: ${{ !contains(github.event.head_commit.message, '[extension-hardening]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: feature/unified-chat-mobile-hunt
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Apply fail-closed extension fixes
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          runtime_path = Path("vulnhunter/mobile/runtime.py")
+          runtime = runtime_path.read_text(encoding="utf-8")
+          old_runtime = '''        finally:
+              if installed:
+                  captures.extend(self._cleanup(package_name))
+          if time.monotonic() - started > self.policy.maximum_session_seconds:
+          '''
+          new_runtime = '''        finally:
+              if installed:
+                  try:
+                      cleanup_captures = self._cleanup(package_name)
+                  except (OSError, subprocess.SubprocessError, MobileRuntimeError) as exc:
+                      failure = failure or exc
+                  else:
+                      captures.extend(cleanup_captures)
+                      if any(item.return_code != 0 for item in cleanup_captures):
+                          failure = failure or MobileRuntimeError(
+                              "runtime cleanup did not complete"
+                          )
+          if time.monotonic() - started > self.policy.maximum_session_seconds:
+          '''
+          if old_runtime not in runtime:
+              raise SystemExit("runtime cleanup block was not found")
+          runtime_path.write_text(runtime.replace(old_runtime, new_runtime), encoding="utf-8")
+
+          spool_path = Path("vulnhunter/mobile/extension_spool.py")
+          spool = spool_path.read_text(encoding="utf-8")
+          start = spool.index("    def reject(")
+          end = spool.index("\n    def recover_processing", start)
+          replacement = '''    def reject(self, claimed: Path, *, reason: str, now: datetime) -> Path:
+              if claimed.parent != self.processing or claimed.is_symlink() or not claimed.is_file():
+                  raise MobileExtensionSpoolError("claimed extension job path is unsafe")
+              try:
+                  raw = json.loads(claimed.read_text(encoding="utf-8"))
+              except (OSError, ValueError):
+                  raw = {}
+              raw_job_id = str(raw.get("job_id") or claimed.stem)
+              if _IDENTIFIER.fullmatch(raw_job_id) is None:
+                  identity = hashlib.sha256(claimed.name.encode()).hexdigest()[:20]
+                  job_id = f"rejected-{identity}"
+              else:
+                  job_id = raw_job_id
+              raw_kind = str(raw.get("kind") or "")
+              kind: ExtensionKind = raw_kind if raw_kind in {"mobsf", "runtime"} else "mobsf"
+              raw_artifact_id = str(raw.get("artifact_id") or "")
+              artifact_id = (
+                  raw_artifact_id
+                  if _IDENTIFIER.fullmatch(raw_artifact_id) is not None
+                  else "unknown-artifact"
+              )
+              safe_reason = " ".join(reason.split())[:500]
+              if len(safe_reason) < 3:
+                  safe_reason = "Extension job was rejected."
+              unsigned = {
+                  "job_id": job_id,
+                  "kind": kind,
+                  "artifact_id": artifact_id,
+                  "state": "rejected",
+                  "completed_at": _utc(now).isoformat(),
+                  "reason": safe_reason,
+                  "evidence": {},
+              }
+              receipt = MobileExtensionReceipt(
+                  **unsigned,
+                  result_sha256=hashlib.sha256(
+                      json.dumps(unsigned, sort_keys=True, separators=(",", ":")).encode()
+                  ).hexdigest(),
+              )
+              target = self.failed / self._filename(job_id)
+              self._write_exclusive(target, receipt.model_dump_json(indent=2) + "\\n")
+              claimed.unlink(missing_ok=True)
+              return target
+          '''
+          spool_path.write_text(spool[:start] + replacement + spool[end:], encoding="utf-8")
+
+          workflow_path = Path(".github/workflows/conversation-quality.yml")
+          workflow = workflow_path.read_text(encoding="utf-8")
+          replacements = (
+              (
+                  "            vulnhunter/mobile/mobsf.py \\\n",
+                  "            vulnhunter/mobile/extension_service.py \\\n"
+                  "            vulnhunter/mobile/extension_spool.py \\\n"
+                  "            vulnhunter/mobile/mobsf.py \\\n",
+              ),
+              (
+                  "            vulnhunter/web/conversation_mobile_views.py \\\n",
+                  "            vulnhunter/web/conversation_mobile_extension_views.py \\\n"
+                  "            vulnhunter/web/conversation_mobile_views.py \\\n",
+              ),
+              (
+                  "            vulnhunter/web/mobile_execution.py \\\n",
+                  "            vulnhunter/web/mobile_execution.py \\\n"
+                  "            vulnhunter/web/mobile_extension_execution.py \\\n",
+              ),
+              (
+                  "            vulnhunter/web/management/commands/vh_run_mobile_static_worker.py \\\n",
+                  "            vulnhunter/web/management/commands/vh_run_mobile_extension_worker.py \\\n"
+                  "            vulnhunter/web/management/commands/vh_run_mobile_static_worker.py \\\n",
+              ),
+              (
+                  "            tests/unit/test_mobile_infrastructure_runtime.py \\\n",
+                  "            tests/unit/test_mobile_extension_execution.py \\\n"
+                  "            tests/unit/test_mobile_infrastructure_runtime.py \\\n",
+              ),
+              (
+                  "          bash -n .devcontainer/first-run.sh\n",
+                  "          bash -n .devcontainer/configure-mobile-extensions.sh\n"
+                  "          bash -n .devcontainer/first-run.sh\n",
+              ),
+          )
+          for old, new in replacements:
+              if old not in workflow:
+                  raise SystemExit(f"workflow insertion point not found: {old!r}")
+              workflow = workflow.replace(old, new)
+          workflow_path.write_text(workflow, encoding="utf-8")
+          PY
+      - name: Format and lint hardened Python
+        run: |
+          python -m pip install 'ruff>=0.9,<1'
+          python -m ruff check --fix \
+            vulnhunter/mobile/extension_service.py \
+            vulnhunter/mobile/extension_spool.py \
+            vulnhunter/mobile/runtime.py \
+            vulnhunter/web/conversation_mobile_extension_views.py \
+            vulnhunter/web/mobile_extension_execution.py \
+            vulnhunter/web/management/commands/vh_run_mobile_extension_worker.py \
+            tests/unit/test_mobile_extension_execution.py
+          python -m ruff format \
+            vulnhunter/mobile/extension_service.py \
+            vulnhunter/mobile/extension_spool.py \
+            vulnhunter/mobile/runtime.py \
+            vulnhunter/web/conversation_mobile_extension_views.py \
+            vulnhunter/web/mobile_extension_execution.py \
+            vulnhunter/web/management/commands/vh_run_mobile_extension_worker.py \
+            tests/unit/test_mobile_extension_execution.py
+      - name: Commit deterministic hardening
+        run: |
+          if git diff --quiet; then
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- \
+            .github/workflows/conversation-quality.yml \
+            tests/unit/test_mobile_extension_execution.py \
+            vulnhunter/mobile/extension_service.py \
+            vulnhunter/mobile/extension_spool.py \
+            vulnhunter/mobile/runtime.py \
+            vulnhunter/web/conversation_mobile_extension_views.py \
+            vulnhunter/web/mobile_extension_execution.py \
+            vulnhunter/web/management/commands/vh_run_mobile_extension_worker.py
+          git commit -m 'Harden mobile extension execution [extension-hardening]'
+          git push origin HEAD:feature/unified-chat-mobile-hunt

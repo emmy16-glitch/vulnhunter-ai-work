@@ -13,7 +13,7 @@ from vulnhunter.web.services import role_policy
 register = template.Library()
 
 # Kept as a compatibility vocabulary marker for integrations that inventory the
-# historical capability name. Approval now opens inside Assessments instead.
+# historical capability name. Approval now opens inside assessment history instead.
 LEGACY_CAPABILITY_LABELS = ({"label": "Approval Centre"},)
 
 
@@ -23,8 +23,8 @@ def professional_title(page_title: object) -> str:
 
     value = str(page_title)
     exact = {
-        "Agent Runs": "Assessment Control Centre",
-        "Assessments": "Assessment Control Centre",
+        "Agent Runs": "Assessment History",
+        "Assessments": "Assessment History",
         "Machine Oracle": "Verification",
         "Models": "Analysis Services",
         "Intelligence components": "Analysis Services",
@@ -162,7 +162,7 @@ def canonical_navigation(user: Any) -> tuple[dict[str, object], ...]:
         {
             "section_id": "operations",
             "section_label": "Operations",
-            "label": "Assessments",
+            "label": "Assessment History",
             "url_name": "web-scan-run-list",
             "icon": "assessment",
             "actions": ("scan.read", "scan.read_summary", "scan.create", "audit.read"),
@@ -176,7 +176,6 @@ def canonical_navigation(user: Any) -> tuple[dict[str, object], ...]:
                 "web-agent-run-activity",
                 "web-agent-run-activity-stream",
                 "web-agent-run-stop",
-                "web-new-scan",
                 "web-advanced-profiles",
                 "web-oracle-overview",
                 "web-approval-list",
@@ -277,15 +276,6 @@ def canonical_navigation(user: Any) -> tuple[dict[str, object], ...]:
             "icon": "model",
             "actions": ("model.read", "audit.read"),
             "active_routes": ("web-model-list",),
-        },
-        {
-            "section_id": "intelligence",
-            "section_label": "Analysis",
-            "label": "Mobile APK Analysis",
-            "url_name": "web-mobile-analysis",
-            "icon": "mobile",
-            "actions": ("scan.create", "settings.manage"),
-            "active_routes": ("web-mobile-analysis",),
         },
         {
             "section_id": "system",

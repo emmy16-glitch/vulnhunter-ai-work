@@ -24,7 +24,19 @@ jobs:
         with:
           python-version: "3.12"
       - name: Apply deterministic fail-closed repairs
-        run: python scripts/temp_runtime_safety_repair.py
+        run: |
+          set +e
+          python scripts/temp_runtime_safety_repair.py >runtime-repair.log 2>&1
+          status=$?
+          cat runtime-repair.log
+          exit $status
+      - name: Upload repair traceback
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: runtime-safety-repair-log
+          path: runtime-repair.log
+          retention-days: 1
       - name: Format and validate repaired files
         run: |
           python -m pip install 'ruff>=0.9,<1'

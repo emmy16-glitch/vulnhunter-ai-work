@@ -73,9 +73,9 @@ def apk_upload_chunk_bytes() -> int:
         "VULNHUNTER_MOBILE_UPLOAD_CHUNK_BYTES",
         _DEFAULT_CHUNK_BYTES,
     )
-    if not 64 * 1024 <= value <= 64 * 1024 * 1024:
+    if not 1 <= value <= 64 * 1024 * 1024:
         raise ConversationUploadError(
-            "The APK upload chunk size must remain between 64 KiB and 64 MiB."
+            "The APK upload chunk size must remain between 1 byte and 64 MiB."
         )
     return value
 
@@ -94,9 +94,9 @@ def _maximum_active_uploads() -> int:
 
 def _upload_ttl_seconds() -> int:
     value = _configured_int("VULNHUNTER_MOBILE_UPLOAD_TTL_SECONDS", 3_600)
-    if not 60 <= value <= 86_400:
+    if not 1 <= value <= 86_400:
         raise ConversationUploadError(
-            "The APK upload expiry must remain between 60 seconds and 24 hours."
+            "The APK upload expiry must remain between 1 second and 24 hours."
         )
     return value
 

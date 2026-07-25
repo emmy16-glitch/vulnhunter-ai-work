@@ -26,6 +26,10 @@ MOBILE_SIGNING_KEY="$RUNTIME_DIR/mobile-static-worker.key"
 MOBILE_WORKSPACE="$ROOT/.local/mobile-static-workspace"
 MOBILE_SPOOL_ROOT="$ROOT/.local/mobile-static-spool"
 MOBILE_ARTIFACT_ROOT="$ROOT/.local/mobile-artifacts"
+MOBSF_POLICY_FILE="$RUNTIME_DIR/mobsf.json"
+MOBSF_API_KEY_FILE="$RUNTIME_DIR/mobsf-api.key"
+MOBILE_RUNTIME_POLICY_FILE="$RUNTIME_DIR/mobile-runtime.json"
+MOBILE_RUNTIME_APPROVAL_KEY="$RUNTIME_DIR/mobile-runtime-approval.key"
 GROQ_KEY="$STATE_DIR/groq-api-key"
 mkdir -p "$RUNTIME_DIR" "$TEMPLATE_ROOT"
 chmod 700 "$STATE_DIR" "$RUNTIME_DIR"
@@ -47,6 +51,12 @@ if [[ ! -f "$MOBILE_SIGNING_KEY" ]]; then
   python -c 'import secrets,sys; sys.stdout.buffer.write(secrets.token_bytes(48))' > "$MOBILE_SIGNING_KEY"
 fi
 chmod 600 "$MOBILE_SIGNING_KEY"
+
+if [[ ! -f "$MOBILE_RUNTIME_APPROVAL_KEY" ]]; then
+  umask 077
+  python -c 'import secrets,sys; sys.stdout.buffer.write(secrets.token_bytes(48))' > "$MOBILE_RUNTIME_APPROVAL_KEY"
+fi
+chmod 600 "$MOBILE_RUNTIME_APPROVAL_KEY"
 
 POLICY_FILE="$POLICY_FILE" NUCLEI_BIN="$NUCLEI_BIN" TEMPLATE_ROOT="$TEMPLATE_ROOT" python - <<'PY'
 import json
@@ -102,6 +112,10 @@ export VULNHUNTER_MOBILE_STATIC_WORKER_POLICY="$MOBILE_POLICY_FILE"
 export VULNHUNTER_MOBILE_STATIC_SIGNING_KEY_FILE="$MOBILE_SIGNING_KEY"
 export VULNHUNTER_MOBILE_STATIC_SPOOL_ROOT="$MOBILE_SPOOL_ROOT"
 export VULNHUNTER_MOBILE_STATIC_ENQUEUE_ENABLED=$MOBILE_WORKER_ENABLED
+export VULNHUNTER_MOBSF_POLICY="$MOBSF_POLICY_FILE"
+export VULNHUNTER_MOBSF_API_KEY_FILE="$MOBSF_API_KEY_FILE"
+export VULNHUNTER_MOBILE_RUNTIME_POLICY="$MOBILE_RUNTIME_POLICY_FILE"
+export VULNHUNTER_MOBILE_RUNTIME_APPROVAL_KEY_FILE="$MOBILE_RUNTIME_APPROVAL_KEY"
 export VULNHUNTER_NUCLEI_EXECUTABLE="$NUCLEI_BIN"
 export VULNHUNTER_NUCLEI_TEMPLATE_ROOT="$TEMPLATE_ROOT"
 export VULNHUNTER_NUCLEI_TEMPLATE_MANIFEST="$ROOT/config/security_tools/nuclei_template_manifest.json"
@@ -161,7 +175,9 @@ python scripts/nuclei_readiness.py \
 python manage.py migrate --noinput
 python manage.py vh_init_agent_store
 
-printf '\nVulnHunter Codespace is prepared with Codex, bounded reasoning, the pinned Nuclei worker, and the governed mobile static worker.\n'
+printf '\nVulnHunter Codespace is prepared with Codex, bounded reasoning, the pinned Nuclei worker, and the governed mobile worker stack.\n'
 printf 'Codex: %s\n' "$(codex --version)"
 printf 'Mobile static enqueue enabled: %s\n' "$VULNHUNTER_MOBILE_STATIC_ENQUEUE_ENABLED"
+printf 'MobSF policy path: %s\n' "$VULNHUNTER_MOBSF_POLICY"
+printf 'Disposable runtime policy path: %s\n' "$VULNHUNTER_MOBILE_RUNTIME_POLICY"
 printf 'Run: bash .devcontainer/first-run.sh\n'

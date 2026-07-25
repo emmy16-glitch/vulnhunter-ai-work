@@ -34,6 +34,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options) -> None:
         poll_seconds = float(options["poll_seconds"])
+        watch = bool(options["watch"])
         if not 0.1 <= poll_seconds <= 60:
             raise CommandError("poll-seconds must be between 0.1 and 60")
         spool_root = Path(
@@ -77,7 +78,18 @@ class Command(BaseCommand):
                 ),
             )
             while True:
-                receipt = service.run_once()
+                try:
+                    receipt = service.run_once()
+                except MobileExtensionServiceError as exc:
+                    if not watch:
+                        raise CommandError(str(exc)) from exc
+                    self.stderr.write(
+                        self.style.WARNING(
+                            "One mobile extension job failed closed; the worker will continue."
+                        )
+                    )
+                    time.sleep(poll_seconds)
+                    continue
                 if receipt is not None:
                     self.stdout.write(
                         self.style.SUCCESS(
@@ -85,10 +97,10 @@ class Command(BaseCommand):
                             f"{receipt.state}."
                         )
                     )
-                elif not options["watch"]:
+                elif not watch:
                     self.stdout.write("No mobile extension job is pending.")
                     return
-                if not options["watch"]:
+                if not watch:
                     return
                 time.sleep(poll_seconds)
         except KeyboardInterrupt:
@@ -96,7 +108,6 @@ class Command(BaseCommand):
         except (
             OSError,
             ValueError,
-            MobileExtensionServiceError,
             MobileExtensionSpoolError,
             WorkerSpoolError,
         ) as exc:

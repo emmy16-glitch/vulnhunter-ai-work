@@ -14,8 +14,10 @@ from vulnhunter.mobile import (
 from vulnhunter.mobile.models import MobileArtifactRecord
 from vulnhunter.security_tools.catalog import default_catalog
 from vulnhunter.web.conversation_attachments import ConversationAttachment
+from vulnhunter.web.mobile_infrastructure import mobile_infrastructure_status
 
 _ID_SANITIZER = re.compile(r"[^a-z0-9._-]+")
+_DYNAMIC_TOOL_IDS = ("mobsf", "adb", "frida")
 
 
 def _identifier(value: str, *, fallback: str) -> str:
@@ -50,6 +52,37 @@ def _profile_request(
             False,
         )
     return static_profile, static_profile, False
+
+
+def _tool_projection(catalog, tool_id: str) -> dict[str, object]:
+    definition = catalog.get(tool_id)
+    if definition.connector_only:
+        gate = "connector"
+    elif definition.approval_required:
+        gate = "approval"
+    else:
+        gate = "policy"
+    return {
+        "tool_id": tool_id,
+        "name": definition.display_name,
+        "gate": gate,
+        "requires_isolation": definition.requires_isolation,
+    }
+
+
+def _deferred_tools(catalog) -> list[dict[str, object]]:
+    infrastructure = mobile_infrastructure_status()
+    deferred: list[dict[str, object]] = []
+    for tool_id in _DYNAMIC_TOOL_IDS:
+        readiness = infrastructure[tool_id]
+        deferred.append(
+            {
+                **_tool_projection(catalog, tool_id),
+                **readiness,
+                "status": readiness["state"],
+            }
+        )
+    return deferred
 
 
 def build_mobile_chat_plan(
@@ -87,23 +120,8 @@ def build_mobile_chat_plan(
         selected_tool_ids=selected_tool_ids,
         dynamic_deferred=dynamic_deferred,
     )
-    tools = []
-    for tool_id in selected_tool_ids:
-        definition = catalog.get(tool_id)
-        if definition.connector_only:
-            gate = "connector"
-        elif definition.approval_required:
-            gate = "approval"
-        else:
-            gate = "policy"
-        tools.append(
-            {
-                "tool_id": tool_id,
-                "name": definition.display_name,
-                "gate": gate,
-                "requires_isolation": definition.requires_isolation,
-            }
-        )
+    tools = [_tool_projection(catalog, tool_id) for tool_id in selected_tool_ids]
+    deferred_tools = _deferred_tools(catalog) if dynamic_deferred else []
     rounds = [
         {
             "round_id": item.round_id,
@@ -116,6 +134,21 @@ def build_mobile_chat_plan(
         }
         for item in hunt.rounds
     ]
+    deferred_ready = sum(
+        item.get("state") == "approval_required" for item in deferred_tools
+    )
+    if dynamic_deferred and deferred_ready == len(deferred_tools):
+        dynamic_note = (
+            "MobSF and the registered disposable Android runtime are configured, but exact "
+            "digest-bound approval is still required before dynamic execution."
+        )
+    elif dynamic_deferred:
+        dynamic_note = (
+            "Dynamic execution remains gated. Configure private MobSF and register a disposable "
+            "Android emulator before requesting exact digest-bound approval."
+        )
+    else:
+        dynamic_note = None
     return {
         "plan_id": analysis_id,
         "run_id": run_id,
@@ -124,18 +157,15 @@ def build_mobile_chat_plan(
         "requested_profile": requested_profile.value,
         "profile": effective_profile.value,
         "status": "prepared",
-        "tool_count": len(tools),
+        "tool_count": len(tools) + len(deferred_tools),
+        "executable_tool_count": len(tools),
         "tools": tools,
+        "deferred_tools": deferred_tools,
         "rounds": rounds,
         "coverage_cells": len(hunt.coverage),
         "maximum_rounds": hunt.maximum_rounds,
         "dynamic_deferred": dynamic_deferred,
-        "dynamic_note": (
-            "Dynamic execution was deferred until a disposable emulator, device identity and exact "
-            "approval are available."
-            if dynamic_deferred
-            else None
-        ),
+        "dynamic_note": dynamic_note,
         "artifact": attachment.payload(),
     }
 

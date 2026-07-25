@@ -230,4 +230,26 @@ urlpatterns = [
         operations_views.approval_decision_view,
         name="web-approval-decision",
     ),
+    path(
+        "security-tools/",
+        operations_views.security_tool_registry_view,
+        name="web-security-tool-registry",
+    ),
+    path(
+        "advanced-assessment/",
+        operations_views.advanced_profiles_view,
+        name="web-advanced-profiles",
+    ),
+    path(
+        "mobile-analysis/",
+        operations_views.mobile_analysis_view,
+        name="web-mobile-analysis",
+    ),
+    path("pilot/plans/", views.pilot_plan_list_view, name="web-pilot-plan-list"),
+    path("pilot/plans/<str:plan_id>/", views.pilot_plan_detail_view, name="web-pilot-plan-detail"),
+    path(
+        "pilot/plans/<str:plan_id>/validation/",
+        views.pilot_plan_validation_view,
+        name="web-pilot-plan-validation",
+    ),
 ]

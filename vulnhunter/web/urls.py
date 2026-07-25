@@ -39,6 +39,16 @@ urlpatterns = [
         name="web-conversation-attachment",
     ),
     path(
+        "workspace/uploads/start/",
+        conversation_mobile_views.upload_start_view,
+        name="web-conversation-upload-start",
+    ),
+    path(
+        "workspace/uploads/<str:upload_id>/chunk/",
+        conversation_mobile_views.upload_chunk_view,
+        name="web-conversation-upload-chunk",
+    ),
+    path(
         "workspace/mobile-message/",
         conversation_mobile_views.mobile_message_view,
         name="web-conversation-mobile-message",

@@ -55,7 +55,8 @@ def test_scrollable_workspace_regions_have_visible_scrollbars():
     polish = _text("vulnhunter/web/static/web/workspace-polish.css")
 
     assert ".vh-analysis-panel" in polish
-    assert "overflow-y: scroll !important" in polish
-    assert "scrollbar-width: auto !important" in polish
+    assert "overflow-y: auto" in polish
+    assert "scrollbar-width: auto" in polish
     assert ".vh-chat-feed::-webkit-scrollbar" in polish
-    assert "width: 12px !important" in polish
+    assert "width: 11px" in polish
+    assert "min-height: 44px" in polish

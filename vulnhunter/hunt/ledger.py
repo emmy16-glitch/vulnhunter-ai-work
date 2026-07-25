@@ -101,9 +101,7 @@ def transition_candidate(
     evidence_receipts = tuple(
         dict.fromkeys((*candidate.evidence_receipts, *((evidence,) if evidence else ())))
     )
-    judge_receipts = tuple(
-        dict.fromkeys((*candidate.judge_receipts, *((judge,) if judge else ())))
-    )
+    judge_receipts = tuple(dict.fromkeys((*candidate.judge_receipts, *((judge,) if judge else ()))))
     return CandidateRecord.model_validate(
         candidate.model_copy(
             update={

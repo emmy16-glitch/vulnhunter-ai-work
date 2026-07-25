@@ -140,53 +140,82 @@ def _hash_stable_regular_file(path: Path, *, root: Path) -> str:
         raise ValueError("symbolic link rejected")
 
     flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
-    descriptor = os.open(path, flags)
-    try:
+    with path.open("rb", buffering=0) as source:
+        descriptor = source.fileno()
         opened_before = os.fstat(descriptor)
+        current_before_read = path.lstat()
         if not stat.S_ISREG(opened_before.st_mode):
             raise ValueError("non-regular file rejected")
-        if (before.st_dev, before.st_ino, before.st_ctime_ns) != (
+        if stat.S_ISLNK(current_before_read.st_mode):
+            raise ValueError("symbolic link rejected")
+        current_canonical = path.resolve(strict=True)
+        try:
+            current_canonical.relative_to(root)
+        except ValueError as exc:
+            raise ValueError("canonical file path escapes repository root") from exc
+        if current_canonical != path:
+            raise ValueError("symbolic link rejected")
+        initial_identity = (before.st_dev, before.st_ino, before.st_ctime_ns)
+        if initial_identity != (
             opened_before.st_dev,
             opened_before.st_ino,
             opened_before.st_ctime_ns,
+        ) or initial_identity != (
+            current_before_read.st_dev,
+            current_before_read.st_ino,
+            current_before_read.st_ctime_ns,
         ):
             raise ValueError("file changed before inventory read")
+
         digest = hashlib.sha256()
-        while chunk := os.read(descriptor, 1024 * 1024):
+        while chunk := source.read(1024 * 1024):
             digest.update(chunk)
         opened_after = os.fstat(descriptor)
-    finally:
-        os.close(descriptor)
 
-    after = path.lstat()
-    stable_identity = (
-        opened_after.st_dev,
-        opened_after.st_ino,
-        opened_after.st_ctime_ns,
-    ) == (
-        after.st_dev,
-        after.st_ino,
-        after.st_ctime_ns,
-    )
-    stable_content = (
-        (
-            opened_before.st_size,
-            opened_before.st_mtime_ns,
-            opened_before.st_ctime_ns,
-        )
-        == (
-            opened_after.st_size,
-            opened_after.st_mtime_ns,
+        verification_descriptor = os.open(path, flags)
+        try:
+            verified = os.fstat(verification_descriptor)
+            after = path.lstat()
+        finally:
+            os.close(verification_descriptor)
+
+        stable_identity = (
+            opened_after.st_dev,
+            opened_after.st_ino,
             opened_after.st_ctime_ns,
-        )
-        == (
-            after.st_size,
-            after.st_mtime_ns,
+        ) == (
+            verified.st_dev,
+            verified.st_ino,
+            verified.st_ctime_ns,
+        ) == (
+            after.st_dev,
+            after.st_ino,
             after.st_ctime_ns,
         )
-    )
-    if not stable_identity or not stable_content or stat.S_ISLNK(after.st_mode):
-        raise ValueError("file changed during inventory read")
+        stable_content = (
+            (
+                opened_before.st_size,
+                opened_before.st_mtime_ns,
+                opened_before.st_ctime_ns,
+            )
+            == (
+                opened_after.st_size,
+                opened_after.st_mtime_ns,
+                opened_after.st_ctime_ns,
+            )
+            == (
+                verified.st_size,
+                verified.st_mtime_ns,
+                verified.st_ctime_ns,
+            )
+            == (
+                after.st_size,
+                after.st_mtime_ns,
+                after.st_ctime_ns,
+            )
+        )
+        if not stable_identity or not stable_content or stat.S_ISLNK(after.st_mode):
+            raise ValueError("file changed during inventory read")
     return digest.hexdigest()
 
 

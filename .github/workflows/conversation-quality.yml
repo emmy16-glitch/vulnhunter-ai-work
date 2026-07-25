@@ -51,6 +51,7 @@ jobs:
         run: |
           set +e
           python -m ruff check \
+            scripts/prepare_mobile_static_worker.py \
             vulnhunter/scope/validator.py \
             vulnhunter/mobile/static_service.py \
             vulnhunter/mobile/static_spool.py \
@@ -87,6 +88,7 @@ jobs:
             >conversation-quality.log 2>&1
           lint_status=$?
           python -m ruff format --check \
+            scripts/prepare_mobile_static_worker.py \
             vulnhunter/scope/validator.py \
             vulnhunter/mobile/static_service.py \
             vulnhunter/mobile/static_spool.py \
@@ -150,6 +152,7 @@ jobs:
       - name: Verify launcher syntax
         run: |
           bash -n .devcontainer/first-run.sh
+          bash -n .devcontainer/install-mobile-static-tools.sh
           bash -n .devcontainer/post-create.sh
           bash -n .devcontainer/start-vulnhunter.sh
           bash -n .devcontainer/start-phone-lab.sh

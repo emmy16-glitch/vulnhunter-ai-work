@@ -5,11 +5,11 @@ from __future__ import annotations
 
 import argparse
 import hashlib
-import importlib.util
 import json
 import os
 import shutil
 import stat
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -17,14 +17,21 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 YARA_ROOT = ROOT / "config" / "security_tools" / "mobile_yara"
 YARA_MANIFEST = YARA_ROOT / "manifest.json"
+PYTHON_TOOLS_ROOT = ROOT / ".codespaces" / "tools" / "mobile-python"
 
 
 def _executable(name: str) -> str | None:
     located = shutil.which(name)
     if not located:
         return None
+    return _fixed_executable(Path(located))
+
+
+def _fixed_executable(path: Path) -> str | None:
     try:
-        resolved = Path(located).resolve(strict=True)
+        if path.is_symlink():
+            return None
+        resolved = path.resolve(strict=True)
         metadata = resolved.stat()
     except OSError:
         return None
@@ -54,8 +61,23 @@ def _directory(path: Path) -> str | None:
     return str(resolved) if resolved.is_dir() else None
 
 
-def _module_available(name: str) -> bool:
-    return importlib.util.find_spec(name) is not None
+def _module_available(python: str, name: str) -> bool:
+    probe = (
+        "import importlib.util,sys; "
+        f"sys.exit(0 if importlib.util.find_spec({name!r}) is not None else 1)"
+    )
+    try:
+        completed = subprocess.run(
+            (python, "-I", "-c", probe),
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+            timeout=20,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    return completed.returncode == 0
 
 
 def _verified_yara_rules() -> str | None:
@@ -104,19 +126,21 @@ def main() -> int:
     parser.add_argument("--worker-id", default="codespaces-mobile-static-worker")
     args = parser.parse_args()
 
-    python = str(Path(sys.executable).resolve(strict=True))
+    dedicated_python = _fixed_executable(PYTHON_TOOLS_ROOT / "bin" / "python")
+    python = dedicated_python or str(Path(sys.executable).resolve(strict=True))
+    apkid = _fixed_executable(PYTHON_TOOLS_ROOT / "bin" / "apkid") or _executable("apkid")
     androguard_adapter = (
         _regular(ROOT / "scripts" / "mobile_androguard_adapter.py")
-        if _module_available("androguard")
+        if _module_available(python, "androguard")
         else None
     )
-    yara_rules = _verified_yara_rules() if _module_available("yara") else None
+    yara_rules = _verified_yara_rules() if _module_available(python, "yara") else None
     yara_adapter = _regular(ROOT / "scripts" / "mobile_yara_adapter.py") if yara_rules else None
     ghidra = _executable("analyzeHeadless")
     tools: dict[str, str | None] = {
         "aapt2_executable": _executable("aapt2") or _executable("aapt"),
         "apksigner_executable": _executable("apksigner"),
-        "apkid_executable": _executable("apkid"),
+        "apkid_executable": apkid,
         "apktool_executable": _executable("apktool"),
         "jadx_executable": _executable("jadx"),
         "python_executable": python,
@@ -151,8 +175,8 @@ def main() -> int:
         "timeout_seconds": 180,
         "heavy_timeout_seconds": 600,
         "maximum_output_bytes": 1_000_000,
-        "maximum_generated_bytes": 750_000_000,
-        "maximum_generated_file_bytes": 200_000_000,
+        "maximum_generated_bytes": 3_000_000_000,
+        "maximum_generated_file_bytes": 750_000_000,
         "maximum_memory_bytes": 8_000_000_000,
         "maximum_native_libraries": 24,
         "network_isolation": "process_policy",

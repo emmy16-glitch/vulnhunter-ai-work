@@ -1,5 +1,10 @@
 /* Final product polish for the unified workspace and shared page headings. */
 
+.vh-nav-list li:has(a[href$="/mobile-analysis/"]),
+.vh-command-results li:has(a[href$="/mobile-analysis/"]) {
+  display: none !important;
+}
+
 .vh-product-heading > div > p:not(.vh-eyebrow),
 .vh-page-heading > div > p:not(.vh-eyebrow),
 .vh-workspace-heading > div > p:not(.vh-eyebrow),

@@ -190,6 +190,7 @@ def mobile_followup_view(request: HttpRequest) -> JsonResponse:
         conversation_context=_conversation_context(request),
     )
     if interpreted.intent in {"scan", "authorize", "approve", "cancel"}:
+        clear_mobile_plan(request)
         return JsonResponse({"handoff": True})
 
     _append_message(request, role="user", content=text)

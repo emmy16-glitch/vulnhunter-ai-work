@@ -31,10 +31,13 @@ MOBSF_API_KEY_FILE="$RUNTIME_DIR/mobsf-api.key"
 MOBILE_RUNTIME_POLICY_FILE="$RUNTIME_DIR/mobile-runtime.json"
 MOBILE_RUNTIME_APPROVAL_KEY="$RUNTIME_DIR/mobile-runtime-approval.key"
 GROQ_KEY="$STATE_DIR/groq-api-key"
-mkdir -p "$RUNTIME_DIR" "$TEMPLATE_ROOT"
+mkdir -p "$RUNTIME_DIR"
 chmod 700 "$STATE_DIR" "$RUNTIME_DIR"
 
-rm -rf "$TEMPLATE_ROOT"
+if [[ -e "$TEMPLATE_ROOT" ]]; then
+  chmod -R u+w "$TEMPLATE_ROOT" 2>/dev/null || true
+  rm -rf "$TEMPLATE_ROOT"
+fi
 mkdir -p "$TEMPLATE_ROOT"
 cp -a "$ROOT/config/security_tools/pilot_templates/." "$TEMPLATE_ROOT/"
 find "$TEMPLATE_ROOT" -type d -exec chmod 0555 {} +
@@ -137,7 +140,7 @@ export VULNHUNTER_INTELLIGENCE_MAX_ATTEMPTS=2
 export VULNHUNTER_INTELLIGENCE_TIMEOUT_SECONDS=90
 export VULNHUNTER_INTELLIGENCE_MAX_INPUT_BYTES=64000
 export VULNHUNTER_INTELLIGENCE_MAX_OUTPUT_TOKENS=2400
-export PATH="$HOME/.local/bin:$(dirname "$NUCLEI_BIN"):${PATH}"
+export PATH="$HOME/.local/bin:$(dirname "$NUCLEI_BIN"):\${PATH}"
 if [[ -f "$STATE_DIR/vulnhunter-user.env" ]]; then
   source "$STATE_DIR/vulnhunter-user.env"
 fi

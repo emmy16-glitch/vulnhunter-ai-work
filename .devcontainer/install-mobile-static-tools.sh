@@ -35,7 +35,7 @@ if ! python -m pip install \
   'apkid>=2,<4' \
   'androguard==4.1.4' \
   'yara-python==4.5.4' \
-  'frida==17.9.11' \
+  'frida==17.10.1' \
   'frida-tools==14.10.4'; then
   log 'One or more Python mobile tools failed to install; affected adapters remain gated.'
 fi

@@ -242,7 +242,7 @@ urlpatterns = [
     ),
     path(
         "mobile-analysis/",
-        operations_views.mobile_analysis_view,
+        dashboard_dispatch_views.dashboard_view,
         name="web-mobile-analysis",
     ),
     path("pilot/plans/", views.pilot_plan_list_view, name="web-pilot-plan-list"),

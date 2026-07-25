@@ -93,9 +93,7 @@ def remember_apk_attachment(
     stored[attachment.attachment_id] = attachment.payload()
     ordered = sorted(
         stored.items(),
-        key=lambda item: str(item[1].get("created_at", ""))
-        if isinstance(item[1], dict)
-        else "",
+        key=lambda item: str(item[1].get("created_at", "")) if isinstance(item[1], dict) else "",
         reverse=True,
     )[:_MAX_ATTACHMENTS]
     request.session[_SESSION_KEY] = dict(ordered)

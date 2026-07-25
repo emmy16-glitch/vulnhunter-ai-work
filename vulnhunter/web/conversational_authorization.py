@@ -1,4 +1,4 @@
-"""Explicit, short-lived authorization intake for pasted website targets."""
+"""Explicit, short-lived authorization intake for pasted private-lab targets."""
 
 from __future__ import annotations
 
@@ -82,7 +82,12 @@ def prepare_conversational_authorization(
     resolver: Resolver = system_resolver,
     now: datetime | None = None,
 ) -> PreparedConversationalAuthorization:
-    """Create or reuse an exact passive authorization for one pasted URL and port."""
+    """Create or reuse one exact passive authorization for a private-lab URL and port.
+
+    Public targets are never authorized from chat. They must already be covered by an
+    independently approved authorization record before the conversational workspace can
+    prepare a plan.
+    """
 
     instant = (now or datetime.now(UTC)).astimezone(UTC)
     try:
@@ -91,12 +96,13 @@ def prepare_conversational_authorization(
         raise ConversationalAuthorizationError(str(exc)) from exc
 
     address_class = _address_class(target.resolved_addresses)
-    evidence = redact_text(evidence_reference or "").strip()[:2_000]
-    if address_class == "public" and len(evidence) < 8:
+    if address_class == "public":
         raise ConversationalAuthorizationError(
-            "This public website needs an authorization evidence reference. Send: "
-            "Authorize this target. Evidence: <contract, ticket, or bug-bounty scope reference>."
+            "Public targets cannot be authorized from the conversation. Ask an independent "
+            "authorization approver to create and verify an exact authorization record first."
         )
+
+    evidence = redact_text(evidence_reference or "").strip()[:2_000]
     if not evidence:
         evidence = "Interactive confirmation for a self-controlled private target."
 
@@ -123,8 +129,8 @@ def prepare_conversational_authorization(
                 store,
                 target,
                 owner=owner,
-                approved_by=f"{_stable_identifier(owner)}.interactive-confirmation",
-                purpose="Governed passive website assessment requested in the chat workspace.",
+                approved_by=f"{_stable_identifier(owner)}.interactive-private-confirmation",
+                purpose="Governed passive private-lab assessment requested in the chat workspace.",
                 evidence_reference=evidence,
                 expires_at=instant + timedelta(hours=12),
                 limits=AuthorizationLimits(
@@ -142,7 +148,7 @@ def prepare_conversational_authorization(
     try:
         _, engagement = load_nuclei_authorization(store, record.authorization_id)
         binding_ready = "passive" in engagement.approved_scan_profiles and (
-            address_class != "private" or engagement.private_network_approved
+            engagement.private_network_approved
         )
     except AssessmentWorkflowError:
         binding_ready = False
@@ -152,11 +158,11 @@ def prepare_conversational_authorization(
                 store,
                 authorization_id=record.authorization_id,
                 approved_profiles=("passive",),
-                private_network_approved=address_class == "private",
+                private_network_approved=True,
                 recorded_by=principal,
                 approval_basis=(
-                    f"Interactive authorization for exact target {target.normalized_url}; "
-                    f"evidence reference: {evidence}"
+                    f"Interactive private-lab authorization for exact target "
+                    f"{target.normalized_url}; evidence reference: {evidence}"
                 ),
                 now=instant,
             )

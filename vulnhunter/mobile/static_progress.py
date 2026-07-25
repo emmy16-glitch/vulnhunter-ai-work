@@ -204,15 +204,16 @@ class MobileStaticProgressStore:
             tool_states = dict(current.tool_states)
             events = list(current.events)
             result_summary = current.result_summary
+            next_sequence = events[-1].sequence + 1 if events else 1
         else:
             tools = event.get("tools")
+            configured_tools = tools if isinstance(tools, (list, tuple)) else ()
             tool_states = {
-                str(tool): "planned"
-                for tool in tools
-                if isinstance(tools, (list, tuple)) and isinstance(tool, str)
+                str(tool): "planned" for tool in configured_tools if isinstance(tool, str)
             }
             events = []
             result_summary = None
+            next_sequence = 1
         tool = event.get("tool") if isinstance(event.get("tool"), str) else None
         tool_state = event.get("tool_state") if isinstance(event.get("tool_state"), str) else None
         if tool and tool_state in {"planned", "running", "completed", "failed", "blocked"}:
@@ -222,7 +223,7 @@ class MobileStaticProgressStore:
             state = "running"
         active_tool = tool if tool_state == "running" else None
         parsed = MobileProgressEvent(
-            sequence=len(events) + 1,
+            sequence=next_sequence,
             at=datetime.fromisoformat(str(event.get("at") or datetime.now(UTC).isoformat())),
             state=state,
             stage=str(event.get("stage") or "worker")[:64],

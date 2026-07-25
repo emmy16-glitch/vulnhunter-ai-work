@@ -12,8 +12,8 @@ from vulnhunter.web.services import role_policy
 
 register = template.Library()
 
-# Kept as a compatibility vocabulary marker for integrations that inventory the
-# historical capability name. Approval now opens inside assessment history instead.
+# Compatibility vocabulary for integrations that inventory historical capability labels.
+# Approval now opens contextually from assessment history and the workspace.
 LEGACY_CAPABILITY_LABELS = ({"label": "Approval Centre"},)
 
 
@@ -28,7 +28,7 @@ def professional_title(page_title: object) -> str:
         "Machine Oracle": "Verification",
         "Models": "Analysis Services",
         "Intelligence components": "Analysis Services",
-        "New Bounded Scan": "New Assessment",
+        "New Bounded Scan": "Assessment Workspace",
     }
     if value.startswith("Agent Run "):
         return "Assessment " + value.removeprefix("Agent Run ")
@@ -37,7 +37,7 @@ def professional_title(page_title: object) -> str:
 
 @register.simple_tag
 def user_can(user: Any, *actions: str) -> bool:
-    """Return whether any mapped product role permits one of the supplied actions."""
+    """Return whether any mapped product role permits one supplied action."""
 
     if not getattr(user, "is_authenticated", False) or not actions:
         return False
@@ -70,7 +70,8 @@ def account_role_label(user: Any) -> str:
         "read-only-observer": "Read-only observer",
     }
     roles = [
-        labels.get(str(item), str(item).replace("-", " ").title()) for item in mapping.product_roles
+        labels.get(str(item), str(item).replace("-", " ").title())
+        for item in mapping.product_roles
     ]
     return " · ".join(roles) if roles else "Governed account"
 
@@ -138,43 +139,40 @@ def security_runtime() -> dict[str, object]:
 
 @register.simple_tag
 def canonical_navigation(user: Any) -> tuple[dict[str, object], ...]:
-    """Return one role-aware sidebar destination per product capability."""
+    """Return one role-aware destination per durable product capability."""
 
     entries = (
         {
             "section_id": "overview",
             "section_label": "Overview",
-            "label": "Dashboard",
+            "label": "Assessment Workspace",
             "url_name": "web-dashboard",
             "icon": "grid",
-            "actions": ("dashboard.read",),
+            "actions": ("dashboard.read", "scan.create", "scan.read"),
             "active_routes": ("web-dashboard",),
         },
         {
-            "section_id": "operations",
-            "section_label": "Operations",
+            "section_id": "collection",
+            "section_label": "Collection",
             "label": "Authorizations",
             "url_name": "web-authorization-list",
             "icon": "authorization",
             "actions": ("authorization.read",),
-            "active_routes": ("web-authorization-list",),
+            "active_routes": ("web-authorization-list", "web-active-authorizations"),
         },
         {
-            "section_id": "operations",
-            "section_label": "Operations",
-            "label": "Assessments",
+            "section_id": "collection",
+            "section_label": "Collection",
+            "label": "Assessment History",
             "url_name": "web-scan-run-list",
             "icon": "assessment",
             "actions": ("scan.read", "scan.read_summary", "scan.create", "audit.read"),
             "active_routes": (
                 "web-scan-run-list",
                 "web-scan-run-detail",
-                "web-scan-run-activity",
-                "web-scan-run-activity-stream",
-                "web-agent-run-list",
-                "web-agent-run-detail",
                 "web-agent-run-activity",
                 "web-agent-run-activity-stream",
+                "web-agent-run-list",
                 "web-agent-run-stop",
                 "web-new-scan",
                 "web-advanced-profiles",
@@ -185,31 +183,31 @@ def canonical_navigation(user: Any) -> tuple[dict[str, object], ...]:
             ),
         },
         {
-            "section_id": "operations",
-            "section_label": "Operations",
+            "section_id": "analysis",
+            "section_label": "Analysis",
             "label": "Findings",
             "url_name": "web-findings-overview",
             "icon": "finding",
             "actions": ("finding.read", "scan.read", "audit.read"),
-            "active_routes": ("web-findings-overview",),
+            "active_routes": ("web-findings-overview", "web-finding-detail"),
         },
         {
             "section_id": "review",
-            "section_label": "Review",
+            "section_label": "Independent Review",
             "label": "Review Queue",
             "url_name": "web-review-queue",
             "icon": "review",
             "actions": ("review.read", "review.read_assigned"),
-            "active_routes": ("web-review-queue",),
+            "active_routes": ("web-review-queue", "web-review-detail"),
         },
         {
             "section_id": "review",
-            "section_label": "Review",
+            "section_label": "Independent Review",
             "label": "Adjudications",
             "url_name": "web-adjudication-queue",
             "icon": "scale",
             "actions": ("adjudication.read", "adjudication.read_assigned"),
-            "active_routes": ("web-adjudication-queue",),
+            "active_routes": ("web-adjudication-queue", "web-adjudication-detail"),
         },
         {
             "section_id": "governance",
@@ -234,16 +232,7 @@ def canonical_navigation(user: Any) -> tuple[dict[str, object], ...]:
             "url_name": "web-release-list",
             "icon": "release",
             "actions": ("release.read",),
-            "active_routes": ("web-release-list",),
-        },
-        {
-            "section_id": "governance",
-            "section_label": "Governance",
-            "label": "Reports",
-            "url_name": "web-reports-overview",
-            "icon": "report",
-            "actions": ("report.read", "report.read_own", "report.read_public"),
-            "active_routes": ("web-reports-overview",),
+            "active_routes": ("web-release-list", "web-release-detail"),
         },
         {
             "section_id": "governance",
@@ -261,31 +250,31 @@ def canonical_navigation(user: Any) -> tuple[dict[str, object], ...]:
             ),
         },
         {
+            "section_id": "governance",
+            "section_label": "Governance",
+            "label": "Reports",
+            "url_name": "web-reports-overview",
+            "icon": "report",
+            "actions": ("report.read", "report.read_own", "report.read_public"),
+            "active_routes": ("web-reports-overview",),
+        },
+        {
             "section_id": "intelligence",
-            "section_label": "Analysis",
+            "section_label": "Intelligence",
             "label": "Datasets",
             "url_name": "web-dataset-list",
             "icon": "database",
             "actions": ("dataset.read",),
-            "active_routes": ("web-dataset-list",),
+            "active_routes": ("web-dataset-list", "web-dataset-detail"),
         },
         {
             "section_id": "intelligence",
-            "section_label": "Analysis",
+            "section_label": "Intelligence",
             "label": "Analysis Services",
             "url_name": "web-model-list",
             "icon": "model",
             "actions": ("model.read", "audit.read"),
-            "active_routes": ("web-model-list",),
-        },
-        {
-            "section_id": "intelligence",
-            "section_label": "Analysis",
-            "label": "Mobile APK Analysis",
-            "url_name": "web-mobile-analysis",
-            "icon": "mobile",
-            "actions": ("scan.create", "settings.manage"),
-            "active_routes": ("web-mobile-analysis",),
+            "active_routes": ("web-model-list", "web-model-detail"),
         },
         {
             "section_id": "system",

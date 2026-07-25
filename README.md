@@ -71,7 +71,7 @@ The manager remains fail-closed. A browser request cannot install a scanner, ena
 
 ## Unified web workspace
 
-Assessment-capable accounts enter the conversational workspace at `/`. Website and APK work begin there; the former standalone New Assessment and Mobile APK Analysis routes redirect back to this canonical entry point.
+Assessment-capable accounts enter the conversational workspace at `/`. Website and APK work begin there. The former standalone New Assessment route redirects to it, while the historical Mobile APK Analysis URL remains only as a compatibility alias that renders the same workspace, navigation and backend flow.
 
 The shared authenticated shell provides:
 

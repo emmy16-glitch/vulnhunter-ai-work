@@ -1,57 +1,59 @@
-{% load static %}
-<link rel="stylesheet" href="{% static 'web/conversation-mobile-deferred-tools.css' %}?v=20260725-infrastructure1">
-<aside class="vh-analysis-inspector" data-analysis-inspector hidden aria-label="Current APK analysis">
+<aside class="vh-analysis-inspector" data-analysis-inspector hidden aria-label="Current assessment inspector">
   <div class="vh-analysis-inspector-inner">
     <header class="vh-analysis-inspector-header">
       <div class="vh-analysis-inspector-title">
-        <div><small>Live governed workspace</small><h2>Current analysis</h2></div>
+        <div><small>Live governed workspace</small><h2>Assessment Inspector</h2></div>
         <button type="button" class="vh-analysis-inspector-close" data-analysis-inspector-close aria-label="Return to conversation">×</button>
       </div>
       <div class="vh-analysis-progress-row">
-        <div><strong data-inspector-state>Validated</strong><p data-inspector-stage>APK is ready for a governed plan.</p></div>
-        <b data-inspector-progress-value>0%</b>
+        <div><strong data-inspector-state>Ready</strong><p data-inspector-stage>Select or start an assessment to view authoritative details.</p></div>
+        <b data-inspector-progress-value aria-label="Progress unavailable">—</b>
         <div class="vh-analysis-progress" data-inspector-progress aria-label="Analysis progress"></div>
       </div>
     </header>
 
     <dl class="vh-analysis-artifact">
-      <div><dt>File</dt><dd data-inspector-filename>Android application</dd></div>
-      <div><dt>SHA-256</dt><dd><code data-inspector-digest>Pending</code></dd></div>
-      <div><dt>Package</dt><dd data-inspector-package>Pending analysis</dd></div>
-      <div><dt>Inventory</dt><dd data-inspector-inventory>Waiting for APK metadata</dd></div>
+      <div><dt>Subject</dt><dd data-inspector-filename data-inspector-target>No active assessment</dd></div>
+      <div><dt>Identity</dt><dd><code data-inspector-digest data-inspector-run-id>Pending</code></dd></div>
+      <div><dt>Mode</dt><dd data-inspector-package data-inspector-mode>Website or APK</dd></div>
+      <div><dt>Scope</dt><dd data-inspector-inventory data-inspector-scope>Waiting for an authorised target or validated APK</dd></div>
     </dl>
 
-    <div class="vh-analysis-tabs" role="tablist" aria-label="APK analysis views">
-      <button type="button" role="tab" class="is-active" data-inspector-tab="overview" aria-selected="true">Overview</button>
-      <button type="button" role="tab" data-inspector-tab="findings" aria-selected="false">Findings <b data-inspector-findings-count>0</b></button>
-      <button type="button" role="tab" data-inspector-tab="artifacts" aria-selected="false">Artifacts <b data-inspector-artifacts-count>0</b></button>
-      <button type="button" role="tab" data-inspector-tab="graph" aria-selected="false">Graph <b data-inspector-graph-count>0</b></button>
+    <div class="vh-analysis-tabs" role="tablist" aria-label="Assessment inspector views">
+      <button type="button" role="tab" class="is-active" data-inspector-tab="overview" aria-selected="true" aria-controls="vh-inspector-overview">Overview</button>
+      <button type="button" role="tab" data-inspector-tab="findings" aria-selected="false" aria-controls="vh-inspector-findings">Findings <b data-inspector-findings-count>0</b></button>
+      <button type="button" role="tab" data-inspector-tab="artifacts" aria-selected="false" aria-controls="vh-inspector-artifacts">Evidence <b data-inspector-artifacts-count>0</b></button>
+      <button type="button" role="tab" data-inspector-tab="graph" aria-selected="false" aria-controls="vh-inspector-graph">Graph <b data-inspector-graph-count>0</b></button>
     </div>
 
     <div class="vh-analysis-panels">
-      <section class="vh-analysis-panel" data-inspector-panel="overview" aria-label="Analysis overview">
+      <section id="vh-inspector-overview" class="vh-analysis-panel" data-inspector-panel="overview" role="tabpanel" aria-label="Assessment overview">
         <div class="vh-analysis-section">
-          <div class="vh-analysis-section-heading"><h3>Tool pipeline</h3><small>Canonical worker state</small></div>
+          <div class="vh-analysis-section-heading"><h3>Progress and tool pipeline</h3><small>Canonical worker state only</small></div>
           <div class="vh-inspector-tool-list" data-inspector-tools></div>
         </div>
         <div class="vh-analysis-section">
-          <div class="vh-analysis-section-heading"><h3>Sanitised activity</h3><small>Signed progress receipts</small></div>
+          <div class="vh-analysis-section-heading"><h3>Sanitised activity</h3><small>Signed or persisted progress receipts</small></div>
           <ol class="vh-inspector-events" data-inspector-events></ol>
+        </div>
+        <div class="vh-analysis-section">
+          <div class="vh-analysis-section-heading"><h3>Worker readiness</h3><small>No browser control can activate a gated worker</small></div>
+          <p class="vh-inspector-empty" data-inspector-worker>No worker is assigned to the current view.</p>
         </div>
       </section>
 
-      <section class="vh-analysis-panel" data-inspector-panel="findings" aria-label="Evidence-backed findings" hidden>
-        <p class="vh-inspector-empty" data-inspector-empty-findings>No finding is shown until a worker observation has been independently judged.</p>
+      <section id="vh-inspector-findings" class="vh-analysis-panel" data-inspector-panel="findings" role="tabpanel" aria-label="Evidence-backed findings" hidden>
+        <p class="vh-inspector-empty" data-inspector-empty-findings>No finding is shown until a real worker observation has been persisted and judged.</p>
         <div class="vh-inspector-finding-list" data-inspector-findings></div>
       </section>
 
-      <section class="vh-analysis-panel" data-inspector-panel="artifacts" aria-label="Tool evidence artifacts" hidden>
-        <p class="vh-inspector-empty" data-inspector-empty-artifacts>Tool receipts appear only after real execution completes.</p>
+      <section id="vh-inspector-artifacts" class="vh-analysis-panel" data-inspector-panel="artifacts" role="tabpanel" aria-label="Assessment evidence" hidden>
+        <p class="vh-inspector-empty" data-inspector-empty-artifacts>Evidence receipts appear only after real execution produces them.</p>
         <div class="vh-inspector-artifact-list" data-inspector-artifacts></div>
       </section>
 
-      <section class="vh-analysis-panel" data-inspector-panel="graph" aria-label="Evidence graph" hidden>
-        <p class="vh-inspector-empty" data-inspector-empty-graph>The evidence graph is created only from real artifact, component, tool and candidate receipts.</p>
+      <section id="vh-inspector-graph" class="vh-analysis-panel" data-inspector-panel="graph" role="tabpanel" aria-label="Evidence graph" hidden>
+        <p class="vh-inspector-empty" data-inspector-empty-graph>The graph is created only from real target, artifact, component, tool, evidence and candidate records.</p>
         <div data-inspector-graph></div>
       </section>
     </div>
@@ -64,4 +66,3 @@
   <button type="button" data-mobile-workspace-view="findings">Findings</button>
   <button type="button" data-mobile-workspace-view="graph">Graph</button>
 </nav>
-<script src="{% static 'web/conversation-mobile-deferred-tools.js' %}?v=20260725-infrastructure1" defer></script>

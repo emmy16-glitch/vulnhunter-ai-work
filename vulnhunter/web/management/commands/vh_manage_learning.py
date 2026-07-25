@@ -52,10 +52,17 @@ def _authenticated_learning_actor(*, actor: str, secret: str, action: str) -> st
     store = GovernanceStore.from_path(Path(settings.VULNHUNTER_GOVERNANCE_DATABASE))
     store.initialize()
     identity = authenticate_identity(store, actor, secret)
-    allowed_roles = {"campaign_admin"} if action == "promote" else {"campaign_admin", "reviewer"}
+    allowed_roles = (
+        {"campaign_admin"}
+        if action == "promote"
+        else {"campaign_admin", "reviewer"}
+    )
     if not allowed_roles.intersection(identity.roles):
         required = "campaign administrator" if action == "promote" else "reviewer"
-        raise CommandError(f"the authenticated identity is not permitted to {action}; {required} role required")
+        raise CommandError(
+            f"the authenticated identity is not permitted to {action}; "
+            f"{required} role required"
+        )
     return identity.reviewer_id
 
 

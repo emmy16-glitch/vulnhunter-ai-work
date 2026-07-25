@@ -17,8 +17,8 @@ from vulnhunter.mobile.extension_spool import (
     SignedMobileExtensionJob,
 )
 from vulnhunter.mobile.mobsf import (
-    MobSFEvidenceReceipt,
     MobSFError,
+    MobSFEvidenceReceipt,
     MobSFServiceConfig,
 )
 from vulnhunter.mobile.runtime import (
@@ -346,6 +346,7 @@ def test_mobsf_worker_keeps_full_report_private_and_returns_bounded_receipt(
     _, policy_path = _mobsf_policy(tmp_path / "mobsf")
     spool = MobileExtensionSpool(tmp_path / "spool")
     signing_key = b"e" * 48
+    current = datetime.now(UTC)
     job = SignedMobileExtensionJob.create(
         job_id="mobile-mobsf-worker-01",
         kind="mobsf",
@@ -356,8 +357,8 @@ def test_mobsf_worker_keeps_full_report_private_and_returns_bounded_receipt(
         approval_reason="Approve exact private MobSF analysis.",
         package_name=None,
         runtime_approval=None,
-        created_at=NOW,
-        expires_at=NOW + timedelta(hours=1),
+        created_at=current,
+        expires_at=current + timedelta(hours=1),
         key=signing_key,
     )
     spool.enqueue(job)

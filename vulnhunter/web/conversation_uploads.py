@@ -231,7 +231,9 @@ def append_apk_chunk(
     try:
         metadata = os.fstat(descriptor)
         if metadata.st_size != received:
-            raise ConversationUploadError("The staged APK upload size no longer matches its session.")
+            raise ConversationUploadError(
+                "The staged APK upload size no longer matches its session."
+            )
         view = memoryview(payload)
         written = 0
         while written < len(view):

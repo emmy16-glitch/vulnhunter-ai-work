@@ -50,6 +50,7 @@ class MobileStaticQueueService:
             return None
         now = self.clock()
         job: SignedMobileStaticJob | None = None
+        canonical_finished = False
         try:
             job = self.spool.load_claimed(claimed, key=self.signing_key, now=now)
             record = next(
@@ -103,12 +104,18 @@ class MobileStaticQueueService:
                 receipt=receipt,
                 success=success,
             )
-            self.progress.finalize(
-                job_id=job.job_id,
-                success=success,
-                result_summary=summary,
-                key=self.signing_key,
-            )
+            canonical_finished = True
+            try:
+                self.progress.finalize(
+                    job_id=job.job_id,
+                    success=success,
+                    result_summary=summary,
+                    key=self.signing_key,
+                )
+            except (OSError, ValueError, MobileStaticProgressError):
+                # The canonical terminal receipt is authoritative. A live projection
+                # failure must not relabel a completed evidence job as rejected.
+                pass
             return receipt
         except (
             OSError,
@@ -117,11 +124,12 @@ class MobileStaticQueueService:
             MobileStaticSpoolError,
             MobileStaticQueueServiceError,
         ) as exc:
-            self.spool.reject(
-                claimed,
-                reason=f"Mobile static job failed closed: {type(exc).__name__}.",
-                now=now,
-            )
+            if not canonical_finished:
+                self.spool.reject(
+                    claimed,
+                    reason=f"Mobile static job failed closed: {type(exc).__name__}.",
+                    now=now,
+                )
             if job is not None:
                 try:
                     self.progress.finalize(

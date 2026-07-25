@@ -8,26 +8,23 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark">
-  <meta name="theme-color" content="#0b0f14">
+  <meta name="theme-color" content="#0a0d13">
   <title>{{ display_title }} | VulnHunter</title>
-  <link rel="stylesheet" href="{% static 'web/app.css' %}?v=20260722-console">
-  <link rel="stylesheet" href="{% static 'web/activity.css' %}?v=20260722-console">
-  <link rel="stylesheet" href="{% static 'web/product.css' %}?v=20260722-console">
-  <link rel="stylesheet" href="{% static 'web/operational.css' %}?v=20260722-console">
-  <link rel="stylesheet" href="{% static 'web/workspaces.css' %}?v=20260722-console">
-  <link rel="stylesheet" href="{% static 'web/intelligence.css' %}?v=20260722-console">
-  <link rel="stylesheet" href="{% static 'web/console.css' %}?v=20260722-console">
-  <link rel="stylesheet" href="{% static 'web/ui-audit.css' %}?v=20260722-scroll3">
-  <link rel="stylesheet" href="{% static 'web/unified-mobile.css' %}?v=20260723-unified1">
-  <link rel="stylesheet" href="{% static 'web/conversation.css' %}?v=20260723-chat1">
-  <link rel="stylesheet" href="{% static 'web/conversation-layout.css' %}?v=20260723-chat2">
-  <link rel="stylesheet" href="{% static 'web/workspace-polish.css' %}?v=20260725-polish1">
-  <script src="{% static 'web/app.js' %}?v=20260722-console" defer></script>
-  <script src="{% static 'web/activity.js' %}?v=20260722-console" defer></script>
-  <script src="{% static 'web/assessment-modal.js' %}?v=20260723-unified1" defer></script>
-  <script src="{% static 'web/json-response-guard.js' %}?v=20260725-json1"></script>
-  <script src="{% static 'web/conversation.js' %}?v=20260725-chat2" defer></script>
-  <script src="{% static 'web/conversation-autoscroll.js' %}?v=20260723-chat2" defer></script>
+  <link rel="stylesheet" href="{% static 'web/app.css' %}?v=20260725-consolidate1">
+  <link rel="stylesheet" href="{% static 'web/activity.css' %}?v=20260725-consolidate1">
+  <link rel="stylesheet" href="{% static 'web/product.css' %}?v=20260725-consolidate1">
+  <link rel="stylesheet" href="{% static 'web/operational.css' %}?v=20260725-consolidate1">
+  <link rel="stylesheet" href="{% static 'web/workspaces.css' %}?v=20260725-consolidate1">
+  <link rel="stylesheet" href="{% static 'web/intelligence.css' %}?v=20260725-consolidate1">
+  <link rel="stylesheet" href="{% static 'web/console.css' %}?v=20260725-consolidate1">
+  <link rel="stylesheet" href="{% static 'web/ui-audit.css' %}?v=20260725-consolidate1">
+  <link rel="stylesheet" href="{% static 'web/unified-mobile.css' %}?v=20260725-consolidate1">
+  <link rel="stylesheet" href="{% static 'web/workspace-polish.css' %}?v=20260725-consolidate1">
+  {% block extra_styles %}{% endblock %}
+  <script src="{% static 'web/app.js' %}?v=20260725-consolidate1" defer></script>
+  <script src="{% static 'web/activity.js' %}?v=20260725-consolidate1" defer></script>
+  <script src="{% static 'web/json-response-guard.js' %}?v=20260725-consolidate1"></script>
+  {% block extra_scripts %}{% endblock %}
 </head>
 <body data-route="{{ current_route }}"{% if conversation %} class="vh-conversation-body"{% endif %}>
   <svg class="vh-icon-sprite" aria-hidden="true">
@@ -64,7 +61,7 @@
   <a class="vh-skip-link" href="#main-content">Skip to content</a>
   <div class="vh-app">
     <aside id="vh-sidebar" class="vh-sidebar" data-sidebar aria-label="Application sidebar">
-      <a class="vh-brand" href="{% url 'web-dashboard' %}" aria-label="VulnHunter workspace">
+      <a class="vh-brand" href="{% url 'web-dashboard' %}" aria-label="VulnHunter assessment workspace">
         <span class="vh-brand-mark" aria-hidden="true"><svg><use href="#vh-i-shield"></use></svg></span>
         <span><strong>VulnHunter</strong><small>Security workspace</small></span>
       </a>
@@ -92,7 +89,7 @@
         <button type="button" class="vh-nav-toggle" data-nav-toggle aria-expanded="false" aria-controls="vh-sidebar" aria-label="Open navigation"><svg aria-hidden="true"><use href="#vh-i-menu"></use></svg></button>
         {% if run %}
           <div class="vh-context-controls" aria-label="Current assessment context">
-            <a class="vh-context-card" href="{% url 'web-agent-run-detail' run.run_id %}"><svg aria-hidden="true"><use href="#vh-i-globe"></use></svg><span><small>Target</small><strong>{{ run.scope_summary|default:run.objective|truncatechars:30 }}</strong></span></a>
+            <a class="vh-context-card" href="{% url 'web-scan-run-detail' run.run_id %}"><svg aria-hidden="true"><use href="#vh-i-globe"></use></svg><span><small>Target</small><strong>{{ run.scope_summary|default:run.objective|truncatechars:30 }}</strong></span></a>
             <a class="vh-context-card vh-context-profile" href="{% url 'web-advanced-profiles' %}"><svg aria-hidden="true"><use href="#vh-i-assessment"></use></svg><span><small>Profile</small><strong>{{ run.risk_classification|default:run.selected_skill|default:"Not set" }}</strong></span></a>
             <a class="vh-context-card" href="{% url 'web-security-tool-registry' %}"><svg aria-hidden="true"><use href="#vh-i-radar"></use></svg><span><small>Scanner</small><strong>{{ run.requested_tool|default:"Not selected" }}</strong></span></a>
             <div class="vh-context-card vh-context-run" aria-label="Current run status"><span><small>Run</small><strong class="vh-live-text"><i></i><span>{{ run.current_state }}</span><time class="vh-run-clock" datetime="{{ run.created_at|date:'c' }}" data-run-clock>00:00:00</time></strong></span></div>
@@ -102,8 +99,8 @@
         {% endif %}
         <div class="vh-top-actions">
           <span class="vh-environment-pill is-topbar">Private Lab</span>
-          <button class="vh-search-trigger" type="button" data-search-toggle aria-haspopup="dialog" aria-controls="vh-command-dialog" aria-expanded="false"><svg aria-hidden="true"><use href="#vh-i-search"></use></svg><span>Search</span><kbd>⌘ K</kbd></button>
-          <a class="vh-icon-control vh-notification-control" href="{% url 'web-dashboard' %}" aria-label="Open assessment workspace"><svg aria-hidden="true"><use href="#vh-i-bell"></use></svg>{% if pending_approval %}<span class="vh-notification-dot" aria-label="1 pending approval">1</span>{% endif %}</a>
+          <button class="vh-search-trigger" type="button" data-search-toggle aria-haspopup="dialog" aria-controls="vh-command-dialog" aria-expanded="false"><svg aria-hidden="true"><use href="#vh-i-search"></use></svg><span>Search pages</span><kbd>⌘ K</kbd></button>
+          <a class="vh-icon-control vh-notification-control" href="{% url 'web-scan-run-list' %}" aria-label="Open assessment history and pending confirmations"><svg aria-hidden="true"><use href="#vh-i-bell"></use></svg>{% if pending_approval %}<span class="vh-notification-dot" aria-label="1 pending confirmation">1</span>{% endif %}</a>
           {% if request.user.is_authenticated %}
             <details class="vh-user-menu"><summary aria-label="Open account menu"><span class="vh-avatar" aria-hidden="true">{{ request.user.username|slice:":1"|upper }}</span><svg aria-hidden="true"><use href="#vh-i-chevron"></use></svg></summary><div class="vh-user-popover"><strong>{{ request.user.username }}</strong><small>{% if conversation %}Security Analyst{% else %}{{ account_role }}{% endif %}</small>{% if controls.stop.available and run %}<a class="vh-user-stop-link" href="{% url 'web-agent-run-stop' run.run_id %}">Stop current run</a>{% endif %}<a href="{% url 'web-dashboard' %}">Assessment workspace</a><form action="{% url 'web-logout' %}" method="post">{% csrf_token %}<button type="submit">Sign out</button></form></div></details>
           {% endif %}

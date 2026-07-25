@@ -15,7 +15,7 @@ def test_python_mobile_tools_use_a_dedicated_fixed_environment():
     policy = _text("scripts/prepare_mobile_static_worker.py")
 
     assert "python -m venv --copies" in installer
-    assert '.codespaces/tools/mobile-python' in installer
+    assert ".codespaces/tools/mobile-python" in installer
     assert '"$PYTHON_TOOLS_ROOT/bin/python" -m pip install' in installer
     assert 'PYTHON_TOOLS_ROOT / "bin" / "apkid"' in policy
     assert '_module_available(python, "androguard")' in policy
@@ -36,8 +36,7 @@ def test_controlled_worker_failure_explains_the_actual_boundary():
     )
 
     assert reason == (
-        "Mobile static analysis stopped safely: "
-        "tool generated an oversized analysis workspace."
+        "Mobile static analysis stopped safely: tool generated an oversized analysis workspace."
     )
     assert "MobileStaticToolchainError" not in reason
 

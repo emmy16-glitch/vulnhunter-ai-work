@@ -21,6 +21,7 @@ from vulnhunter.web.conversation_attachments import (
 )
 from vulnhunter.web.conversational_views import _actor, _append_message
 from vulnhunter.web.mobile_conversation import build_mobile_chat_plan, mobile_plan_reply
+from vulnhunter.web.mobile_conversation_state import remember_mobile_plan
 from vulnhunter.web.mobile_execution import enqueue_mobile_static_if_ready, mobile_static_status
 from vulnhunter.web.services import WebPermissionDenied
 
@@ -126,6 +127,7 @@ def mobile_message_view(request: HttpRequest) -> JsonResponse:
             kwargs={"job_id": execution["job_id"]},
         )
     plan["execution"] = execution
+    remember_mobile_plan(request, plan)
     message = _append_message(
         request,
         role="assistant",

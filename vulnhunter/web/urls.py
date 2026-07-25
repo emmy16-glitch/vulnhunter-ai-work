@@ -257,7 +257,7 @@ urlpatterns = [
     ),
     path(
         "mobile-analysis/",
-        RedirectView.as_view(url="/?intent=apk-analysis", permanent=False),
+        dashboard_dispatch_views.dashboard_view,
         name="web-mobile-analysis",
     ),
     path("pilot/plans/", views.pilot_plan_list_view, name="web-pilot-plan-list"),

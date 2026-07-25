@@ -143,6 +143,7 @@ if [[ -f "$STATE_DIR/vulnhunter-user.env" ]]; then
 fi
 EOF2
 chmod 600 "$ENV_FILE"
+bash .devcontainer/configure-mobile-extensions.sh
 
 SOURCE_LINE="source \"$ENV_FILE\""
 if ! grep -Fqx "$SOURCE_LINE" "$HOME/.bashrc" 2>/dev/null; then

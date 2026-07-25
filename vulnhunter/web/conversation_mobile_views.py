@@ -19,9 +19,15 @@ from vulnhunter.web.conversation_attachments import (
     get_attachment,
     remember_apk_attachment,
 )
-from vulnhunter.web.conversational_views import _actor, _append_message
+from vulnhunter.web.conversation_service import interpret_request
+from vulnhunter.web.conversational_views import _actor, _append_message, _messages
 from vulnhunter.web.mobile_conversation import build_mobile_chat_plan, mobile_plan_reply
-from vulnhunter.web.mobile_conversation_state import remember_mobile_plan
+from vulnhunter.web.mobile_conversation_state import (
+    clear_mobile_plan,
+    current_mobile_plan,
+    mobile_chat_reply,
+    remember_mobile_plan,
+)
 from vulnhunter.web.mobile_execution import enqueue_mobile_static_if_ready, mobile_static_status
 from vulnhunter.web.services import WebPermissionDenied
 
@@ -41,6 +47,14 @@ def _resolve_artifact(attachment: ConversationAttachment) -> MobileArtifactRecor
         ):
             return record
     return None
+
+
+def _conversation_context(request: HttpRequest) -> tuple[tuple[str, str], ...]:
+    return tuple(
+        (str(item.get("role", "")), str(item.get("content", "")))
+        for item in _messages(request)[-8:]
+        if isinstance(item, dict)
+    )
 
 
 @cache_control(private=True, no_store=True)
@@ -150,6 +164,76 @@ def mobile_message_view(request: HttpRequest) -> JsonResponse:
     )
     forget_attachment(request, attachment_id)
     return JsonResponse({"message": message, "mobile_plan": plan})
+
+
+@cache_control(private=True, no_store=True)
+@login_required
+@require_POST
+def mobile_followup_view(request: HttpRequest) -> JsonResponse:
+    try:
+        actor = _actor(request, "scan.read")
+    except WebPermissionDenied as exc:
+        return JsonResponse({"detail": str(exc)}, status=403)
+    text = request.POST.get("message", "").strip()
+    if not text or len(text) > 4_000:
+        return JsonResponse(
+            {"detail": "Enter a message between 1 and 4,000 characters."},
+            status=400,
+        )
+    requested_by = actor.governance_identity.reviewer_id
+    plan = current_mobile_plan(request, requested_by=requested_by)
+    if plan is None:
+        return JsonResponse({"detail": "No mobile hunt is selected in this conversation."}, status=404)
+    interpreted = interpret_request(
+        text,
+        available_profiles=("static", "static_and_native", "dynamic", "full", "retest"),
+        conversation_context=_conversation_context(request),
+    )
+    if interpreted.intent in {"scan", "authorize", "approve", "cancel"}:
+        return JsonResponse({"handoff": True})
+
+    _append_message(request, role="user", content=text)
+    copy = mobile_chat_reply(
+        text=text,
+        intent=interpreted.intent,
+        plan=plan,
+        fallback=interpreted.assistant_copy,
+    )
+    message = _append_message(
+        request,
+        role="assistant",
+        kind="result" if interpreted.intent == "results" else "text",
+        content=copy,
+        metadata={"provider": interpreted.provider, "mobile_plan_id": plan.get("plan_id")},
+    )
+    return JsonResponse({"message": message, "mobile_plan": plan})
+
+
+@cache_control(private=True, no_store=True)
+@login_required
+@require_GET
+def mobile_context_view(request: HttpRequest) -> JsonResponse:
+    try:
+        actor = _actor(request, "scan.read")
+    except WebPermissionDenied as exc:
+        return JsonResponse({"detail": str(exc)}, status=403)
+    plan = current_mobile_plan(
+        request,
+        requested_by=actor.governance_identity.reviewer_id,
+    )
+    return JsonResponse({"mobile_plan": plan})
+
+
+@cache_control(private=True, no_store=True)
+@login_required
+@require_POST
+def mobile_context_reset_view(request: HttpRequest) -> JsonResponse:
+    try:
+        _actor(request, "scan.create")
+    except WebPermissionDenied as exc:
+        return JsonResponse({"detail": str(exc)}, status=403)
+    clear_mobile_plan(request)
+    return JsonResponse({"cleared": True})
 
 
 @cache_control(private=True, no_store=True)

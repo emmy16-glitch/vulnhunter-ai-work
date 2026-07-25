@@ -115,6 +115,7 @@ def test_mobsf_extension_worker_stores_private_result_and_bounded_receipt(
     ingestor = SimpleNamespace(list_records=lambda: [artifact])
     signing_key = b"s" * 48
     spool = MobileExtensionSpool(tmp_path / "spool")
+    job_now = datetime.now(UTC)
     job = SignedMobileExtensionJob.create(
         job_id="mobile-mobsf-test",
         kind="mobsf",
@@ -125,8 +126,8 @@ def test_mobsf_extension_worker_stores_private_result_and_bounded_receipt(
         approval_reason="Approve the exact private MobSF run.",
         package_name=None,
         runtime_approval=None,
-        created_at=NOW,
-        expires_at=NOW + timedelta(hours=1),
+        created_at=job_now,
+        expires_at=job_now + timedelta(hours=1),
         key=signing_key,
     )
     spool.enqueue(job)

@@ -31,6 +31,12 @@ def _env_bool(name: str, default: bool = False) -> bool:
     return raw.strip().casefold() in {"1", "true", "yes", "on"}
 
 
+def _configured_int(name: str, default: int) -> int:
+    configured = getattr(settings, name, None)
+    raw = configured if configured is not None else os.environ.get(name, str(default))
+    return int(raw)
+
+
 def _spool_root() -> Path:
     return Path(
         os.environ.get(
@@ -78,12 +84,9 @@ def _analysis_capacity_reason(
     resolved = root.resolve(strict=True)
     reserve = max(
         0,
-        int(
-            getattr(
-                settings,
-                "VULNHUNTER_MOBILE_ANALYSIS_MIN_FREE_BYTES",
-                _DEFAULT_ANALYSIS_RESERVE_BYTES,
-            )
+        _configured_int(
+            "VULNHUNTER_MOBILE_ANALYSIS_MIN_FREE_BYTES",
+            _DEFAULT_ANALYSIS_RESERVE_BYTES,
         ),
     )
     required = artifact.size_bytes + policy.maximum_generated_bytes + reserve

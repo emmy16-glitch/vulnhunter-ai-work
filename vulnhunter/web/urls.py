@@ -43,6 +43,11 @@ urlpatterns = [
         name="web-conversation-mobile-message",
     ),
     path(
+        "workspace/mobile-runs/<str:job_id>/status/",
+        conversation_mobile_views.mobile_status_view,
+        name="web-conversation-mobile-status",
+    ),
+    path(
         "workspace/approve/",
         conversation_approval_views.approve_view,
         name="web-conversation-approve",

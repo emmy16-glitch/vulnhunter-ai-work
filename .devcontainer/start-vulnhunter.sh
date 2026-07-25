@@ -24,12 +24,17 @@ mkdir -p "$LOG_ROOT"
 TARGET_PID=""
 WORKER_PID=""
 MOBILE_WORKER_PID=""
+EXTENSION_WORKER_PID=""
 INTELLIGENCE_PID=""
 cleanup() {
   set +e
   if [[ -n "$INTELLIGENCE_PID" ]]; then
     kill "$INTELLIGENCE_PID" 2>/dev/null
     wait "$INTELLIGENCE_PID" 2>/dev/null
+  fi
+  if [[ -n "$EXTENSION_WORKER_PID" ]]; then
+    kill "$EXTENSION_WORKER_PID" 2>/dev/null
+    wait "$EXTENSION_WORKER_PID" 2>/dev/null
   fi
   if [[ -n "$MOBILE_WORKER_PID" ]]; then
     kill "$MOBILE_WORKER_PID" 2>/dev/null
@@ -117,6 +122,15 @@ PY
 )"
 fi
 
+EXTENSION_STATE="gated"
+if [[ -s "${VULNHUNTER_MOBILE_EXTENSION_SIGNING_KEY_FILE:-}" && \
+      -s "${VULNHUNTER_MOBILE_RUNTIME_APPROVAL_KEY_FILE:-}" ]]; then
+  python manage.py vh_run_mobile_extension_worker --watch --poll-seconds 0.5 \
+    >"$LOG_ROOT/mobile-extension-worker.log" 2>&1 &
+  EXTENSION_WORKER_PID=$!
+  EXTENSION_STATE="signed approval queue ready"
+fi
+
 GROQ_STATE="deterministic fallback"
 INTELLIGENCE_STATE="disabled"
 if [[ "$VULNHUNTER_GROQ_ENABLED" == "true" && -s "$VULNHUNTER_GROQ_API_KEY_FILE" ]]; then
@@ -140,6 +154,7 @@ Nuclei: pinned passive worker ready
 Mobile APK: $MOBILE_STATE
 MobSF: $MOBSF_STATE
 ADB/Frida: $RUNTIME_STATE
+Extension worker: $EXTENSION_STATE
 
 Open the private port-8002 Codespaces URL and sign in once. Use the plus button to
 attach an APK or request an authorised web scan. The chat reveals planning,

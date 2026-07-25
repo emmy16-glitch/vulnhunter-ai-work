@@ -4,11 +4,15 @@
   const workspace = document.querySelector("[data-conversation-workspace]");
   const toolList = workspace?.querySelector("[data-inspector-tools]");
   const form = workspace?.querySelector("[data-conversation-form]");
+  const feed = workspace?.querySelector("[data-conversation-feed]");
+  const messageTemplate = document.getElementById("vh-message-template");
   if (!workspace || !toolList || !form) return;
 
   let plan = null;
   const statuses = new Map();
   const timers = new Map();
+  const failures = new Map();
+  const approveUrl = form.dataset.mobileExtensionApproveUrl || "";
   const asArray = (value) => (Array.isArray(value) ? value : []);
   const text = (value) => (value === null || value === undefined ? "" : String(value));
   const pretty = (value) =>
@@ -17,6 +21,31 @@
       .replace(/\b\w/g, (letter) => letter.toUpperCase());
   const csrf = () => form.querySelector('input[name="csrfmiddlewaretoken"]')?.value || "";
   const kindFor = (toolId) => (toolId === "mobsf" ? "mobsf" : "runtime");
+
+  const scrollLatest = () => {
+    const controller = window.VulnHunterConversationScroll;
+    if (controller?.scrollToLatest) {
+      controller.scrollToLatest({ behavior: "smooth", force: true });
+      return;
+    }
+    feed?.scrollTo({ top: feed.scrollHeight, behavior: "smooth" });
+  };
+
+  const appendAssistantMessage = (message) => {
+    if (!feed || !messageTemplate || !message) return;
+    const fragment = messageTemplate.content.cloneNode(true);
+    const article = fragment.querySelector(".vh-chat-message");
+    const avatar = fragment.querySelector(".vh-message-avatar");
+    const copy = fragment.querySelector(".vh-message-copy");
+    const actions = fragment.querySelector(".vh-message-actions");
+    if (!article || !avatar || !copy) return;
+    article.classList.add("is-assistant", `is-${text(message.kind || "text")}`);
+    avatar.textContent = "VH";
+    copy.textContent = text(message.content || "The approved extension job is queued.");
+    actions?.remove();
+    feed.append(fragment);
+    scrollLatest();
+  };
 
   const extensionFor = (toolId) => {
     const kind = kindFor(toolId);
@@ -38,6 +67,13 @@
     return window.prompt("Enter the exact Android package name, for example com.example.app:", "")?.trim() || "";
   };
 
+  const stopPolling = (jobId) => {
+    const timer = timers.get(jobId);
+    if (timer) clearInterval(timer);
+    timers.delete(jobId);
+    failures.delete(jobId);
+  };
+
   const poll = async (job) => {
     const jobId = text(job?.job_id);
     const statusUrl = text(job?.status_url);
@@ -52,26 +88,33 @@
         });
         const payload = await response.json();
         const status = payload?.mobile_extension;
-        if (response.ok && status) {
-          statuses.set(jobId, status);
-          document.dispatchEvent(new CustomEvent("vh:mobile-extension-status", { detail: status }));
+        if (!response.ok || !status) throw new Error(text(payload?.detail || "Status unavailable."));
+        failures.set(jobId, 0);
+        statuses.set(jobId, status);
+        document.dispatchEvent(new CustomEvent("vh:mobile-extension-status", { detail: status }));
+        render();
+        if (["completed", "failed", "rejected"].includes(text(status.state))) stopPolling(jobId);
+      } catch (error) {
+        const count = Number(failures.get(jobId) || 0) + 1;
+        failures.set(jobId, count);
+        if (count >= 4) {
+          statuses.set(jobId, {
+            state: "unknown",
+            reason: `Live status paused: ${text(error?.message || "request failed")}`,
+          });
           render();
-          if (["completed", "failed", "rejected"].includes(text(status.state))) {
-            clearInterval(timers.get(jobId));
-            timers.delete(jobId);
-          }
+          stopPolling(jobId);
         }
-      } catch (_error) {
-        return;
       }
     };
     await tick();
-    if (!["completed", "failed", "rejected"].includes(text(statuses.get(jobId)?.state))) {
+    if (!["completed", "failed", "rejected", "unknown"].includes(text(statuses.get(jobId)?.state))) {
       timers.set(jobId, window.setInterval(tick, 1200));
     }
   };
 
   const approve = async (tool, button) => {
+    if (!approveUrl) return;
     const kind = kindFor(text(tool.tool_id));
     const packageValue = kind === "runtime" ? packageName() : "";
     if (kind === "runtime" && !packageValue) return;
@@ -85,7 +128,7 @@
       reason: `Approve exact ${label} for this content-addressed APK and immutable plan.`,
     });
     try {
-      const response = await fetch("/workspace/mobile-extensions/approve/", {
+      const response = await fetch(approveUrl, {
         method: "POST",
         credentials: "same-origin",
         headers: {
@@ -102,6 +145,7 @@
       plan = payload.mobile_plan || plan;
       const extension = payload.mobile_extension;
       statuses.set(text(extension.job_id), extension);
+      appendAssistantMessage(payload.message);
       document.dispatchEvent(new CustomEvent("vh:mobile-plan", { detail: plan }));
       await poll(extension);
     } catch (error) {
@@ -135,7 +179,7 @@
       reason.textContent = text(latest?.reason || tool.reason || "Infrastructure is not ready.");
       copy.append(label, gate, reason);
 
-      const mayApprove = state === "approval_required" && (toolId === "mobsf" || toolId === "adb");
+      const mayApprove = approveUrl && state === "approval_required" && (toolId === "mobsf" || toolId === "adb");
       if (mayApprove) {
         const button = document.createElement("button");
         button.type = "button";
@@ -160,6 +204,7 @@
     statuses.clear();
     timers.forEach((timer) => clearInterval(timer));
     timers.clear();
+    failures.clear();
     render();
   });
 })();

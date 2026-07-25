@@ -15,10 +15,10 @@ def _text(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
 
-def test_legacy_mobile_page_redirects_to_the_unified_workspace():
+def test_legacy_mobile_url_serves_the_unified_workspace():
     urls = _text(WEB / "urls.py")
     assert '"mobile-analysis/"' in urls
-    assert 'RedirectView.as_view(pattern_name="web-dashboard", permanent=False)' in urls
+    assert "dashboard_dispatch_views.dashboard_view" in urls
     assert "operations_views.mobile_analysis_view" not in urls
 
 

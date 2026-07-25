@@ -9,6 +9,7 @@ limit and archive validation performed by ``MobileArtifactIngestor``.
 from __future__ import annotations
 
 import errno
+import fcntl
 import os
 import re
 import shutil
@@ -23,7 +24,7 @@ from django.core.files.uploadedfile import UploadedFile
 
 _SESSION_KEY = "vulnhunter_conversation_apk_uploads"
 _UPLOAD_ID = re.compile(r"^upload-[0-9a-f]{32}$")
-_MAX_ACTIVE_UPLOADS = 3
+_DEFAULT_MAX_ACTIVE_UPLOADS = 3
 _DEFAULT_CHUNK_BYTES = 8 * 1024 * 1024
 _DEFAULT_DISK_RESERVE_BYTES = 1024 * 1024 * 1024
 
@@ -60,6 +61,21 @@ class StagedApkUpload:
 
 def apk_upload_chunk_bytes() -> int:
     return int(getattr(settings, "VULNHUNTER_MOBILE_UPLOAD_CHUNK_BYTES", _DEFAULT_CHUNK_BYTES))
+
+
+def _maximum_active_uploads() -> int:
+    value = int(
+        getattr(
+            settings,
+            "VULNHUNTER_MOBILE_MAX_ACTIVE_UPLOADS",
+            _DEFAULT_MAX_ACTIVE_UPLOADS,
+        )
+    )
+    if not 1 <= value <= 10:
+        raise ConversationUploadError(
+            "The active APK upload limit is invalid; it must remain between one and ten."
+        )
+    return value
 
 
 def _upload_root() -> Path:
@@ -202,15 +218,10 @@ def begin_apk_upload(
         )
 
     records = _prune(request)
-    if len(records) >= _MAX_ACTIVE_UPLOADS:
-        oldest = min(
-            records,
-            key=lambda key: float(
-                records[key].get("updated_at", records[key].get("created_at", 0))
-            ),
+    if len(records) >= _maximum_active_uploads():
+        raise ConversationUploadError(
+            "Too many APK uploads are active in this session. Finish or cancel one before starting another."
         )
-        records.pop(oldest, None)
-        _unlink(oldest)
     _preflight_capacity(expected_bytes, records)
 
     upload_id = f"upload-{uuid4().hex}"
@@ -274,12 +285,9 @@ def append_apk_chunk(
             raise ConversationUploadError("An APK upload chunk exceeded the configured chunk size.")
     if not payload:
         raise ConversationUploadError("The APK upload chunk is empty.")
-    next_received = received + len(payload)
-    if next_received > expected or next_received > int(settings.VULNHUNTER_MOBILE_MAX_APK_BYTES):
-        raise ConversationUploadError("The APK upload exceeded its declared size.")
 
     path = _path(upload_id)
-    flags = os.O_WRONLY | os.O_APPEND
+    flags = os.O_RDWR | os.O_APPEND
     if hasattr(os, "O_NOFOLLOW"):
         flags |= os.O_NOFOLLOW
     try:
@@ -291,17 +299,31 @@ def append_apk_chunk(
                 "Storage became full while receiving the APK. The incomplete upload was removed."
             ) from exc
         raise ConversationUploadError("The staged APK upload file is unavailable.") from exc
+
+    locked = False
     try:
+        fcntl.flock(descriptor, fcntl.LOCK_EX)
+        locked = True
         metadata = os.fstat(descriptor)
-        if metadata.st_size != received:
+        actual_offset = metadata.st_size
+        if actual_offset != offset:
             raise ConversationUploadError(
-                "The staged APK upload size no longer matches its session."
+                f"The APK upload offset is out of sequence; expected {actual_offset} bytes."
             )
+        next_received = actual_offset + len(payload)
+        if next_received > expected or next_received > int(settings.VULNHUNTER_MOBILE_MAX_APK_BYTES):
+            raise ConversationUploadError("The APK upload exceeded its declared size.")
+
         view = memoryview(payload)
         written = 0
         while written < len(view):
-            written += os.write(descriptor, view[written:])
+            count = os.write(descriptor, view[written:])
+            if count <= 0:
+                raise OSError(errno.EIO, "the APK upload write made no progress")
+            written += count
         os.fsync(descriptor)
+    except ConversationUploadError:
+        raise
     except OSError as exc:
         discard_apk_upload(request, upload_id=upload_id)
         if exc.errno == errno.ENOSPC:
@@ -315,6 +337,11 @@ def append_apk_chunk(
         discard_apk_upload(request, upload_id=upload_id)
         raise
     finally:
+        if locked:
+            try:
+                fcntl.flock(descriptor, fcntl.LOCK_UN)
+            except OSError:
+                pass
         os.close(descriptor)
 
     record["received_bytes"] = next_received

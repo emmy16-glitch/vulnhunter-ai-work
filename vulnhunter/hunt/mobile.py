@@ -50,7 +50,10 @@ def build_mobile_hunt_plan(
             round_id=f"{hunt_id}-surface",
             altitude=HuntAltitude.ATTACK_SURFACE,
             label="Manifest and attack surface",
-            purpose="Map permissions, exported components, intent filters, backups and cleartext policy.",
+            purpose=(
+                "Map permissions, exported components, intent filters, backups and "
+                "cleartext policy."
+            ),
             tool_ids=tuple(
                 item for item in ("aapt2", "apktool", "androguard") if item in selected_tool_ids
             ),
@@ -71,7 +74,10 @@ def build_mobile_hunt_plan(
                 round_id=f"{hunt_id}-native",
                 altitude=HuntAltitude.NATIVE,
                 label="Native-library scrutiny",
-                purpose="Inspect JNI boundaries, symbols, hardening and native capability indicators.",
+                purpose=(
+                    "Inspect JNI boundaries, symbols, hardening and native capability "
+                    "indicators."
+                ),
                 tool_ids=tuple(
                     item for item in ("radare2", "ghidra") if item in selected_tool_ids
                 ),
@@ -87,7 +93,8 @@ def build_mobile_hunt_plan(
                 tool_ids=("mobsf", "adb", "frida"),
                 status=CoverageStatus.BLOCKED,
                 blocked_reason=(
-                    "Dynamic analysis needs a separately approved disposable emulator and device identity."
+                    "Dynamic analysis needs a separately approved disposable emulator "
+                    "and device identity."
                 ),
             )
         )
@@ -103,7 +110,10 @@ def build_mobile_hunt_plan(
                 round_id=f"{hunt_id}-variants",
                 altitude=HuntAltitude.VARIANT_SWEEP,
                 label="Variant sweep and stopping check",
-                purpose="Search for sibling instances and stop only after net-new coverage is exhausted.",
+                purpose=(
+                    "Search for sibling instances and stop only after net-new coverage "
+                    "is exhausted."
+                ),
             ),
         )
     )

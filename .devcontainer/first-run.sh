@@ -7,8 +7,24 @@ source "$ROOT/.codespaces/vulnhunter.env"
 
 python manage.py migrate --noinput
 
+normalize_identifier() {
+  local raw="$1"
+  local normalized
+  normalized="$(
+    printf '%s' "$raw" \
+      | tr '[:upper:]' '[:lower:]' \
+      | sed -E 's/[^a-z0-9._-]+/-/g; s/^[-._]+//; s/[-._]+$//'
+  )"
+  if [[ ${#normalized} -lt 2 || ${#normalized} -gt 64 ]]; then
+    printf 'Governance identity must normalize to 2-64 lowercase characters.\n' >&2
+    return 2
+  fi
+  printf '%s' "$normalized"
+}
+
 read -r -p "VulnHunter governance identity [vulnhunter-user]: " USER_ID
 USER_ID="${USER_ID:-vulnhunter-user}"
+USER_ID="$(normalize_identifier "$USER_ID")"
 read -r -p "Display name [VulnHunter User]: " USER_DISPLAY
 USER_DISPLAY="${USER_DISPLAY:-VulnHunter User}"
 read -r -p "Web username [vulnhunter]: " USERNAME
@@ -40,6 +56,7 @@ else
   fi
   read -r -p "Existing campaign administrator [$EXISTING_ADMIN]: " ADMIN_ID
   ADMIN_ID="${ADMIN_ID:-$EXISTING_ADMIN}"
+  ADMIN_ID="$(normalize_identifier "$ADMIN_ID")"
   printf '\nAuthenticate %s, then choose a governance secret for %s.\n' \
     "$ADMIN_ID" "$USER_ID"
   python -m vulnhunter.governance identity create \
@@ -125,10 +142,10 @@ else
 ADB and Frida remain correctly gated because no disposable emulator is registered.
 After an authorised emulator and matching Frida server are available, register its
 exact identity with:
-  python scripts/register_mobile_runtime.py \\
-    --policy "$RUNTIME_POLICY" \\
-    --runtime-id emulator-lab-01 \\
-    --adb-serial emulator-5554 \\
+  python scripts/register_mobile_runtime.py \
+    --policy "$RUNTIME_POLICY" \
+    --runtime-id emulator-lab-01 \
+    --adb-serial emulator-5554 \
     --frida-device-id emulator-5554
 RUNTIME
 fi

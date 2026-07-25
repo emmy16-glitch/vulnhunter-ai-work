@@ -1,4 +1,4 @@
-"""Chat-facing activation and status helpers for the mobile static worker."""
+"""Chat-facing activation and status helpers for the mobile analysis worker."""
 
 from __future__ import annotations
 
@@ -9,6 +9,10 @@ from django.conf import settings
 from django.http import HttpRequest
 
 from vulnhunter.mobile.models import MobileArtifactRecord
+from vulnhunter.mobile.static_progress import (
+    MobileStaticProgressError,
+    MobileStaticProgressStore,
+)
 from vulnhunter.mobile.static_service import create_mobile_static_job
 from vulnhunter.mobile.static_spool import MobileStaticSpool, MobileStaticSpoolError
 from vulnhunter.mobile.static_worker import MobileStaticWorkerError, MobileStaticWorkerPolicy
@@ -64,7 +68,7 @@ def enqueue_mobile_static_if_ready(
     if not _env_bool("VULNHUNTER_MOBILE_STATIC_ENQUEUE_ENABLED"):
         return {
             "state": "gated",
-            "reason": "The networkless mobile static worker is not activated in this deployment.",
+            "reason": "The isolated mobile analysis worker is not activated in this deployment.",
         }
     policy_path = Path(settings.VULNHUNTER_MOBILE_STATIC_WORKER_POLICY)
     try:
@@ -72,7 +76,7 @@ def enqueue_mobile_static_if_ready(
         if not policy.enabled:
             return {
                 "state": "gated",
-                "reason": "The mobile static worker policy is present but disabled.",
+                "reason": "The mobile analysis worker policy is present but disabled.",
             }
         signing_key = load_worker_signing_key(_signing_key_path())
         spool = MobileStaticSpool(_spool_root())
@@ -104,16 +108,8 @@ def enqueue_mobile_static_if_ready(
         "job_id": job.job_id,
         "artifact_id": attachment.artifact_id,
         "worker_id": policy.worker_id,
-        "tools": [
-            name
-            for name, path in (
-                ("aapt2", policy.aapt2_executable),
-                ("apksigner", policy.apksigner_executable),
-                ("apkid", policy.apkid_executable),
-                ("apktool", policy.apktool_executable),
-            )
-            if path is not None
-        ],
+        "tools": list(policy.active_tools()),
+        "network_isolation": policy.network_isolation,
     }
 
 
@@ -127,8 +123,24 @@ def mobile_static_status(
     if not isinstance(raw, dict) or raw.get(job_id) != requested_by:
         return None
     try:
-        return MobileStaticSpool(_spool_root()).status(job_id)
-    except (OSError, ValueError, MobileStaticSpoolError):
+        root = _spool_root()
+        status = MobileStaticSpool(root).status(job_id)
+        if status is None:
+            return None
+        signing_key = load_worker_signing_key(_signing_key_path())
+        progress = MobileStaticProgressStore(root).read(job_id=job_id, key=signing_key)
+        if progress is not None:
+            status["progress"] = progress.model_dump(mode="json", exclude={"signature"})
+            if status.get("state") == "running":
+                status["state"] = progress.state
+        return status
+    except (
+        OSError,
+        ValueError,
+        MobileStaticProgressError,
+        MobileStaticSpoolError,
+        WorkerSpoolError,
+    ):
         return {
             "job_id": job_id,
             "state": "failed",

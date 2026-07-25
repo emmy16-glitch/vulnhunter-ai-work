@@ -52,7 +52,9 @@ def _safe_actor(value: str) -> str:
 def _safe_reason(value: str) -> str:
     redacted = redact_text(value).strip()
     if len(redacted) < 8:
-        raise ControlledLearningError("a redacted review reason of at least eight characters is required")
+        raise ControlledLearningError(
+            "a redacted review reason of at least eight characters is required"
+        )
     return redacted[:2_000]
 
 

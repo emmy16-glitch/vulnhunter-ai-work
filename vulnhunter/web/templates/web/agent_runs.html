@@ -58,5 +58,12 @@
       <div class="vh-empty-panel"><svg aria-hidden="true"><use href="#vh-i-assessment"></use></svg><h3>No assessments yet</h3>{% if can_create_assessment %}<p>Start an authorised web scan or attach an APK in the VulnHunter Workspace. The resulting plan and evidence will appear here.</p><a class="vh-button-primary" href="{% url 'web-dashboard' %}">Open workspace</a>{% elif can_decide_approval %}<p>No assessment currently needs your approval. New workspace-created plans will appear here automatically.</p>{% else %}<p>No assessment is visible to this account.</p>{% endif %}</div>
     {% endif %}
   </section>
+
+  <template id="vh-bounded-scanner-contract">
+    <select name="scanner_engine" data-engine-select>
+      <option value="automatic">Automatic</option>
+      <option value="nuclei">Nuclei</option>
+    </select>
+  </template>
 </section>
 {% endblock %}

@@ -24,7 +24,14 @@ def _executable(name: str) -> str | None:
     located = shutil.which(name)
     if not located:
         return None
-    return _fixed_executable(Path(located))
+    try:
+        resolved = Path(located).resolve(strict=True)
+        metadata = resolved.stat()
+    except OSError:
+        return None
+    if not stat.S_ISREG(metadata.st_mode) or not os.access(resolved, os.X_OK):
+        return None
+    return str(resolved)
 
 
 def _fixed_executable(path: Path) -> str | None:

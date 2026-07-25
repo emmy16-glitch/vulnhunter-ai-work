@@ -39,7 +39,7 @@ from vulnhunter.web.services import WebPermissionDenied
 
 _AUTO_ANALYSIS_TEXT = (
     "Run a full automatic security analysis of this APK using every available safe static and "
-    "native tool. Record verified findings and list any dynamic checks that remain approval-gated."
+    "native tool. Record verified findings and list any approval-gated follow-up checks."
 )
 
 

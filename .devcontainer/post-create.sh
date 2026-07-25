@@ -6,6 +6,7 @@ cd "$ROOT"
 
 python -m pip install --upgrade pip
 python -m pip install -e ".[dev]"
+bash .devcontainer/install-codex.sh
 bash .devcontainer/install-mobile-static-tools.sh
 bash .devcontainer/install-nuclei.sh
 
@@ -156,6 +157,7 @@ python scripts/nuclei_readiness.py \
 python manage.py migrate --noinput
 python manage.py vh_init_agent_store
 
-printf '\nVulnHunter Codespace is prepared with bounded reasoning, the pinned Nuclei worker, and the governed mobile static worker.\n'
+printf '\nVulnHunter Codespace is prepared with Codex, bounded reasoning, the pinned Nuclei worker, and the governed mobile static worker.\n'
+printf 'Codex: %s\n' "$(codex --version)"
 printf 'Mobile static enqueue enabled: %s\n' "$VULNHUNTER_MOBILE_STATIC_ENQUEUE_ENABLED"
 printf 'Run: bash .devcontainer/first-run.sh\n'

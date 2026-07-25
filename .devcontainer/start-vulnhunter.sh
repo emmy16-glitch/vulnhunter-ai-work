@@ -82,7 +82,39 @@ if [[ "${VULNHUNTER_MOBILE_STATIC_ENQUEUE_ENABLED:-false}" == "true" ]]; then
   python manage.py vh_run_mobile_static_worker --watch --poll-seconds 0.5 \
     >"$LOG_ROOT/mobile-static-worker.log" 2>&1 &
   MOBILE_WORKER_PID=$!
-  MOBILE_STATE="networkless static worker ready"
+  MOBILE_STATE="isolated read-only static/native worker ready"
+fi
+
+MOBSF_STATE="gated"
+if [[ -s "${VULNHUNTER_MOBSF_POLICY:-}" && -s "${VULNHUNTER_MOBSF_API_KEY_FILE:-}" ]]; then
+  if bash scripts/start-mobsf-private.sh >"$LOG_ROOT/mobsf.log" 2>&1; then
+    MOBSF_STATE="private loopback service ready"
+  else
+    MOBSF_STATE="failed closed; see .codespaces/runtime/mobsf.log"
+  fi
+fi
+
+RUNTIME_STATE="gated; no disposable emulator registered"
+if [[ -s "${VULNHUNTER_MOBILE_RUNTIME_POLICY:-}" ]]; then
+  RUNTIME_STATE="$(python - <<'PY'
+import json
+import os
+from datetime import UTC, datetime
+from pathlib import Path
+
+try:
+    payload = json.loads(
+        Path(os.environ["VULNHUNTER_MOBILE_RUNTIME_POLICY"]).read_text(encoding="utf-8")
+    )
+    expires_at = datetime.fromisoformat(str(payload["expires_at"])).astimezone(UTC)
+    if payload.get("enabled") is True and expires_at > datetime.now(UTC):
+        print(f"registered as {payload.get('runtime_id', 'unknown')}; exact approval required")
+    else:
+        print("gated; runtime registration is disabled or expired")
+except (OSError, KeyError, TypeError, ValueError):
+    print("gated; runtime registration failed closed")
+PY
+)"
 fi
 
 GROQ_STATE="deterministic fallback"
@@ -106,6 +138,8 @@ Groq: $GROQ_STATE
 Reasoning: $INTELLIGENCE_STATE
 Nuclei: pinned passive worker ready
 Mobile APK: $MOBILE_STATE
+MobSF: $MOBSF_STATE
+ADB/Frida: $RUNTIME_STATE
 
 Open the private port-8002 Codespaces URL and sign in once. Use the plus button to
 attach an APK or request an authorised web scan. The chat reveals planning,

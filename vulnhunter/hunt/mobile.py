@@ -74,13 +74,8 @@ def build_mobile_hunt_plan(
                 round_id=f"{hunt_id}-native",
                 altitude=HuntAltitude.NATIVE,
                 label="Native-library scrutiny",
-                purpose=(
-                    "Inspect JNI boundaries, symbols, hardening and native capability "
-                    "indicators."
-                ),
-                tool_ids=tuple(
-                    item for item in ("radare2", "ghidra") if item in selected_tool_ids
-                ),
+                purpose="Inspect JNI boundaries, symbols, hardening and native capability indicators.",
+                tool_ids=tuple(item for item in ("radare2", "ghidra") if item in selected_tool_ids),
             )
         )
     if dynamic_deferred:

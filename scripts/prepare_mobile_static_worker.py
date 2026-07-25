@@ -126,9 +126,7 @@ def main() -> int:
         "radare2_executable": _executable("rabin2"),
         "ghidra_headless_executable": ghidra,
         "ghidra_script_root": (
-            _directory(ROOT / "config" / "security_tools" / "ghidra_scripts")
-            if ghidra
-            else None
+            _directory(ROOT / "config" / "security_tools" / "ghidra_scripts") if ghidra else None
         ),
     }
     operational = {

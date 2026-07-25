@@ -65,7 +65,9 @@ class MobSFServiceConfig(BaseModel):
             raise ValueError("enabled MobSF service must remain private-only")
         if "@sha256:" in self.image:
             digest = self.image.rsplit("@sha256:", 1)[-1]
-            if len(digest) != 64 or any(character not in "0123456789abcdef" for character in digest):
+            if len(digest) != 64 or any(
+                character not in "0123456789abcdef" for character in digest
+            ):
                 raise ValueError("MobSF image digest is invalid")
         elif not self.image.endswith(":v4.4.6"):
             raise ValueError("MobSF image must use the reviewed v4.4.6 release")

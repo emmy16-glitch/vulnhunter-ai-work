@@ -101,9 +101,7 @@ def _download(
     destination = cache / asset.name
     expected_digest = expected or asset.sha256
     if expected and asset.sha256 != expected:
-        raise RuntimeError(
-            f"GitHub digest for {asset.name} disagrees with the pinned digest"
-        )
+        raise RuntimeError(f"GitHub digest for {asset.name} disagrees with the pinned digest")
     if destination.is_file() and _sha256(destination) == expected_digest:
         return destination
     destination.unlink(missing_ok=True)
@@ -120,18 +118,17 @@ def _download(
     digest = hashlib.sha256()
     total = 0
     try:
-        with urllib.request.urlopen(request, timeout=120) as response, temporary.open(
-            "wb"
-        ) as target:
+        with (
+            urllib.request.urlopen(request, timeout=120) as response,
+            temporary.open("wb") as target,
+        ):
             while True:
                 chunk = response.read(1024 * 1024)
                 if not chunk:
                     break
                 total += len(chunk)
                 if total > asset.size or total > _MAX_ARCHIVE_BYTES:
-                    raise RuntimeError(
-                        f"downloaded asset {asset.name} exceeded its declared size"
-                    )
+                    raise RuntimeError(f"downloaded asset {asset.name} exceeded its declared size")
                 digest.update(chunk)
                 target.write(chunk)
             target.flush()
@@ -170,9 +167,7 @@ def _safe_extract_zip(archive: Path, destination: Path) -> Path:
                     raise RuntimeError(f"unsafe archive entry in {archive.name}")
                 total += max(0, info.file_size)
                 if total > _MAX_EXTRACTED_BYTES:
-                    raise RuntimeError(
-                        f"archive {archive.name} exceeds the extraction boundary"
-                    )
+                    raise RuntimeError(f"archive {archive.name} exceeds the extraction boundary")
                 target = temporary.joinpath(*pure.parts)
                 if info.is_dir():
                     target.mkdir(parents=True, mode=0o700, exist_ok=True)
@@ -180,16 +175,16 @@ def _safe_extract_zip(archive: Path, destination: Path) -> Path:
                 target.parent.mkdir(parents=True, mode=0o700, exist_ok=True)
                 descriptor = os.open(
                     target,
-                    os.O_WRONLY
-                    | os.O_CREAT
-                    | os.O_EXCL
-                    | getattr(os, "O_NOFOLLOW", 0),
+                    os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0),
                     0o600,
                 )
-                with bundle.open(info) as source, os.fdopen(
-                    descriptor,
-                    "wb",
-                ) as output:
+                with (
+                    bundle.open(info) as source,
+                    os.fdopen(
+                        descriptor,
+                        "wb",
+                    ) as output,
+                ):
                     shutil.copyfileobj(source, output, length=1024 * 1024)
                 if mode & 0o111:
                     target.chmod(0o700)
@@ -317,8 +312,7 @@ def install(root: Path, *, include_ghidra: bool) -> dict[str, str]:
             "ghidra",
             f"Ghidra_{GHIDRA_VERSION}_build",
             lambda name: (
-                name.startswith(f"ghidra_{GHIDRA_VERSION}_PUBLIC_")
-                and name.endswith(".zip")
+                name.startswith(f"ghidra_{GHIDRA_VERSION}_PUBLIC_") and name.endswith(".zip")
             ),
         )
         ghidra_archive = _download(
@@ -361,8 +355,7 @@ def main() -> int:
         zipfile.BadZipFile,
     ) as exc:
         print(
-            f"Mobile release tool installation failed closed: "
-            f"{type(exc).__name__}: {exc}",
+            f"Mobile release tool installation failed closed: {type(exc).__name__}: {exc}",
             file=sys.stderr,
         )
         return 2

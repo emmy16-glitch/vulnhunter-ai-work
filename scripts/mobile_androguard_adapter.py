@@ -110,7 +110,9 @@ def _api_family_counts(analysis: object, *, maximum_methods: int = 250_000) -> d
 def analyze(apk_path: Path) -> dict[str, object]:
     apk, dex_files, analysis = AnalyzeAPK(str(apk_path))
     permissions = _strings(_safe_call(apk, "get_permissions", []))
-    dangerous = sorted(permission for permission in permissions if permission in _DANGEROUS_PERMISSIONS)
+    dangerous = sorted(
+        permission for permission in permissions if permission in _DANGEROUS_PERMISSIONS
+    )
     class_count = 0
     for dex in dex_files or []:
         classes = _safe_call(dex, "get_classes", [])

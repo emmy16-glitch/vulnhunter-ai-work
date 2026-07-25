@@ -230,8 +230,12 @@ class MobileStaticProgressStore:
             detail=" ".join(str(event.get("detail") or "Worker progress updated.").split())[:500],
             tool=tool,
             tool_state=tool_state,
-            return_code=(int(event["return_code"]) if event.get("return_code") is not None else None),
-            duration_ms=(int(event["duration_ms"]) if event.get("duration_ms") is not None else None),
+            return_code=(
+                int(event["return_code"]) if event.get("return_code") is not None else None
+            ),
+            duration_ms=(
+                int(event["duration_ms"]) if event.get("duration_ms") is not None else None
+            ),
             output_sha256=(
                 str(event["output_sha256"]) if event.get("output_sha256") is not None else None
             ),

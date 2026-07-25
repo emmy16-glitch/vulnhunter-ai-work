@@ -119,20 +119,14 @@ class MobileStaticWorkerPolicy(BaseModel):
     def from_path(cls, path: Path) -> MobileStaticWorkerPolicy:
         candidate = path.expanduser()
         if candidate.is_symlink():
-            raise MobileStaticToolchainError(
-                "mobile worker policy must not be a symbolic link"
-            )
+            raise MobileStaticToolchainError("mobile worker policy must not be a symbolic link")
         try:
             metadata = candidate.stat()
             text = candidate.read_text(encoding="utf-8")
         except OSError as exc:
-            raise MobileStaticToolchainError(
-                "mobile worker policy is unavailable"
-            ) from exc
+            raise MobileStaticToolchainError("mobile worker policy is unavailable") from exc
         if not stat.S_ISREG(metadata.st_mode) or stat.S_IMODE(metadata.st_mode) & 0o022:
-            raise MobileStaticToolchainError(
-                "mobile worker policy permissions are unsafe"
-            )
+            raise MobileStaticToolchainError("mobile worker policy permissions are unsafe")
         try:
             return cls.model_validate_json(text)
         except ValueError as exc:
@@ -216,9 +210,7 @@ class MobileStaticToolchain:
         root = workspace / "extracted"
         root.mkdir(mode=0o700, exist_ok=False)
         wanted_dex = set(record.dex_entries)
-        wanted_native = set(
-            record.native_libraries[: self.policy.maximum_native_libraries]
-        )
+        wanted_native = set(record.native_libraries[: self.policy.maximum_native_libraries])
         dex_paths: list[Path] = []
         native_paths: list[Path] = []
         total = 0
@@ -227,14 +219,9 @@ class MobileStaticToolchain:
             for entry in sorted(wanted_dex | wanted_native):
                 pure = PurePosixPath(entry)
                 if pure.is_absolute() or ".." in pure.parts or entry not in members:
-                    raise MobileStaticToolchainError(
-                        "APK analysis entry failed path validation"
-                    )
+                    raise MobileStaticToolchainError("APK analysis entry failed path validation")
                 info = members[entry]
-                if (
-                    info.is_dir()
-                    or info.file_size > self.policy.maximum_generated_file_bytes
-                ):
+                if info.is_dir() or info.file_size > self.policy.maximum_generated_file_bytes:
                     raise MobileStaticToolchainError(
                         "APK analysis entry exceeds the per-file boundary"
                     )
@@ -249,17 +236,17 @@ class MobileStaticToolchain:
                 destination.parent.mkdir(parents=True, mode=0o700, exist_ok=True)
                 descriptor = os.open(
                     destination,
-                    os.O_WRONLY
-                    | os.O_CREAT
-                    | os.O_EXCL
-                    | getattr(os, "O_NOFOLLOW", 0),
+                    os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0),
                     0o600,
                 )
                 try:
-                    with archive.open(info) as source, os.fdopen(
-                        descriptor,
-                        "wb",
-                    ) as target:
+                    with (
+                        archive.open(info) as source,
+                        os.fdopen(
+                            descriptor,
+                            "wb",
+                        ) as target,
+                    ):
                         shutil.copyfileobj(source, target, length=1024 * 1024)
                 except BaseException:
                     destination.unlink(missing_ok=True)
@@ -364,10 +351,7 @@ class MobileStaticToolchain:
             ),
             self.policy.heavy_timeout_seconds,
         )
-        if (
-            self.policy.androguard_adapter is not None
-            and self.policy.python_executable is not None
-        ):
+        if self.policy.androguard_adapter is not None and self.policy.python_executable is not None:
             adapter = self._verified_regular_file(
                 self.policy.androguard_adapter,
                 executable=False,
@@ -525,10 +509,7 @@ class MobileStaticToolchain:
         output_path = workspace / f".{spec.name}-{arguments_digest[:12]}.capture"
         descriptor = os.open(
             output_path,
-            os.O_WRONLY
-            | os.O_CREAT
-            | os.O_EXCL
-            | getattr(os, "O_NOFOLLOW", 0),
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0),
             0o600,
         )
 
@@ -598,10 +579,7 @@ class MobileStaticToolchain:
             detail=(
                 f"{spec.name} completed and produced a bounded evidence receipt."
                 if return_code == 0
-                else (
-                    f"{spec.name} failed with exit code {return_code}; "
-                    "no finding was inferred."
-                )
+                else (f"{spec.name} failed with exit code {return_code}; no finding was inferred.")
             ),
         )
         return capture
@@ -656,21 +634,13 @@ class MobileStaticToolchain:
         elif capture.return_code == 0 and capture.tool == "jadx":
             root = workspace / "jadx-output"
             files = (
-                [
-                    item
-                    for item in root.rglob("*")
-                    if item.is_file() and not item.is_symlink()
-                ]
+                [item for item in root.rglob("*") if item.is_file() and not item.is_symlink()]
                 if root.is_dir()
                 else []
             )
             evidence["generated_files"] = len(files)
-            evidence["generated_bytes"] = sum(
-                item.stat().st_size for item in files
-            )
-            evidence["source_files"] = sum(
-                item.suffix in {".java", ".kt"} for item in files
-            )
+            evidence["generated_bytes"] = sum(item.stat().st_size for item in files)
+            evidence["source_files"] = sum(item.suffix in {".java", ".kt"} for item in files)
         return capture.model_copy(update={"evidence": evidence})
 
     def _observations(
@@ -686,9 +656,7 @@ class MobileStaticToolchain:
             if not isinstance(structured, dict):
                 continue
             if capture.tool == "androguard":
-                observations.extend(
-                    self._androguard_observations(record, structured)
-                )
+                observations.extend(self._androguard_observations(record, structured))
             elif capture.tool == "yara":
                 observations.extend(self._yara_observations(capture, structured))
             elif capture.tool == "radare2":
@@ -707,9 +675,7 @@ class MobileStaticToolchain:
             observations.append(
                 {
                     "observation_id": f"mobile-native-{record.sha256[:20]}",
-                    "title": (
-                        "APK contains native libraries requiring native-code scrutiny"
-                    ),
+                    "title": ("APK contains native libraries requiring native-code scrutiny"),
                     "status": "evidence_required",
                     "count": len(record.native_libraries),
                     "abis": list(record.native_abis),
@@ -720,9 +686,7 @@ class MobileStaticToolchain:
                 continue
             observations.append(
                 {
-                    "observation_id": (
-                        f"mobile-tool-{capture.tool}-{capture.output_sha256[:16]}"
-                    ),
+                    "observation_id": (f"mobile-tool-{capture.tool}-{capture.output_sha256[:16]}"),
                     "title": f"{capture.tool} could not complete static inspection",
                     "status": "operational_failure",
                     "return_code": capture.return_code,
@@ -820,16 +784,10 @@ class MobileStaticToolchain:
             observations.append(
                 {
                     "observation_id": f"yara-{identity}",
-                    "weakness_id": str(
-                        meta.get("weakness_id") or "mobile-yara-match"
-                    ),
-                    "title": str(
-                        meta.get("title") or f"YARA rule matched: {rule}"
-                    ),
+                    "weakness_id": str(meta.get("weakness_id") or "mobile-yara-match"),
+                    "title": str(meta.get("title") or f"YARA rule matched: {rule}"),
                     "severity": str(meta.get("severity") or "unknown"),
-                    "status": str(
-                        meta.get("confidence") or "evidence_required"
-                    ),
+                    "status": str(meta.get("confidence") or "evidence_required"),
                     "component": component,
                     "evidence": {
                         "rule": rule,
@@ -854,9 +812,7 @@ class MobileStaticToolchain:
     ) -> list[dict[str, object]]:
         observations: list[dict[str, object]] = []
         hardening = cls._native_hardening(structured)
-        evidence_identity = hashlib.sha256(
-            str(capture.evidence).encode()
-        ).hexdigest()[:16]
+        evidence_identity = hashlib.sha256(str(capture.evidence).encode()).hexdigest()[:16]
         for name, present in hardening.items():
             if present is not False:
                 continue
@@ -867,9 +823,7 @@ class MobileStaticToolchain:
                     "title": f"Native library is missing {name.upper()} hardening",
                     "severity": "medium",
                     "status": "verified_configuration",
-                    "component": str(
-                        capture.evidence.get("library") or "native library"
-                    ),
+                    "component": str(capture.evidence.get("library") or "native library"),
                     "evidence": {
                         "control": name,
                         "present": False,
@@ -938,21 +892,15 @@ class MobileStaticToolchain:
         total = 0
         for path in workspace.rglob("*"):
             if path.is_symlink():
-                raise MobileStaticToolchainError(
-                    "analysis workspace contains a symbolic link"
-                )
+                raise MobileStaticToolchainError("analysis workspace contains a symbolic link")
             if not path.is_file():
                 continue
             size = path.stat().st_size
             if size > self.policy.maximum_generated_file_bytes:
-                raise MobileStaticToolchainError(
-                    "tool generated an oversized workspace file"
-                )
+                raise MobileStaticToolchainError("tool generated an oversized workspace file")
             total += size
             if total > self.policy.maximum_generated_bytes:
-                raise MobileStaticToolchainError(
-                    "tool generated an oversized analysis workspace"
-                )
+                raise MobileStaticToolchainError("tool generated an oversized analysis workspace")
 
     @staticmethod
     def _json_object(value: str) -> dict[str, object] | None:

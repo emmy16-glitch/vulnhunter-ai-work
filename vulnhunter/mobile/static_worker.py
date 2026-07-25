@@ -81,10 +81,7 @@ class MobileStaticWorker:
                 progress_callback,
                 state="running",
                 stage="ingest",
-                detail=(
-                    "APK identity was rebound to the ingested SHA-256 and copied "
-                    "read-only."
-                ),
+                detail=("APK identity was rebound to the ingested SHA-256 and copied read-only."),
                 tools=self.policy.active_tools(),
             )
             captures, observations = MobileStaticToolchain(self.policy).run(
@@ -146,10 +143,7 @@ class MobileStaticWorker:
     def _write_exclusive(path: Path, content: str) -> None:
         descriptor = os.open(
             path,
-            os.O_WRONLY
-            | os.O_CREAT
-            | os.O_EXCL
-            | getattr(os, "O_NOFOLLOW", 0),
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0),
             0o600,
         )
         with os.fdopen(descriptor, "w", encoding="utf-8") as handle:

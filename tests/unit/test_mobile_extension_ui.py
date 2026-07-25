@@ -6,12 +6,10 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 def test_mobile_extension_controls_are_loaded_wired_and_phone_responsive():
-    template = (ROOT / "vulnhunter/web/templates/web/conversation.html").read_text(
+    template = (ROOT / "vulnhunter/web/templates/web/conversation.html").read_text(encoding="utf-8")
+    script = (ROOT / "vulnhunter/web/static/web/conversation-mobile-deferred-tools.js").read_text(
         encoding="utf-8"
     )
-    script = (
-        ROOT / "vulnhunter/web/static/web/conversation-mobile-deferred-tools.js"
-    ).read_text(encoding="utf-8")
     stylesheet = (
         ROOT / "vulnhunter/web/static/web/conversation-mobile-deferred-tools.css"
     ).read_text(encoding="utf-8")

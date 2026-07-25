@@ -2,14 +2,16 @@
 
 Large browser uploads are split into bounded requests before the completed file is
 passed to the existing content-addressed APK ingestor. This avoids relying on a
-single reverse-proxy request-body allowance while preserving the one-gigabyte
-artifact limit and all archive validation performed by ``MobileArtifactIngestor``.
+single reverse-proxy request-body allowance while preserving the configured artifact
+limit and archive validation performed by ``MobileArtifactIngestor``.
 """
 
 from __future__ import annotations
 
+import errno
 import os
 import re
+import shutil
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -23,6 +25,7 @@ _SESSION_KEY = "vulnhunter_conversation_apk_uploads"
 _UPLOAD_ID = re.compile(r"^upload-[0-9a-f]{32}$")
 _MAX_ACTIVE_UPLOADS = 3
 _DEFAULT_CHUNK_BYTES = 8 * 1024 * 1024
+_DEFAULT_DISK_RESERVE_BYTES = 1024 * 1024 * 1024
 
 
 class ConversationUploadError(ValueError):
@@ -112,6 +115,22 @@ def _unlink(upload_id: str) -> None:
         pass
 
 
+def prune_stale_apk_uploads(*, now: float | None = None) -> int:
+    """Delete abandoned staged files independently of a browser session."""
+
+    instant = time.time() if now is None else now
+    ttl = int(getattr(settings, "VULNHUNTER_MOBILE_UPLOAD_TTL_SECONDS", 3_600))
+    removed = 0
+    for candidate in _upload_root().glob("upload-*.part"):
+        try:
+            if instant - candidate.stat().st_mtime > ttl:
+                candidate.unlink(missing_ok=True)
+                removed += 1
+        except OSError:
+            continue
+    return removed
+
+
 def _prune(request: _Request) -> dict[str, dict[str, object]]:
     now = time.time()
     ttl = int(getattr(settings, "VULNHUNTER_MOBILE_UPLOAD_TTL_SECONDS", 3_600))
@@ -120,24 +139,54 @@ def _prune(request: _Request) -> dict[str, dict[str, object]]:
     for upload_id, record in _records(request).items():
         try:
             created_at = float(record["created_at"])
+            updated_at = float(record.get("updated_at", created_at))
             record_owner = str(record["owner_id"])
         except (KeyError, TypeError, ValueError):
             _unlink(upload_id)
             continue
-        if record_owner != owner or now - created_at > ttl:
+        if record_owner != owner or now - updated_at > ttl:
             _unlink(upload_id)
             continue
         retained[upload_id] = record
     _save_records(request, retained)
-
-    root = _upload_root()
-    for candidate in root.glob("upload-*.part"):
-        try:
-            if now - candidate.stat().st_mtime > ttl:
-                candidate.unlink(missing_ok=True)
-        except OSError:
-            continue
+    prune_stale_apk_uploads(now=now)
     return retained
+
+
+def _preflight_capacity(expected_bytes: int, records: dict[str, dict[str, object]]) -> None:
+    root = _upload_root()
+    maximum = int(settings.VULNHUNTER_MOBILE_MAX_APK_BYTES)
+    staged_limit = int(
+        getattr(settings, "VULNHUNTER_MOBILE_MAX_STAGED_BYTES", maximum * 2)
+    )
+    staged_bytes = sum(
+        max(0, int(record.get("expected_bytes", 0) or 0))
+        for record in records.values()
+    )
+    if staged_bytes + expected_bytes > staged_limit:
+        raise ConversationUploadError(
+            "The staged APK quota is full. Finish, cancel or allow an older upload to expire first."
+        )
+
+    reserve = int(
+        getattr(
+            settings,
+            "VULNHUNTER_MOBILE_MIN_FREE_BYTES",
+            _DEFAULT_DISK_RESERVE_BYTES,
+        )
+    )
+    try:
+        free = shutil.disk_usage(root).free
+    except OSError as exc:
+        raise ConversationUploadError(
+            "Available storage could not be verified, so the APK upload did not start."
+        ) from exc
+    required = expected_bytes + reserve
+    if free < required:
+        raise ConversationUploadError(
+            "There is not enough free storage to stage this APK safely. "
+            f"Required at least {required} bytes; available {free} bytes."
+        )
 
 
 def begin_apk_upload(
@@ -157,23 +206,38 @@ def begin_apk_upload(
 
     records = _prune(request)
     if len(records) >= _MAX_ACTIVE_UPLOADS:
-        oldest = min(records, key=lambda key: float(records[key].get("created_at", 0)))
+        oldest = min(
+            records,
+            key=lambda key: float(
+                records[key].get("updated_at", records[key].get("created_at", 0))
+            ),
+        )
         records.pop(oldest, None)
         _unlink(oldest)
+    _preflight_capacity(expected_bytes, records)
 
     upload_id = f"upload-{uuid4().hex}"
     path = _path(upload_id)
     flags = os.O_CREAT | os.O_EXCL | os.O_WRONLY
     if hasattr(os, "O_NOFOLLOW"):
         flags |= os.O_NOFOLLOW
-    descriptor = os.open(path, flags, 0o600)
+    try:
+        descriptor = os.open(path, flags, 0o600)
+    except OSError as exc:
+        if exc.errno == errno.ENOSPC:
+            raise ConversationUploadError(
+                "Storage became full before the APK upload could start."
+            ) from exc
+        raise ConversationUploadError("The staged APK upload file could not be created.") from exc
     os.close(descriptor)
 
+    instant = time.time()
     record: dict[str, object] = {
         "filename": safe_name,
         "expected_bytes": expected_bytes,
         "received_bytes": 0,
-        "created_at": time.time(),
+        "created_at": instant,
+        "updated_at": instant,
         "owner_id": _owner_id(request),
     }
     records[upload_id] = record
@@ -225,6 +289,10 @@ def append_apk_chunk(
         descriptor = os.open(path, flags)
     except OSError as exc:
         discard_apk_upload(request, upload_id=upload_id)
+        if exc.errno == errno.ENOSPC:
+            raise ConversationUploadError(
+                "Storage became full while receiving the APK. The incomplete upload was removed."
+            ) from exc
         raise ConversationUploadError("The staged APK upload file is unavailable.") from exc
     try:
         metadata = os.fstat(descriptor)
@@ -237,6 +305,15 @@ def append_apk_chunk(
         while written < len(view):
             written += os.write(descriptor, view[written:])
         os.fsync(descriptor)
+    except OSError as exc:
+        discard_apk_upload(request, upload_id=upload_id)
+        if exc.errno == errno.ENOSPC:
+            raise ConversationUploadError(
+                "Storage became full while receiving the APK. The incomplete upload was removed."
+            ) from exc
+        raise ConversationUploadError(
+            "The APK chunk could not be written safely; the incomplete upload was removed."
+        ) from exc
     except Exception:
         discard_apk_upload(request, upload_id=upload_id)
         raise
@@ -244,6 +321,7 @@ def append_apk_chunk(
         os.close(descriptor)
 
     record["received_bytes"] = next_received
+    record["updated_at"] = time.time()
     records[upload_id] = record
     _save_records(request, records)
     return StagedApkUpload(upload_id, filename, expected, next_received, path)

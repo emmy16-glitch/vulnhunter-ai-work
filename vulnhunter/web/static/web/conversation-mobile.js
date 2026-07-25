@@ -26,6 +26,7 @@
     text(value)
       .replaceAll("_", " ")
       .replace(/\b\w/g, (letter) => letter.toUpperCase());
+  const sleep = (milliseconds) => new Promise((resolve) => window.setTimeout(resolve, milliseconds));
 
   const formatBytes = (value) => {
     const bytes = Math.max(0, Number(value) || 0);
@@ -70,6 +71,18 @@
     });
     const data = await readJson(response);
     if (!response.ok) throw new Error(data.detail || data.message?.content || "The request failed.");
+    return data;
+  };
+
+  const getJson = async (url) => {
+    const response = await fetch(url, {
+      method: "GET",
+      credentials: "same-origin",
+      headers: { Accept: "application/json" },
+      cache: "no-store",
+    });
+    const data = await readJson(response);
+    if (!response.ok) throw new Error(data.detail || "The status request failed.");
     return data;
   };
 
@@ -124,7 +137,12 @@
     avatar.textContent = role === "user" ? "You" : "VH";
     copy.textContent = text(message.content || "");
     if (attachment) body.insertBefore(attachmentCard(attachment), copy);
-    if (plan) body.append(renderPlan(plan));
+
+    let planCard = null;
+    if (plan) {
+      planCard = renderPlan(plan);
+      body.append(planCard);
+    }
 
     const suggestions = Array.isArray(message.metadata?.suggestions)
       ? message.metadata.suggestions
@@ -144,11 +162,55 @@
     if (!suggestions.length) actions.remove();
     feed.append(fragment);
     scrollLatest();
+
+    const execution = plan?.execution;
+    if (planCard && execution?.state === "queued" && execution.status_url) {
+      window.setTimeout(() => watchMobileExecution(execution.status_url, planCard), 250);
+    }
+  };
+
+  const executionPanel = (execution) => {
+    const panel = document.createElement("section");
+    panel.className = `vh-mobile-execution is-${text(execution?.state || "prepared")}`;
+    panel.dataset.mobileExecution = "";
+    const marker = document.createElement("span");
+    marker.className = "vh-mobile-execution-dot";
+    const content = document.createElement("div");
+    const label = document.createElement("strong");
+    label.dataset.mobileExecutionLabel = "";
+    const detail = document.createElement("small");
+    detail.dataset.mobileExecutionDetail = "";
+    content.append(label, detail);
+    panel.append(marker, content);
+    updateExecutionPanel(panel, execution || { state: "prepared" });
+    return panel;
+  };
+
+  const updateExecutionPanel = (panel, execution) => {
+    const state = text(execution?.state || "unknown");
+    panel.className = `vh-mobile-execution is-${state}`;
+    const label = panel.querySelector("[data-mobile-execution-label]");
+    const detail = panel.querySelector("[data-mobile-execution-detail]");
+    const copy = {
+      prepared: ["Plan prepared", "Tool execution is still governed by deployment policy."],
+      gated: ["Static worker gated", text(execution.reason || "The worker is not activated here.")],
+      queued: ["Queued for static inspection", "Waiting for the networkless mobile worker."],
+      running: ["Static inspection running", "Fixed read-only tools are collecting bounded evidence."],
+      completed: ["Static evidence collected", text(execution.reason || "Read-only inspection completed.")],
+      blocked: ["Static inspection blocked", text(execution.reason || "Worker policy blocked execution.")],
+      failed: ["Static inspection failed closed", text(execution.reason || "No unverified result was accepted.")],
+      rejected: ["Static job rejected", text(execution.reason || "The signed job did not pass validation.")],
+      unknown: ["Worker state unavailable", "The canonical evidence store remains unchanged."],
+    };
+    const selected = copy[state] || copy.unknown;
+    label.textContent = selected[0];
+    detail.textContent = selected[1];
   };
 
   const renderPlan = (plan) => {
     const card = document.createElement("section");
     card.className = "vh-mobile-hunt-card";
+    card.dataset.mobileHuntCard = "";
     const header = document.createElement("header");
     const heading = document.createElement("div");
     const eyebrow = document.createElement("small");
@@ -174,6 +236,7 @@
     (Array.isArray(plan.rounds) ? plan.rounds : []).forEach((round, index) => {
       const item = document.createElement("li");
       item.className = `is-${text(round.status || "planned")}`;
+      item.dataset.altitude = text(round.altitude || "unknown");
       const marker = document.createElement("span");
       marker.textContent = round.status === "blocked" ? "!" : String(index + 1);
       const content = document.createElement("div");
@@ -187,12 +250,132 @@
       window.setTimeout(() => item.classList.add("is-visible"), 90 + index * 120);
     });
 
-    const footer = document.createElement("footer");
-    footer.textContent = plan.dynamic_deferred
-      ? "Static and native coverage is prepared. Runtime work remains separately gated."
-      : "The plan is prepared; tool execution remains governed by worker policy and exact approvals.";
-    card.append(header, tools, rounds, footer);
+    const results = document.createElement("section");
+    results.className = "vh-mobile-execution-results";
+    results.dataset.mobileExecutionResults = "";
+    results.hidden = true;
+
+    const execution = plan.execution || {
+      state: "prepared",
+      reason: plan.dynamic_deferred
+        ? "Static and native coverage is prepared. Runtime work remains separately gated."
+        : "The plan is prepared; tool execution remains governed by worker policy.",
+    };
+    card.append(header, tools, rounds, executionPanel(execution), results);
     return card;
+  };
+
+  const markStaticCoverage = (card) => {
+    for (const altitude of ["artifact", "attack_surface"]) {
+      const round = card.querySelector(`[data-altitude='${altitude}']`);
+      if (!round || round.classList.contains("is-blocked")) continue;
+      round.classList.remove("is-planned", "is-in_progress");
+      round.classList.add("is-covered", "is-visible");
+      const marker = round.querySelector(":scope > span");
+      if (marker) marker.textContent = "✓";
+    }
+  };
+
+  const renderExecutionResults = (card, execution) => {
+    const container = card.querySelector("[data-mobile-execution-results]");
+    if (!container) return;
+    container.replaceChildren();
+
+    const receipt = execution?.receipt;
+    if (!receipt || execution.state !== "completed") {
+      container.hidden = true;
+      return;
+    }
+
+    const captures = Array.isArray(receipt.captures) ? receipt.captures : [];
+    const observations = Array.isArray(receipt.candidate_observations)
+      ? receipt.candidate_observations
+      : [];
+    const heading = document.createElement("header");
+    const title = document.createElement("strong");
+    title.textContent = "Bounded evidence receipts";
+    const count = document.createElement("small");
+    count.textContent = `${captures.length} tool capture${captures.length === 1 ? "" : "s"} · ${observations.length} candidate observation${observations.length === 1 ? "" : "s"}`;
+    heading.append(title, count);
+    container.append(heading);
+
+    if (captures.length) {
+      const captureList = document.createElement("div");
+      captureList.className = "vh-mobile-capture-list";
+      captures.forEach((capture) => {
+        const item = document.createElement("span");
+        item.className = Number(capture.return_code) === 0 ? "is-success" : "is-warning";
+        item.textContent = `${pretty(capture.tool)} · exit ${Number(capture.return_code)}`;
+        item.title = `Evidence ${text(capture.output_sha256).slice(0, 24)}${capture.truncated ? " · bounded output" : ""}`;
+        captureList.append(item);
+      });
+      container.append(captureList);
+    }
+
+    if (observations.length) {
+      const list = document.createElement("ul");
+      list.className = "vh-mobile-observation-list";
+      observations.forEach((observation) => {
+        const item = document.createElement("li");
+        const label = document.createElement("strong");
+        label.textContent = text(observation.title || "Candidate mobile observation");
+        const state = document.createElement("small");
+        state.textContent = pretty(observation.status || "candidate");
+        item.append(label, state);
+        list.append(item);
+      });
+      container.append(list);
+    } else {
+      const empty = document.createElement("p");
+      empty.textContent = "The static tools completed without producing a candidate observation.";
+      container.append(empty);
+    }
+    container.hidden = false;
+    markStaticCoverage(card);
+    scrollLatest();
+  };
+
+  const applyExecutionState = (card, execution) => {
+    const panel = card.querySelector("[data-mobile-execution]");
+    if (panel) updateExecutionPanel(panel, execution);
+    card.classList.toggle("is-executing", ["queued", "running"].includes(execution.state));
+    card.classList.toggle("is-complete", execution.state === "completed");
+    card.classList.toggle(
+      "is-failed",
+      ["blocked", "failed", "rejected"].includes(execution.state),
+    );
+    renderExecutionResults(card, execution);
+  };
+
+  const watchMobileExecution = async (statusUrl, card) => {
+    const terminal = new Set(["completed", "blocked", "failed", "rejected"]);
+    let temporaryFailures = 0;
+    for (let attempt = 0; attempt < 180 && card.isConnected; attempt += 1) {
+      if (document.hidden) await sleep(1000);
+      try {
+        const payload = await getJson(statusUrl);
+        const execution = payload.mobile_execution || { state: "unknown" };
+        temporaryFailures = 0;
+        applyExecutionState(card, execution);
+        if (terminal.has(execution.state)) return;
+      } catch (error) {
+        temporaryFailures += 1;
+        if (temporaryFailures >= 4) {
+          applyExecutionState(card, {
+            state: "unknown",
+            reason: `Live status paused: ${error.message}`,
+          });
+          return;
+        }
+      }
+      await sleep(1000);
+    }
+    if (card.isConnected) {
+      applyExecutionState(card, {
+        state: "queued",
+        reason: "The worker is still queued. You can leave this page and return later.",
+      });
+    }
   };
 
   const uploadAttachment = async (file) => {

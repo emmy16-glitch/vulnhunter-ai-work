@@ -138,16 +138,12 @@ def test_candidate_cannot_jump_to_confirmed_or_be_rejected_without_receipt():
 
 
 def test_conversation_ui_exposes_plus_button_and_progressive_mobile_assets():
-    template = (ROOT / "vulnhunter/web/templates/web/conversation.html").read_text(
-        encoding="utf-8"
-    )
-    script = (ROOT / "vulnhunter/web/static/web/conversation-mobile.js").read_text(
-        encoding="utf-8"
-    )
+    template = (ROOT / "vulnhunter/web/templates/web/conversation.html").read_text(encoding="utf-8")
+    script = (ROOT / "vulnhunter/web/static/web/conversation-mobile.js").read_text(encoding="utf-8")
 
     assert "data-conversation-attach" in template
     assert "data-conversation-file" in template
     assert "web-conversation-attachment" in template
     assert "web-conversation-mobile-message" in template
-    assert "setTimeout(() => item.classList.add(\"is-visible\")" in script
+    assert 'setTimeout(() => item.classList.add("is-visible")' in script
     assert "stopImmediatePropagation" in script

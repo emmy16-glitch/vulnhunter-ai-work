@@ -16,6 +16,7 @@ _MAX_MODULES = 512
 _MAX_CLASSES = 2_000
 _SCRIPT = r"""
 'use strict';
+const javaAvailable = typeof Java !== 'undefined' && Java.available;
 const result = {
   modules: Process.enumerateModules().slice(0, 512).map((module) => ({
     name: module.name,
@@ -23,9 +24,9 @@ const result = {
     size: module.size,
     path: module.path
   })),
-  java_available: Java.available
+  java_available: javaAvailable
 };
-if (Java.available) {
+if (javaAvailable) {
   Java.perform(() => {
     result.loaded_classes = Java.enumerateLoadedClassesSync().slice(0, 2000);
     send(result);
@@ -67,7 +68,12 @@ def _bounded_payload(payload: object) -> dict[str, object]:
     }
 
 
-def inventory(device_id: str, package_name: str, *, timeout_seconds: int) -> dict[str, object]:
+def inventory(
+    device_id: str,
+    package_name: str,
+    *,
+    timeout_seconds: int,
+) -> dict[str, object]:
     messages: list[dict[str, object]] = []
     errors: list[str] = []
 

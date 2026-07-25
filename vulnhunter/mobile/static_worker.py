@@ -39,6 +39,21 @@ class MobileStaticAnalysisResult(BaseModel):
     reason: str = Field(min_length=3, max_length=500)
 
 
+def _controlled_failure_reason(exc: BaseException) -> str:
+    if isinstance(exc, MobileStaticToolchainError):
+        detail = str(exc).strip() or "the static toolchain safety boundary was reached"
+    elif isinstance(exc, MobileArtifactError):
+        detail = str(exc).strip() or "the APK artifact failed integrity validation"
+    elif isinstance(exc, zipfile.BadZipFile):
+        detail = "the APK archive became unreadable during isolated inspection"
+    elif isinstance(exc, ValueError):
+        detail = "a validated worker input became invalid during isolated inspection"
+    else:
+        detail = f"an operating-system error prevented safe inspection ({type(exc).__name__})"
+    detail = " ".join(detail.split())[:360]
+    return f"Mobile static analysis stopped safely: {detail}."
+
+
 class MobileStaticWorker:
     """Run fixed tools against a private APK copy; never execute the APK."""
 
@@ -98,17 +113,18 @@ class MobileStaticWorker:
             ValueError,
             zipfile.BadZipFile,
         ) as exc:
+            reason = _controlled_failure_reason(exc)
             self._emit(
                 progress_callback,
                 state="failed",
                 stage="worker",
-                detail=f"Static analysis failed closed: {type(exc).__name__}.",
+                detail=reason,
             )
             return MobileStaticAnalysisResult(
                 artifact_id=record.artifact_id,
                 state="failed",
                 completed_at=datetime.now(UTC),
-                reason=f"Mobile static analysis failed closed: {type(exc).__name__}.",
+                reason=reason,
             )
         result = MobileStaticAnalysisResult(
             artifact_id=record.artifact_id,

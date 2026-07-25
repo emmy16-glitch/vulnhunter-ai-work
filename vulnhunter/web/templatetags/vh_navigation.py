@@ -13,7 +13,7 @@ from vulnhunter.web.services import role_policy
 register = template.Library()
 
 # Kept as a compatibility vocabulary marker for integrations that inventory the
-# historical capability name. Approval now opens inside Assessments instead.
+# historical capability name. Approval now opens inside assessment history instead.
 LEGACY_CAPABILITY_LABELS = ({"label": "Approval Centre"},)
 
 
@@ -23,8 +23,8 @@ def professional_title(page_title: object) -> str:
 
     value = str(page_title)
     exact = {
-        "Agent Runs": "Assessment Control Centre",
-        "Assessments": "Assessment Control Centre",
+        "Agent Runs": "Assessment History",
+        "Assessments": "Assessment History",
         "Machine Oracle": "Verification",
         "Models": "Analysis Services",
         "Intelligence components": "Analysis Services",

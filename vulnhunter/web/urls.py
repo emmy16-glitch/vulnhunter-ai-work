@@ -242,7 +242,7 @@ urlpatterns = [
     ),
     path(
         "mobile-analysis/",
-        operations_views.mobile_analysis_view,
+        RedirectView.as_view(pattern_name="web-dashboard", permanent=False),
         name="web-mobile-analysis",
     ),
     path("pilot/plans/", views.pilot_plan_list_view, name="web-pilot-plan-list"),

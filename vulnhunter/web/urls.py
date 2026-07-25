@@ -215,7 +215,7 @@ urlpatterns = [
     path("agent/runs/", views.agent_run_list_view, name="web-agent-run-list"),
     path(
         "agent/runs/<str:run_id>/",
-        RedirectView.as_view(pattern_name="web-scan-run-detail", permanent=False),
+        unified_assessment_views.assessment_detail_view,
         name="web-agent-run-detail",
     ),
     path(

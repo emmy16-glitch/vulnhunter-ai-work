@@ -110,6 +110,7 @@ def enqueue_mobile_static_if_ready(
                 ("aapt2", policy.aapt2_executable),
                 ("apksigner", policy.apksigner_executable),
                 ("apkid", policy.apkid_executable),
+                ("apktool", policy.apktool_executable),
             )
             if path is not None
         ],

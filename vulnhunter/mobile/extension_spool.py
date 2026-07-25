@@ -207,7 +207,7 @@ class MobileExtensionSpool:
 
     def claim_next(self) -> Path | None:
         for source in sorted(self.pending.glob("*.json")):
-            if source.is_symlink():
+            if source.is_symlink() or not source.is_file():
                 raise MobileExtensionSpoolError("pending extension job is unsafe")
             destination = self.processing / source.name
             try:
@@ -244,8 +244,10 @@ class MobileExtensionSpool:
         receipt: MobileExtensionReceipt,
         success: bool,
     ) -> Path:
-        if claimed.parent != self.processing or claimed.is_symlink():
+        if claimed.parent != self.processing or claimed.is_symlink() or not claimed.is_file():
             raise MobileExtensionSpoolError("claimed extension job path is unsafe")
+        if claimed.name != self._filename(receipt.job_id):
+            raise MobileExtensionSpoolError("extension receipt does not match claimed job")
         target_root = self.completed if success else self.failed
         target = target_root / claimed.name
         self._write_exclusive(target, receipt.model_dump_json(indent=2) + "\n")
@@ -253,12 +255,15 @@ class MobileExtensionSpool:
         return target
 
     def reject(self, claimed: Path, *, reason: str, now: datetime) -> Path:
+        if claimed.parent != self.processing or claimed.is_symlink() or not claimed.is_file():
+            raise MobileExtensionSpoolError("claimed extension job path is unsafe")
         try:
             raw = json.loads(claimed.read_text(encoding="utf-8"))
         except (OSError, ValueError):
             raw = {}
         job_id = str(raw.get("job_id") or claimed.stem)
-        kind = str(raw.get("kind") or "mobsf")
+        raw_kind = str(raw.get("kind") or "mobsf")
+        kind: ExtensionKind = "runtime" if raw_kind == "runtime" else "mobsf"
         artifact_id = str(raw.get("artifact_id") or "unknown-artifact")
         unsigned = {
             "job_id": job_id,

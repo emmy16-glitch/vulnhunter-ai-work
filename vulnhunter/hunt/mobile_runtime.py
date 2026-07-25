@@ -9,6 +9,14 @@ from vulnhunter.hunt.ledger import transition_candidate
 from vulnhunter.hunt.models import CandidateRecord, CandidateState, HuntAltitude
 from vulnhunter.mobile.static_worker import MobileStaticAnalysisResult
 
+_VERIFIED_STATUSES = {
+    "verified",
+    "verified_configuration",
+    "verified_content",
+    "deterministic",
+}
+_REJECTED_STATUSES = {"operational_failure", "rejected", "tool_failure"}
+
 
 class MobileHuntCandidateReceipt(BaseModel):
     """One evidence-bound candidate disposition safe for the chat projection."""
@@ -20,7 +28,9 @@ class MobileHuntCandidateReceipt(BaseModel):
     title: str
     severity: str
     state: CandidateState
+    source_status: str = "candidate"
     component: str | None = None
+    tool_ids: tuple[str, ...] = ()
     evidence_receipts: tuple[str, ...] = ()
     judge_receipts: tuple[str, ...] = ()
     disposition_reason: str
@@ -84,6 +94,7 @@ def _judge_candidate(
     judge_payload = {
         "candidate": candidate.candidate_id,
         "evidence": observation_receipt,
+        "source_status": str(observation.get("status") or "candidate"),
     }
     judge_receipt = f"judge:{sha256_json(judge_payload)}"
     judging = transition_candidate(
@@ -92,8 +103,9 @@ def _judge_candidate(
         disposition_reason="Independent deterministic judge opened the raw observation receipt.",
         judge_receipt=judge_receipt,
     )
+    source_status = str(observation.get("status") or "candidate").casefold()
     title = candidate.title.casefold()
-    if "could not complete static inspection" in title:
+    if source_status in _REJECTED_STATUSES or "could not complete static inspection" in title:
         return transition_candidate(
             judging,
             new_state=CandidateState.REJECTED,
@@ -103,12 +115,15 @@ def _judge_candidate(
             evidence_receipt=observation_receipt,
             judge_receipt=judge_receipt,
         )
-    if observation.get("weakness_id") and isinstance(observation.get("evidence"), dict):
+    has_evidence = isinstance(observation.get("evidence"), dict) and bool(
+        observation.get("evidence")
+    )
+    if source_status in _VERIFIED_STATUSES and observation.get("weakness_id") and has_evidence:
         return transition_candidate(
             judging,
             new_state=CandidateState.VERIFIED,
             disposition_reason=(
-                "The decoded manifest evidence deterministically supports this configuration "
+                "The evidence deterministically supports the reported content or configuration "
                 "condition; exploitability and impact remain unconfirmed."
             ),
             evidence_receipt=observation_receipt,
@@ -126,14 +141,25 @@ def _judge_candidate(
     )
 
 
-def _receipt(candidate: CandidateRecord) -> MobileHuntCandidateReceipt:
+def _receipt(
+    candidate: CandidateRecord,
+    observation: dict[str, object],
+) -> MobileHuntCandidateReceipt:
+    raw_tools = observation.get("tool_ids")
+    tools = (
+        tuple(str(item) for item in raw_tools if isinstance(item, str))
+        if isinstance(raw_tools, (list, tuple))
+        else ()
+    )
     return MobileHuntCandidateReceipt(
         candidate_id=candidate.candidate_id,
         weakness_id=candidate.weakness_id,
         title=candidate.title,
         severity=candidate.severity,
         state=candidate.state,
+        source_status=str(observation.get("status") or "candidate"),
         component=candidate.component,
+        tool_ids=tools,
         evidence_receipts=candidate.evidence_receipts,
         judge_receipts=candidate.judge_receipts,
         disposition_reason=candidate.disposition_reason or "No disposition was recorded.",
@@ -151,7 +177,10 @@ def run_mobile_evidence_hunt(
         _judge_candidate(_candidate_from_observation(item, index=index), item)
         for index, item in enumerate(observations, start=1)
     )
-    candidate_receipts = tuple(_receipt(item) for item in candidates)
+    candidate_receipts = tuple(
+        _receipt(candidate, observation)
+        for candidate, observation in zip(candidates, observations, strict=True)
+    )
 
     variant_keys = {
         (item.weakness_id, item.component, item.title.casefold()) for item in candidate_receipts

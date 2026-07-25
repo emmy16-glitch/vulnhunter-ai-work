@@ -1,6 +1,6 @@
 """Session-scoped references to safely ingested conversational attachments.
 
-The uploaded bytes remain in the existing content-addressed artifact store.  The
+The uploaded bytes remain in the existing content-addressed artifact store. The
 conversation session keeps only bounded, non-secret metadata and an opaque
 attachment identifier.
 """
@@ -18,8 +18,18 @@ _SESSION_KEY = "vulnhunter_conversation_attachments"
 _MAX_ATTACHMENTS = 8
 
 
+class _Session(Protocol):
+    modified: bool
+
+    def get(self, key: str, default: object = None) -> object: ...
+
+    def pop(self, key: str, default: object = None) -> object: ...
+
+    def __setitem__(self, key: str, value: object) -> None: ...
+
+
 class _SessionRequest(Protocol):
-    session: object
+    session: _Session
 
 
 @dataclass(frozen=True)
@@ -78,7 +88,7 @@ def remember_apk_attachment(
         native_abis=record.native_abis,
         created_at=datetime.now(UTC).isoformat(),
     )
-    raw = getattr(request.session, "get")(_SESSION_KEY, {})
+    raw = request.session.get(_SESSION_KEY, {})
     stored = dict(raw) if isinstance(raw, dict) else {}
     stored[attachment.attachment_id] = attachment.payload()
     ordered = sorted(
@@ -97,7 +107,7 @@ def get_attachment(
     request: _SessionRequest,
     attachment_id: str,
 ) -> ConversationAttachment | None:
-    raw = getattr(request.session, "get")(_SESSION_KEY, {})
+    raw = request.session.get(_SESSION_KEY, {})
     if not isinstance(raw, dict):
         return None
     attachment = ConversationAttachment.from_payload(raw.get(attachment_id))
@@ -107,7 +117,7 @@ def get_attachment(
 
 
 def forget_attachment(request: _SessionRequest, attachment_id: str) -> None:
-    raw = getattr(request.session, "get")(_SESSION_KEY, {})
+    raw = request.session.get(_SESSION_KEY, {})
     if not isinstance(raw, dict) or attachment_id not in raw:
         return
     stored = dict(raw)

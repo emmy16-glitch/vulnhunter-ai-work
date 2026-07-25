@@ -23,70 +23,53 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
-      - name: Apply exact fail-closed repairs
+      - name: Apply structural fail-closed repairs
         run: |
           python - <<'PY'
           from pathlib import Path
 
           runtime_path = Path("vulnhunter/mobile/runtime.py")
           runtime = runtime_path.read_text(encoding="utf-8")
-          old_runtime = '''        finally:
-              if installed:
-                  captures.extend(self._cleanup(package_name))
-          if time.monotonic() - started > self.policy.maximum_session_seconds:
-          '''
-          new_runtime = '''        finally:
-              if installed:
-                  try:
-                      cleanup = self._cleanup(package_name)
-                  except (OSError, subprocess.SubprocessError, MobileRuntimeError) as exc:
-                      if failure is None:
-                          failure = exc
-                  else:
-                      captures.extend(cleanup)
-                      if failure is None and any(item.return_code != 0 for item in cleanup):
-                          failure = MobileRuntimeError(
-                              "runtime cleanup could not remove the approved package"
-                          )
-          if time.monotonic() - started > self.policy.maximum_session_seconds:
-          '''
-          if runtime.count(old_runtime) == 1:
-              runtime = runtime.replace(old_runtime, new_runtime)
-              runtime_path.write_text(runtime, encoding="utf-8")
-          elif runtime.count(new_runtime) != 1:
-              raise SystemExit("runtime cleanup contract is neither original nor repaired")
+          runtime_guard = "runtime cleanup could not remove the approved package"
+          if runtime_guard not in runtime:
+              lines = runtime.splitlines()
+              matches = [
+                  index
+                  for index, line in enumerate(lines)
+                  if line.strip() == "captures.extend(self._cleanup(package_name))"
+              ]
+              if len(matches) != 1:
+                  raise SystemExit("runtime cleanup call did not match exactly once")
+              call_index = matches[0]
+              if call_index < 2 or lines[call_index - 2].strip() != "finally:" or lines[call_index - 1].strip() != "if installed:":
+                  raise SystemExit("runtime cleanup call is outside the expected finally block")
+              replacement = [
+                  "        finally:",
+                  "            if installed:",
+                  "                try:",
+                  "                    cleanup = self._cleanup(package_name)",
+                  "                except (OSError, subprocess.SubprocessError, MobileRuntimeError) as exc:",
+                  "                    if failure is None:",
+                  "                        failure = exc",
+                  "                else:",
+                  "                    captures.extend(cleanup)",
+                  "                    if failure is None and any(item.return_code != 0 for item in cleanup):",
+                  "                        failure = MobileRuntimeError(",
+                  f'                            "{runtime_guard}"',
+                  "                        )",
+              ]
+              lines[call_index - 2 : call_index + 1] = replacement
+              runtime_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
           spool_path = Path("vulnhunter/mobile/extension_spool.py")
           spool = spool_path.read_text(encoding="utf-8")
-          old_spool = '''    def reject(self, claimed: Path, *, reason: str, now: datetime) -> Path:
-              if claimed.parent != self.processing or claimed.is_symlink() or not claimed.is_file():
-                  raise MobileExtensionSpoolError("claimed extension job path is unsafe")
-              try:
-                  raw = json.loads(claimed.read_text(encoding="utf-8"))
-              except (OSError, ValueError):
-                  raw = {}
-              job_id = str(raw.get("job_id") or claimed.stem)
-              raw_kind = str(raw.get("kind") or "mobsf")
-              kind: ExtensionKind = "runtime" if raw_kind == "runtime" else "mobsf"
-              artifact_id = str(raw.get("artifact_id") or "unknown-artifact")
-              unsigned = {
-                  "job_id": job_id,
-                  "kind": kind,
-                  "artifact_id": artifact_id,
-                  "state": "rejected",
-                  "completed_at": _utc(now).isoformat(),
-                  "reason": reason[:500],
-                  "evidence": {},
-              }
-              receipt = MobileExtensionReceipt(
-                  **unsigned,
-                  result_sha256=hashlib.sha256(
-                      json.dumps(unsigned, sort_keys=True, separators=(",", ":")).encode()
-                  ).hexdigest(),
-              )
-              return self.finish(claimed, receipt=receipt, success=False)
-          '''
-          new_spool = '''    def reject(self, claimed: Path, *, reason: str, now: datetime) -> Path:
+          spool_guard = "malformed_identity = canonical_job_id is None"
+          if spool_guard not in spool:
+              start = spool.find("    def reject(self, claimed: Path, *, reason: str, now: datetime) -> Path:\n")
+              end = spool.find("    def recover_processing(self, *, now: datetime) -> None:\n")
+              if start < 0 or end <= start:
+                  raise SystemExit("extension reject function boundaries were not found")
+              replacement = '''    def reject(self, claimed: Path, *, reason: str, now: datetime) -> Path:
               if claimed.parent != self.processing or claimed.is_symlink() or not claimed.is_file():
                   raise MobileExtensionSpoolError("claimed extension job path is unsafe")
               try:
@@ -143,12 +126,9 @@ jobs:
                   claimed.unlink(missing_ok=True)
                   return target
               return self.finish(claimed, receipt=receipt, success=False)
+
           '''
-          if spool.count(old_spool) == 1:
-              spool = spool.replace(old_spool, new_spool)
-              spool_path.write_text(spool, encoding="utf-8")
-          elif spool.count(new_spool) != 1:
-              raise SystemExit("extension rejection contract is neither original nor repaired")
+              spool_path.write_text(spool[:start] + replacement + spool[end:], encoding="utf-8")
           PY
       - name: Format and validate repaired files
         run: |

@@ -243,23 +243,31 @@ def test_signed_mobile_static_queue_rejects_tampered_job(tmp_path):
         spool.load_claimed(claimed, key=key, now=NOW)
 
 
-def test_conversation_ui_exposes_plus_button_progress_and_live_worker_status():
+def test_conversation_ui_exposes_plus_button_progress_live_status_and_context():
     template = (ROOT / "vulnhunter/web/templates/web/conversation.html").read_text(encoding="utf-8")
     script = (ROOT / "vulnhunter/web/static/web/conversation-mobile.js").read_text(encoding="utf-8")
+    context_script = (
+        ROOT / "vulnhunter/web/static/web/conversation-mobile-context.js"
+    ).read_text(encoding="utf-8")
 
     assert "data-conversation-attach" in template
     assert "data-conversation-file" in template
     assert "web-conversation-attachment" in template
     assert "web-conversation-mobile-message" in template
+    assert "web-conversation-mobile-followup" in template
     assert "conversation-mobile-execution.css" in template
+    assert "conversation-mobile-context.js" in template
     assert 'setTimeout(() => item.classList.add("is-visible")' in script
     assert "watchMobileExecution" in script
     assert "data-mobile-execution-results" in script
+    assert "activeMobilePlan" in context_script
+    assert "bypassMobileFollowup" in context_script
+    assert "form.requestSubmit()" in context_script
     assert "stopImmediatePropagation" in script
 
 
 @pytest.mark.django_db
-def test_chat_uploads_real_apk_then_prepares_mobile_hunt(client, settings, tmp_path):
+def test_chat_uploads_apk_answers_followups_then_hands_off_to_web_scan(client, settings, tmp_path):
     settings.ALLOWED_HOSTS = ["testserver"]
     settings.VULNHUNTER_MOBILE_ARTIFACT_ROOT = str(tmp_path / "mobile-artifacts")
     settings.VULNHUNTER_MOBILE_MAX_APK_BYTES = 10_000_000
@@ -291,6 +299,15 @@ def test_chat_uploads_real_apk_then_prepares_mobile_hunt(client, settings, tmp_p
                 "message": "Test this APK thoroughly",
             },
         )
+        followup = client.post(
+            "/workspace/mobile-followup/",
+            {"message": "What tools did you select for this APK?"},
+        )
+        handoff = client.post(
+            "/workspace/mobile-followup/",
+            {"message": "Scan https://example.com using the passive profile"},
+        )
+        context = client.get("/workspace/mobile-context/")
 
     assert request.status_code == 200
     payload = request.json()
@@ -299,3 +316,11 @@ def test_chat_uploads_real_apk_then_prepares_mobile_hunt(client, settings, tmp_p
     assert payload["mobile_plan"]["dynamic_deferred"] is True
     assert payload["mobile_plan"]["execution"]["state"] == "gated"
     assert payload["mobile_plan"]["artifact"]["artifact_sha256"] == attachment["artifact_sha256"]
+
+    assert followup.status_code == 200
+    assert "planner selected" in followup.json()["message"]["content"].casefold()
+    assert "jadx" in followup.json()["message"]["content"].casefold()
+    assert handoff.status_code == 200
+    assert handoff.json() == {"handoff": True}
+    assert context.status_code == 200
+    assert context.json() == {"mobile_plan": None}

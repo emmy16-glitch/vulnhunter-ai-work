@@ -77,7 +77,10 @@ class ReadOnlyFixVerifier:
             summary = "The security regression test still reproduces the original attack condition."
         elif request.original_attack_blocked is not True:
             verdict = FixVerificationVerdict.PARTIALLY_FIXED
-            summary = "The test passed, but the original attack recipe was not independently shown blocked."
+            summary = (
+                "The test passed, but the original attack recipe was not independently "
+                "shown blocked."
+            )
         else:
             failed_regressions = tuple(
                 receipt.verifier_id
@@ -86,11 +89,17 @@ class ReadOnlyFixVerifier:
             )
             if failed_regressions:
                 verdict = FixVerificationVerdict.REGRESSION_DETECTED
-                summary = "The security condition is blocked, but one or more regression verifiers failed."
+                summary = (
+                    "The security condition is blocked, but one or more regression "
+                    "verifiers failed."
+                )
                 regressions = failed_regressions
             elif not request.regression_tests:
                 verdict = FixVerificationVerdict.PARTIALLY_FIXED
-                summary = "The attack is blocked, but no broader regression suite receipt was supplied."
+                summary = (
+                    "The attack is blocked, but no broader regression suite receipt "
+                    "was supplied."
+                )
             else:
                 self._validate_evidence_references(
                     request.fixed_snapshot,
@@ -98,8 +107,9 @@ class ReadOnlyFixVerifier:
                 )
                 verdict = FixVerificationVerdict.FIXED
                 summary = (
-                    "The original attack condition is blocked, the security test passes, all supplied "
-                    "regression verifiers pass, and fixed evidence references match the exact snapshot."
+                    "The original attack condition is blocked, the security test passes, "
+                    "all supplied regression verifiers pass, and fixed evidence references "
+                    "match the exact snapshot."
                 )
 
         return FixVerificationReport(

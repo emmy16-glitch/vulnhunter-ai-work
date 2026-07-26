@@ -30,10 +30,11 @@
       <div>
         <p class="vh-eyebrow">Governed security assessment</p>
         <h1 id="vh-chat-title">Assessment Workspace</h1>
-        <p class="vh-chat-subtitle">Conversational analysis for authorised websites and APKs</p>
+        <p class="vh-chat-subtitle">Conversational analysis for authorised websites, APKs and source repositories</p>
       </div>
     </div>
     <div class="vh-chat-runtime" aria-label="Workspace actions">
+      <a class="vh-chat-history-toggle" href="{% url 'web-source-hunt' %}">Source Hunt</a>
       <button type="button" class="vh-chat-history-toggle" data-history-toggle aria-expanded="false" aria-controls="vh-chat-history">History</button>
       <button type="button" class="vh-chat-reset" data-conversation-reset>New conversation</button>
     </div>
@@ -95,13 +96,13 @@
             <span aria-hidden="true">+</span>
           </button>
           <input type="file" name="attachment" accept=".apk,application/vnd.android.package-archive" data-conversation-file hidden>
-          <textarea id="vh-chat-message" name="message" rows="1" maxlength="4000" autocomplete="off" spellcheck="true" placeholder="Message VulnHunter — describe a target, attach an APK, or ask about a finding" data-conversation-input required></textarea>
+          <textarea id="vh-chat-message" name="message" rows="1" maxlength="4000" autocomplete="off" spellcheck="true" placeholder="Message VulnHunter — describe a target, attach an APK, open Source Hunt, or ask about a finding" data-conversation-input required></textarea>
           <button type="submit" class="vh-chat-send" data-conversation-send aria-label="Send message">
             <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m4 12 16-8-5.5 16-3.2-6.8z"/><path d="m11.3 13.2 4.6-4.6"/></svg>
           </button>
         </div>
         <div class="vh-chat-composer-meta">
-          <span>Website and APK assessments both start here · Enter to send · Shift+Enter for a new line</span>
+          <span>Website and APK assessments start here · Source repositories use the exact Source Hunt flow · Enter to send · Shift+Enter for a new line</span>
         </div>
       </form>
     </main>
@@ -123,7 +124,7 @@
             <span><strong>{{ item.target|truncatechars:38 }}</strong><small>{{ item.state }} · {{ item.profile }}</small></span>
           </a>
         {% empty %}
-          <p class="vh-chat-history-empty">No assessments yet. Paste an authorised website URL or attach an APK to begin.</p>
+          <p class="vh-chat-history-empty">No assessments yet. Paste an authorised website URL, attach an APK, or open Source Hunt for a repository.</p>
         {% endfor %}
       </div>
       <a class="vh-chat-history-link" href="{% url 'web-findings-overview' %}">Open findings</a>

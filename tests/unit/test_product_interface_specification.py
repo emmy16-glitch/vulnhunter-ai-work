@@ -50,7 +50,7 @@ def test_fingerprint_changes_with_blueprint_content(tmp_path: Path) -> None:
     root = mutate(
         tmp_path,
         "pages.json",
-        lambda data: data["pages"][0].update({"title": "Changed"}),
+        lambda data: data["pages"][2].update({"title": "Changed"}),
     )
     assert ProductInterfaceSpec.from_path(root).fingerprint() != original
 
@@ -86,6 +86,46 @@ def test_unknown_navigation_page_is_rejected(tmp_path: Path) -> None:
 
     root = mutate(tmp_path, "navigation.json", change)
     with pytest.raises(SpecValidationError, match="Navigation references unknown"):
+        ProductInterfaceSpec.from_path(root)
+
+
+def test_navigation_label_must_match_page_title(tmp_path: Path) -> None:
+    def change(data):
+        data["sections"][0]["items"][0]["label"] = "Drifted label"
+
+    root = mutate(tmp_path, "navigation.json", change)
+    with pytest.raises(SpecValidationError, match="must match the page title"):
+        ProductInterfaceSpec.from_path(root)
+
+
+def test_navigation_page_cannot_appear_twice(tmp_path: Path) -> None:
+    def change(data):
+        data["sections"][0]["items"].append(dict(data["sections"][0]["items"][0]))
+
+    root = mutate(tmp_path, "navigation.json", change)
+    with pytest.raises(SpecValidationError, match="appear exactly once"):
+        ProductInterfaceSpec.from_path(root)
+
+
+def test_page_navigation_section_must_match_navigation(tmp_path: Path) -> None:
+    def change(data):
+        page = next(item for item in data["pages"] if item["page_id"] == "campaigns")
+        page["nav_section"] = "analysis"
+
+    root = mutate(tmp_path, "pages.json", change)
+    with pytest.raises(SpecValidationError, match="declares 'analysis'"):
+        ProductInterfaceSpec.from_path(root)
+
+
+def test_page_declaring_navigation_must_be_listed(tmp_path: Path) -> None:
+    def change(data):
+        collection = next(item for item in data["sections"] if item["section_id"] == "collection")
+        collection["items"] = [
+            item for item in collection["items"] if item["page_id"] != "scan-runs"
+        ]
+
+    root = mutate(tmp_path, "navigation.json", change)
+    with pytest.raises(SpecValidationError, match="missing from navigation"):
         ProductInterfaceSpec.from_path(root)
 
 
@@ -235,7 +275,7 @@ def test_cli_fingerprint_outputs_sha256(capsys) -> None:
 def test_cli_lists_pages(capsys) -> None:
     assert main(["--root", str(SPEC_ROOT), "list-pages"]) == 0
     output = capsys.readouterr().out
-    assert "new-scan\t/scans/new\tNew Bounded Scan" in output
+    assert "new-scan\t/scans/new\tAssessment Workspace Compatibility Redirect" in output
     assert "review-workspace" in output
 
 

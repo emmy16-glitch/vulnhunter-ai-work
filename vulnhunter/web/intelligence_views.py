@@ -103,7 +103,7 @@ def model_list_view(request: HttpRequest) -> HttpResponse:
         request,
         "web/models_overview.html",
         {
-            "page_title": "Intelligence components",
+            "page_title": "Analysis Services",
             "current_route": "web-model-list",
             "intelligence_status": _component_rows(),
         },

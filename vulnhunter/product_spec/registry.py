@@ -205,10 +205,49 @@ class ProductInterfaceSpec:
                 errors.append("The adjudicator role must not submit reviewer decisions.")
 
         navigation = self.documents["navigation.json"]
-        for section in navigation.get("sections", []):
+        sections = navigation.get("sections", [])
+        section_ids = self._unique_values(sections, "section_id", "navigation section", errors)
+        page_by_id = {page["page_id"]: page for page in self.pages if page.get("page_id")}
+        navigation_page_ids: list[str] = []
+        for section in sections:
+            section_id = section.get("section_id")
             for item in section.get("items", []):
-                if item.get("page_id") not in page_ids:
-                    errors.append(f"Navigation references unknown page: {item.get('page_id')!r}")
+                page_id = item.get("page_id")
+                if page_id not in page_ids:
+                    errors.append(f"Navigation references unknown page: {page_id!r}")
+                    continue
+                navigation_page_ids.append(page_id)
+                page = page_by_id[page_id]
+                if page.get("nav_section") != section_id:
+                    errors.append(
+                        f"Navigation page {page_id!r} is in section {section_id!r}, but the page "
+                        f"declares {page.get('nav_section')!r}."
+                    )
+                if item.get("label") != page.get("title"):
+                    errors.append(
+                        f"Navigation label for {page_id!r} must match the page title exactly."
+                    )
+
+        if len(navigation_page_ids) != len(set(navigation_page_ids)):
+            errors.append("Every navigation page must appear exactly once.")
+        declared_navigation_pages = {
+            page["page_id"] for page in self.pages if page.get("nav_section") is not None
+        }
+        missing_navigation_pages = declared_navigation_pages - set(navigation_page_ids)
+        if missing_navigation_pages:
+            errors.append(
+                "Pages declaring a navigation section are missing from navigation: "
+                f"{sorted(missing_navigation_pages)}"
+            )
+        unknown_declared_sections = {
+            page.get("nav_section")
+            for page in self.pages
+            if page.get("nav_section") is not None and page.get("nav_section") not in section_ids
+        }
+        if unknown_declared_sections:
+            errors.append(
+                f"Pages reference unknown navigation sections: {sorted(unknown_declared_sections)}"
+            )
 
         breakpoints = self.documents["responsive_breakpoints.json"].get(
             "breakpoints",

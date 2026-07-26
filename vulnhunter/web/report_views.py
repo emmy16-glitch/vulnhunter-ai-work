@@ -16,7 +16,6 @@ from vulnhunter.web.services import (
     authorized_actor,
     get_pilot_plan_record,
     list_pilot_plan_records,
-    navigation_for,
     role_policy,
 )
 
@@ -96,7 +95,6 @@ def reports_overview_view(request: HttpRequest) -> HttpResponse:
                 "page_title": "Access Denied",
                 "denied_message": str(exc),
                 "current_route": "web-reports-overview",
-                "navigation": navigation_for(request.user),
             },
             status=403,
         )
@@ -106,7 +104,6 @@ def reports_overview_view(request: HttpRequest) -> HttpResponse:
         {
             "page_title": "Reports",
             "current_route": "web-reports-overview",
-            "navigation": navigation_for(request.user),
             "records": _visible_records(actor),
             "report_formats": _formats(),
         },

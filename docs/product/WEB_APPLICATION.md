@@ -39,7 +39,10 @@ following prototype behaviours were intentionally not carried into production:
 - simulated execution or publication controls.
 
 All state-changing forms are Django POST requests with CSRF protection and
-server-side permission enforcement.
+server-side permission enforcement. Website and APK work now begin in the same
+assessment workspace. The historical `/scans/new/` and `/mobile-analysis/`
+paths remain navigation-compatible aliases only; they do not maintain a second
+form, upload surface, or backend workflow.
 
 ## Current product boundary
 
@@ -57,7 +60,7 @@ Implemented browser surfaces include:
 - campaign, readiness, release-assessment, and dataset-quality workspaces;
 - model-neutral intelligence component status and authority contracts;
 - reports and renderer readiness;
-- audit, role, skill, tool, settings, and mobile static-analysis surfaces;
+- audit, role, skill, tool, settings, and unified mobile static-analysis state;
 - controlled synthetic active-validation workspaces.
 
 Activation-gated or environment-dependent capabilities include:
@@ -154,7 +157,7 @@ not persisted by the web application.
 - `/status/`
 - `/audit/`
 - `/authorizations/`
-- `/scans/new/`
+- `/scans/new/` (compatibility redirect to `/?intent=new-assessment`)
 - `/scans/`
 - `/scans/<run_id>/`
 - `/agent/runs/<run_id>/activity/`
@@ -198,7 +201,7 @@ without a safe backend contract.
 - `/reports/`
 - `/security-tools/`
 - `/advanced-assessment/`
-- `/mobile-analysis/`
+- `/mobile-analysis/` (compatibility alias for the unified assessment workspace)
 - `/active-validation/<lab_id>/`
 - `/roles/`
 - `/skills/`
@@ -282,7 +285,8 @@ web/console.css
 web/intelligence.css
 web/app.js
 web/activity.js
-web/assessment-modal.js
+web/conversation.js
+web/workspace-state.js
 ```
 
 The Content Security Policy requires scripts and styles to be served from the

@@ -44,7 +44,6 @@ from vulnhunter.web.services import (
     WebPermissionDenied,
     activity_payload,
     authorized_actor,
-    navigation_for,
     product_service,
     run_visible_to_actor,
     stop_agent_run,
@@ -63,7 +62,6 @@ def _render(
     status: int = 200,
 ) -> HttpResponse:
     base = {
-        "navigation": navigation_for(request.user),
         "current_route": request.resolver_match.url_name if request.resolver_match else "",
     }
     base.update(context)

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime
 from pathlib import Path
 
 from django.conf import settings
@@ -15,10 +14,7 @@ from django.shortcuts import redirect, render
 from django.views.decorators.cache import cache_control
 from django.views.decorators.http import require_GET, require_http_methods
 
-from vulnhunter.adversary_lab.store import AdversaryLabStore, AdversaryLabStoreError
 from vulnhunter.agent import AgentStore, AgentStoreError
-from vulnhunter.approvals import ApprovalStatus, ApprovalStore
-from vulnhunter.approvals.store import ApprovalStoreError
 from vulnhunter.authorization.store import AuthorizationStore
 from vulnhunter.exceptions import GovernanceError
 from vulnhunter.product import ProductServiceError
@@ -33,8 +29,8 @@ from vulnhunter.web.services import (
     governance_store,
     intelligence_status,
     list_pilot_plan_records,
-    navigation_for,
     product_service,
+    role_policy,
     run_visible_to_actor,
     stop_agent_run,
 )
@@ -54,7 +50,6 @@ def _render(
     status: int = 200,
 ) -> HttpResponse:
     base = {
-        "navigation": navigation_for(request.user),
         "current_route": request.resolver_match.url_name if request.resolver_match else "",
     }
     base.update(context)
@@ -88,40 +83,6 @@ def _after_sequence_or_400(request: HttpRequest) -> int:
     except (TypeError, ValueError) as exc:
         raise ValueError("after_sequence must be a non-negative integer") from exc
     return max(0, value)
-
-
-def _approval_context_for_run(run_id: str) -> tuple[object | None, object | None]:
-    """Return the latest and actionable approval records for one run.
-
-    This lookup never starts execution. It only reads the approval ledger so the
-    web surface can show a real decision dialog instead of a decorative card.
-    """
-
-    try:
-        store = ApprovalStore(Path(settings.VULNHUNTER_APPROVAL_DATABASE))
-        store.initialize()
-        records = tuple(item for item in store.list() if item.run_id == run_id)
-    except ApprovalStoreError:
-        return None, None
-
-    if not records:
-        return None, None
-
-    latest = max(records, key=lambda item: item.requested_at)
-    actionable_states = {
-        ApprovalStatus.PENDING,
-        ApprovalStatus.INFORMATION_REQUIRED,
-        ApprovalStatus.CONDITIONS_PROPOSED,
-    }
-    actionable = next(
-        (
-            item
-            for item in sorted(records, key=lambda item: item.requested_at, reverse=True)
-            if item.status in actionable_states and item.expires_at > datetime.now(UTC)
-        ),
-        None,
-    )
-    return latest, actionable
 
 
 @require_GET
@@ -196,7 +157,7 @@ def dashboard_view(request: HttpRequest) -> HttpResponse:
     return _render(
         request,
         "web/dashboard.html",
-        {"page_title": "Dashboard", "dashboard": summary},
+        {"page_title": "Assessment Workspace", "dashboard": summary},
     )
 
 
@@ -370,24 +331,6 @@ def dataset_list_view(request: HttpRequest) -> HttpResponse:
 @cache_control(private=True, no_store=True)
 @login_required
 @require_GET
-def model_list_view(request: HttpRequest) -> HttpResponse:
-    try:
-        _protected(request, required_actions=("model.read", "audit.read"))
-    except WebPermissionDenied as exc:
-        return _denied(request, str(exc))
-    return _render(
-        request,
-        "web/models_overview.html",
-        {
-            "page_title": "Models",
-            "intelligence_status": intelligence_status(),
-        },
-    )
-
-
-@cache_control(private=True, no_store=True)
-@login_required
-@require_GET
 def campaign_list_view(request: HttpRequest) -> HttpResponse:
     try:
         _protected(request, required_actions=("campaign.read",))
@@ -531,62 +474,7 @@ def agent_run_list_view(request: HttpRequest) -> HttpResponse:
     return _render(
         request,
         "web/agent_runs.html",
-        {"page_title": "Agent Runs", "runs": runs, "error_message": error},
-    )
-
-
-@cache_control(private=True, no_store=True)
-@login_required
-@require_GET
-def agent_run_detail_view(request: HttpRequest, run_id: str) -> HttpResponse:
-    try:
-        actor = _protected(request, required_actions=("audit.read", "scan.read"))
-    except WebPermissionDenied as exc:
-        return _denied(request, str(exc))
-    try:
-        run = product_service().get_agent_run(run_id)
-    except ProductServiceError as exc:
-        raise Http404(str(exc)) from exc
-    if not run_visible_to_actor(run, actor):
-        raise Http404("Assessment run does not exist.")
-    timeline = activity_payload(run_id, after_sequence=0)
-    controls = control_availability(request.user, run.current_state, run.approval_state.value)
-    approval_record, pending_approval = _approval_context_for_run(run_id)
-    try:
-        authorized_actor(request.user, required_actions=("settings.manage",))
-    except WebPermissionDenied:
-        can_decide_approval = False
-    else:
-        can_decide_approval = True
-    try:
-        lab_store = AdversaryLabStore(Path(settings.VULNHUNTER_ADVERSARY_LAB_DATABASE))
-        lab_store.initialize()
-        lab_runs = lab_store.list_for_assessment(run_id)
-    except (OSError, AdversaryLabStoreError):
-        lab_runs = ()
-    latest_lab = lab_runs[0] if lab_runs else None
-    try:
-        authorized_actor(request.user, required_actions=("settings.manage",))
-    except WebPermissionDenied:
-        can_request_lab = False
-    else:
-        can_request_lab = bool(request.user.is_staff or request.user.is_superuser)
-    return _render(
-        request,
-        "web/agent_run_detail.html",
-        {
-            "page_title": f"Agent Run {run.run_id}",
-            "run": run,
-            "timeline": timeline,
-            "controls": controls,
-            "actor": actor,
-            "approval_record": approval_record,
-            "pending_approval": pending_approval,
-            "can_decide_approval": can_decide_approval,
-            "lab_runs": lab_runs,
-            "latest_lab": latest_lab,
-            "can_request_lab": can_request_lab,
-        },
+        {"page_title": "Assessment History", "runs": runs, "error_message": error},
     )
 
 
@@ -720,77 +608,6 @@ def pilot_plan_validation_view(request: HttpRequest, plan_id: str) -> HttpRespon
         request,
         "web/pilot_plan_validation.html",
         {"page_title": f"Validation {record.plan_id}", "record": record},
-    )
-
-
-@cache_control(private=True, no_store=True)
-@login_required
-@require_GET
-def findings_overview_view(request: HttpRequest) -> HttpResponse:
-    """Truthful entry point for the unified finding lifecycle."""
-
-    try:
-        _protected(request, required_actions=("audit.read", "scan.read"))
-    except WebPermissionDenied as exc:
-        return _denied(request, str(exc))
-    capabilities = (
-        ("Deterministic deduplication", "ready"),
-        ("Evidence provenance and hashes", "ready"),
-        ("Analyst verification workflow", "ready"),
-        ("Remediation and retest lifecycle", "ready"),
-        ("Live external scanner findings", "activation required"),
-    )
-    return _render(
-        request,
-        "web/findings_overview.html",
-        {"page_title": "Findings", "capabilities": capabilities},
-    )
-
-
-@cache_control(private=True, no_store=True)
-@login_required
-@require_GET
-def oracle_overview_view(request: HttpRequest) -> HttpResponse:
-    """Show Oracle readiness without implying a live verifier is activated."""
-
-    try:
-        _protected(request, required_actions=("audit.read", "scan.read"))
-    except WebPermissionDenied as exc:
-        return _denied(request, str(exc))
-    checks = (
-        ("Proof-capsule validation", "ready"),
-        ("Authenticated response contract", "ready"),
-        ("Durable replay protection", "ready"),
-        ("Transactional session history", "ready"),
-        ("Live independent verifier", "disabled until manually activated"),
-    )
-    return _render(
-        request,
-        "web/oracle_overview.html",
-        {"page_title": "Machine Oracle", "oracle_checks": checks},
-    )
-
-
-@cache_control(private=True, no_store=True)
-@login_required
-@require_GET
-def reports_overview_view(request: HttpRequest) -> HttpResponse:
-    try:
-        _protected(request, required_actions=("campaign.read", "report.read"))
-    except WebPermissionDenied as exc:
-        return _denied(request, str(exc))
-    formats = (
-        ("HTML", "available"),
-        ("JSON", "available"),
-        ("SARIF", "available"),
-        ("Evidence ZIP", "available"),
-        ("Attack-path SVG", "available"),
-        ("PDF", "renderer activation required"),
-    )
-    return _render(
-        request,
-        "web/reports_overview.html",
-        {"page_title": "Reports", "report_formats": formats},
     )
 
 
@@ -935,6 +752,49 @@ def settings_overview_view(request: HttpRequest) -> HttpResponse:
         },
     )
     identity = actor.governance_identity
+    related_controls = (
+        {
+            "label": "Integrations & Tools",
+            "detail": "Inspect registered tools and activation readiness.",
+            "url_name": "web-security-tool-registry",
+            "icon": "link",
+            "actions": ("audit.read", "scan.read"),
+        },
+        {
+            "label": "Governance policies",
+            "detail": "Review policy, role and release boundaries.",
+            "url_name": "web-governance-overview",
+            "icon": "policy",
+            "actions": ("campaign.read", "audit.read"),
+        },
+        {
+            "label": "Role registry",
+            "detail": "Inspect role definitions and allowed actions.",
+            "url_name": "web-role-list",
+            "icon": "team",
+            "actions": ("audit.read",),
+        },
+        {
+            "label": "Skill registry",
+            "detail": "Inspect governed skill definitions and boundaries.",
+            "url_name": "web-skill-list",
+            "icon": "policy",
+            "actions": ("audit.read",),
+        },
+        {
+            "label": "System status",
+            "detail": "Review current backend readiness and store health.",
+            "url_name": "web-status",
+            "icon": "activity",
+            "actions": ("audit.read", "dashboard.read"),
+        },
+    )
+    policy = role_policy()
+    management_links = tuple(
+        item
+        for item in related_controls
+        if policy.any_role_allows(actor.product_roles, *item["actions"])
+    )
     return _render(
         request,
         "web/settings_overview.html",
@@ -948,6 +808,7 @@ def settings_overview_view(request: HttpRequest) -> HttpResponse:
             "security_rows": security_rows,
             "identity": identity,
             "product_roles": actor.product_roles,
+            "management_links": management_links,
             "database_engine": settings.DATABASES["default"]["ENGINE"].rsplit(".", 1)[-1],
             "environment_label": "Local debug" if settings.DEBUG else "Hardened runtime",
         },

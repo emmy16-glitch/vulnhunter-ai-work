@@ -208,12 +208,26 @@ def test_product_blueprint_navigation_matches_the_unified_workspace():
     navigation = json.loads(
         Path("config/product_interface/navigation.json").read_text(encoding="utf-8")
     )
-    labels = [
-        item["label"] for section in navigation["sections"] for item in section.get("items", [])
+    pages = json.loads(Path("config/product_interface/pages.json").read_text(encoding="utf-8"))
+    page_by_id = {item["page_id"]: item for item in pages["pages"]}
+    navigation_items = [
+        (section["section_id"], item)
+        for section in navigation["sections"]
+        for item in section.get("items", [])
     ]
+    labels = [item["label"] for _section_id, item in navigation_items]
+    page_ids = [item["page_id"] for _section_id, item in navigation_items]
 
     assert labels.count("Assessment Workspace") == 1
     assert labels.count("Assessment History") == 1
     assert "New Scan" not in labels
     assert "Scan Runs" not in labels
     assert "Dashboard" not in labels
+    assert len(page_ids) == len(set(page_ids))
+    assert set(page_ids) == {
+        page["page_id"] for page in pages["pages"] if page["nav_section"] is not None
+    }
+    for section_id, item in navigation_items:
+        page = page_by_id[item["page_id"]]
+        assert page["nav_section"] == section_id
+        assert page["title"] == item["label"]

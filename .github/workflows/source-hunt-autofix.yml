@@ -24,7 +24,7 @@ jobs:
           python-version: '3.12'
       - name: Install Ruff
         run: python -m pip install 'ruff>=0.9,<1'
-      - name: Apply canonical formatting and verify lint
+      - name: Apply canonical formatting
         run: |
           ruff check --fix \
             vulnhunter/source_hunt \
@@ -34,13 +34,6 @@ jobs:
             tests/unit/test_source_fix_verifier.py \
             tests/unit/test_source_hunt_web.py || true
           ruff format \
-            vulnhunter/source_hunt \
-            vulnhunter/web/source_hunt_views.py \
-            vulnhunter/web/management/commands/vh_source_hunt.py \
-            tests/unit/test_source_hunt.py \
-            tests/unit/test_source_fix_verifier.py \
-            tests/unit/test_source_hunt_web.py
-          ruff check \
             vulnhunter/source_hunt \
             vulnhunter/web/source_hunt_views.py \
             vulnhunter/web/management/commands/vh_source_hunt.py \

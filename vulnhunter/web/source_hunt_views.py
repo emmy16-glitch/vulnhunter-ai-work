@@ -69,7 +69,7 @@ def _denied(request: HttpRequest, message: str) -> HttpResponse:
 @require_http_methods(["GET", "POST"])
 def source_hunt_view(request: HttpRequest) -> HttpResponse:
     try:
-        authorized_actor(request.user, required_actions=("scan.create", "scan.read"))
+        authorized_actor(request.user, required_actions=("scan.create",))
     except WebPermissionDenied as exc:
         return _denied(request, str(exc))
 

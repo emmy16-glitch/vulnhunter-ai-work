@@ -135,7 +135,7 @@ class RemoteSourceProcessingApproval(BaseModel):
         approved_by: str,
         approved_at: datetime,
         expires_at: datetime,
-    ) -> "RemoteSourceProcessingApproval":
+    ) -> RemoteSourceProcessingApproval:
         canonical = {
             "repository_id": repository_id,
             "revision": revision,

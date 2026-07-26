@@ -1,0 +1,63 @@
+name: Temporary Source Hunt Queue Format
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'agent/groq-source-hunt-loop'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - run: python -m pip install 'ruff>=0.9,<1'
+      - name: Apply canonical queue formatting
+        run: |
+          ruff check --fix \
+            vulnhunter/source_hunt/jobs.py \
+            vulnhunter/source_hunt/__init__.py \
+            vulnhunter/web/source_hunt_views.py \
+            vulnhunter/web/management/commands/vh_run_source_hunt_worker.py \
+            tests/unit/test_source_hunt_jobs.py \
+            tests/unit/test_source_hunt_web_queue.py
+          ruff format \
+            vulnhunter/source_hunt/jobs.py \
+            vulnhunter/source_hunt/__init__.py \
+            vulnhunter/web/source_hunt_views.py \
+            vulnhunter/web/management/commands/vh_run_source_hunt_worker.py \
+            tests/unit/test_source_hunt_jobs.py \
+            tests/unit/test_source_hunt_web_queue.py
+          ruff check \
+            vulnhunter/source_hunt/jobs.py \
+            vulnhunter/source_hunt/__init__.py \
+            vulnhunter/web/source_hunt_views.py \
+            vulnhunter/web/management/commands/vh_run_source_hunt_worker.py \
+            tests/unit/test_source_hunt_jobs.py \
+            tests/unit/test_source_hunt_web_queue.py
+      - name: Commit queue formatting
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            exit 0
+          fi
+          git config user.name 'vulnhunter-quality-bot'
+          git config user.email 'vulnhunter-quality-bot@users.noreply.github.com'
+          git add \
+            vulnhunter/source_hunt/jobs.py \
+            vulnhunter/source_hunt/__init__.py \
+            vulnhunter/web/source_hunt_views.py \
+            vulnhunter/web/management/commands/vh_run_source_hunt_worker.py \
+            tests/unit/test_source_hunt_jobs.py \
+            tests/unit/test_source_hunt_web_queue.py
+          git commit -m 'Apply canonical formatting to Source Hunt queue'
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}

@@ -1,0 +1,25 @@
+name: Audit source snapshot
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Upload audit source snapshot
+        uses: actions/upload-artifact@v6
+        with:
+          name: vulnhunter-audit-source
+          path: |
+            .
+            !.git
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 1

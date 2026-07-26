@@ -201,6 +201,12 @@ def main() -> int:
                 "persona": "admin",
                 "responsive": True,
             },
+            {
+                "name": "source-hunt",
+                "path": "/source-hunt/",
+                "persona": "admin",
+                "responsive": True,
+            },
             {"name": "new-scan", "path": "/scans/new/", "persona": "admin"},
             {"name": "scan-runs", "path": "/scans/", "persona": "admin"},
             {

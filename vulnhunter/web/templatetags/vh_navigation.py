@@ -184,7 +184,7 @@ def canonical_navigation(user: Any) -> tuple[dict[str, object], ...]:
             "label": "Source Hunt",
             "url_name": "web-source-hunt",
             "icon": "assessment",
-            "actions": ("scan.create", "scan.read", "audit.read"),
+            "actions": ("scan.create",),
             "active_routes": ("web-source-hunt",),
         },
         {

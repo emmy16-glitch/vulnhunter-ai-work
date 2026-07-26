@@ -1,4 +1,4 @@
-"""Groq advisory selection without secret handling or authority transfer."""
+"""Groq selection without secret handling or authority transfer."""
 
 from __future__ import annotations
 
@@ -16,6 +16,7 @@ class ProviderRegistry:
             request.content,
             contains_private_source=request.contains_private_source,
             contains_customer_data=request.contains_customer_data,
+            remote_source_processing_approved=request.remote_source_processing_approved,
         )
         if not gate.allowed_for_remote:
             return ProviderRoute(
@@ -28,12 +29,12 @@ class ProviderRegistry:
             return ProviderRoute(
                 provider=ProviderKind.GROQ_ADVISORY,
                 allowed=False,
-                reason="Groq advisory analysis is disabled by configuration.",
+                reason="Groq analysis is disabled by configuration.",
                 redacted_content=None,
             )
         return ProviderRoute(
             provider=ProviderKind.GROQ_ADVISORY,
             allowed=True,
-            reason="Sanitized advisory analysis passed the deterministic privacy gate.",
+            reason=gate.reason,
             redacted_content=gate.redacted_content,
         )

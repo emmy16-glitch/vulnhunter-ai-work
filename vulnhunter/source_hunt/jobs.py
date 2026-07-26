@@ -6,7 +6,6 @@ import json
 from datetime import UTC, datetime
 from enum import StrEnum
 from pathlib import Path
-from typing import Protocol
 from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -171,9 +170,7 @@ class SourceHuntJobStore:
                     jobs.append(self._load_path(path))
                 except (OSError, ValueError):
                     continue
-        return tuple(
-            sorted(jobs, key=lambda item: item.created_at, reverse=True)[:limit]
-        )
+        return tuple(sorted(jobs, key=lambda item: item.created_at, reverse=True)[:limit])
 
     def _move_and_write(
         self,

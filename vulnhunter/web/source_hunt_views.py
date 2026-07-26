@@ -1,4 +1,4 @@
-"""Authenticated web surface for exact Groq source-code hunts."""
+"""Authenticated web surface for queued, exact Groq source-code hunts."""
 
 from __future__ import annotations
 
@@ -13,9 +13,7 @@ from django.shortcuts import render
 from django.views.decorators.cache import cache_control
 from django.views.decorators.http import require_http_methods
 
-from vulnhunter.providers import GroqProvider, GroqProviderError
 from vulnhunter.source_hunt import (
-    GroqSourceHunt,
     RemoteSourceProcessingApproval,
     RepositorySnapshotBuilder,
     RepositoryVisibility,
@@ -23,12 +21,23 @@ from vulnhunter.source_hunt import (
     SourceHuntPolicy,
     SourceHuntStore,
 )
+from vulnhunter.source_hunt.jobs import SourceHuntJob, SourceHuntJobStore
 from vulnhunter.web.services import WebPermissionDenied, authorized_actor
 
 
 def _approved_roots() -> tuple[Path, ...]:
     raw = os.environ.get("VULNHUNTER_SOURCE_HUNT_ROOTS", str(settings.BASE_DIR))
     return tuple(Path(item).expanduser() for item in raw.split(os.pathsep) if item.strip())
+
+
+def _job_store() -> SourceHuntJobStore:
+    root = Path(
+        os.environ.get(
+            "VULNHUNTER_SOURCE_HUNT_JOB_ROOT",
+            str(settings.BASE_DIR / ".local" / "source-hunt-jobs"),
+        )
+    )
+    return SourceHuntJobStore(root)
 
 
 def _report_store() -> SourceHuntStore:
@@ -74,6 +83,7 @@ def source_hunt_view(request: HttpRequest) -> HttpResponse:
         return _denied(request, str(exc))
 
     report = None
+    queued_job = None
     error = None
     submitted = {
         "repository_root": "",
@@ -81,6 +91,14 @@ def source_hunt_view(request: HttpRequest) -> HttpResponse:
         "visibility": "private",
         "permitted_paths": ".",
     }
+
+    report_id = request.GET.get("report", "").strip()
+    if report_id:
+        try:
+            report = _report_store().load(report_id)
+        except (OSError, ValueError) as exc:
+            error = str(exc)
+
     if request.method == "POST":
         submitted = {
             "repository_root": request.POST.get("repository_root", "").strip(),
@@ -100,7 +118,9 @@ def source_hunt_view(request: HttpRequest) -> HttpResponse:
                 raise SourceHuntError("Password re-authentication failed.")
             visibility = RepositoryVisibility(submitted["visibility"])
             permitted_paths = tuple(
-                item.strip() for item in submitted["permitted_paths"].split(",") if item.strip()
+                item.strip()
+                for item in submitted["permitted_paths"].split(",")
+                if item.strip()
             ) or (".",)
             repository = Path(submitted["repository_root"])
             policy = _policy()
@@ -117,25 +137,20 @@ def source_hunt_view(request: HttpRequest) -> HttpResponse:
                 permitted_paths=permitted_paths,
                 approved_by=request.user.get_username(),
                 approved_at=now,
-                expires_at=now + timedelta(minutes=30),
+                expires_at=now + timedelta(hours=1),
             )
-            provider = GroqProvider.from_key_file(
-                Path(settings.VULNHUNTER_GROQ_API_KEY_FILE),
-                approved_models=(
-                    settings.VULNHUNTER_GROQ_MODEL,
-                    settings.VULNHUNTER_GROQ_FALLBACK_MODEL,
-                ),
-                api_base=settings.VULNHUNTER_GROQ_API_BASE,
-            )
-            report = GroqSourceHunt(connector=provider, policy=policy).run(
-                repository,
+            queued_job = SourceHuntJob.create(
+                repository_root=repository,
+                snapshot=snapshot,
                 approval=approval,
-                revision=snapshot.revision,
+                model=policy.model,
+                now=now,
             )
-            _report_store().save(report)
-        except (GroqProviderError, SourceHuntError, ValueError, OSError) as exc:
+            _job_store().enqueue(queued_job)
+        except (SourceHuntError, ValueError, OSError) as exc:
             error = str(exc)
 
+    jobs = _job_store().list(limit=20)
     reports = _report_store().list(limit=12)
     return render(
         request,
@@ -144,6 +159,8 @@ def source_hunt_view(request: HttpRequest) -> HttpResponse:
             "page_title": "Source Hunt",
             "current_route": "web-source-hunt",
             "report": report,
+            "queued_job": queued_job,
+            "jobs": jobs,
             "reports": reports,
             "error": error,
             "submitted": submitted,

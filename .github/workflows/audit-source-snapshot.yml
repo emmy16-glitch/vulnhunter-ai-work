@@ -1,15 +1,14 @@
 name: Apply audited repository patch
 
 on:
-  push:
-    branches:
-      - agent/final-wiring-and-ui-audit
+  pull_request:
 
 permissions:
   contents: write
 
 jobs:
   apply:
+    if: github.head_ref == 'agent/final-wiring-and-ui-audit'
     runs-on: ubuntu-latest
     steps:
       - name: Check out audit branch

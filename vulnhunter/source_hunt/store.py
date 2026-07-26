@@ -36,7 +36,9 @@ class SourceHuntStore:
         reports: list[SourceHuntReport] = []
         for path in sorted(self.root.glob("source-report-*.json"), reverse=True)[:limit]:
             try:
-                reports.append(SourceHuntReport.model_validate_json(path.read_text(encoding="utf-8")))
+                reports.append(
+                    SourceHuntReport.model_validate_json(path.read_text(encoding="utf-8"))
+                )
             except (OSError, ValueError):
                 continue
         return tuple(reports)

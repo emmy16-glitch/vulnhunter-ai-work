@@ -557,7 +557,9 @@ class GroqSourceHunt:
             maximum_path_depth=self.policy.maximum_path_depth,
         ).build()[: self.policy.maximum_surfaces]
         created_at = datetime.now(UTC)
-        report_id = f"source-report-{hashlib.sha256((snapshot.snapshot_sha256 + approval.approval_sha256).encode()).hexdigest()[:24]}"
+        report_seed = (snapshot.snapshot_sha256 + approval.approval_sha256).encode()
+        report_digest = hashlib.sha256(report_seed).hexdigest()
+        report_id = f"source-report-{report_digest[:24]}"
         if not surfaces:
             return SourceHuntReport(
                 report_id=report_id,
@@ -570,7 +572,9 @@ class GroqSourceHunt:
                 candidates=(),
                 rejected_count=0,
                 abstained_count=1,
-                safe_error="No supported attacker-accessible Python entry point reached a dangerous sink.",
+                safe_error=(
+                    "No supported attacker-accessible Python entry point reached a dangerous sink."
+                ),
                 created_at=created_at,
             )
 
@@ -611,7 +615,9 @@ class GroqSourceHunt:
                             hypothesis=hypothesis,
                             falsification=FalsificationDecision(
                                 disposition=CandidateDisposition.REJECTED,
-                                reason=f"Capability filter rejected the candidate: {capability.reason}",
+                                reason=(
+                                    f"Capability filter rejected the candidate: {capability.reason}"
+                                ),
                             ),
                             capability=capability,
                         )
@@ -670,7 +676,9 @@ class GroqSourceHunt:
         cancelled: Callable[[], bool] | None,
     ) -> None:
         envelope = {
-            "task": "Map the supplied deterministic attack surfaces. Do not invent files or execution.",
+            "task": (
+                "Map the supplied deterministic attack surfaces. Do not invent files or execution."
+            ),
             "repository": self._snapshot_summary(snapshot),
             "surfaces": [item.model_dump(mode="json") for item in surfaces],
             "required": {"summary": "string", "priority_surface_ids": ["surface-id"]},
@@ -691,7 +699,8 @@ class GroqSourceHunt:
     ) -> GroqHypothesis:
         envelope = {
             "task": (
-                "Act as an attacker-first source-code hunter. Determine whether attacker-controlled "
+                "Act as an attacker-first source-code hunter. Determine whether "
+                "attacker-controlled "
                 "input can traverse the supplied path to the sink. Return only evidence-bound JSON."
             ),
             "security_boundary": self._security_boundary(),
@@ -718,9 +727,10 @@ class GroqSourceHunt:
     ) -> FalsificationDecision:
         envelope = {
             "task": (
-                "Independently try to disprove this vulnerability. Reject unsupported reachability, "
-                "sanitization assumptions, framework mistakes, existing controls, unrealistic attacker "
-                "capabilities, and source-to-sink gaps. Prefer REJECTED or ABSTAINED when uncertain."
+                "Independently try to disprove this vulnerability. Reject "
+                "unsupported reachability, sanitization assumptions, framework "
+                "mistakes, existing controls, unrealistic attacker capabilities, "
+                "and source-to-sink gaps. Prefer REJECTED or ABSTAINED when uncertain."
             ),
             "security_boundary": self._security_boundary(),
             "surface": surface.model_dump(mode="json"),
@@ -749,8 +759,9 @@ class GroqSourceHunt:
     ) -> CapabilityAssessment:
         envelope = {
             "task": (
-                "Determine the concrete attacker capability. Mark meaningful=false when the issue is "
-                "only suspicious syntax, requires impossible access, or produces no security boundary break."
+                "Determine the concrete attacker capability. Mark meaningful=false "
+                "when the issue is only suspicious syntax, requires impossible access, "
+                "or produces no security boundary break."
             ),
             "security_boundary": self._security_boundary(),
             "surface": surface.model_dump(mode="json"),
@@ -776,7 +787,8 @@ class GroqSourceHunt:
     ) -> RemediationProposal:
         envelope = {
             "task": (
-                "Propose the smallest reviewable remediation, a RED security regression test, a GREEN "
+                "Propose the smallest reviewable remediation, a RED security "
+                "regression test, a GREEN "
                 "verification recipe, and compatibility risks. Do not claim the fix was applied."
             ),
             "security_boundary": self._security_boundary(),
@@ -831,8 +843,9 @@ class GroqSourceHunt:
         if self._model_calls >= self.policy.maximum_model_calls:
             raise SourceHuntError("source hunt reached its model-call limit")
         prompt = (
-            "Return exactly one provider response object. Set output_kind to CANDIDATE_ANALYSIS and "
-            "set content to a JSON-encoded object matching required_schema when supplied. Do not include "
+            "Return exactly one provider response object. Set output_kind to "
+            "CANDIDATE_ANALYSIS and set content to a JSON-encoded object matching "
+            "required_schema when supplied. Do not include "
             "markdown or hidden reasoning. "
             + json.dumps(envelope, sort_keys=True, separators=(",", ":"))
         )
@@ -908,7 +921,14 @@ class GroqSourceHunt:
         root = Path(snapshot.repository_root)
         excerpts: list[dict[str, object]] = []
         for reference in tuple(dict.fromkeys(references))[:32]:
-            lines = (root / reference.path).read_text(encoding="utf-8").splitlines()
+            source_path = root / reference.path
+            raw = source_path.read_bytes()
+            if hashlib.sha256(raw).hexdigest() != reference.source_sha256:
+                raise SourceHuntError("repository changed before source excerpts were prepared")
+            try:
+                lines = raw.decode("utf-8").splitlines()
+            except UnicodeDecodeError as exc:
+                raise SourceHuntError("source excerpt could not be decoded safely") from exc
             start = max(1, reference.line_start - 8)
             end = min(len(lines), reference.line_end + 8)
             excerpts.append(

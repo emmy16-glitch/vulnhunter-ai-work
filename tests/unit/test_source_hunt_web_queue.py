@@ -75,6 +75,8 @@ def download(request):
             "permitted_paths": ".",
             "password": "password-1234",
             "approve_remote_processing": "yes",
+            "confirm_no_customer_data": "yes",
+            "confirm_retention_reviewed": "yes",
         },
     )
 

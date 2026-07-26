@@ -113,6 +113,14 @@ def source_hunt_view(request: HttpRequest) -> HttpResponse:
                 raise SourceHuntError(
                     "Confirm that the exact bounded source excerpts may be transmitted to Groq."
                 )
+            if request.POST.get("confirm_no_customer_data") != "yes":
+                raise SourceHuntError(
+                    "Confirm that customer data is absent from the approved source paths."
+                )
+            if request.POST.get("confirm_retention_reviewed") != "yes":
+                raise SourceHuntError(
+                    "Confirm that Groq retention and data controls were reviewed."
+                )
             password = request.POST.get("password", "")
             if not password or not request.user.check_password(password):
                 raise SourceHuntError("Password re-authentication failed.")
@@ -133,6 +141,8 @@ def source_hunt_view(request: HttpRequest) -> HttpResponse:
                 snapshot_sha256=snapshot.snapshot_sha256,
                 visibility=visibility,
                 permitted_paths=permitted_paths,
+                customer_data_confirmed_absent=True,
+                provider_retention_reviewed=True,
                 approved_by=request.user.get_username(),
                 approved_at=now,
                 expires_at=now + timedelta(hours=1),

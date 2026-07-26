@@ -42,19 +42,25 @@ class PrivacyGate:
                 reason="Customer data may not be transmitted to Groq.",
                 redacted_content=redacted,
             )
+        source_detected = contains_private_source or _CODE_BLOCK.search(content) is not None
         blocked_markers = (
+            "[REDACTED]",
+            "[REDACTED_EMAIL]",
+            "[REDACTED_PAYMENT_DATA]",
             "[REDACTED_SECRET]",
             "[REDACTED_AUTHORIZATION]",
             "[REDACTED_COOKIE]",
             "[REDACTED_PRIVATE_KEY]",
         )
-        if any(marker in redacted for marker in blocked_markers):
+        sensitive_redaction_applied = any(marker in redacted for marker in blocked_markers)
+        if sensitive_redaction_applied and not (
+            source_detected and remote_source_processing_approved
+        ):
             return PrivacyGateResult(
                 allowed_for_remote=False,
                 reason="Sensitive values were detected and Groq routing was denied.",
                 redacted_content=redacted,
             )
-        source_detected = contains_private_source or _CODE_BLOCK.search(content) is not None
         if source_detected and not remote_source_processing_approved:
             return PrivacyGateResult(
                 allowed_for_remote=False,
@@ -72,9 +78,13 @@ class PrivacyGate:
         return PrivacyGateResult(
             allowed_for_remote=True,
             reason=(
-                "The exact source-processing request passed the Groq privacy gate."
-                if source_detected
-                else "The request passed the Groq privacy gate."
+                "The exact source-processing request passed after sensitive values were redacted."
+                if source_detected and sensitive_redaction_applied
+                else (
+                    "The exact source-processing request passed the Groq privacy gate."
+                    if source_detected
+                    else "The request passed the Groq privacy gate."
+                )
             ),
             redacted_content=redacted,
         )

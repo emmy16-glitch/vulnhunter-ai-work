@@ -57,6 +57,8 @@ class Command(BaseCommand):
         parser.add_argument("--actor", required=True)
         parser.add_argument("--secret-file", type=Path, required=True)
         parser.add_argument("--approve-groq-source-processing", action="store_true")
+        parser.add_argument("--confirm-no-customer-data", action="store_true")
+        parser.add_argument("--confirm-groq-retention-reviewed", action="store_true")
         parser.add_argument("--model", default=settings.VULNHUNTER_GROQ_MODEL)
 
     def handle(self, *args, **options) -> None:
@@ -66,6 +68,10 @@ class Command(BaseCommand):
             raise CommandError(
                 "source code is not transmitted until --approve-groq-source-processing is supplied"
             )
+        if not options["confirm_no_customer_data"]:
+            raise CommandError("--confirm-no-customer-data is required")
+        if not options["confirm_groq_retention_reviewed"]:
+            raise CommandError("--confirm-groq-retention-reviewed is required")
         secret = _secret_from_file(options["secret_file"])
         governance = GovernanceStore.from_path(Path(settings.VULNHUNTER_GOVERNANCE_DATABASE))
         governance.initialize()
@@ -94,6 +100,8 @@ class Command(BaseCommand):
             snapshot_sha256=snapshot.snapshot_sha256,
             visibility=RepositoryVisibility(str(options["visibility"])),
             permitted_paths=tuple(options["permitted_path"] or (".",)),
+            customer_data_confirmed_absent=True,
+            provider_retention_reviewed=True,
             approved_by=identity.reviewer_id,
             approved_at=now,
             expires_at=now + timedelta(minutes=30),

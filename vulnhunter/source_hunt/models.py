@@ -118,6 +118,8 @@ class RemoteSourceProcessingApproval(BaseModel):
     visibility: RepositoryVisibility
     provider: str = "groq"
     permitted_paths: tuple[str, ...] = (".",)
+    customer_data_confirmed_absent: bool
+    provider_retention_reviewed: bool
     approved_by: str
     approved_at: datetime
     expires_at: datetime
@@ -132,6 +134,8 @@ class RemoteSourceProcessingApproval(BaseModel):
         snapshot_sha256: str,
         visibility: RepositoryVisibility,
         permitted_paths: tuple[str, ...],
+        customer_data_confirmed_absent: bool,
+        provider_retention_reviewed: bool,
         approved_by: str,
         approved_at: datetime,
         expires_at: datetime,
@@ -143,6 +147,8 @@ class RemoteSourceProcessingApproval(BaseModel):
             "visibility": visibility.value,
             "provider": "groq",
             "permitted_paths": list(permitted_paths),
+            "customer_data_confirmed_absent": customer_data_confirmed_absent,
+            "provider_retention_reviewed": provider_retention_reviewed,
             "approved_by": approved_by,
             "approved_at": approved_at.astimezone(UTC).isoformat(),
             "expires_at": expires_at.astimezone(UTC).isoformat(),
@@ -157,11 +163,23 @@ class RemoteSourceProcessingApproval(BaseModel):
             snapshot_sha256=snapshot_sha256,
             visibility=visibility,
             permitted_paths=permitted_paths,
+            customer_data_confirmed_absent=customer_data_confirmed_absent,
+            provider_retention_reviewed=provider_retention_reviewed,
             approved_by=approved_by,
             approved_at=approved_at,
             expires_at=expires_at,
             approval_sha256=digest,
         )
+
+    @model_validator(mode="after")
+    def validate_privacy_attestations(self):
+        if not self.customer_data_confirmed_absent:
+            raise ValueError("source processing requires confirmation that customer data is absent")
+        if not self.provider_retention_reviewed:
+            raise ValueError(
+                "source processing requires review of Groq retention and data controls"
+            )
+        return self
 
     def validate_for(self, snapshot: RepositorySnapshot, *, now: datetime | None = None) -> None:
         current = now or datetime.now(UTC)

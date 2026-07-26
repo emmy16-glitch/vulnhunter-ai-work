@@ -117,6 +117,8 @@ def _job(tmp_path: Path):
         snapshot_sha256=snapshot.snapshot_sha256,
         visibility=RepositoryVisibility.PRIVATE,
         permitted_paths=(".",),
+        customer_data_confirmed_absent=True,
+        provider_retention_reviewed=True,
         approved_by="operator",
         approved_at=now,
         expires_at=now + timedelta(hours=1),

@@ -140,6 +140,8 @@ def _approval(snapshot):
         snapshot_sha256=snapshot.snapshot_sha256,
         visibility=RepositoryVisibility.PRIVATE,
         permitted_paths=(".",),
+        customer_data_confirmed_absent=True,
+        provider_retention_reviewed=True,
         approved_by="test-admin",
         approved_at=now,
         expires_at=now + timedelta(minutes=30),

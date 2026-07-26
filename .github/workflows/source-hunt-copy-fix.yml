@@ -1,0 +1,53 @@
+name: Temporary Source Hunt Copy Fix
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  fix-copy:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'agent/groq-source-hunt-loop'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+      - name: Apply canonical UI copy
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          replacements = {
+              Path('vulnhunter/web/templates/web/source_hunt.html'): {
+                  'No Claude, Qwen or OpenAI runtime':
+                      'Groq is the only configured model provider',
+              },
+              Path('vulnhunter/web/templates/web/conversation.html'): {
+                  'Message VulnHunter — describe a target, attach an APK, open Source Hunt, or ask about a finding':
+                      'Message VulnHunter — describe a target, attach an APK, or ask about a finding',
+              },
+          }
+          for path, changes in replacements.items():
+              text = path.read_text(encoding='utf-8')
+              for old, new in changes.items():
+                  if text.count(old) != 1:
+                      raise SystemExit(f'expected exactly one copy match in {path}: {old}')
+                  text = text.replace(old, new)
+              path.write_text(text, encoding='utf-8')
+          PY
+      - name: Commit copy repair
+        shell: bash
+        run: |
+          git config user.name 'vulnhunter-quality-bot'
+          git config user.email 'vulnhunter-quality-bot@users.noreply.github.com'
+          git add \
+            vulnhunter/web/templates/web/source_hunt.html \
+            vulnhunter/web/templates/web/conversation.html
+          git commit -m 'Align Source Hunt with canonical product copy'
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}

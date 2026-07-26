@@ -1,0 +1,74 @@
+diff --git a/tests/unit/test_assessment_workflow_web.py b/tests/unit/test_assessment_workflow_web.py
+--- a/tests/unit/test_assessment_workflow_web.py
++++ b/tests/unit/test_assessment_workflow_web.py
+@@ -36,9 +36,7 @@ def _actor():
+ 
+ 
+ @pytest.mark.django_db
+-def test_retired_authorization_choices_endpoint_returns_not_found(
+-    client, settings, tmp_path
+-):
++def test_retired_authorization_choices_endpoint_returns_not_found(client, settings, tmp_path):
+     service = _service(tmp_path)
+     _configure(settings, tmp_path, service)
+     user = get_user_model().objects.create_user(
+diff --git a/tests/unit/test_reference_ui_contract.py b/tests/unit/test_reference_ui_contract.py
+--- a/tests/unit/test_reference_ui_contract.py
++++ b/tests/unit/test_reference_ui_contract.py
+@@ -41,9 +41,7 @@ def test_canonical_navigation_matches_the_unified_product():
+     ]
+ 
+     labels = [
+-        item["label"]
+-        for section in navigation["sections"]
+-        for item in section.get("items", [])
++        item["label"] for section in navigation["sections"] for item in section.get("items", [])
+     ]
+     assert labels == [
+         "Assessment Workspace",
+diff --git a/vulnhunter/product_spec/registry.py b/vulnhunter/product_spec/registry.py
+--- a/vulnhunter/product_spec/registry.py
++++ b/vulnhunter/product_spec/registry.py
+@@ -246,8 +246,7 @@ class ProductInterfaceSpec:
+         }
+         if unknown_declared_sections:
+             errors.append(
+-                "Pages reference unknown navigation sections: "
+-                f"{sorted(unknown_declared_sections)}"
++                f"Pages reference unknown navigation sections: {sorted(unknown_declared_sections)}"
+             )
+ 
+         breakpoints = self.documents["responsive_breakpoints.json"].get(
+diff --git a/vulnhunter/web/governance_workspace_views.py b/vulnhunter/web/governance_workspace_views.py
+--- a/vulnhunter/web/governance_workspace_views.py
++++ b/vulnhunter/web/governance_workspace_views.py
+@@ -47,7 +47,7 @@ def _render(
+         request,
+         template_name,
+         {
+-                "current_route": parent_route,
++            "current_route": parent_route,
+             **context,
+         },
+         status=status,
+diff --git a/vulnhunter/web/report_views.py b/vulnhunter/web/report_views.py
+--- a/vulnhunter/web/report_views.py
++++ b/vulnhunter/web/report_views.py
+@@ -95,7 +95,7 @@ def reports_overview_view(request: HttpRequest) -> HttpResponse:
+                 "page_title": "Access Denied",
+                 "denied_message": str(exc),
+                 "current_route": "web-reports-overview",
+-                    },
++            },
+             status=403,
+         )
+     return render(
+@@ -104,7 +104,7 @@ def reports_overview_view(request: HttpRequest) -> HttpResponse:
+         {
+             "page_title": "Reports",
+             "current_route": "web-reports-overview",
+-                "records": _visible_records(actor),
++            "records": _visible_records(actor),
+             "report_formats": _formats(),
+         },
+     )

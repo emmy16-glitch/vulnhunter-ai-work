@@ -14,7 +14,7 @@
     <article class="vh-summary-item"><small>Reasoning provider</small><strong>Groq only</strong><span>Groq is the only configured model provider</span></article>
     <article class="vh-summary-item"><small>Authority</small><strong>Advisory</strong><span>VulnHunter validates every source reference</span></article>
     <article class="vh-summary-item"><small>Processing</small><strong>Exact approval</strong><span>Repository, revision and snapshot hash bound</span></article>
-    <article class="vh-summary-item"><small>Execution</small><strong>Queued worker</strong><span>Groq calls never block the browser request</span></article>
+    <article class="vh-summary-item"><small>Workflow</small><strong>Hunt → Disprove</strong><span>Queued worker then capability filter</span></article>
   </section>
 
   {% if error %}<p class="vh-operational-notice is-danger" role="alert">{{ error }}</p>{% endif %}

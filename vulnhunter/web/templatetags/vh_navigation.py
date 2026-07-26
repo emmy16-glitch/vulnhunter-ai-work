@@ -181,6 +181,15 @@ def canonical_navigation(user: Any) -> tuple[dict[str, object], ...]:
         {
             "section_id": "analysis",
             "section_label": "Analysis",
+            "label": "Source Hunt",
+            "url_name": "web-source-hunt",
+            "icon": "assessment",
+            "actions": ("scan.create", "scan.read", "audit.read"),
+            "active_routes": ("web-source-hunt",),
+        },
+        {
+            "section_id": "analysis",
+            "section_label": "Analysis",
             "label": "Findings",
             "url_name": "web-findings-overview",
             "icon": "finding",

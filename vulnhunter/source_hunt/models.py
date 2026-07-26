@@ -114,6 +114,7 @@ class RemoteSourceProcessingApproval(BaseModel):
     approval_id: str
     repository_id: str
     revision: str
+    snapshot_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     visibility: RepositoryVisibility
     provider: str = "groq"
     permitted_paths: tuple[str, ...] = (".",)
@@ -128,6 +129,7 @@ class RemoteSourceProcessingApproval(BaseModel):
         *,
         repository_id: str,
         revision: str,
+        snapshot_sha256: str,
         visibility: RepositoryVisibility,
         permitted_paths: tuple[str, ...],
         approved_by: str,
@@ -137,6 +139,7 @@ class RemoteSourceProcessingApproval(BaseModel):
         canonical = {
             "repository_id": repository_id,
             "revision": revision,
+            "snapshot_sha256": snapshot_sha256,
             "visibility": visibility.value,
             "provider": "groq",
             "permitted_paths": list(permitted_paths),
@@ -151,6 +154,7 @@ class RemoteSourceProcessingApproval(BaseModel):
             approval_id=f"source-approval-{digest[:24]}",
             repository_id=repository_id,
             revision=revision,
+            snapshot_sha256=snapshot_sha256,
             visibility=visibility,
             permitted_paths=permitted_paths,
             approved_by=approved_by,
@@ -165,7 +169,11 @@ class RemoteSourceProcessingApproval(BaseModel):
             raise ValueError("remote source-processing approval has expired")
         if self.provider != "groq":
             raise ValueError("source-processing approval is not bound to Groq")
-        if self.repository_id != snapshot.repository_id or self.revision != snapshot.revision:
+        if (
+            self.repository_id != snapshot.repository_id
+            or self.revision != snapshot.revision
+            or self.snapshot_sha256 != snapshot.snapshot_sha256
+        ):
             raise ValueError("source-processing approval does not match the repository snapshot")
 
 

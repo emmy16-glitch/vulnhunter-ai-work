@@ -58,7 +58,9 @@ class _FakeGroq:
         elif capability == "candidate_falsification":
             output = {
                 "disposition": "survived",
-                "reason": "No path normalization or authorization control blocks the supplied path.",
+                "reason": (
+                    "No path normalization or authorization control blocks the supplied path."
+                ),
                 "blocking_controls": [],
                 "unsupported_assumptions": [],
                 "contradicting_evidence": [],
@@ -78,7 +80,9 @@ class _FakeGroq:
                 "target_files": [path],
                 "regression_test": "Assert that ../secret.txt is rejected before open is called.",
                 "compatibility_risks": ["Existing absolute-path callers will be rejected."],
-                "verification_recipe": "Run the security test and confirm the resolved path stays under the root.",
+                "verification_recipe": (
+                    "Run the security test and confirm the resolved path stays under the root."
+                ),
             }
         else:  # pragma: no cover - defensive only
             raise AssertionError(capability)

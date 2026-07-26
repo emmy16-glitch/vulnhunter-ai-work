@@ -15,6 +15,11 @@ class SourceHuntStore:
     def save(self, report: SourceHuntReport) -> Path:
         self.root.mkdir(parents=True, exist_ok=True)
         destination = self.root / f"{report.report_id}.json"
+        if destination.exists():
+            existing = self.load(report.report_id)
+            if existing != report:
+                raise ValueError("source-hunt report identifier already contains different evidence")
+            return destination
         temporary = destination.with_suffix(".json.tmp")
         temporary.write_text(
             json.dumps(report.model_dump(mode="json"), sort_keys=True, indent=2) + "\n",

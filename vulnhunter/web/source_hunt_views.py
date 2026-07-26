@@ -100,9 +100,7 @@ def source_hunt_view(request: HttpRequest) -> HttpResponse:
                 raise SourceHuntError("Password re-authentication failed.")
             visibility = RepositoryVisibility(submitted["visibility"])
             permitted_paths = tuple(
-                item.strip()
-                for item in submitted["permitted_paths"].split(",")
-                if item.strip()
+                item.strip() for item in submitted["permitted_paths"].split(",") if item.strip()
             ) or (".",)
             repository = Path(submitted["repository_root"])
             policy = _policy()

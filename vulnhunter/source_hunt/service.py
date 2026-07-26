@@ -28,8 +28,8 @@ from vulnhunter.source_hunt.models import (
     CapabilityAssessment,
     FalsificationDecision,
     GroqHypothesis,
-    RemoteSourceProcessingApproval,
     RemediationProposal,
+    RemoteSourceProcessingApproval,
     RepositoryFile,
     RepositorySnapshot,
     SourceCandidate,
@@ -174,7 +174,9 @@ class SourceHuntPolicy:
 class RepositorySnapshotBuilder:
     def __init__(self, policy: SourceHuntPolicy) -> None:
         self.policy = policy
-        self.approved_roots = tuple(root.expanduser().resolve(strict=True) for root in policy.approved_roots)
+        self.approved_roots = tuple(
+            root.expanduser().resolve(strict=True) for root in policy.approved_roots
+        )
 
     def build(self, repository_root: Path, *, revision: str | None = None) -> RepositorySnapshot:
         root = repository_root.expanduser().resolve(strict=True)
@@ -240,7 +242,11 @@ class RepositorySnapshotBuilder:
             relative_parts = path.relative_to(root).parts
             if any(part in _EXCLUDED_PARTS for part in relative_parts):
                 continue
-            if path.is_symlink() or not path.is_file() or path.suffix.lower() not in _ALLOWED_SUFFIXES:
+            if (
+                path.is_symlink()
+                or not path.is_file()
+                or path.suffix.lower() not in _ALLOWED_SUFFIXES
+            ):
                 continue
             try:
                 path.resolve(strict=True).relative_to(root)
@@ -332,10 +338,14 @@ class PythonAttackSurfaceIndexer:
             try:
                 raw = path.read_bytes()
                 if hashlib.sha256(raw).hexdigest() != file.sha256:
-                    raise SourceHuntError("repository changed after its source snapshot was created")
+                    raise SourceHuntError(
+                        "repository changed after its source snapshot was created"
+                    )
                 tree = ast.parse(raw.decode("utf-8"), filename=file.path)
             except (OSError, UnicodeError, SyntaxError) as exc:
-                raise SourceHuntError(f"Python source could not be indexed safely: {file.path}") from exc
+                raise SourceHuntError(
+                    f"Python source could not be indexed safely: {file.path}"
+                ) from exc
             visitor = _PythonFunctionVisitor(file.path, file.sha256)
             visitor.visit(tree)
             for record in visitor.records:
@@ -347,7 +357,9 @@ class PythonAttackSurfaceIndexer:
             (record for record in records.values() if record.entry_kind),
             key=lambda item: (item.path, item.line_start),
         ):
-            for record_path, sink_kind, sink_line in self._paths_to_sinks(entry, records, name_index):
+            for record_path, sink_kind, sink_line in self._paths_to_sinks(
+                entry, records, name_index
+            ):
                 path_refs = tuple(record.reference() for record in record_path)
                 sink_record = record_path[-1]
                 sink_ref = sink_record.reference(line=sink_line, symbol=sink_kind)
@@ -365,7 +377,8 @@ class PythonAttackSurfaceIndexer:
                         surface_id=f"surface-{hashlib.sha256(seed.encode()).hexdigest()[:24]}",
                         entry_point=entry.reference(),
                         entry_kind=entry.entry_kind or "callable",
-                        attacker_inputs=tuple(sorted(entry.attacker_inputs)) or ("request arguments",),
+                        attacker_inputs=tuple(sorted(entry.attacker_inputs))
+                        or ("request arguments",),
                         reachable_sinks=(sink_ref,),
                         sink_kinds=(sink_kind,),
                         guards=guard_refs,
@@ -643,7 +656,9 @@ class GroqSourceHunt:
             candidates=tuple(candidates),
             rejected_count=rejected,
             abstained_count=abstained,
-            safe_error=None if survived else "No candidate survived falsification and capability filtering.",
+            safe_error=None
+            if survived
+            else "No candidate survived falsification and capability filtering.",
             created_at=created_at,
         )
 
@@ -780,7 +795,9 @@ class GroqSourceHunt:
         )
         known_paths = {item.path for item in snapshot.files}
         if any(path not in known_paths for path in proposal.target_files):
-            raise SourceHuntError("Groq remediation referenced a file outside the repository snapshot")
+            raise SourceHuntError(
+                "Groq remediation referenced a file outside the repository snapshot"
+            )
         return proposal
 
     def _stage_model(
@@ -922,7 +939,9 @@ class GroqSourceHunt:
         self._validate_references(snapshot, references)
         allowed = set(self._surface_references(surface))
         if hypothesis.entry_point not in allowed or hypothesis.sink not in allowed:
-            raise SourceHuntError("Groq hypothesis escaped the supplied deterministic attack surface")
+            raise SourceHuntError(
+                "Groq hypothesis escaped the supplied deterministic attack surface"
+            )
 
     @staticmethod
     def _references_from_model(model: BaseModel) -> tuple[SourceReference, ...]:
@@ -956,6 +975,9 @@ class GroqSourceHunt:
         for file in snapshot.files:
             path = PurePosixPath(file.path)
             if not any(
-                item == PurePosixPath(".") or path == item or item in path.parents for item in permitted
+                item == PurePosixPath(".") or path == item or item in path.parents
+                for item in permitted
             ):
-                raise SourceHuntError("repository snapshot contains a file outside approved source paths")
+                raise SourceHuntError(
+                    "repository snapshot contains a file outside approved source paths"
+                )

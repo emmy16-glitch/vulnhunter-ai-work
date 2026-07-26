@@ -97,8 +97,7 @@ class ReadOnlyFixVerifier:
             elif not request.regression_tests:
                 verdict = FixVerificationVerdict.PARTIALLY_FIXED
                 summary = (
-                    "The attack is blocked, but no broader regression suite receipt "
-                    "was supplied."
+                    "The attack is blocked, but no broader regression suite receipt was supplied."
                 )
             else:
                 self._validate_evidence_references(

@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 from django.core.management.base import CommandError
-from test_source_hunt_jobs import _QueueGroq, _job
+from test_source_hunt_jobs import _job, _QueueGroq
 
 from vulnhunter.source_hunt import (
     SourceHuntJob,

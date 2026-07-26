@@ -95,7 +95,7 @@ def reports_overview_view(request: HttpRequest) -> HttpResponse:
                 "page_title": "Access Denied",
                 "denied_message": str(exc),
                 "current_route": "web-reports-overview",
-                    },
+            },
             status=403,
         )
     return render(
@@ -104,7 +104,7 @@ def reports_overview_view(request: HttpRequest) -> HttpResponse:
         {
             "page_title": "Reports",
             "current_route": "web-reports-overview",
-                "records": _visible_records(actor),
+            "records": _visible_records(actor),
             "report_formats": _formats(),
         },
     )

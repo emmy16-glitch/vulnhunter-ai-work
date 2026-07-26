@@ -246,8 +246,7 @@ class ProductInterfaceSpec:
         }
         if unknown_declared_sections:
             errors.append(
-                "Pages reference unknown navigation sections: "
-                f"{sorted(unknown_declared_sections)}"
+                f"Pages reference unknown navigation sections: {sorted(unknown_declared_sections)}"
             )
 
         breakpoints = self.documents["responsive_breakpoints.json"].get(

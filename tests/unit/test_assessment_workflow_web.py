@@ -34,9 +34,7 @@ def _actor():
 
 
 @pytest.mark.django_db
-def test_retired_authorization_choices_endpoint_returns_not_found(
-    client, settings, tmp_path
-):
+def test_retired_authorization_choices_endpoint_returns_not_found(client, settings, tmp_path):
     service = _service(tmp_path)
     _configure(settings, tmp_path, service)
     user = get_user_model().objects.create_user(

@@ -41,9 +41,7 @@ def test_canonical_navigation_matches_the_unified_product():
     ]
 
     labels = [
-        item["label"]
-        for section in navigation["sections"]
-        for item in section.get("items", [])
+        item["label"] for section in navigation["sections"] for item in section.get("items", [])
     ]
     assert labels == [
         "Assessment Workspace",

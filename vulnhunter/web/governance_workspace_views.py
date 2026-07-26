@@ -47,7 +47,7 @@ def _render(
         request,
         template_name,
         {
-                "current_route": parent_route,
+            "current_route": parent_route,
             **context,
         },
         status=status,

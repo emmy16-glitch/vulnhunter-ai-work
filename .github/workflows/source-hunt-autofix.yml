@@ -1,0 +1,59 @@
+name: Temporary Source Hunt Autofix
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  autofix:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'agent/groq-source-hunt-loop'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the source-hunt branch
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install Ruff
+        run: python -m pip install 'ruff>=0.9,<1'
+      - name: Apply lint and canonical formatting
+        run: |
+          ruff check --fix \
+            vulnhunter/source_hunt \
+            vulnhunter/web/source_hunt_views.py \
+            vulnhunter/web/management/commands/vh_source_hunt.py \
+            tests/unit/test_source_hunt.py \
+            tests/unit/test_source_fix_verifier.py \
+            tests/unit/test_source_hunt_web.py
+          ruff format \
+            vulnhunter/source_hunt \
+            vulnhunter/web/source_hunt_views.py \
+            vulnhunter/web/management/commands/vh_source_hunt.py \
+            tests/unit/test_source_hunt.py \
+            tests/unit/test_source_fix_verifier.py \
+            tests/unit/test_source_hunt_web.py
+      - name: Commit formatter output when required
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            exit 0
+          fi
+          git config user.name 'vulnhunter-quality-bot'
+          git config user.email 'vulnhunter-quality-bot@users.noreply.github.com'
+          git add \
+            vulnhunter/source_hunt \
+            vulnhunter/web/source_hunt_views.py \
+            vulnhunter/web/management/commands/vh_source_hunt.py \
+            tests/unit/test_source_hunt.py \
+            tests/unit/test_source_fix_verifier.py \
+            tests/unit/test_source_hunt_web.py
+          git commit -m 'Apply canonical formatting to Groq source hunt'
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}

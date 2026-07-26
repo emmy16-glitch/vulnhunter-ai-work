@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import fcntl
 import os
 import time
 from pathlib import Path
@@ -50,6 +51,17 @@ def _policy() -> SourceHuntPolicy:
     )
 
 
+def _acquire_worker_lock(store: SourceHuntJobStore):
+    store.initialize()
+    handle = (store.root / ".worker.lock").open("a+", encoding="utf-8")
+    try:
+        fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError as exc:
+        handle.close()
+        raise CommandError("another Source Hunt worker already holds the queue lock") from exc
+    return handle
+
+
 class Command(BaseCommand):
     help = "Run the separate, file-backed Groq Source Hunt worker."
 
@@ -79,24 +91,35 @@ class Command(BaseCommand):
         except GroqProviderError as exc:
             raise CommandError(str(exc)) from exc
 
+        job_store = _job_store()
+        report_store = _report_store()
+        policy = _policy()
+        worker_lock = _acquire_worker_lock(job_store)
+        recovered = job_store.recover_running()
+        if recovered:
+            self.stdout.write(f"recovered {len(recovered)} interrupted source-hunt job(s)")
+
         processed = 0
-        while True:
-            job = process_next_source_hunt_job(
-                job_store=_job_store(),
-                report_store=_report_store(),
-                connector=provider,
-                policy=_policy(),
-            )
-            if job is not None:
-                processed += 1
-                self.stdout.write(
-                    f"{job.job_id}: {job.status.value}"
-                    + (f" report={job.report_id}" if job.report_id else "")
-                    + (f" error={job.safe_error}" if job.safe_error else "")
+        try:
+            while True:
+                job = process_next_source_hunt_job(
+                    job_store=job_store,
+                    report_store=report_store,
+                    connector=provider,
+                    policy=policy,
                 )
-            if options["once"] or (maximum_jobs and processed >= maximum_jobs):
-                break
-            if job is None:
-                time.sleep(poll_seconds)
+                if job is not None:
+                    processed += 1
+                    self.stdout.write(
+                        f"{job.job_id}: {job.status.value}"
+                        + (f" report={job.report_id}" if job.report_id else "")
+                        + (f" error={job.safe_error}" if job.safe_error else "")
+                    )
+                if options["once"] or (maximum_jobs and processed >= maximum_jobs):
+                    break
+                if job is None:
+                    time.sleep(poll_seconds)
+        finally:
+            worker_lock.close()
 
         self.stdout.write(self.style.SUCCESS(f"processed {processed} source-hunt job(s)"))

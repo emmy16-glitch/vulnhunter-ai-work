@@ -25,43 +25,15 @@ jobs:
           exec > >(tee /tmp/vulnhunter-apply.log) 2>&1
           set -euo pipefail
 
-          cat .github/vh-audit-patch-*.b64 \
+          cat .github/vh-audit-patch-v2-*.b64 \
             | base64 --decode \
             | gzip --decompress \
             > /tmp/vulnhunter-audit.patch
 
-          cat > .github/workflows/audit-source-snapshot.yml <<'WORKFLOW'
-          name: Audit source snapshot
-
-          on:
-            pull_request:
-
-          permissions:
-            contents: read
-
-          jobs:
-            snapshot:
-              runs-on: ubuntu-latest
-              steps:
-                - name: Check out repository
-                  uses: actions/checkout@v6
-
-                - name: Upload audit source snapshot
-                  uses: actions/upload-artifact@v6
-                  with:
-                    name: vulnhunter-audit-source
-                    path: |
-                      .
-                      !.git
-                    include-hidden-files: true
-                    if-no-files-found: error
-                    retention-days: 1
-          WORKFLOW
-
-          sed -i 's/^          //' .github/workflows/audit-source-snapshot.yml
           git apply --check /tmp/vulnhunter-audit.patch
           git apply /tmp/vulnhunter-audit.patch
           rm -f .github/vh-audit-patch-*.b64
+          rm -f .github/workflows/audit-source-snapshot.yml
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"

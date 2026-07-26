@@ -12,6 +12,8 @@ Groq may propose hypotheses, challenge them, assess attacker capability and draf
 operator-approved repository root
 → exact revision and content snapshot
 → repository, revision, snapshot-hash and path-bound Groq approval
+→ non-secret file-backed job queue
+→ separate Source Hunt worker
 → deterministic Python inventory and AST graph
 → attacker-accessible entry-point discovery
 → bounded source-to-sink paths
@@ -27,6 +29,29 @@ operator-approved repository root
 
 A candidate is not retained as an actionable issue unless it survives falsification and the capability filter identifies a meaningful security boundary break.
 
+## Browser and worker separation
+
+The browser never performs the multi-stage Groq hunt inside an HTTP request. A submission performs only bounded local work:
+
+1. validate the operator and password step-up;
+2. build and hash the exact repository snapshot;
+3. create the time-limited source-processing approval;
+4. persist a non-secret queued job;
+5. return the queued identifier to the browser.
+
+A separate worker atomically claims the job, changes it to `running`, performs the Groq stages, persists the report, and records `completed` or `failed`. Browser navigation, session loss, reverse-proxy timeouts and Gunicorn request limits therefore do not interrupt an active hunt.
+
+The queue has four directories beneath `VULNHUNTER_SOURCE_HUNT_JOB_ROOT`:
+
+```text
+queued/
+running/
+completed/
+failed/
+```
+
+Job files contain repository and approval metadata but never the Groq key, user password or governance secret.
+
 ## Exact remote source-processing approval
 
 Before any source excerpt is transmitted, VulnHunter binds approval to:
@@ -41,7 +66,7 @@ Before any source excerpt is transmitted, VulnHunter binds approval to:
 - approval and expiry times;
 - approval-record SHA-256.
 
-The browser additionally requires password re-authentication. The CLI requires an active governance administrator and an owner-only secret file. A changed file, changed path set, expired approval or different revision fails closed.
+The browser additionally requires password re-authentication. The direct CLI requires an active governance administrator and an owner-only secret file. A changed file, changed path set, expired approval or different revision fails closed.
 
 Customer data, credentials, cookies, authorization records, private keys and detected secrets remain prohibited even when source processing is approved.
 
@@ -87,6 +112,8 @@ Produces a minimal reviewable change, a failing security regression test, compat
 
 Every source reference must match a file and SHA-256 from the exact snapshot, and every line range must exist in that file. References invented by Groq are rejected. Remediation target files must also exist in the snapshot.
 
+Each source file is re-read and re-hashed immediately before its excerpt is prepared for Groq. Snapshot-to-transmission drift therefore fails closed.
+
 The service has hard limits for files, bytes, attack surfaces, candidates, path depth, prompt size, output size, timeout and model calls. There is no open-ended agent loop.
 
 ## Fix and verify
@@ -117,9 +144,29 @@ It accepts immutable snapshot data and verifier receipts only. It has no reposit
 
 ## Browser operation
 
-Assessment operators can open **Analysis → Source Hunt** or use the Source Hunt action in the assessment workspace. The page uses the shared product shell and persisted report state; it does not display fabricated progress, findings or readiness.
+Assessment operators can open **Analysis → Source Hunt** or use the Source Hunt action in the assessment workspace. The page uses the shared product shell and persisted job/report state; it does not display fabricated progress, findings or readiness.
 
-## CLI operation
+Completed jobs link to their persisted report. Failed jobs retain a bounded safe error. Refreshing the page does not restart work.
+
+## Worker operation
+
+Run continuously:
+
+```bash
+python manage.py vh_run_source_hunt_worker --poll-seconds 0.5
+```
+
+Process one queued job and exit:
+
+```bash
+python manage.py vh_run_source_hunt_worker --once
+```
+
+Codespaces starts this worker automatically when Groq is enabled and the owner-private key file exists.
+
+## Direct CLI operation
+
+The direct CLI remains available for a supervised terminal workflow:
 
 ```bash
 python manage.py vh_source_hunt \
@@ -132,10 +179,11 @@ python manage.py vh_source_hunt \
   --approve-groq-source-processing
 ```
 
-Configure approved roots with the platform path separator:
+Configure approved roots and persistent stores with the platform path separator:
 
 ```bash
 VULNHUNTER_SOURCE_HUNT_ROOTS=/workspaces/repo-a:/workspaces/repo-b
+VULNHUNTER_SOURCE_HUNT_JOB_ROOT=/var/lib/vulnhunter/source-hunt-jobs
 VULNHUNTER_SOURCE_HUNT_REPORT_ROOT=/var/lib/vulnhunter/source-hunts
 ```
 

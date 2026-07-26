@@ -5,6 +5,12 @@ from vulnhunter.source_hunt.fix_verify import (
     ReadOnlyFixVerifier,
     VerifierReceipt,
 )
+from vulnhunter.source_hunt.jobs import (
+    SourceHuntJob,
+    SourceHuntJobStatus,
+    SourceHuntJobStore,
+    process_next_source_hunt_job,
+)
 from vulnhunter.source_hunt.models import (
     AttackSurface,
     CandidateDisposition,
@@ -48,10 +54,14 @@ __all__ = [
     "RepositoryVisibility",
     "SourceCandidate",
     "SourceHuntError",
+    "SourceHuntJob",
+    "SourceHuntJobStatus",
+    "SourceHuntJobStore",
     "SourceHuntPolicy",
     "SourceHuntReport",
     "SourceHuntStage",
     "SourceHuntStore",
     "SourceReference",
     "VerifierReceipt",
+    "process_next_source_hunt_job",
 ]

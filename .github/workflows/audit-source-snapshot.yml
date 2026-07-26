@@ -17,9 +17,12 @@ jobs:
           ref: agent/final-wiring-and-ui-audit
           fetch-depth: 0
 
-      - name: Apply verified audit patch
+      - name: Build verified audit commit
+        id: apply
+        continue-on-error: true
         shell: bash
         run: |
+          exec > >(tee /tmp/vulnhunter-apply.log) 2>&1
           set -euo pipefail
 
           cat .github/vh-audit-patch-*.b64 \
@@ -27,8 +30,6 @@ jobs:
             | gzip --decompress \
             > /tmp/vulnhunter-audit.patch
 
-          # Restore the exact temporary workflow content expected by the audited
-          # patch. The patch then removes this workflow from the final branch.
           cat > .github/workflows/audit-source-snapshot.yml <<'WORKFLOW'
           name: Audit source snapshot
 
@@ -58,7 +59,6 @@ jobs:
           WORKFLOW
 
           sed -i 's/^          //' .github/workflows/audit-source-snapshot.yml
-
           git apply --check /tmp/vulnhunter-audit.patch
           git apply /tmp/vulnhunter-audit.patch
           rm -f .github/vh-audit-patch-*.b64
@@ -68,4 +68,20 @@ jobs:
           git add -A
           git diff --cached --check
           git commit -m "Consolidate navigation and remove stale web wiring"
-          git push origin HEAD:agent/final-wiring-and-ui-audit
+          git rev-parse HEAD | tee /tmp/vulnhunter-final-sha.txt
+          git push --force origin HEAD:refs/heads/agent/audit-result-staging
+
+      - name: Upload applicator diagnostics
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: vulnhunter-audit-applicator
+          path: |
+            /tmp/vulnhunter-apply.log
+            /tmp/vulnhunter-final-sha.txt
+          if-no-files-found: warn
+          retention-days: 1
+
+      - name: Fail when the audited commit was not published
+        if: steps.apply.outcome == 'failure'
+        run: exit 1

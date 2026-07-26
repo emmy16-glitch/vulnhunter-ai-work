@@ -45,7 +45,8 @@ def test_retired_authorization_choices_endpoint_returns_not_found(
     )
     client.force_login(user)
 
-    response = client.get("/scans/authorizations/")
+    with patch.object(views, "_protected", return_value=_actor()):
+        response = client.get("/scans/authorizations/")
 
     assert response.status_code == 404
 

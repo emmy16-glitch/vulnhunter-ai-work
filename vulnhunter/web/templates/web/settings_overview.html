@@ -34,7 +34,7 @@
         <article class="vh-activation-row {% if remote_worker.enabled %}is-enabled{% else %}is-gated{% endif %}"><span class="vh-activation-indicator" aria-hidden="true"></span><div><strong>Restricted remote Nuclei worker</strong><p>{{ remote_worker.detail }}</p></div><div class="vh-activation-action"><span class="vh-status-chip {% if remote_worker.enabled %}vh-status-safe{% else %}vh-status-warning{% endif %}">{{ remote_worker.state }}</span></div></article>
         <article class="vh-activation-row {% if scanner_activation.configured %}is-enabled{% else %}is-gated{% endif %}"><span class="vh-activation-indicator" aria-hidden="true"></span><div><strong>Governed assessment runtime</strong><p>{{ scanner_activation.detail }}</p></div><div class="vh-activation-action"><span class="vh-status-chip {% if scanner_activation.configured %}vh-status-safe{% else %}vh-status-warning{% endif %}">{{ scanner_activation.state }}</span></div></article>
         <article class="vh-activation-row {% if scanner_activation.connectors_enabled %}is-enabled{% else %}is-gated{% endif %}"><span class="vh-activation-indicator" aria-hidden="true"></span><div><strong>Security-tool connectors</strong><p>Governed scanner connectors are enabled; arbitrary connector activation remains denied.</p></div><div class="vh-activation-action"><span class="vh-status-chip {% if scanner_activation.connectors_enabled %}vh-status-safe{% else %}vh-status-warning{% endif %}">{% if scanner_activation.connectors_enabled %}configured{% else %}gated{% endif %}</span></div></article>
-        {% for item in activation_rows %}<article class="vh-activation-row {% if item.enabled %}is-enabled{% else %}is-gated{% endif %}"><span class="vh-activation-indicator" aria-hidden="true"></span><div><strong>{{ item.name }}</strong><p>{{ item.detail }}</p></div><div class="vh-activation-action"><span class="vh-status-chip {% if item.enabled %}vh-status-safe{% else %}vh-status-warning{% endif %}">{% if item.enabled %}configured{% else %}gated{% endif %}</span></div></article>{% endfor %}
+        {% for item in activation_rows %}<article class="vh-activation-row {% if item.enabled %}is-enabled{% else %}is-gated{% endif %}"><span class="vh-activation-indicator" aria-hidden="true"></span><div><strong>{{ item.name }}</strong><p>{{ item.detail }}</p></div><div class="vh-activation-action"><span class="vh-status-chip {% if item.enabled %}vh-status-safe{% else %}vh-status-warning{% endif %}">{% if item.enabled %}configured{% else %}gated{% endif %}</span>{% if item.link %}<a href="{% url item.link %}">Open</a>{% endif %}</div></article>{% endfor %}
       </div>
     </section>
 
@@ -53,6 +53,11 @@
       <header class="vh-surface-header"><div><h2>Analysis services</h2><p>Health and authority state only. Opening this page does not start processing or graph generation.</p></div><span class="vh-panel-count">{{ intelligence_status|length }}</span></header>
       {% if intelligence_status %}<ul class="vh-provider-list">{% for item in intelligence_status %}<li><div><strong>{{ item.name }}</strong><p>{{ item.detail }}</p></div><span class="vh-status-chip {% if 'READY' in item.state %}vh-status-safe{% else %}vh-status-warning{% endif %}">{{ item.state }}</span></li>{% endfor %}</ul>{% else %}<div class="vh-empty-panel"><svg aria-hidden="true"><use href="#vh-i-settings"></use></svg><h3>No provider state</h3><p>No advisory component status is available.</p></div>{% endif %}
     </section>
+
+    {% if management_links %}<section class="vh-surface vh-settings-links">
+      <header class="vh-surface-header"><div><h2>Governed references</h2><p>Open related read-only and role-gated controls without duplicating them in primary navigation.</p></div><span class="vh-panel-count">{{ management_links|length }}</span></header>
+      <div class="vh-settings-link-grid">{% for item in management_links %}<a href="{% url item.url_name %}"><svg aria-hidden="true"><use href="#vh-i-{{ item.icon }}"></use></svg><span><strong>{{ item.label }}</strong><small>{{ item.detail }}</small></span></a>{% endfor %}</div>
+    </section>{% endif %}
 
   </div>
 </section>

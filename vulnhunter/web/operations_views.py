@@ -8,11 +8,11 @@ from pathlib import Path
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.http import Http404, HttpRequest, HttpResponse, JsonResponse
+from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.cache import cache_control
-from django.views.decorators.http import require_GET, require_http_methods, require_POST
+from django.views.decorators.http import require_GET, require_POST
 
 from vulnhunter.advanced import AssessmentProfile
 from vulnhunter.approvals import ApprovalDecision, ApprovalStore
@@ -20,21 +20,14 @@ from vulnhunter.approvals.store import (
     ApprovalNotFoundError,
     ApprovalStoreError,
 )
-from vulnhunter.mobile import (
-    MobileAnalysisProfile,
-    MobileArtifactError,
-    MobileArtifactIngestor,
-)
 from vulnhunter.security_tools.catalog import default_catalog
 from vulnhunter.web.assessment_workflow import (
     AssessmentWorkflowError,
     AssessmentWorkflowService,
 )
-from vulnhunter.web.forms import MobileApkUploadForm
 from vulnhunter.web.services import (
     WebPermissionDenied,
     authorized_actor,
-    navigation_for,
 )
 
 
@@ -46,7 +39,6 @@ def _render(
     status: int = 200,
 ) -> HttpResponse:
     base = {
-        "navigation": navigation_for(request.user),
         "current_route": request.resolver_match.url_name if request.resolver_match else "",
     }
     base.update(context)
@@ -339,101 +331,6 @@ def _assessment_profiles() -> tuple[dict[str, str], ...]:
 
 @cache_control(private=True, no_store=True)
 @login_required
-@require_http_methods(["GET", "POST"])
-def new_scan_view(request: HttpRequest) -> HttpResponse:
-    try:
-        actor = authorized_actor(request.user, required_actions=("scan.create",))
-    except WebPermissionDenied as exc:
-        return _render(
-            request,
-            "web/denied.html",
-            {"page_title": "Access Denied", "denied_message": str(exc)},
-            status=403,
-        )
-
-    workflow = AssessmentWorkflowService.from_settings()
-    error_message = None
-    try:
-        authorizations = workflow.list_authorizations(
-            identity_id=actor.governance_identity.reviewer_id,
-            username=request.user.get_username(),
-        )
-    except (OSError, RuntimeError, ValueError) as exc:
-        authorizations = ()
-        error_message = str(exc)
-    if request.method == "POST":
-        try:
-            port = int(request.POST.get("port", ""))
-            result = workflow.create_assessment(
-                authorization_id=request.POST.get("authorization_id", "").strip(),
-                target=request.POST.get("target", "").strip(),
-                protocol=request.POST.get("protocol", "").strip(),
-                port=port,
-                profile=request.POST.get("profile", "").strip(),
-                identity_id=actor.governance_identity.reviewer_id,
-                username=request.user.get_username(),
-            )
-        except (AssessmentWorkflowError, OSError, RuntimeError, ValueError) as exc:
-            error_message = str(exc)
-        else:
-            messages.success(
-                request,
-                (
-                    "The governed assessment was created. Exact independent approval is required; "
-                    "an approved passive plan can enter the signed private-lab worker queue."
-                ),
-            )
-            return redirect("web-agent-run-detail", run_id=result.task.task_id)
-    return _render(
-        request,
-        "web/new_scan.html",
-        {
-            "page_title": "New Bounded Scan",
-            "authorizations": authorizations,
-            "profiles": _assessment_profiles(),
-            "error_message": error_message,
-        },
-    )
-
-
-@cache_control(private=True, no_store=True)
-@login_required
-@require_GET
-def active_authorizations_view(request: HttpRequest) -> JsonResponse:
-    """Return only the current actor's active, activation-bound records."""
-
-    try:
-        actor = authorized_actor(request.user, required_actions=("scan.create",))
-        choices = AssessmentWorkflowService.from_settings().list_authorizations(
-            identity_id=actor.governance_identity.reviewer_id,
-            username=request.user.get_username(),
-        )
-    except WebPermissionDenied:
-        return JsonResponse({"detail": "forbidden"}, status=403)
-    except (OSError, RuntimeError, ValueError):
-        return JsonResponse({"detail": "authorization service unavailable"}, status=503)
-    response = JsonResponse(
-        {
-            "authorizations": [
-                {
-                    "authorization_id": item.authorization_id,
-                    "display_label": item.display_label,
-                    "expires_at": item.expires_at.isoformat(),
-                    "approved_targets": item.approved_targets,
-                    "approved_protocols": item.approved_protocols,
-                    "approved_ports": item.approved_ports,
-                    "approved_profiles": item.approved_profiles,
-                }
-                for item in choices
-            ]
-        }
-    )
-    response["Cache-Control"] = "private, no-store, max-age=0"
-    return response
-
-
-@cache_control(private=True, no_store=True)
-@login_required
 @require_GET
 def advanced_profiles_view(request: HttpRequest) -> HttpResponse:
     try:
@@ -450,82 +347,4 @@ def advanced_profiles_view(request: HttpRequest) -> HttpResponse:
         request,
         "web/advanced_profiles.html",
         {"page_title": "Advanced Assessment Mode", "profiles": profiles},
-    )
-
-
-@cache_control(private=True, no_store=True)
-@login_required
-@require_http_methods(["GET", "POST"])
-def mobile_analysis_view(request: HttpRequest) -> HttpResponse:
-    try:
-        authorized_actor(request.user, required_actions=("scan.create", "settings.manage"))
-    except WebPermissionDenied as exc:
-        return _render(
-            request,
-            "web/denied.html",
-            {"page_title": "Access Denied", "denied_message": str(exc)},
-            status=403,
-        )
-
-    ingestor = MobileArtifactIngestor(
-        Path(settings.VULNHUNTER_MOBILE_ARTIFACT_ROOT),
-        maximum_apk_bytes=settings.VULNHUNTER_MOBILE_MAX_APK_BYTES,
-    )
-    form = MobileApkUploadForm(request.POST or None, request.FILES or None)
-    uploaded_record = None
-    if request.method == "POST" and form.is_valid():
-        uploaded = form.cleaned_data["apk_file"]
-        try:
-            uploaded_record = ingestor.ingest_chunks(uploaded.name, uploaded.chunks())
-        except MobileArtifactError as exc:
-            form.add_error("apk_file", str(exc))
-        else:
-            messages.success(
-                request,
-                "APK stored safely. No analysis tool or emulator was started.",
-            )
-            form = MobileApkUploadForm()
-
-    profiles = (
-        {
-            "id": MobileAnalysisProfile.STATIC.value,
-            "name": "Static APK Analysis",
-            "description": "Signature, package, manifest, smali, bytecode, and packer analysis.",
-            "gate": "Local read-only tools require a separately verified static-worker policy.",
-        },
-        {
-            "id": MobileAnalysisProfile.STATIC_AND_NATIVE.value,
-            "name": "Static and Native Analysis",
-            "description": "Adds native .so library triage when the APK contains native code.",
-            "gate": "Ghidra connector actions require exact approval.",
-        },
-        {
-            "id": MobileAnalysisProfile.DYNAMIC.value,
-            "name": "Dynamic Emulator Analysis",
-            "description": "MobSF, ADB, and Frida validation in a disposable emulator.",
-            "gate": "Isolated runtime and explicit dynamic-analysis approval are mandatory.",
-        },
-        {
-            "id": MobileAnalysisProfile.FULL.value,
-            "name": "Full Mobile Assessment",
-            "description": "Static, native, and separately approved dynamic analysis stages.",
-            "gate": "Stage-by-stage approval; APK is never executed on the host.",
-        },
-        {
-            "id": MobileAnalysisProfile.RETEST.value,
-            "name": "Mobile Remediation Retest",
-            "description": "Repeat only the bounded checks needed to validate a fix.",
-            "gate": "Exact artifact and retest scope must be recorded.",
-        },
-    )
-    return _render(
-        request,
-        "web/mobile_analysis.html",
-        {
-            "page_title": "Mobile APK Analysis",
-            "form": form,
-            "uploaded_record": uploaded_record,
-            "artifacts": ingestor.list_records(),
-            "profiles": profiles,
-        },
     )

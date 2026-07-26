@@ -325,55 +325,55 @@ def stop_agent_run(user: Any, *, run_id: str, reason: str) -> None:
 
 
 def navigation_for(user: Any) -> tuple[dict[str, object], ...]:
-    """Return the approved role-filtered product information architecture.
+    """Return the role-filtered navigation defined by the product blueprint.
 
-    The visible navigation follows the governed operator flow defined by the
-    product-interface blueprint. Detail screens remain contextual and are
-    represented through ``active_routes`` rather than permanent sidebar items.
+    The product specification owns ordering, section labels and user-facing
+    labels. This adapter adds only Django route bindings, icons, permissions and
+    contextual detail routes so the runtime sidebar cannot drift from the
+    machine-readable interface contract.
     """
 
-    entries = (
-        {
-            "section_id": "overview",
-            "section_label": "Overview",
-            "label": "Dashboard",
+    if not getattr(user, "is_authenticated", False):
+        return ()
+    try:
+        mapping = user.vulnhunter_mapping
+    except WebUserMapping.DoesNotExist:
+        return ()
+
+    bindings: dict[str, dict[str, object]] = {
+        "dashboard": {
             "url_name": "web-dashboard",
             "icon": "grid",
-            "actions": ("dashboard.read",),
-            "active_routes": ("web-dashboard",),
+            "actions": ("dashboard.read", "scan.create"),
+            "active_routes": ("web-dashboard", "web-mobile-analysis"),
         },
-        {
-            "section_id": "collection",
-            "section_label": "Collection",
-            "label": "Authorizations",
+        "authorizations": {
             "url_name": "web-authorization-list",
             "icon": "authorization",
             "actions": ("authorization.read",),
             "active_routes": ("web-authorization-list",),
         },
-        {
-            "section_id": "collection",
-            "section_label": "Collection",
-            "label": "New Scan",
-            "url_name": "web-new-scan",
-            "icon": "radar",
-            "actions": ("scan.create",),
-            "active_routes": ("web-new-scan", "web-advanced-profiles"),
-        },
-        {
-            "section_id": "collection",
-            "section_label": "Collection",
-            "label": "Scan Runs",
+        "scan-runs": {
             "url_name": "web-scan-run-list",
-            "icon": "activity",
-            "actions": ("scan.read", "scan.read_summary", "audit.read"),
+            "icon": "assessment",
+            "actions": ("scan.read", "scan.read_summary", "scan.create", "audit.read"),
             "active_routes": (
                 "web-scan-run-list",
                 "web-scan-run-detail",
                 "web-agent-run-list",
                 "web-agent-run-detail",
+                "legacy-run-detail",
                 "web-agent-run-activity",
+                "web-agent-run-activity-stream",
+                "web-legacy-agent-run-activity",
+                "web-legacy-agent-run-activity-stream",
                 "web-agent-run-stop",
+                "web-new-scan",
+                "web-advanced-profiles",
+                "web-oracle-overview",
+                "web-approval-list",
+                "web-approval-detail",
+                "web-approval-decision",
                 "web-lab-create",
                 "web-lab-detail",
                 "web-lab-approve",
@@ -382,59 +382,25 @@ def navigation_for(user: Any) -> tuple[dict[str, object], ...]:
                 "web-lab-activity-stream",
             ),
         },
-        {
-            "section_id": "analysis",
-            "section_label": "Analysis",
-            "label": "Findings",
+        "findings": {
             "url_name": "web-findings-overview",
             "icon": "finding",
             "actions": ("finding.read", "scan.read", "audit.read"),
             "active_routes": ("web-findings-overview", "web-finding-detail"),
         },
-        {
-            "section_id": "analysis",
-            "section_label": "Analysis",
-            "label": "Mobile Analysis",
-            "url_name": "web-mobile-analysis",
-            "icon": "mobile",
-            "actions": ("scan.create", "settings.manage"),
-            "active_routes": ("web-mobile-analysis",),
-        },
-        {
-            "section_id": "review",
-            "section_label": "Review & Approval",
-            "label": "Approval Centre",
-            "url_name": "web-approval-list",
-            "icon": "bell",
-            "actions": ("settings.manage", "audit.read"),
-            "active_routes": (
-                "web-approval-list",
-                "web-approval-detail",
-                "web-approval-decision",
-            ),
-        },
-        {
-            "section_id": "review",
-            "section_label": "Review & Approval",
-            "label": "Review Queue",
+        "review-queue": {
             "url_name": "web-review-queue",
             "icon": "review",
             "actions": ("review.read", "review.read_assigned"),
             "active_routes": ("web-review-queue", "web-review-detail"),
         },
-        {
-            "section_id": "review",
-            "section_label": "Review & Approval",
-            "label": "Adjudications",
+        "adjudication-queue": {
             "url_name": "web-adjudication-queue",
             "icon": "scale",
             "actions": ("adjudication.read", "adjudication.read_assigned"),
             "active_routes": ("web-adjudication-queue", "web-adjudication-detail"),
         },
-        {
-            "section_id": "governance",
-            "section_label": "Governance",
-            "label": "Campaigns",
+        "campaigns": {
             "url_name": "web-campaign-list",
             "icon": "layers",
             "actions": ("campaign.read", "campaign.read_summary"),
@@ -442,97 +408,90 @@ def navigation_for(user: Any) -> tuple[dict[str, object], ...]:
                 "web-campaign-list",
                 "web-campaign-detail",
                 "web-readiness-detail",
+                "web-pilot-plan-list",
+                "web-pilot-plan-detail",
+                "web-pilot-plan-validation",
             ),
         },
-        {
-            "section_id": "governance",
-            "section_label": "Governance",
-            "label": "Releases",
+        "releases": {
             "url_name": "web-release-list",
             "icon": "release",
             "actions": ("release.read",),
             "active_routes": ("web-release-list", "web-release-detail"),
         },
-        {
-            "section_id": "intelligence",
-            "section_label": "Intelligence",
-            "label": "Datasets",
+        "datasets": {
             "url_name": "web-dataset-list",
             "icon": "database",
             "actions": ("dataset.read",),
             "active_routes": ("web-dataset-list", "web-dataset-detail"),
         },
-        {
-            "section_id": "intelligence",
-            "section_label": "Intelligence",
-            "label": "Models",
+        "models": {
             "url_name": "web-model-list",
             "icon": "model",
             "actions": ("model.read", "audit.read"),
-            "active_routes": (
-                "web-model-list",
-                "web-model-detail",
-                "web-oracle-overview",
-            ),
+            "active_routes": ("web-model-list", "web-model-detail"),
         },
-        {
-            "section_id": "assurance",
-            "section_label": "Assurance",
-            "label": "Audit",
+        "audit": {
             "url_name": "web-audit-overview",
             "icon": "audit",
             "actions": ("audit.read",),
-            "active_routes": ("web-audit-overview", "web-status"),
+            "active_routes": ("web-audit-overview",),
         },
-        {
-            "section_id": "assurance",
-            "section_label": "Assurance",
-            "label": "Reports",
+        "reports": {
             "url_name": "web-reports-overview",
             "icon": "report",
             "actions": ("report.read", "report.read_own", "report.read_public"),
-            "active_routes": (
-                "web-reports-overview",
-                "web-pilot-plan-list",
-                "web-pilot-plan-detail",
-                "web-pilot-plan-validation",
-                "web-pilot-plan-download",
-            ),
+            "active_routes": ("web-reports-overview", "web-pilot-plan-download"),
         },
-        {
-            "section_id": "system",
-            "section_label": "System",
-            "label": "Settings",
+        "settings": {
             "url_name": "web-settings-overview",
             "icon": "settings",
-            "actions": ("settings.manage", "audit.read"),
+            "actions": ("settings.manage", "audit.read", "dashboard.read"),
             "active_routes": (
                 "web-settings-overview",
-                "web-security-tool-registry",
+                "web-status",
+                "web-governance-overview",
                 "web-role-list",
                 "web-role-detail",
                 "web-skill-list",
                 "web-skill-detail",
+                "web-security-tool-registry",
             ),
         },
-    )
-    if not getattr(user, "is_authenticated", False):
-        return ()
-    try:
-        mapping = user.vulnhunter_mapping
-    except WebUserMapping.DoesNotExist:
-        return ()
+    }
+
     roles = tuple(str(item) for item in mapping.product_roles if isinstance(item, str))
-    policy = role_policy()
+    spec = product_spec()
+    policy = ProductRolePolicy(spec)
     visible: list[dict[str, object]] = []
     previous_section: str | None = None
-    for entry in entries:
-        if not policy.any_role_allows(roles, *entry["actions"]):
-            continue
-        visible_entry = dict(entry)
-        visible_entry["section_start"] = entry["section_id"] != previous_section
-        previous_section = str(entry["section_id"])
-        visible.append(visible_entry)
+    sections = sorted(
+        spec.documents["navigation.json"].get("sections", []),
+        key=lambda item: int(item.get("order", 0)),
+    )
+    for section in sections:
+        section_id = str(section["section_id"])
+        section_label = str(section["label"])
+        for navigation_item in section.get("items", []):
+            page_id = str(navigation_item["page_id"])
+            try:
+                binding = bindings[page_id]
+            except KeyError as exc:
+                raise WebCapabilityUnavailable(
+                    f"Navigation page {page_id!r} has no Django route binding."
+                ) from exc
+            actions = tuple(str(item) for item in binding["actions"])
+            if not policy.any_role_allows(roles, *actions):
+                continue
+            item = {
+                "section_id": section_id,
+                "section_label": section_label,
+                "label": str(navigation_item["label"]),
+                **binding,
+                "section_start": section_id != previous_section,
+            }
+            previous_section = section_id
+            visible.append(item)
     return tuple(visible)
 
 

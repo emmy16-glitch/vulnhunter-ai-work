@@ -24,8 +24,6 @@ from vulnhunter.web.services import (
     WebPermissionDenied,
     authorized_actor,
     governance_store,
-    intelligence_status,
-    navigation_for,
     product_service,
     run_visible_to_actor,
 )
@@ -35,30 +33,6 @@ from vulnhunter.web.workspace_forms import (
 )
 
 _ASSIGNMENT_REFERENCE = re.compile(r"^[0-9a-f]{16,64}$")
-_MODEL_COMPONENTS = {
-    "graph-context": {
-        "index": 0,
-        "title": "Repository graph context",
-        "authority": ("Context only. It cannot authorize, scope, execute, or modify policy."),
-        "inputs": "Validated graph artifacts and bounded source excerpts.",
-    },
-    "advisory-analysis": {
-        "index": 1,
-        "title": "Advisory analysis",
-        "authority": (
-            "Proposal only. Deterministic verification and human review remain authoritative."
-        ),
-        "inputs": ("Sanitized, bounded, non-secret evidence only when explicitly enabled."),
-    },
-    "deterministic-verification": {
-        "index": 2,
-        "title": "Deterministic verification",
-        "authority": (
-            "Evidence-backed verification inside an assessment; it cannot publish a finding."
-        ),
-        "inputs": ("Persisted scanner evidence, reviewed recipes, and proof-capsule state."),
-    },
-}
 
 
 def _render(
@@ -73,8 +47,7 @@ def _render(
         request,
         template_name,
         {
-            "navigation": navigation_for(request.user),
-            "current_route": parent_route,
+                "current_route": parent_route,
             **context,
         },
         status=status,
@@ -505,38 +478,4 @@ def dataset_detail_view(request: HttpRequest, campaign_id: str) -> HttpResponse:
             "is_released": manifest is not None,
         },
         parent_route="web-dataset-list",
-    )
-
-
-@cache_control(private=True, no_store=True)
-@login_required
-@require_GET
-def model_detail_view(request: HttpRequest, component_id: str) -> HttpResponse:
-    try:
-        authorized_actor(
-            request.user,
-            required_actions=("model.read", "audit.read"),
-        )
-    except WebPermissionDenied as exc:
-        return _denied(request, str(exc), parent_route="web-model-list")
-
-    definition = _MODEL_COMPONENTS.get(component_id)
-    if definition is None:
-        raise Http404("Intelligence component does not exist.")
-
-    statuses = intelligence_status()
-    index = int(definition["index"])
-    if index >= len(statuses):
-        raise Http404("Intelligence component status is unavailable.")
-    status_row = statuses[index]
-    return _render(
-        request,
-        "web/model_detail.html",
-        {
-            "page_title": str(definition["title"]),
-            "component_id": component_id,
-            "component": definition,
-            "status_row": status_row,
-        },
-        parent_route="web-model-list",
     )

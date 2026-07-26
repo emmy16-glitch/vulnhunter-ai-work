@@ -10,7 +10,7 @@ from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import LoginView
 from django.http import Http404, HttpRequest, HttpResponse, JsonResponse, StreamingHttpResponse
-from django.shortcuts import redirect, render
+from django.shortcuts import render
 from django.urls import reverse
 from django.views.decorators.cache import cache_control
 from django.views.decorators.http import require_GET
@@ -26,7 +26,6 @@ from vulnhunter.web.services import (
     activity_payload,
     authorized_actor,
     control_availability,
-    navigation_for,
     product_service,
     role_policy,
     run_visible_to_actor,
@@ -41,7 +40,6 @@ def _render(
     status: int = 200,
 ) -> HttpResponse:
     base = {
-        "navigation": navigation_for(request.user),
         "current_route": request.resolver_match.url_name if request.resolver_match else "",
     }
     base.update(context)
@@ -129,24 +127,6 @@ class UnifiedLoginView(LoginView):
 @cache_control(private=True, no_store=True)
 @login_required
 @require_GET
-def unified_dashboard_view(request: HttpRequest) -> HttpResponse:
-    try:
-        actor = views._protected(request, required_actions=("dashboard.read",))
-    except WebPermissionDenied:
-        return views.dashboard_view(request)
-    can_approve = _role_allows(actor, "settings.manage", "campaign.approve")
-    can_create = _role_allows(actor, "scan.create")
-    if can_approve and not can_create:
-        pending = _pending_approvals()
-        if pending:
-            return redirect("web-scan-run-detail", run_id=pending[0].run_id)
-        return redirect("web-scan-run-list")
-    return views.dashboard_view(request)
-
-
-@cache_control(private=True, no_store=True)
-@login_required
-@require_GET
 def assessment_list_view(request: HttpRequest) -> HttpResponse:
     try:
         actor = views._protected(request, required_actions=("audit.read", "scan.read"))
@@ -179,7 +159,7 @@ def assessment_list_view(request: HttpRequest) -> HttpResponse:
         request,
         "web/agent_runs.html",
         {
-            "page_title": "Assessment Control Centre",
+            "page_title": "Assessment History",
             "runs": runs,
             "error_message": error,
             "can_create_assessment": can_create,

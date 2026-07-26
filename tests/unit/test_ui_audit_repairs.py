@@ -46,16 +46,31 @@ def test_navigation_exposes_real_workspaces_and_highlights_every_detail_route(
         ],
     )
     entries = {str(item["label"]): item for item in navigation_for(user)}
-    assert "Approval Centre" in entries
-    assert "Mobile Analysis" in entries
+    assert tuple(entries) == (
+        "Assessment Workspace",
+        "Authorizations",
+        "Assessment History",
+        "Findings",
+        "Review Queue",
+        "Adjudications",
+        "Campaigns",
+        "Releases",
+        "Datasets",
+        "Analysis Services",
+        "Audit Log",
+        "Reports",
+        "Settings",
+    )
+    assert "web-approval-list" in entries["Assessment History"]["active_routes"]
+    assert "web-mobile-analysis" in entries["Assessment Workspace"]["active_routes"]
     assert "web-finding-detail" in entries["Findings"]["active_routes"]
     assert "web-review-detail" in entries["Review Queue"]["active_routes"]
     assert "web-adjudication-detail" in entries["Adjudications"]["active_routes"]
     assert "web-release-detail" in entries["Releases"]["active_routes"]
     assert "web-dataset-detail" in entries["Datasets"]["active_routes"]
-    assert "web-model-detail" in entries["Models"]["active_routes"]
+    assert "web-model-detail" in entries["Analysis Services"]["active_routes"]
     assert "web-pilot-plan-download" in entries["Reports"]["active_routes"]
-    assert "web-mobile-analysis" not in entries["Settings"]["active_routes"]
+    assert "web-security-tool-registry" in entries["Settings"]["active_routes"]
 
 
 @pytest.mark.django_db
@@ -81,6 +96,9 @@ def test_settings_page_renders_real_posture_without_exposing_secret_paths(
         b"Activation gates",
         b"Core capability health",
         b"Browser security posture",
+        b"Governed references",
+        b"Integrations &amp; Tools",
+        b"Governance policies",
     ):
         assert marker in response.content
     assert b"Configuration workspaces" not in response.content

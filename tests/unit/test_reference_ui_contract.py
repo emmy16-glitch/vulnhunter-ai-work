@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import pytest
@@ -13,9 +14,8 @@ INSPECTOR = TEMPLATES / "_mobile_analysis_inspector.html"
 BASE = TEMPLATES / "base.html"
 CSS = STATIC / "workspace-polish.css"
 SCRIPT = STATIC / "workspace-state.js"
-NAVIGATION = WEB / "templatetags" / "vh_navigation.py"
+BLUEPRINT_NAVIGATION = ROOT / "config" / "product_interface" / "navigation.json"
 URLS = WEB / "urls.py"
-ASSESSMENT_VIEWS = WEB / "assessment_views.py"
 AUDIT_VIEWS = WEB / "audit_views.py"
 FINDINGS_VIEWS = WEB / "findings_views.py"
 REPORT_VIEWS = WEB / "report_views.py"
@@ -27,19 +27,25 @@ def _text(path: Path) -> str:
 
 
 def test_canonical_navigation_matches_the_unified_product():
-    navigation = _text(NAVIGATION)
-    for section in (
+    navigation = json.loads(_text(BLUEPRINT_NAVIGATION))
+    sections = [section["label"] for section in navigation["sections"]]
+    assert sections == [
         "Overview",
         "Collection",
         "Analysis",
         "Independent Review",
         "Governance",
         "Intelligence",
+        "Assurance",
         "System",
-    ):
-        assert f'"section_label": "{section}"' in navigation
+    ]
 
-    labels = (
+    labels = [
+        item["label"]
+        for section in navigation["sections"]
+        for item in section.get("items", [])
+    ]
+    assert labels == [
         "Assessment Workspace",
         "Authorizations",
         "Assessment History",
@@ -48,25 +54,13 @@ def test_canonical_navigation_matches_the_unified_product():
         "Adjudications",
         "Campaigns",
         "Releases",
-        "Policies",
-        "Reports",
         "Datasets",
         "Analysis Services",
-        "Integrations & Tools",
         "Audit Log",
+        "Reports",
         "Settings",
-    )
-    for label in labels:
-        assert navigation.count(f'"label": "{label}"') == 1
-
-    for retired in (
-        '"label": "Mobile APK Analysis"',
-        '"label": "New Assessment"',
-        '"label": "Approval Centre"',
-        '"label": "Machine Oracle"',
-        '"label": "Scan Runs"',
-    ):
-        assert retired not in navigation
+    ]
+    assert len(labels) == len(set(labels))
 
 
 def test_canonical_routes_and_legacy_aliases_are_explicit():
@@ -182,12 +176,17 @@ def test_assessment_detail_remains_evidence_first_and_truthful():
 
 
 def test_scanner_choice_remains_bounded_after_form_retirement():
-    view = _text(ASSESSMENT_VIEWS)
     operations = _text(OPERATIONS_VIEWS)
     urls = _text(URLS)
-    assert '_ALLOWED_SCANNER_ENGINES = {"automatic", "nuclei"}' in view
-    assert "new_scan_view" in operations
+    assert not (WEB / "assessment_views.py").exists()
+    assert not (TEMPLATES / "new_scan.html").exists()
+    assert not (TEMPLATES / "mobile_analysis.html").exists()
+    assert not (STATIC / "assessment-modal.js").exists()
+    assert "new_scan_view" not in operations
+    assert "active_authorizations_view" not in operations
+    assert "mobile_analysis_view" not in operations
     assert 'RedirectView.as_view(url="/?intent=new-assessment"' in urls
+    assert '"scans/authorizations/"' not in urls
     web_text = "\n".join(path.read_text(encoding="utf-8") for path in WEB.rglob("*.py"))
     template_text = "\n".join(
         path.read_text(encoding="utf-8") for path in TEMPLATES.rglob("*.html")
@@ -433,7 +432,6 @@ def test_overview_pages_do_not_repeat_sidebar_navigation():
         "status.html",
         "approvals.html",
         "authorizations_overview.html",
-        "mobile_analysis.html",
         "dashboard.html",
         "audit_overview.html",
         "campaigns.html",

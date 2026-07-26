@@ -105,11 +105,6 @@ urlpatterns = [
         RedirectView.as_view(url="/?intent=new-assessment", permanent=False),
         name="web-new-scan",
     ),
-    path(
-        "scans/authorizations/",
-        operations_views.active_authorizations_view,
-        name="web-active-authorizations",
-    ),
     path("scans/", unified_assessment_views.assessment_list_view, name="web-scan-run-list"),
     path(
         "scans/<str:run_id>/",

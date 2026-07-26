@@ -1,0 +1,104 @@
+name: Temporary Source Hunt Recovery Patch
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'agent/groq-source-hunt-loop'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - run: python -m pip install 'ruff>=0.9,<1'
+      - name: Apply restart and idempotence hardening
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          jobs = Path('vulnhunter/source_hunt/jobs.py')
+          text = jobs.read_text(encoding='utf-8')
+          replacements = {
+              'import json\n': 'import hashlib\nimport json\n',
+              'from vulnhunter.source_hunt.store import SourceHuntStore\n': (
+                  'from vulnhunter.source_hunt.store import SourceHuntStore\n'
+                  'from vulnhunter.security import redact_text\n'
+              ),
+              '    model: str\n    status: SourceHuntJobStatus\n': (
+                  '    model: str\n'
+                  '    expected_report_id: str = Field(pattern=r"^source-report-[0-9a-f]{24}$")\n'
+                  '    status: SourceHuntJobStatus\n'
+              ),
+              '        created_at = now or datetime.now(UTC)\n        return cls(\n': (
+                  '        created_at = now or datetime.now(UTC)\n'
+                  '        report_seed = (\n'
+                  '            snapshot.snapshot_sha256 + approval.approval_sha256\n'
+                  '        ).encode()\n'
+                  '        report_digest = hashlib.sha256(report_seed).hexdigest()\n'
+                  '        return cls(\n'
+              ),
+              '            model=model,\n            status=SourceHuntJobStatus.QUEUED,\n': (
+                  '            model=model,\n'
+                  '            expected_report_id=f"source-report-{report_digest[:24]}",\n'
+                  '            status=SourceHuntJobStatus.QUEUED,\n'
+              ),
+              '        return None\n\n    def complete(\n': '''        return None\n\n    def recover_running(self) -> tuple[SourceHuntJob, ...]:\n        """Requeue jobs interrupted after a single-instance worker stopped."""\n\n        self.initialize()\n        recovered: list[SourceHuntJob] = []\n        for running_path in sorted(self.running.glob("source-job-*.json")):\n            running_job = self._load_path(running_path)\n            queued_path = self._path(self.queued, running_job.job_id)\n            if queued_path.exists():\n                raise ValueError("source-hunt recovery found a duplicate queued job")\n            queued_job = running_job.model_copy(\n                update={\n                    "status": SourceHuntJobStatus.QUEUED,\n                    "started_at": None,\n                    "safe_error": None,\n                }\n            )\n            running_path.replace(queued_path)\n            self._atomic_write(queued_path, queued_job)\n            recovered.append(queued_job)\n        return tuple(recovered)\n\n    def complete(\n''',
+              '        if job.status != SourceHuntJobStatus.RUNNING:\n            raise ValueError("only running source-hunt jobs may complete")\n': (
+                  '        if job.status != SourceHuntJobStatus.RUNNING:\n'
+                  '            raise ValueError("only running source-hunt jobs may complete")\n'
+                  '        if report.report_id != job.expected_report_id:\n'
+                  '            raise ValueError("source-hunt report does not match the claimed job")\n'
+              ),
+              '    try:\n        report = GroqSourceHunt(connector=connector, policy=policy).run(\n': '''    try:\n        try:\n            existing = report_store.load(job.expected_report_id)\n        except FileNotFoundError:\n            existing = None\n        if existing is not None:\n            if (\n                existing.approval_id != job.approval.approval_id\n                or existing.snapshot.snapshot_sha256 != job.snapshot.snapshot_sha256\n            ):\n                raise ValueError(\n                    "persisted source-hunt report does not match the claimed job"\n                )\n            return job_store.complete(job, existing)\n        report = GroqSourceHunt(connector=connector, policy=policy).run(\n''',
+              '    except Exception as exc:\n        safe_error = str(exc) or type(exc).__name__\n        return job_store.fail(job, safe_error)\n': '''    except Exception as exc:\n        safe_error = redact_text(str(exc) or type(exc).__name__)\n        return job_store.fail(job, safe_error)\n''',
+          }
+          for old, new in replacements.items():
+              if text.count(old) != 1:
+                  raise SystemExit(f'expected one jobs.py match, found {text.count(old)}: {old[:80]!r}')
+              text = text.replace(old, new)
+          jobs.write_text(text, encoding='utf-8')
+
+          worker = Path(
+              'vulnhunter/web/management/commands/vh_run_source_hunt_worker.py'
+          )
+          text = worker.read_text(encoding='utf-8')
+          replacements = {
+              'import os\nimport time\n': 'import fcntl\nimport os\nimport time\n',
+              'class Command(BaseCommand):\n': '''def _acquire_worker_lock(store: SourceHuntJobStore):\n    store.initialize()\n    handle = (store.root / ".worker.lock").open("a+", encoding="utf-8")\n    try:\n        fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)\n    except BlockingIOError as exc:\n        handle.close()\n        raise CommandError("another Source Hunt worker already holds the queue lock") from exc\n    return handle\n\n\nclass Command(BaseCommand):\n''',
+              '        processed = 0\n        while True:\n            job = process_next_source_hunt_job(\n                job_store=_job_store(),\n                report_store=_report_store(),\n                connector=provider,\n                policy=_policy(),\n            )\n': '''        job_store = _job_store()\n        report_store = _report_store()\n        policy = _policy()\n        worker_lock = _acquire_worker_lock(job_store)\n        recovered = job_store.recover_running()\n        if recovered:\n            self.stdout.write(f"recovered {len(recovered)} interrupted source-hunt job(s)")\n\n        processed = 0\n        try:\n            while True:\n                job = process_next_source_hunt_job(\n                    job_store=job_store,\n                    report_store=report_store,\n                    connector=provider,\n                    policy=policy,\n                )\n''',
+              '            if job is not None:\n                processed += 1\n                self.stdout.write(\n': '''                if job is not None:\n                    processed += 1\n                    self.stdout.write(\n''',
+              '                    f"{job.job_id}: {job.status.value}"\n                    + (f" report={job.report_id}" if job.report_id else "")\n                    + (f" error={job.safe_error}" if job.safe_error else "")\n                )\n            if options["once"] or (maximum_jobs and processed >= maximum_jobs):\n                break\n            if job is None:\n                time.sleep(poll_seconds)\n\n        self.stdout.write(self.style.SUCCESS(f"processed {processed} source-hunt job(s)"))\n': '''                        f"{job.job_id}: {job.status.value}"\n                        + (f" report={job.report_id}" if job.report_id else "")\n                        + (f" error={job.safe_error}" if job.safe_error else "")\n                    )\n                if options["once"] or (maximum_jobs and processed >= maximum_jobs):\n                    break\n                if job is None:\n                    time.sleep(poll_seconds)\n        finally:\n            worker_lock.close()\n\n        self.stdout.write(self.style.SUCCESS(f"processed {processed} source-hunt job(s)"))\n''',
+          }
+          for old, new in replacements.items():
+              if text.count(old) != 1:
+                  raise SystemExit(f'expected one worker match, found {text.count(old)}: {old[:80]!r}')
+              text = text.replace(old, new)
+          worker.write_text(text, encoding='utf-8')
+          PY
+          ruff format \
+            vulnhunter/source_hunt/jobs.py \
+            vulnhunter/web/management/commands/vh_run_source_hunt_worker.py
+          ruff check \
+            vulnhunter/source_hunt/jobs.py \
+            vulnhunter/web/management/commands/vh_run_source_hunt_worker.py
+      - name: Commit recovery hardening
+        shell: bash
+        run: |
+          git config user.name 'vulnhunter-quality-bot'
+          git config user.email 'vulnhunter-quality-bot@users.noreply.github.com'
+          git add \
+            vulnhunter/source_hunt/jobs.py \
+            vulnhunter/web/management/commands/vh_run_source_hunt_worker.py
+          git commit -m 'Harden Source Hunt worker recovery'
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}

@@ -1,5 +1,10 @@
 """Groq-only attacker-first source-code hunting with deterministic controls."""
 
+from vulnhunter.source_hunt.fix_verify import (
+    FixVerificationInput,
+    ReadOnlyFixVerifier,
+    VerifierReceipt,
+)
 from vulnhunter.source_hunt.models import (
     AttackSurface,
     CandidateDisposition,
@@ -30,10 +35,12 @@ __all__ = [
     "CandidateDisposition",
     "CapabilityAssessment",
     "FalsificationDecision",
+    "FixVerificationInput",
     "FixVerificationReport",
     "FixVerificationVerdict",
     "GroqHypothesis",
     "GroqSourceHunt",
+    "ReadOnlyFixVerifier",
     "RemoteSourceProcessingApproval",
     "RemediationProposal",
     "RepositorySnapshot",
@@ -46,4 +53,5 @@ __all__ = [
     "SourceHuntStage",
     "SourceHuntStore",
     "SourceReference",
+    "VerifierReceipt",
 ]

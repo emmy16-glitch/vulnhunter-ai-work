@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from datetime import UTC, datetime
 from enum import StrEnum
@@ -10,6 +11,7 @@ from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from vulnhunter.security import redact_text
 from vulnhunter.source_hunt.models import (
     RemoteSourceProcessingApproval,
     RepositorySnapshot,
@@ -36,6 +38,7 @@ class SourceHuntJob(BaseModel):
     snapshot: RepositorySnapshot
     approval: RemoteSourceProcessingApproval
     model: str
+    expected_report_id: str = Field(pattern=r"^source-report-[0-9a-f]{24}$")
     status: SourceHuntJobStatus
     report_id: str | None = None
     safe_error: str | None = Field(default=None, max_length=1_000)
@@ -54,12 +57,15 @@ class SourceHuntJob(BaseModel):
         now: datetime | None = None,
     ) -> SourceHuntJob:
         created_at = now or datetime.now(UTC)
+        report_seed = (snapshot.snapshot_sha256 + approval.approval_sha256).encode()
+        report_digest = hashlib.sha256(report_seed).hexdigest()
         return cls(
             job_id=f"source-job-{uuid4().hex}",
             repository_root=str(repository_root.expanduser().resolve(strict=True)),
             snapshot=snapshot,
             approval=approval,
             model=model,
+            expected_report_id=f"source-report-{report_digest[:24]}",
             status=SourceHuntJobStatus.QUEUED,
             created_at=created_at,
         )
@@ -113,6 +119,28 @@ class SourceHuntJobStore:
                 raise
         return None
 
+    def recover_running(self) -> tuple[SourceHuntJob, ...]:
+        """Requeue jobs interrupted after the single-instance worker stopped."""
+
+        self.initialize()
+        recovered: list[SourceHuntJob] = []
+        for running_path in sorted(self.running.glob("source-job-*.json")):
+            running_job = self._load_path(running_path)
+            queued_path = self._path(self.queued, running_job.job_id)
+            if queued_path.exists():
+                raise ValueError("source-hunt recovery found a duplicate queued job")
+            queued_job = running_job.model_copy(
+                update={
+                    "status": SourceHuntJobStatus.QUEUED,
+                    "started_at": None,
+                    "safe_error": None,
+                }
+            )
+            running_path.replace(queued_path)
+            self._atomic_write(queued_path, queued_job)
+            recovered.append(queued_job)
+        return tuple(recovered)
+
     def complete(
         self,
         job: SourceHuntJob,
@@ -122,6 +150,8 @@ class SourceHuntJobStore:
     ) -> SourceHuntJob:
         if job.status != SourceHuntJobStatus.RUNNING:
             raise ValueError("only running source-hunt jobs may complete")
+        if report.report_id != job.expected_report_id:
+            raise ValueError("source-hunt report does not match the claimed job")
         completed_job = job.model_copy(
             update={
                 "status": SourceHuntJobStatus.COMPLETED,
@@ -170,7 +200,9 @@ class SourceHuntJobStore:
                     jobs.append(self._load_path(path))
                 except (OSError, ValueError):
                     continue
-        return tuple(sorted(jobs, key=lambda item: item.created_at, reverse=True)[:limit])
+        return tuple(
+            sorted(jobs, key=lambda item: item.created_at, reverse=True)[:limit]
+        )
 
     def _move_and_write(
         self,
@@ -225,6 +257,19 @@ def process_next_source_hunt_job(
     if job is None:
         return None
     try:
+        try:
+            existing = report_store.load(job.expected_report_id)
+        except FileNotFoundError:
+            existing = None
+        if existing is not None:
+            if (
+                existing.approval_id != job.approval.approval_id
+                or existing.snapshot.snapshot_sha256 != job.snapshot.snapshot_sha256
+            ):
+                raise ValueError(
+                    "persisted source-hunt report does not match the claimed job"
+                )
+            return job_store.complete(job, existing)
         report = GroqSourceHunt(connector=connector, policy=policy).run(
             Path(job.repository_root),
             approval=job.approval,
@@ -233,5 +278,5 @@ def process_next_source_hunt_job(
         report_store.save(report)
         return job_store.complete(job, report)
     except Exception as exc:
-        safe_error = str(exc) or type(exc).__name__
+        safe_error = redact_text(str(exc) or type(exc).__name__)
         return job_store.fail(job, safe_error)

@@ -18,7 +18,9 @@ class SourceHuntStore:
         if destination.exists():
             existing = self.load(report.report_id)
             if existing != report:
-                raise ValueError("source-hunt report identifier already contains different evidence")
+                raise ValueError(
+                    "source-hunt report identifier already contains different evidence"
+                )
             return destination
         temporary = destination.with_suffix(".json.tmp")
         temporary.write_text(

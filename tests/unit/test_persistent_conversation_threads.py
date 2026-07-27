@@ -161,8 +161,7 @@ def test_legacy_session_conversation_is_migrated_once(client, settings, workspac
     assert response.status_code == 200
     thread = ConversationThread.objects.get(owner=user)
     assert (
-        thread.data["vulnhunter_conversation_messages"][0]["content"]
-        == "Keep this APK discussion"
+        thread.data["vulnhunter_conversation_messages"][0]["content"] == "Keep this APK discussion"
     )
     assert thread.data["vulnhunter_conversation_state"]["target"] == "http://127.0.0.1:8010/"
     refreshed_session = client.session

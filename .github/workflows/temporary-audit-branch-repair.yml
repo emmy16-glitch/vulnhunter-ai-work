@@ -3,7 +3,7 @@ name: Temporary audit-branch repair
 on:
   pull_request_target:
     branches: [main]
-    types: [opened, reopened]
+    types: [synchronize]
 
 permissions:
   contents: write
@@ -23,208 +23,82 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
 
-      - name: Apply current product contracts and UI repairs
+      - name: Apply final formatting, mobile geometry and browser diagnostics
         shell: bash
         run: |
           set -euo pipefail
+          if [[ "$(git log -1 --pretty=%s)" == "Apply final format and browser diagnostics" ]]; then
+            exit 0
+          fi
+          python -m pip install 'ruff>=0.9,<1'
+          python -m ruff format vulnhunter/source_hunt/jobs.py
           python - <<'PY'
-          from __future__ import annotations
-
-          import json
           from pathlib import Path
 
-          def replace_once(path: str, old: str, new: str) -> None:
+          replacements = {
+              "vulnhunter/web/static/web/conversation-mobile.css": [
+                  ("height: 30px !important", "height: 44px !important"),
+                  ("width: 5.65rem", "width: 6.5rem"),
+              ],
+              "vulnhunter/web/static/web/conversation.js": [
+                  ('input.style.height = "30px"', 'input.style.height = "44px"'),
+              ],
+              "vulnhunter/web/static/web/conversation.css": [
+                  ("min-height: 30px;", "min-height: 44px;"),
+              ],
+              "tests/unit/test_mobile_composer_contract.py": [
+                  ("height: 30px !important", "height: 44px !important"),
+                  ("width: 5.65rem", "width: 6.5rem"),
+              ],
+          }
+          for path, pairs in replacements.items():
               target = Path(path)
               text = target.read_text(encoding="utf-8")
-              if new in text:
-                  return
-              count = text.count(old)
-              if count != 1:
-                  raise SystemExit(f"Expected one marker in {path}, found {count}: {old[:100]!r}")
-              target.write_text(text.replace(old, new, 1), encoding="utf-8")
+              for old, new in pairs:
+                  if new in text:
+                      continue
+                  if old not in text:
+                      raise SystemExit(f"Missing expected marker in {path}: {old}")
+                  text = text.replace(old, new, 1)
+              target.write_text(text, encoding="utf-8")
 
-          models = Path("vulnhunter/providers/models.py")
-          models_text = models.read_text(encoding="utf-8")
-          capability_marker = '    CONVERSATION = "conversation"\n'
-          capability_lines = [
-              '    SOURCE_RECONNAISSANCE = "source_reconnaissance"\n',
-              '    ATTACK_PATH_ANALYSIS = "attack_path_analysis"\n',
-              '    CANDIDATE_FALSIFICATION = "candidate_falsification"\n',
-              '    CAPABILITY_ASSESSMENT = "capability_assessment"\n',
-              '    REMEDIATION_PLANNING = "remediation_planning"\n',
-              '    FIX_REVIEW = "fix_review"\n',
-          ]
-          missing = "".join(line for line in capability_lines if line not in models_text)
-          if missing:
-              if capability_marker not in models_text:
-                  raise SystemExit("Provider capability marker is missing.")
-              models.write_text(
-                  models_text.replace(capability_marker, capability_marker + missing, 1),
-                  encoding="utf-8",
-              )
-
-          navigation_path = Path("config/product_interface/navigation.json")
-          navigation = json.loads(navigation_path.read_text(encoding="utf-8"))
-          analysis = next(
-              section for section in navigation["sections"] if section["section_id"] == "analysis"
-          )
-          if not any(item["page_id"] == "source-hunt" for item in analysis["items"]):
-              analysis["items"].append(
-                  {"icon": "search-code", "label": "Source Hunt", "page_id": "source-hunt"}
-              )
-          navigation_path.write_text(json.dumps(navigation, indent=2) + "\n", encoding="utf-8")
-
-          pages_path = Path("config/product_interface/pages.json")
-          pages_document = json.loads(pages_path.read_text(encoding="utf-8"))
-          if not any(page["page_id"] == "source-hunt" for page in pages_document["pages"]):
-              source_page = {
-                  "actions": [
-                      {
-                          "action_id": "scan.create",
-                          "allowed_roles": ["campaign-operator"],
-                          "api_resource_id": "scans",
-                          "confirmation_required": True,
-                          "dangerous": False,
-                      }
-                  ],
-                  "allowed_roles": ["campaign-operator"],
-                  "nav_section": "analysis",
-                  "page_id": "source-hunt",
-                  "required_api_resources": ["scans"],
-                  "responsive_priority": "high",
-                  "route": "/source-hunt",
-                  "shows_blockers": True,
-                  "title": "Source Hunt",
-              }
-              findings_index = next(
-                  index
-                  for index, page in enumerate(pages_document["pages"])
-                  if page["page_id"] == "findings"
-              )
-              pages_document["pages"].insert(findings_index + 1, source_page)
-          pages_path.write_text(json.dumps(pages_document, indent=2) + "\n", encoding="utf-8")
-
-          services = Path("vulnhunter/web/services.py")
-          services_text = services.read_text(encoding="utf-8")
-          if '        "source-hunt": {' not in services_text:
-              marker = '''        "findings": {
-                      "url_name": "web-findings-overview",'''.replace("              ", "")
-              insertion = '''        "source-hunt": {
-                      "url_name": "web-source-hunt",
-                      "icon": "assessment",
-                      "actions": ("scan.create",),
-                      "active_routes": ("web-source-hunt",),
-                  },
-                  "findings": {
-                      "url_name": "web-findings-overview",'''.replace("              ", "")
-              if marker not in services_text:
-                  raise SystemExit("Could not bind Source Hunt into blueprint-backed navigation.")
-              services.write_text(services_text.replace(marker, insertion, 1), encoding="utf-8")
-
-          conversation = Path("vulnhunter/web/templates/web/conversation.html")
-          conversation_text = conversation.read_text(encoding="utf-8")
-          conversation_text = conversation_text.replace(
-              "Conversational analysis for authorised websites and APKs",
-              "Conversational analysis for authorised websites, APKs and source repositories",
-          )
-          if "web-source-hunt" not in conversation_text:
-              marker = '    <div class="vh-chat-runtime" aria-label="Workspace actions">\n'
-              link = marker + '      <a class="vh-chat-history-toggle" href="{% url \'web-source-hunt\' %}">Source Hunt</a>\n'
-              if marker not in conversation_text:
-                  raise SystemExit("Conversation action marker is missing.")
-              conversation_text = conversation_text.replace(marker, link, 1)
-          conversation_text = conversation_text.replace(
-              "Website and APK assessments start here · Enter to send",
-              "Website and APK assessments start here · Source repositories use Source Hunt · Enter to send",
-          )
-          conversation.write_text(conversation_text, encoding="utf-8")
-
-          replace_once(
-              "vulnhunter/web/static/web/conversation.js",
-              '''  const resizeInput = () => {
-                  input.style.height = "auto";
-                  input.style.height = `${Math.min(input.scrollHeight, 180)}px`;
-                };'''.replace("              ", ""),
-              '''  const resizeInput = () => {
-                  input.style.height = "auto";
-                  if (!input.value.trim()) {
-                    input.style.height = "30px";
-                    return;
-                  }
-                  input.style.height = `${Math.min(input.scrollHeight, 180)}px`;
-                };'''.replace("              ", ""),
-          )
-
-          replace_once(
-              "vulnhunter/web/static/web/conversation.css",
-              '''.vh-chat-input-shell textarea {
-                  width: 100%;
-                  min-height: 30px;'''.replace("              ", ""),
-              '''.vh-chat-input-shell textarea {
-                  flex: 1 1 auto;
-                  width: auto;
-                  min-width: 0;
-                  min-height: 30px;'''.replace("              ", ""),
-          )
-
-          layout = Path("vulnhunter/web/static/web/conversation-layout.css")
-          layout_text = layout.read_text(encoding="utf-8")
-          mobile_marker = '''  .vh-conversation-body .vh-chat-input-shell textarea {
-                  font-size: 16px;
-                }
-              '''.replace("              ", "")
-          mobile_rules = '''  .vh-conversation-body .vh-chat-input-shell {
-                  gap: 6px;
-                  padding: 8px;
-                }
-
-                .vh-conversation-body .vh-chat-input-shell textarea {
-                  min-width: 0;
-                  font-size: 16px;
-                }
-
-                .vh-conversation-body .vh-reasoning-control {
-                  flex: 0 0 auto;
-                  min-width: 0;
-                }
-
-                .vh-conversation-body .vh-reasoning-control select {
-                  width: 5.65rem;
-                  max-width: 100%;
-                  min-height: 38px;
-                  padding-inline: .65rem 1.55rem;
-                }
-              '''.replace("              ", "")
-          if mobile_rules not in layout_text:
-              if mobile_marker not in layout_text:
-                  raise SystemExit("Mobile composer marker is missing.")
-              layout.write_text(layout_text.replace(mobile_marker, mobile_rules, 1), encoding="utf-8")
-
-          regression = Path("tests/unit/test_mobile_composer_contract.py")
-          regression.write_text(
-              '''from pathlib import Path
-
-
-def test_empty_mobile_composer_stays_compact_and_controls_keep_space():
-    root = Path(__file__).resolve().parents[2]
-    script = (root / "vulnhunter/web/static/web/conversation.js").read_text()
-    base_css = (root / "vulnhunter/web/static/web/conversation.css").read_text()
-    layout_css = (root / "vulnhunter/web/static/web/conversation-layout.css").read_text()
-
-    assert "if (!input.value.trim())" in script
-    assert 'input.style.height = "30px"' in script
-    assert "flex: 1 1 auto" in base_css
-    assert "min-width: 0" in base_css
-    assert ".vh-reasoning-control select" in layout_css
-    assert "width: 5.65rem" in layout_css
-    assert "gap: 6px" in layout_css
-''',
-              encoding="utf-8",
-          )
+          workflow = Path(".github/workflows/temporary-full-system-audit.yml")
+          text = workflow.read_text(encoding="utf-8")
+          old = '''          for cycle in $(seq 1 7); do
+            echo "Browser/UI cycle ${cycle}/7"
+            node tests/ui/conversation_e2e.cjs
+            node .playwright-validate.cjs
+          done
+'''
+          new = '''          : > /tmp/vh-stress-ui/browser-repeat.log
+          for cycle in $(seq 1 7); do
+            {
+              echo "Browser/UI cycle ${cycle}/7"
+              node tests/ui/conversation_e2e.cjs
+              node .playwright-validate.cjs
+            } 2>&1 | tee -a /tmp/vh-stress-ui/browser-repeat.log
+          done
+'''
+          if new not in text:
+              if old not in text:
+                  raise SystemExit("Browser-cycle workflow marker is missing")
+              text = text.replace(old, new, 1)
+          artifact_marker = '''            /tmp/vh-stress-ui/server.log
+'''
+          artifact_replacement = '''            /tmp/vh-stress-ui/server.log
+            /tmp/vh-stress-ui/browser-repeat.log
+'''
+          if artifact_replacement not in text:
+              if artifact_marker not in text:
+                  raise SystemExit("Browser diagnostic artifact marker is missing")
+              text = text.replace(artifact_marker, artifact_replacement, 1)
+          workflow.write_text(text, encoding="utf-8")
           PY
 
           git config user.name 'vulnhunter-audit-bot'
           git config user.email 'actions@users.noreply.github.com'
           git add -A
-          git commit -m 'Align source hunt and repair mobile composer'
-          git push origin HEAD:${{ github.event.pull_request.head.ref }}
+          if ! git diff --cached --quiet; then
+            git commit -m 'Apply final format and browser diagnostics'
+            git push origin HEAD:${{ github.event.pull_request.head.ref }}
+          fi

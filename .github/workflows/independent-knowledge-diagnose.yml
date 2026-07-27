@@ -1,0 +1,62 @@
+name: Independent knowledge audit diagnostics
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    if: github.event.pull_request.head.ref == 'agent/independent-knowledge-integrity'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: agent/independent-knowledge-integrity
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install test tools
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .
+          python -m pip install pytest pytest-django ruff
+      - name: Reproduce isolated patch and capture diagnostics
+        shell: bash
+        run: |
+          set +e
+          python - <<'PY'
+          from pathlib import Path
+
+          workflow = Path('.github/workflows/independent-knowledge-integrity.yml').read_text(
+              encoding='utf-8'
+          )
+          start = workflow.index("          python - <<'PY'\n") + len("          python - <<'PY'\n")
+          end = workflow.index("\n          PY\n", start)
+          lines = workflow[start:end].splitlines()
+          script = '\n'.join(line[10:] if line.startswith('          ') else line for line in lines)
+          Path('/tmp/apply_knowledge_patch.py').write_text(script + '\n', encoding='utf-8')
+          PY
+          {
+            python /tmp/apply_knowledge_patch.py
+            ruff format vulnhunter/knowledge/store.py tests/unit/test_knowledge_ingestion.py
+            ruff check vulnhunter/knowledge/store.py tests/unit/test_knowledge_ingestion.py
+            python -m pytest -q tests/unit/test_knowledge_ingestion.py tests/unit/test_knowledge_cli.py
+          } > /tmp/knowledge-integrity-diagnostics.log 2>&1
+          status=$?
+          cat /tmp/knowledge-integrity-diagnostics.log
+          echo "$status" > /tmp/knowledge-integrity-status.txt
+          exit 0
+      - name: Upload diagnostics
+        uses: actions/upload-artifact@v6
+        with:
+          name: independent-knowledge-integrity-diagnostics
+          path: |
+            /tmp/knowledge-integrity-diagnostics.log
+            /tmp/knowledge-integrity-status.txt
+          if-no-files-found: error
+          retention-days: 3

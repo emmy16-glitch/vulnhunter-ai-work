@@ -1,1 +1,1 @@
-Trigger the pull-request workflow that applies and validates durable workspace run isolation.
+Execute the recognised audit finalizer for the durable workspace run-isolation repair.

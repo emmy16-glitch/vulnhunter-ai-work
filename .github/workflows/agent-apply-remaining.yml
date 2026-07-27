@@ -44,7 +44,7 @@ jobs:
             vulnhunter/web/conversational_views.py
           node --check vulnhunter/web/static/web/conversation.js
           git diff --check
-      - name: Remove applicator and publish implementation
+      - name: Remove archive payloads
         shell: bash
         run: |
           set -euo pipefail
@@ -55,11 +55,15 @@ jobs:
             .agent-remaining.part01 \
             .agent-remaining.part02 \
             .agent-remaining.part03 \
-            .agent-remaining.part04 \
-            .github/workflows/agent-apply-remaining.yml
+            .agent-remaining.part04
           git add -A
           git diff --cached --check
+      - name: Commit implementation
+        shell: bash
+        run: |
+          set -euo pipefail
           git config user.name "VulnHunter automation"
           git config user.email "actions@users.noreply.github.com"
           git commit -m "Complete persistent workspace and upload integration"
-          git push origin HEAD:agent/persistent-workspaces-uploads
+      - name: Push implementation
+        run: git push origin HEAD:agent/persistent-workspaces-uploads

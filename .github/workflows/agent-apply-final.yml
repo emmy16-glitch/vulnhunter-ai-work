@@ -55,13 +55,27 @@ jobs:
       - name: Format and lint changed source
         shell: bash
         run: |
-          set -euo pipefail
-          ruff format .
-          ruff check --fix .
-          ruff check .
-          ruff format --check .
-          git add -A
-          git diff --cached --check
+          set -o pipefail
+          set +e
+          {
+            set -x
+            ruff format .
+            ruff check --fix .
+            ruff check .
+            ruff format --check .
+            git add -A
+            git diff --cached --check
+          } 2>&1 | tee "$RUNNER_TEMP/final-lint.log"
+          status=${PIPESTATUS[0]}
+          exit "$status"
+      - name: Upload lint diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: final-lint-diagnostic
+          path: ${{ runner.temp }}/final-lint.log
+          if-no-files-found: error
+          retention-days: 1
       - name: Compile and check JavaScript
         shell: bash
         run: |

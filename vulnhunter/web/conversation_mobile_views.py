@@ -20,6 +20,7 @@ from vulnhunter.web.conversation_attachments import (
     remember_apk_attachment,
 )
 from vulnhunter.web.conversation_service import interpret_request
+from vulnhunter.web.conversation_threads import maybe_title_thread
 from vulnhunter.web.conversation_uploads import (
     ConversationUploadError,
     append_apk_chunk,
@@ -28,7 +29,6 @@ from vulnhunter.web.conversation_uploads import (
     get_apk_upload,
 )
 from vulnhunter.web.conversational_views import _actor, _append_message, _messages
-from vulnhunter.web.conversation_threads import maybe_title_thread
 from vulnhunter.web.mobile_conversation import build_mobile_chat_plan, mobile_plan_reply
 from vulnhunter.web.mobile_conversation_state import (
     clear_mobile_plan,

@@ -249,7 +249,9 @@ def _deterministic_chat_copy(
         "",
     )
 
-    if re.search(r"\b(what do you remember|remember what|what did i say|conversation context)\b", lowered):
+    if re.search(
+        r"\b(what do you remember|remember what|what did i say|conversation context)\b", lowered
+    ):
         if prior_user:
             return (
                 "This workspace remembers the earlier messages and work attached to it. "
@@ -432,9 +434,7 @@ def interpret_request(
     deterministic = deterministic_intent(text)
     intent = deterministic
     if deterministic == "chat":
-        assistant_copy = _deterministic_chat_copy(
-            text, conversation_context=conversation_context
-        )
+        assistant_copy = _deterministic_chat_copy(text, conversation_context=conversation_context)
     elif deterministic == "status":
         assistant_copy = (
             "No assessment is active yet. Send an authorised target to start one, or ask what "

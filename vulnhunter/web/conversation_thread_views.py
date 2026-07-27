@@ -34,9 +34,7 @@ def _owned_thread(request: HttpRequest, thread_id: str) -> ConversationThread | 
 @login_required
 @require_GET
 def thread_list_view(request: HttpRequest) -> JsonResponse:
-    return JsonResponse(
-        {"threads": [thread_summary(item) for item in list_threads(request.user)]}
-    )
+    return JsonResponse({"threads": [thread_summary(item) for item in list_threads(request.user)]})
 
 
 @cache_control(private=True, no_store=True)

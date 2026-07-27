@@ -28,7 +28,9 @@ def workspace_actor():
 def test_new_workspace_is_persisted_and_reopenable(client, settings, workspace_actor):
     settings.ALLOWED_HOSTS = ["testserver"]
     settings.VULNHUNTER_GROQ_ENABLED = False
-    user = get_user_model().objects.create_user(username="persistent-user", password="safe-pass-1234")
+    user = get_user_model().objects.create_user(
+        username="persistent-user", password="safe-pass-1234"
+    )
     client.force_login(user)
 
     with (
@@ -148,7 +150,9 @@ def test_legacy_session_conversation_is_migrated_once(client, settings, workspac
         response = client.get("/")
     assert response.status_code == 200
     thread = ConversationThread.objects.get(owner=user)
-    assert thread.data["vulnhunter_conversation_messages"][0]["content"] == "Keep this APK discussion"
+    assert (
+        thread.data["vulnhunter_conversation_messages"][0]["content"] == "Keep this APK discussion"
+    )
     assert thread.data["vulnhunter_conversation_state"]["target"] == "http://127.0.0.1:8010/"
     refreshed_session = client.session
     assert "vulnhunter_conversation_messages" not in refreshed_session

@@ -464,7 +464,9 @@ def workspace_view(request: HttpRequest) -> HttpResponse:
     thread_items = tuple(thread_summary(item) for item in list_threads(request.user))
     initial = {
         "thread_id": str(current_thread.thread_id) if current_thread is not None else "",
-        "thread_title": current_thread.title if current_thread is not None else "Assessment Workspace",
+        "thread_title": current_thread.title
+        if current_thread is not None
+        else "Assessment Workspace",
         "threads": thread_items,
         "messages": _messages(request),
         "active_run": active_run,

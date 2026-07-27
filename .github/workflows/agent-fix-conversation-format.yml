@@ -52,6 +52,7 @@ jobs:
           path.write_text(text, encoding="utf-8")
           PY
           python -m pip install ruff
+          python -m ruff format vulnhunter/web/conversation_service.py
           python -m ruff check vulnhunter/web/conversation_service.py
           python -m ruff format --check vulnhunter/web/conversation_service.py
           git diff --check

@@ -215,7 +215,7 @@ def test_observer_summary_pages_do_not_disclose_scope_or_detail_links(deep_paths
     assert run.objective.encode() not in runs.content
     assert run.run_id.encode() not in runs.content
     assert run.scope_summary.encode() not in runs.content
-    assert b"Open assessment" not in runs.content
+    assert f"/scans/{run.run_id}/".encode() not in runs.content
     assert campaigns.status_code == 200
     assert b"Campaign summary" in campaigns.content
     assert campaign.campaign_id.encode() not in campaigns.content
@@ -267,7 +267,7 @@ def test_system_administrator_can_control_cross_owner_run(deep_paths, client) ->
     with patch("vulnhunter.web.views.product_service", return_value=service):
         response = client.get(f"/agent/runs/{run.run_id}/stop/")
     assert response.status_code == 200
-    assert b"Stop assessment" in response.content
+    assert b"Confirm cancellation request" in response.content
 
 
 @pytest.mark.django_db
@@ -412,7 +412,7 @@ def test_operator_pending_run_does_not_link_to_inaccessible_approval_centre(
     with patch("vulnhunter.web.unified_assessment_views.product_service", return_value=service):
         response = client.get(f"/scans/{run.run_id}/")
     assert response.status_code == 200
-    assert b"Waiting for authorised approver" in response.content
+    assert b"Waiting for an authorised approver." in response.content
     assert b"Open Approval Centre" not in response.content
 
 

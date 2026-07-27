@@ -30,7 +30,6 @@ from vulnhunter.web.services import (
     product_service,
     role_policy,
     run_readable_to_actor,
-    run_visible_to_actor,
 )
 
 
@@ -102,10 +101,6 @@ def _approval_context_for_run(run_id: str) -> tuple[object | None, object | None
     return latest, pending
 
 
-def _can_view_cross_scope(actor) -> bool:
-    return _role_allows(actor, "settings.manage", "campaign.approve", "audit.read")
-
-
 def _run_is_visible(run, actor) -> bool:
     return run_readable_to_actor(run, actor)
 
@@ -148,13 +143,12 @@ def assessment_list_view(request: HttpRequest) -> HttpResponse:
     summary_only = _role_allows(actor, "scan.read_summary") and not _role_allows(
         actor, "scan.read", "audit.read"
     )
-    cross_scope = _can_view_cross_scope(actor) or summary_only
     try:
         all_runs = product_service().list_agent_runs()
         visible_runs = (
             all_runs
-            if cross_scope
-            else (run for run in all_runs if run_visible_to_actor(run, actor))
+            if summary_only
+            else (run for run in all_runs if run_readable_to_actor(run, actor))
         )
         runs = tuple(visible_runs)
     except ProductServiceError as exc:

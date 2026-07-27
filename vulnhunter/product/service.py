@@ -95,28 +95,46 @@ class ProductApplicationService:
             )
         else:
             runtime_fingerprint = runtime_config_fingerprint(runtime)
-            try:
-                agent_store = self._open_agent_store(required=True)
-                task_count = len(agent_store.list_tasks())
-            except (ProductServiceError, AgentStoreError, OSError, ValueError, sqlite3.Error):
+            agent_store_path = self.paths.agent_database.expanduser().resolve()
+            if not agent_store_path.is_file():
                 agent_runtime = CapabilityStatus(
                     name="agent_runtime",
                     state=AvailabilityState.INVALID,
-                    detail="Bounded runtime storage is invalid or unavailable.",
+                    detail="Agent store is missing.",
                     evidence_reference=runtime_fingerprint,
                 )
             else:
-                agent_runtime = CapabilityStatus(
-                    name="agent_runtime",
-                    state=(
-                        AvailabilityState.EMPTY if task_count == 0 else AvailabilityState.AVAILABLE
-                    ),
-                    detail=(
-                        "Bounded runtime configuration and schema-versioned store are available. "
-                        "Connectors, unrestricted shell, and public scanning remain disabled."
-                    ),
-                    evidence_reference=runtime_fingerprint,
-                )
+                try:
+                    agent_store = self._open_agent_store(required=True)
+                    task_count = len(agent_store.list_tasks())
+                except (
+                    ProductServiceError,
+                    AgentStoreError,
+                    OSError,
+                    ValueError,
+                    sqlite3.Error,
+                ):
+                    agent_runtime = CapabilityStatus(
+                        name="agent_runtime",
+                        state=AvailabilityState.INVALID,
+                        detail="Bounded runtime storage is invalid or unavailable.",
+                        evidence_reference=runtime_fingerprint,
+                    )
+                else:
+                    agent_runtime = CapabilityStatus(
+                        name="agent_runtime",
+                        state=(
+                            AvailabilityState.EMPTY
+                            if task_count == 0
+                            else AvailabilityState.AVAILABLE
+                        ),
+                        detail=(
+                            "Bounded runtime configuration and schema-versioned "
+                            "store are available. Connectors, unrestricted shell, "
+                            "and public scanning remain disabled."
+                        ),
+                        evidence_reference=runtime_fingerprint,
+                    )
 
         role_registry_status = self._role_registry_status()
         authorization_status = self._authorization_store_status()

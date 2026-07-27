@@ -1,0 +1,42 @@
+name: Validate staged source archive
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    if: github.head_ref == 'agent/persistent-workspaces-uploads'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: agent/persistent-workspaces-uploads
+      - name: Record archive diagnostics
+        shell: bash
+        run: |
+          set -u
+          {
+            wc -c .agent-tar.part00 .agent-tar.part01 .agent-tar.part02 .agent-tar.part03 .agent-tar.part04
+            sha256sum .agent-tar.part00 .agent-tar.part01 .agent-tar.part02 .agent-tar.part03 .agent-tar.part04
+            cat .agent-tar.part00 .agent-tar.part01 .agent-tar.part02 .agent-tar.part03 .agent-tar.part04 > "$RUNNER_TEMP/final-source.b64"
+            wc -c "$RUNNER_TEMP/final-source.b64"
+            sha256sum "$RUNNER_TEMP/final-source.b64"
+            if base64 -d "$RUNNER_TEMP/final-source.b64" > "$RUNNER_TEMP/final-source.tar.xz"; then
+              wc -c "$RUNNER_TEMP/final-source.tar.xz"
+              sha256sum "$RUNNER_TEMP/final-source.tar.xz"
+              xz -t "$RUNNER_TEMP/final-source.tar.xz" && echo XZ_OK || echo XZ_BAD
+            else
+              echo BASE64_BAD
+            fi
+          } > "$RUNNER_TEMP/archive-diagnostics.txt" 2>&1
+          cat "$RUNNER_TEMP/archive-diagnostics.txt"
+      - uses: actions/upload-artifact@v6
+        with:
+          name: archive-diagnostics
+          path: ${{ runner.temp }}/archive-diagnostics.txt
+          retention-days: 1

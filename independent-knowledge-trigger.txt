@@ -1,0 +1,1 @@
+Temporary branch-only trigger for the isolated knowledge-store repair workflow.

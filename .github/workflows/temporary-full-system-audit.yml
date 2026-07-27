@@ -83,9 +83,19 @@ jobs:
                 echo 'Source-hunt tests are missing from the integration branch.' >&2
                 exit 1
               fi
-              python -m pytest -q --maxfail=1 --count=70 "${source_tests[@]}"
+              python -m pytest -q --tb=short --maxfail=1 --count=70 "${source_tests[@]}" \
+                2>&1 | tee /tmp/source-hunt-repeat.log
               ;;
           esac
+
+      - name: Upload repeated-suite diagnostics
+        if: always() && matrix.suite == 'source-hunt'
+        uses: actions/upload-artifact@v6
+        with:
+          name: source-hunt-repeat-diagnostics
+          path: /tmp/source-hunt-repeat.log
+          if-no-files-found: warn
+          retention-days: 7
 
   repeated-browser-ui:
     if: github.head_ref == 'agent/full-system-audit'

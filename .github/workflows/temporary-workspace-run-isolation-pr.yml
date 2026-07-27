@@ -1,0 +1,170 @@
+name: Temporary PR workspace run isolation repair
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'agent/full-system-audit'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: agent/full-system-audit
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Apply durable workspace run isolation
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: str, old: str, new: str) -> None:
+              target = Path(path)
+              text = target.read_text(encoding="utf-8")
+              if old not in text:
+                  if new in text:
+                      return
+                  raise SystemExit(f"Expected marker missing from {path}: {old[:120]!r}")
+              target.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+          replace_once(
+              "vulnhunter/web/conversational_views.py",
+              """    if target:
+        return _latest_visible_run(actor, target=target)
+    return None
+""",
+              """    stored_target = state.get("target")
+    if (
+        target
+        and isinstance(stored_target, str)
+        and stored_target
+        and canonical_target(stored_target) == canonical_target(target)
+    ):
+        return _latest_visible_run(actor, target=target)
+    return None
+""",
+          )
+          replace_once(
+              "vulnhunter/web/middleware.py",
+              """    if not getattr(request.user, "is_authenticated", False):
+        return
+    raw_state = request.session.get(_SESSION_STATE, {})
+""",
+              """    if not getattr(request.user, "is_authenticated", False):
+        return
+    # Durable workspaces own their run binding. Global recovery is retained only
+    # for legacy requests that are not attached to a ConversationThread.
+    if getattr(request, "vulnhunter_thread", None) is not None:
+        return
+    raw_state = request.session.get(_SESSION_STATE, {})
+""",
+          )
+          replace_once(
+              "tests/unit/test_stale_conversation_state.py",
+              """    assert conversational_views._authoritative_run({}, object()) is None
+    assert (
+        conversational_views._authoritative_run(
+            {},
+            object(),
+            target="http://10.0.1.51:8010/",
+        )
+        is latest
+    )
+""",
+              """    assert conversational_views._authoritative_run({}, object()) is None
+    assert (
+        conversational_views._authoritative_run(
+            {},
+            object(),
+            target="http://10.0.1.51:8010/",
+        )
+        is None
+    )
+    assert (
+        conversational_views._authoritative_run(
+            {"target": "http://10.0.1.51:8010/"},
+            object(),
+            target="http://10.0.1.51:8010/",
+        )
+        is latest
+    )
+""",
+          )
+
+          path = Path("tests/unit/test_product_consolidation_repairs.py")
+          text = path.read_text(encoding="utf-8")
+          test = """
+
+
+def test_durable_empty_workspace_does_not_restore_another_live_run(monkeypatch):
+    user = SimpleNamespace(is_authenticated=True)
+    request = SimpleNamespace(
+        method="GET",
+        path="/",
+        user=user,
+        session=_Session(),
+        vulnhunter_thread=SimpleNamespace(thread_id="new-thread"),
+    )
+
+    def unexpected_service_lookup():
+        raise AssertionError("durable workspace recovery must not inspect global runs")
+
+    monkeypatch.setattr(
+        "vulnhunter.web.services.product_service",
+        unexpected_service_lookup,
+    )
+
+    _restore_latest_non_terminal_run(request)
+
+    assert "vulnhunter_conversation_state" not in request.session
+    assert request.session.modified is False
+"""
+          if "test_durable_empty_workspace_does_not_restore_another_live_run" not in text:
+              marker = "\n\ndef test_apk_upload_preflight_rejects_insufficient_storage"
+              if marker not in text:
+                  raise SystemExit("Test insertion marker is missing")
+              path.write_text(text.replace(marker, test + marker, 1), encoding="utf-8")
+          PY
+      - name: Validate durable workspace isolation
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .
+          python -m pip install pytest pytest-django ruff
+          python -m ruff format \
+            vulnhunter/web/conversational_views.py \
+            vulnhunter/web/middleware.py \
+            tests/unit/test_stale_conversation_state.py \
+            tests/unit/test_product_consolidation_repairs.py
+          python -m ruff check \
+            vulnhunter/web/conversational_views.py \
+            vulnhunter/web/middleware.py \
+            tests/unit/test_stale_conversation_state.py \
+            tests/unit/test_product_consolidation_repairs.py
+          python -m pytest -q \
+            tests/unit/test_stale_conversation_state.py \
+            tests/unit/test_product_consolidation_repairs.py \
+            tests/unit/test_persistent_conversation_threads.py \
+            tests/unit/test_mobile_composer_contract.py
+      - name: Commit verified repair and remove temporary helpers
+        shell: bash
+        run: |
+          rm -f \
+            .github/workflows/temporary-workspace-run-isolation-pr.yml \
+            .github/workflows/temporary-workspace-run-isolation-repair.yml \
+            temporary-workspace-run-isolation-repair.trigger
+          git config user.name 'vulnhunter-audit-bot'
+          git config user.email 'vulnhunter-audit-bot@users.noreply.github.com'
+          git add -A
+          git commit -m 'Isolate assessment runs by durable workspace'
+          git push origin HEAD:agent/full-system-audit

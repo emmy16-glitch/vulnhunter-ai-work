@@ -21,13 +21,14 @@ jobs:
         shell: bash
         run: |
           set -euxo pipefail
-          base64 --decode .github/deep-audit-new-files.tar.gz.b64 > "$RUNNER_TEMP/deep-audit-new-files.tar.gz"
+          cat .github/deep-audit-chunk-* > "$RUNNER_TEMP/deep-audit-new-files.b64"
+          base64 --decode "$RUNNER_TEMP/deep-audit-new-files.b64" > "$RUNNER_TEMP/deep-audit-new-files.tar.gz"
           gzip --test "$RUNNER_TEMP/deep-audit-new-files.tar.gz"
           tar -tzf "$RUNNER_TEMP/deep-audit-new-files.tar.gz"
           tar -xzf "$RUNNER_TEMP/deep-audit-new-files.tar.gz"
           test -s tests/unit/test_deep_independent_audit.py
           test -s vulnhunter/web/templates/web/unavailable.html
-          rm .github/deep-audit-new-files.tar.gz.b64
+          rm -f .github/deep-audit-chunk-* .github/deep-audit-new-files.tar.gz.b64
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A

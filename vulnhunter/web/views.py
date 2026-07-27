@@ -372,9 +372,9 @@ def review_queue_view(request: HttpRequest) -> HttpResponse:
             for campaign, assignment in _identity_assignments(actor.governance_identity.reviewer_id)
             if actor.governance_identity.reviewer_id in assignment.primary_reviewers
         )
-    except (GovernanceError, OSError, RuntimeError) as exc:
+    except (GovernanceError, OSError, RuntimeError, ValueError, sqlite3.Error):
         assignments = ()
-        error_message = str(exc)
+        error_message = "Governance records are temporarily unavailable."
     return _render(
         request,
         "web/review_queue.html",
@@ -405,9 +405,9 @@ def adjudication_queue_view(request: HttpRequest) -> HttpResponse:
             for campaign, assignment in _identity_assignments(actor.governance_identity.reviewer_id)
             if assignment.adjudicator_id == actor.governance_identity.reviewer_id
         )
-    except (GovernanceError, OSError, RuntimeError) as exc:
+    except (GovernanceError, OSError, RuntimeError, ValueError, sqlite3.Error):
         assignments = ()
-        error_message = str(exc)
+        error_message = "Governance records are temporarily unavailable."
     return _render(
         request,
         "web/adjudications_overview.html",

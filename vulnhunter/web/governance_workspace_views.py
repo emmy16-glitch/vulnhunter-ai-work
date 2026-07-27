@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import sqlite3
 from pathlib import Path
 from typing import Any
 
@@ -33,6 +34,7 @@ from vulnhunter.web.workspace_forms import (
 )
 
 _ASSIGNMENT_REFERENCE = re.compile(r"^[0-9a-f]{16,64}$")
+_WORKSPACE_UNAVAILABLE = "Governance records are temporarily unavailable."
 
 
 def _render(
@@ -215,13 +217,13 @@ def review_workspace_view(
         context = _review_workspace_context(store, campaign, assignment)
     except WebPermissionDenied as exc:
         return _denied(request, str(exc), parent_route="web-review-queue")
-    except (GovernanceError, OSError, RuntimeError, ValueError) as exc:
+    except (GovernanceError, OSError, RuntimeError, ValueError, sqlite3.Error):
         return _render(
             request,
             "web/review_workspace.html",
             {
                 "page_title": "Review unavailable",
-                "workspace_error": str(exc),
+                "workspace_error": _WORKSPACE_UNAVAILABLE,
                 "form": GovernedReviewForm(),
             },
             parent_route="web-review-queue",
@@ -259,7 +261,9 @@ def review_workspace_view(
                     outcome=form.cleaned_data["outcome"],
                     note=form.cleaned_data["note"] or None,
                 )
-            except (GovernanceError, OSError, RuntimeError, ValueError) as exc:
+            except (OSError, RuntimeError, sqlite3.Error):
+                messages.error(request, _WORKSPACE_UNAVAILABLE)
+            except (GovernanceError, ValueError) as exc:
                 messages.error(request, str(exc))
             else:
                 messages.success(
@@ -320,13 +324,13 @@ def adjudication_workspace_view(
             str(exc),
             parent_route="web-adjudication-queue",
         )
-    except (GovernanceError, OSError, RuntimeError, ValueError) as exc:
+    except (GovernanceError, OSError, RuntimeError, ValueError, sqlite3.Error):
         return _render(
             request,
             "web/adjudication_workspace.html",
             {
                 "page_title": "Adjudication unavailable",
-                "workspace_error": str(exc),
+                "workspace_error": _WORKSPACE_UNAVAILABLE,
                 "form": GovernedAdjudicationForm(),
             },
             parent_route="web-adjudication-queue",
@@ -360,7 +364,9 @@ def adjudication_workspace_view(
                     outcome=form.cleaned_data["outcome"],
                     rationale=form.cleaned_data["rationale"],
                 )
-            except (GovernanceError, OSError, RuntimeError, ValueError) as exc:
+            except (OSError, RuntimeError, sqlite3.Error):
+                messages.error(request, _WORKSPACE_UNAVAILABLE)
+            except (GovernanceError, ValueError) as exc:
                 messages.error(request, str(exc))
             else:
                 messages.success(

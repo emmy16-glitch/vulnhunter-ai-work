@@ -257,6 +257,55 @@ def test_unknown_authorization_is_404_and_revoke_requires_csrf(deep_paths, clien
 
 
 @pytest.mark.django_db
+def test_governance_identity_failure_is_fail_closed_and_path_safe(
+    deep_paths, client, settings
+) -> None:
+    observer = _user(
+        username="governance-corrupt-observer",
+        identity="observer-a",
+        roles=["read-only-observer"],
+    )
+    client.force_login(observer)
+    database = Path(settings.VULNHUNTER_GOVERNANCE_DATABASE)
+    database.write_bytes(b"not-a-sqlite-database")
+
+    response = client.get("/settings/")
+    assert response.status_code == 403
+    assert b"Governed identity verification is temporarily unavailable." in response.content
+    assert str(database).encode() not in response.content
+    assert b"not a database" not in response.content
+
+
+@pytest.mark.django_db
+def test_governance_queue_and_workspace_redact_infrastructure_failures(deep_paths, client) -> None:
+    reviewer = _user(
+        username="governance-failure-reviewer",
+        identity="reviewer-a",
+        roles=["reviewer"],
+    )
+    client.force_login(reviewer)
+    private_path = deep_paths / "private" / "governance.db"
+
+    with patch(
+        "vulnhunter.web.views._identity_assignments",
+        side_effect=OSError(str(private_path)),
+    ):
+        queue = client.get("/reviews/")
+    assert queue.status_code == 200
+    assert b"Governance records are temporarily unavailable." in queue.content
+    assert str(private_path).encode() not in queue.content
+
+    with patch(
+        "vulnhunter.web.governance_workspace_views._resolve_assignment",
+        side_effect=OSError(str(private_path)),
+    ):
+        workspace = client.get("/reviews/0123456789abcdef/")
+    assert workspace.status_code == 503
+    assert b"Governance records are temporarily unavailable." in workspace.content
+    assert str(private_path).encode() not in workspace.content
+
+
+@pytest.mark.django_db
 def test_navigation_respects_page_roles_and_does_not_offer_dead_destinations(deep_paths) -> None:
     reviewer = _user(username="reviewer", identity="reviewer-a", roles=["reviewer"])
     adjudicator = _user(username="adjudicator", identity="adjudicator-a", roles=["adjudicator"])

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sqlite3
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -19,7 +20,7 @@ from vulnhunter.agent.tools import ToolRegistry
 from vulnhunter.agent_activity.read_models import snapshot_to_public_dict
 from vulnhunter.agent_activity.service import AgentActivityService
 from vulnhunter.agent_activity.store import ActivityStoreError, AppendOnlyActivityStore
-from vulnhunter.exceptions import GovernanceNotFoundError
+from vulnhunter.exceptions import GovernanceError, GovernanceNotFoundError
 from vulnhunter.governance.models import ReviewerIdentity
 from vulnhunter.governance.store import GovernanceStore
 from vulnhunter.pilot import PilotPlan, PilotPlanLoadError, assess_pilot_plan, load_pilot_plan
@@ -242,6 +243,10 @@ def authorized_actor(user: Any, *, required_actions: tuple[str, ...]) -> Authori
         identity = governance_store().get_identity(mapping.governance_identity_id)
     except GovernanceNotFoundError as exc:
         raise WebPermissionDenied("The mapped governed identity does not exist.") from exc
+    except (GovernanceError, OSError, RuntimeError, ValueError, sqlite3.Error) as exc:
+        raise WebPermissionDenied(
+            "Governed identity verification is temporarily unavailable."
+        ) from exc
     if identity.status != "active":
         raise WebPermissionDenied("The mapped governed identity is not active.")
 

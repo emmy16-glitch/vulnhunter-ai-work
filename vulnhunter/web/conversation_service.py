@@ -279,7 +279,8 @@ def _deterministic_chat_copy(
     if re.search(r"\b(new chat|new workspace|multiple chats|recent chats|history)\b", lowered):
         return (
             "Each workspace now has separate persisted messages, uploads, selected APK plan and "
-            "assessment state. Use New workspace for another task and History to reopen earlier work."
+            "assessment state. Use New workspace for another task and History to reopen "
+            "earlier work."
         )
     if re.search(r"\b(hello|hi|hey|good morning|good afternoon|good evening)\b", lowered):
         if prior_user:
@@ -293,7 +294,8 @@ def _deterministic_chat_copy(
         )
     if any(term in lowered for term in ("what link", "which link", "what url", "target link")):
         return (
-            "I can show the controlled target for the selected assessment. If this workspace has no "
+            "I can show the controlled target for the selected assessment. If this workspace "
+            "has no "
             "assessment yet, send the exact authorised target you want checked."
         )
     if "approval" in lowered:
@@ -314,12 +316,14 @@ def _deterministic_chat_copy(
         )
     else:
         candidate = (
-            "Describe the security question, paste an authorised http or https target, or attach an "
+            "Describe the security question, paste an authorised http or https target, or "
+            "attach an "
             "APK. I will keep the context in this workspace and separate it from your other tasks."
         )
     if prior_assistant and candidate == prior_assistant:
         return (
-            "I have not lost the workspace context. Add the exact point you want examined next, and "
+            "I have not lost the workspace context. Add the exact point you want examined "
+            "next, and "
             "I will continue from the stored messages and current assessment state."
         )
     return candidate
@@ -388,10 +392,14 @@ def _advisory_prompt(
         "reasoning_effort": reasoning_effort,
         "answer_expectation": {
             "low": "Answer directly and efficiently, but still solve the question.",
-            "medium": "Analyse the question carefully, connect relevant context, and explain a useful answer.",
+            "medium": (
+                "Analyse the question carefully, connect relevant context, and explain a "
+                "useful answer."
+            ),
             "high": (
                 "Perform a deep internal analysis, compare plausible interpretations, check the "
-                "available evidence, and give a thorough, non-repetitive answer with concrete next steps."
+                "available evidence, and give a thorough, non-repetitive answer with "
+                "concrete next steps."
             ),
         }[reasoning_effort],
         "available_profiles": list(available_profiles),
@@ -404,12 +412,16 @@ def _advisory_prompt(
     return (
         "Act as VulnHunter's capable conversational security assistant. Answer ordinary questions "
         "directly rather than steering every message into a scan. You may answer broad lawful "
-        "questions, teach concepts, analyse supplied evidence, explain APK and website results, and "
+        "questions, teach concepts, analyse supplied evidence, explain APK and website "
+        "results, and "
         "reason about the persisted workspace context. Avoid passive, canned, repetitive copy. "
-        "Use the read-only workspace data when relevant and clearly distinguish stored evidence from "
+        "Use the read-only workspace data when relevant and clearly distinguish stored "
+        "evidence from "
         "inference. Never invent tool results. The deterministic backend alone authorizes targets, "
-        "changes scope, approves or cancels actions, executes scanners, verifies findings, sets final "
-        "severity, or publishes results. Do not reveal hidden chain-of-thought; provide conclusions "
+        "changes scope, approves or cancels actions, executes scanners, verifies findings, "
+        "sets final "
+        "severity, or publishes results. Do not reveal hidden chain-of-thought; provide "
+        "conclusions "
         "and concise supporting rationale. Return JSON with keys message and recommended_profile. "
         "message must contain the complete user-facing answer. recommended_profile must be one "
         "available profile or null. "

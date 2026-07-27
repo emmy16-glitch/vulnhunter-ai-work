@@ -205,7 +205,10 @@ class HuggingFaceProvider:
             reason = (
                 "Hugging Face request was rate-limited."
                 if exc.status_code == 429
-                else f"Hugging Face request was rejected safely (HTTP {exc.status_code}): {exc.safe_detail}"
+                else (
+                    f"Hugging Face request was rejected safely (HTTP {exc.status_code}): "
+                    f"{exc.safe_detail}"
+                )
             )
             return self._abstain(invocation, raw, requested_at, reason)
         except (httpx.HTTPError, _ProtocolError, ValidationError, json.JSONDecodeError) as exc:

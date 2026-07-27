@@ -230,33 +230,85 @@ def deterministic_intent(text: str) -> str:
     return "chat"
 
 
-def _deterministic_chat_copy(text: str) -> str:
+def _deterministic_chat_copy(
+    text: str,
+    *,
+    conversation_context: tuple[tuple[str, str], ...] = (),
+) -> str:
+    """Answer common workspace questions while preserving recent local context."""
+
     lowered = " ".join(text.casefold().split())
-    if re.search(r"\b(hello|hi|hey|good morning|good afternoon|good evening)\b", lowered):
+    previous = [
+        (role, " ".join(content.split()))
+        for role, content in conversation_context[:-1]
+        if role in {"user", "assistant"} and content.strip()
+    ]
+    prior_user = next((content for role, content in reversed(previous) if role == "user"), "")
+    prior_assistant = next(
+        (content for role, content in reversed(previous) if role == "assistant"),
+        "",
+    )
+
+    if re.search(r"\b(what do you remember|remember what|what did i say|conversation context)\b", lowered):
+        if prior_user:
+            return (
+                "This workspace remembers the earlier messages and work attached to it. "
+                f"Your previous request was about: {prior_user[:280]}"
+            )
+        return "This is a new workspace, so there is no earlier request to summarise yet."
+    if re.search(r"\b(upload|uploading|apk upload|background)\b", lowered):
         return (
-            "Hello. I can answer questions about the active assessment, show its target and "
-            "status, explain approval, or prepare a new authorised scan."
+            "APK uploads are resumable in this workspace. You can open another page or another "
+            "workspace; the upload dock keeps the transfer visible and resumes from the last "
+            "server-confirmed byte after an interruption."
+        )
+    if re.search(r"\b(new chat|new workspace|multiple chats|recent chats|history)\b", lowered):
+        return (
+            "Each workspace now has separate persisted messages, uploads, selected APK plan and "
+            "assessment state. Use New workspace for another task and History to reopen earlier work."
+        )
+    if re.search(r"\b(hello|hi|hey|good morning|good afternoon|good evening)\b", lowered):
+        if prior_user:
+            return (
+                "Hello. I still have this workspace context. Your previous request was about "
+                f"{prior_user[:220]}. You can continue from there or start a separate workspace."
+            )
+        return (
+            "Hello. Start with an authorised website target or attach an APK. This workspace will "
+            "preserve the conversation and any running work."
         )
     if any(term in lowered for term in ("what link", "which link", "what url", "target link")):
         return (
-            "I can show the controlled target for the active assessment. If no assessment is "
-            "active, send the authorised target you want checked."
+            "I can show the controlled target for the selected assessment. If this workspace has no "
+            "assessment yet, send the exact authorised target you want checked."
         )
     if "approval" in lowered:
         return (
             "Approval applies only to the exact displayed passive plan. After confirmation, the "
-            "approval card should disappear and live scanner progress should continue here."
+            "scanner job continues on the server even when you leave this page."
         )
     if any(term in lowered for term in ("what can you do", "help me", "how do i use")):
         return (
-            "Describe an authorised target or ask about the current run. I can prepare the bounded "
-            "plan, explain each step, show progress and organise evidence-backed results."
+            "I can keep separate website and APK investigations in persistent workspaces, prepare "
+            "authorised bounded scans, explain live progress, and organise evidence-backed results."
         )
-    return (
-        "Paste an http or https website link and I will identify its host, path and port, check "
-        "authorization, prepare the passive plan and explain each live step. You can also ask "
-        "about the current target, approval, findings, evidence or next action."
-    )
+    if prior_user:
+        candidate = (
+            f"I am keeping the earlier context about {prior_user[:220]}. "
+            "Ask a specific follow-up about its scope, upload, progress, evidence or next action, "
+            "and I will answer from this workspace rather than restarting the conversation."
+        )
+    else:
+        candidate = (
+            "Describe the security question, paste an authorised http or https target, or attach an "
+            "APK. I will keep the context in this workspace and separate it from your other tasks."
+        )
+    if prior_assistant and candidate == prior_assistant:
+        return (
+            "I have not lost the workspace context. Add the exact point you want examined next, and "
+            "I will continue from the stored messages and current assessment state."
+        )
+    return candidate
 
 
 def _sanitize_for_groq(text: str) -> str:
@@ -291,7 +343,7 @@ def _groq_advisory(
     sanitized = _sanitize_for_groq(text)
     sanitized_context = [
         {"role": role, "content": _sanitize_for_groq(content)[:600]}
-        for role, content in conversation_context[-8:]
+        for role, content in conversation_context[-10:]
         if role in {"user", "assistant"} and content.strip()
     ]
     prompt = (
@@ -380,7 +432,9 @@ def interpret_request(
     deterministic = deterministic_intent(text)
     intent = deterministic
     if deterministic == "chat":
-        assistant_copy = _deterministic_chat_copy(text)
+        assistant_copy = _deterministic_chat_copy(
+            text, conversation_context=conversation_context
+        )
     elif deterministic == "status":
         assistant_copy = (
             "No assessment is active yet. Send an authorised target to start one, or ask what "

@@ -152,6 +152,28 @@
     }
 
     const metadata = message.metadata && typeof message.metadata === "object" ? message.metadata : {};
+    const attachment = metadata.attachment && typeof metadata.attachment === "object" ? metadata.attachment : null;
+    if (attachment) {
+      const attached = document.createElement("div");
+      attached.className = "vh-persisted-attachment";
+      const label = document.createElement("strong");
+      label.textContent = text(attachment.original_filename || "Android application.apk");
+      const detail = document.createElement("small");
+      detail.textContent = `${Number(attachment.dex_count || 0)} DEX · ${Number(attachment.native_library_count || 0)} native · SHA-256 ${text(attachment.artifact_sha256).slice(0, 16)}…`;
+      attached.append(label, detail);
+      body.insertBefore(attached, copy);
+    }
+    const mobilePlan = metadata.mobile_plan && typeof metadata.mobile_plan === "object" ? metadata.mobile_plan : null;
+    if (mobilePlan) {
+      const planSummary = document.createElement("div");
+      planSummary.className = "vh-persisted-mobile-plan";
+      const label = document.createElement("strong");
+      label.textContent = `${prettyState(mobilePlan.profile || "mobile")} APK analysis`;
+      const detail = document.createElement("small");
+      detail.textContent = `${Number(mobilePlan.tool_count || 0)} tools · ${prettyState(mobilePlan.execution?.state || "prepared")}`;
+      planSummary.append(label, detail);
+      body.append(planSummary);
+    }
     const suggestions = Array.isArray(metadata.suggestions) ? metadata.suggestions : [];
     suggestions.forEach((suggestion) => {
       if (!suggestion || typeof suggestion !== "object") return;

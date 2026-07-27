@@ -9,9 +9,11 @@
   <link rel="stylesheet" href="{% static 'web/conversation-mobile-execution.css' %}?v=20260725-consolidate1">
   <link rel="stylesheet" href="{% static 'web/conversation-mobile-inspector.css' %}?v=20260725-consolidate1">
   <link rel="stylesheet" href="{% static 'web/conversation-mobile-deferred-tools.css' %}?v=20260725-consolidate1">
+  <link rel="stylesheet" href="{% static 'web/conversation-threads.css' %}?v=20260727-workspaces1">
 {% endblock %}
 
 {% block extra_scripts %}
+  <script src="{% static 'web/conversation-thread-client.js' %}?v=20260727-workspaces1" defer></script>
   <script src="{% static 'web/conversation-runtime-compat.js' %}?v=20260725-consolidate1"></script>
   <script src="{% static 'web/conversation.js' %}?v=20260725-consolidate1" defer></script>
   <script src="{% static 'web/conversation-autoscroll.js' %}?v=20260725-consolidate1" defer></script>
@@ -23,19 +25,19 @@
 {% endblock %}
 
 {% block content %}
-<section class="vh-chat-workspace" data-product-name="VulnHunter Workspace" data-conversation-workspace data-mobile-workspace-view="chat" aria-labelledby="vh-chat-title">
+<section class="vh-chat-workspace" data-product-name="VulnHunter Workspace" data-conversation-workspace data-thread-id="{{ conversation.thread_id }}" data-mobile-workspace-view="chat" aria-labelledby="vh-chat-title">
   <header class="vh-chat-header">
     <div class="vh-chat-title-group">
       <span class="vh-chat-orb" aria-hidden="true"><svg><use href="#vh-i-shield"></use></svg></span>
       <div>
         <p class="vh-eyebrow">Governed security assessment</p>
-        <h1 id="vh-chat-title">Assessment Workspace</h1>
+        <h1 id="vh-chat-title">{{ conversation.thread_title }}</h1>
         <p class="vh-chat-subtitle">Conversational analysis for authorised websites and APKs</p>
       </div>
     </div>
     <div class="vh-chat-runtime" aria-label="Workspace actions">
       <button type="button" class="vh-chat-history-toggle" data-history-toggle aria-expanded="false" aria-controls="vh-chat-history">History</button>
-      <button type="button" class="vh-chat-reset" data-conversation-reset>New conversation</button>
+      <button type="button" class="vh-chat-reset" data-conversation-reset data-thread-create>New workspace</button>
     </div>
   </header>
 
@@ -83,6 +85,9 @@
         data-mobile-context-url="{% url 'web-conversation-mobile-context' %}"
         data-mobile-reset-url="{% url 'web-conversation-mobile-context-reset' %}"
         data-mobile-extension-approve-url="{% url 'web-conversation-mobile-extension-approve' %}"
+        data-thread-id="{{ conversation.thread_id }}"
+        data-thread-create-url="{{ conversation.thread_create_url }}"
+        data-thread-list-url="{{ conversation.thread_list_url }}"
         method="post"
         action="{{ conversation.message_url }}"
         enctype="multipart/form-data"
@@ -112,10 +117,23 @@
       <header>
         <div><p class="vh-eyebrow">History</p><h2 id="vh-recent-assessments-title">Recent assessments</h2></div>
         <div class="vh-chat-history-actions">
-          <span>{{ recent_runs|length }}</span>
+          <span>{{ conversation_threads|length }}</span>
           <button type="button" data-history-close aria-label="Close assessment history">×</button>
         </div>
       </header>
+      <p class="vh-history-section-title">Workspaces</p>
+      <div class="vh-thread-list" data-conversation-threads>
+        {% for item in conversation_threads %}
+          <a href="{{ item.url }}" class="vh-thread-item"{% if item.thread_id == conversation.thread_id %} aria-current="page"{% endif %}>
+            <i class="is-{{ item.status }}" aria-hidden="true"></i>
+            <span><strong>{{ item.title|truncatechars:42 }}</strong><small>{{ item.status }} · {{ item.updated_at }}</small></span>
+            {% if item.upload_count %}<b aria-label="{{ item.upload_count }} active upload">{{ item.upload_count }}</b>{% endif %}
+          </a>
+        {% empty %}
+          <p class="vh-chat-history-empty">No saved workspaces yet.</p>
+        {% endfor %}
+      </div>
+      <p class="vh-history-section-title">Assessment runs</p>
       <div class="vh-chat-history-list" data-recent-runs>
         {% for item in recent_runs %}
           <a href="{{ item.detail_url }}" class="vh-chat-history-item">
@@ -123,7 +141,7 @@
             <span><strong>{{ item.target|truncatechars:38 }}</strong><small>{{ item.state }} · {{ item.profile }}</small></span>
           </a>
         {% empty %}
-          <p class="vh-chat-history-empty">No assessments yet. Paste an authorised website URL or attach an APK to begin.</p>
+          <p class="vh-chat-history-empty">No assessment runs yet.</p>
         {% endfor %}
       </div>
       <a class="vh-chat-history-link" href="{% url 'web-findings-overview' %}">Open findings</a>

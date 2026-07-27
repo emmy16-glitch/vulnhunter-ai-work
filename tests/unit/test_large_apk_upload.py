@@ -128,3 +128,56 @@ def test_workspace_uses_resumable_uploads_and_codespaces_sets_one_gigabyte():
     assert "VULNHUNTER_MOBILE_UPLOAD_CHUNK_BYTES=8388608" in post_create
     assert "prepare_mobile_static_worker.py" in start_script
     assert "automatic isolated static/native worker ready" in start_script
+
+@pytest.mark.django_db
+def test_chunked_apk_upload_reports_server_confirmed_resume_offset(
+    client, settings, tmp_path
+):
+    settings.ALLOWED_HOSTS = ["testserver"]
+    settings.VULNHUNTER_MOBILE_ARTIFACT_ROOT = str(tmp_path / "mobile-artifacts")
+    settings.VULNHUNTER_MOBILE_MAX_APK_BYTES = 1_000_000_000
+    settings.VULNHUNTER_MOBILE_UPLOAD_CHUNK_BYTES = 64
+    user = get_user_model().objects.create_user(
+        username="resume-apk-user",
+        password="long-test-password-1234",
+    )
+    client.force_login(user)
+    actor = SimpleNamespace(
+        governance_identity=SimpleNamespace(reviewer_id="resume-apk-user"),
+        product_roles=("campaign-operator",),
+    )
+    apk = _apk_bytes()
+
+    with patch("vulnhunter.web.conversation_mobile_views._actor", return_value=actor):
+        started = client.post(
+            "/workspace/uploads/start/",
+            {"filename": "resume.apk", "size_bytes": str(len(apk))},
+        )
+        assert started.status_code == 200
+        start_payload = started.json()
+        thread_id = str(client.session["vulnhunter_active_conversation_thread"])
+        partial = client.post(
+            start_payload["chunk_url"],
+            {
+                "offset": "0",
+                "thread_id": thread_id,
+                "chunk": SimpleUploadedFile(
+                    "chunk.part",
+                    apk[:64],
+                    content_type="application/octet-stream",
+                ),
+            },
+            HTTP_X_VULNHUNTER_THREAD=thread_id,
+        )
+        assert partial.status_code == 200
+        assert partial.json()["received_bytes"] == 64
+
+        status = client.get(
+            start_payload["status_url"],
+            HTTP_X_VULNHUNTER_THREAD=thread_id,
+        )
+
+    assert status.status_code == 200
+    assert status.json()["received_bytes"] == 64
+    assert status.json()["expected_bytes"] == len(apk)
+    assert status.json()["complete"] is False

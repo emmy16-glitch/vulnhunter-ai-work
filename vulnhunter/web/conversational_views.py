@@ -34,6 +34,11 @@ from vulnhunter.web.conversation_state import (
     results_reply,
     status_reply,
 )
+from vulnhunter.web.conversation_threads import (
+    list_threads,
+    maybe_title_thread,
+    thread_summary,
+)
 from vulnhunter.web.conversational_authorization import (
     ConversationalAuthorizationError,
     prepare_conversational_authorization,
@@ -116,6 +121,8 @@ def _append_message(
     }
     messages = _messages(request)
     messages.append(message)
+    if role == "user":
+        maybe_title_thread(request, message["content"])
     request.session[_SESSION_MESSAGES] = messages[-_MAX_MESSAGES:]
     request.session.modified = True
     return message
@@ -453,7 +460,12 @@ def workspace_view(request: HttpRequest) -> HttpResponse:
     active_run = _run_payload(authoritative) if authoritative is not None else None
     if authoritative is not None:
         state = _sync_state_from_run(request, state, authoritative)
+    current_thread = getattr(request, "vulnhunter_thread", None)
+    thread_items = tuple(thread_summary(item) for item in list_threads(request.user))
     initial = {
+        "thread_id": str(current_thread.thread_id) if current_thread is not None else "",
+        "thread_title": current_thread.title if current_thread is not None else "Assessment Workspace",
+        "threads": thread_items,
         "messages": _messages(request),
         "active_run": active_run,
         "recent_runs": _recent_runs(actor),
@@ -465,6 +477,8 @@ def workspace_view(request: HttpRequest) -> HttpResponse:
         ),
         "approval_url": reverse("web-conversation-approve"),
         "reset_url": reverse("web-conversation-reset"),
+        "thread_create_url": reverse("web-conversation-thread-create"),
+        "thread_list_url": reverse("web-conversation-thread-list"),
     }
     return _render(
         request,
@@ -474,6 +488,8 @@ def workspace_view(request: HttpRequest) -> HttpResponse:
             "conversation": initial,
             "groq": initial["groq"],
             "recent_runs": initial["recent_runs"],
+            "conversation_threads": initial["threads"],
+            "current_thread": current_thread,
         },
     )
 

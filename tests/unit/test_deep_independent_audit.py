@@ -142,9 +142,7 @@ def _run(*, owner: str = "operator-a", run_id: str = "run-owned-by-operator"):
 @pytest.mark.django_db
 def test_navigation_respects_page_roles_and_does_not_offer_dead_destinations(deep_paths) -> None:
     reviewer = _user(username="reviewer", identity="reviewer-a", roles=["reviewer"])
-    adjudicator = _user(
-        username="adjudicator", identity="adjudicator-a", roles=["adjudicator"]
-    )
+    adjudicator = _user(username="adjudicator", identity="adjudicator-a", roles=["adjudicator"])
     auditor = _user(username="auditor", identity="auditor-a", roles=["security-auditor"])
     approver = _user(username="approver", identity="approver-a", roles=["campaign-approver"])
     observer = _user(username="observer", identity="observer-a", roles=["read-only-observer"])
@@ -174,9 +172,7 @@ def test_role_specific_queue_and_model_routes_fail_closed(deep_paths, client) ->
     assert client.get("/reviews/").status_code == 403
     assert client.get("/adjudications/").status_code == 403
 
-    approver = _user(
-        username="route-approver", identity="approver-a", roles=["campaign-approver"]
-    )
+    approver = _user(username="route-approver", identity="approver-a", roles=["campaign-approver"])
     client.force_login(approver)
     assert client.get("/models/").status_code == 403
 

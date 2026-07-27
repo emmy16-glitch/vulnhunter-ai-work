@@ -187,9 +187,7 @@ def approval_list_view(request: HttpRequest) -> HttpResponse:
 @require_GET
 def approval_detail_view(request: HttpRequest, request_id: str) -> HttpResponse:
     try:
-        actor = authorized_actor(
-            request.user, required_actions=("audit.read", "settings.manage")
-        )
+        actor = authorized_actor(request.user, required_actions=("audit.read", "settings.manage"))
     except WebPermissionDenied as exc:
         return _render(
             request,
@@ -213,9 +211,7 @@ def approval_detail_view(request: HttpRequest, request_id: str) -> HttpResponse:
             "approval": approval,
             "events": events,
             "decisions": tuple(ApprovalDecision),
-            "can_decide": role_policy().any_role_allows(
-                actor.product_roles, "settings.manage"
-            ),
+            "can_decide": role_policy().any_role_allows(actor.product_roles, "settings.manage"),
         },
     )
 

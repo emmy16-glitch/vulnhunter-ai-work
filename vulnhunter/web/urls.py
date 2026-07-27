@@ -7,6 +7,7 @@ from vulnhunter.web import (
     audit_views,
     conversation_approval_views,
     conversation_mobile_extension_views,
+    conversation_thread_views,
     conversation_mobile_views,
     conversational_views,
     dashboard_dispatch_views,
@@ -33,6 +34,26 @@ urlpatterns = [
         name="web-conversation-message",
     ),
     path(
+        "workspace/threads/",
+        conversation_thread_views.thread_list_view,
+        name="web-conversation-thread-list",
+    ),
+    path(
+        "workspace/threads/new/",
+        conversation_thread_views.thread_create_view,
+        name="web-conversation-thread-create",
+    ),
+    path(
+        "workspace/threads/<str:thread_id>/rename/",
+        conversation_thread_views.thread_rename_view,
+        name="web-conversation-thread-rename",
+    ),
+    path(
+        "workspace/threads/<str:thread_id>/archive/",
+        conversation_thread_views.thread_archive_view,
+        name="web-conversation-thread-archive",
+    ),
+    path(
         "workspace/attachments/",
         conversation_mobile_views.attachment_view,
         name="web-conversation-attachment",
@@ -46,6 +67,16 @@ urlpatterns = [
         "workspace/uploads/<str:upload_id>/chunk/",
         conversation_mobile_views.upload_chunk_view,
         name="web-conversation-upload-chunk",
+    ),
+    path(
+        "workspace/uploads/<str:upload_id>/status/",
+        conversation_mobile_views.upload_status_view,
+        name="web-conversation-upload-status",
+    ),
+    path(
+        "workspace/uploads/<str:upload_id>/cancel/",
+        conversation_mobile_views.upload_cancel_view,
+        name="web-conversation-upload-cancel",
     ),
     path(
         "workspace/mobile-message/",

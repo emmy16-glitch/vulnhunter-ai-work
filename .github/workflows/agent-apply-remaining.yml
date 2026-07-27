@@ -31,7 +31,7 @@ jobs:
             | base64 -d > "$RUNNER_TEMP/remaining-files.tar.gz"
           actual="$(sha256sum "$RUNNER_TEMP/remaining-files.tar.gz" | awk '{print $1}')"
           echo "archive sha256: $actual"
-          test "$actual" = "320db09a727fb28aeb888a71b4421ad6f61128e8be82f5368ab9f4ea83ece4af"
+          test "$actual" = "76367ffec94731c306b57416759c9de600a6385c6330c392b3471c979960b545"
           tar -tzf "$RUNNER_TEMP/remaining-files.tar.gz"
       - name: Extract exact files
         run: tar -xzf "$RUNNER_TEMP/remaining-files.tar.gz" -C .

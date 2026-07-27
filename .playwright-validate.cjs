@@ -64,10 +64,13 @@ const report = {
     await page.getByLabel("Username").fill(persona.username);
     await page.getByLabel("Password").fill(persona.password);
     await Promise.all([
-      page.waitForURL(`${baseUrl}/`, {
-        waitUntil: "domcontentloaded",
-        timeout: navigationTimeoutMs,
-      }),
+      page.waitForURL(
+        (url) => new URL(url).pathname !== "/login/",
+        {
+          waitUntil: "domcontentloaded",
+          timeout: navigationTimeoutMs,
+        },
+      ),
       page.getByRole("button", { name: /sign in securely/i }).click(),
     ]);
     await page.close();

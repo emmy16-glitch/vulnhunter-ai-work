@@ -94,7 +94,7 @@
 @media (max-width: 767px) {
   .vh-conversation-body .vh-chat-input-shell {
     display: grid;
-    grid-template-columns: 44px minmax(0, 1fr) minmax(5.8rem, auto) 44px;
+    grid-template-columns: 44px minmax(0, 1fr) minmax(6.5rem, auto) 44px;
     align-items: end;
     gap: .42rem;
     padding: .48rem;
@@ -107,8 +107,9 @@
 
   .vh-conversation-body .vh-reasoning-control,
   .vh-conversation-body .vh-reasoning-control select {
-    min-width: 0;
+    min-width: 6.5rem;
     width: 100%;
+    min-height: 44px;
   }
 
   .vh-conversation-body .vh-chat-composer-meta {
@@ -129,7 +130,6 @@
 
 @media (max-width: 420px) {
   .vh-conversation-body .vh-chat-input-shell {
-    grid-template-columns: 42px minmax(0, 1fr) 5.8rem 42px;
+    grid-template-columns: 42px minmax(0, 1fr) 6.5rem 42px;
   }
 }
-

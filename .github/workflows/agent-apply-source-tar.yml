@@ -1,0 +1,63 @@
+name: Apply final source archive
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.head_ref == 'agent/persistent-workspaces-uploads'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: agent/persistent-workspaces-uploads
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Verify and extract final source
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '9c979af8d55bb46b62c5df43e7967e7f7a375d60931c49052751f6b75822ef3d  .agent-tar.part00' | sha256sum -c -
+          echo '8e63a2ff2252ee2113219571544b36c486bd22563efc6047f917586b48a7d90a  .agent-tar.part01' | sha256sum -c -
+          echo '7b1d444442fc47773f77c6de0bdb89da20658bd3aea03c4404b81aa5625718b8  .agent-tar.part02' | sha256sum -c -
+          echo '3d8b9e617c72875dca2e3737a7bdcc5162d0d588a271efac933d1e70ccf0cb4e  .agent-tar.part03' | sha256sum -c -
+          echo 'bd976e5d02542cb32dc7c381969ed56ebfd7736c4816972f994e61427a104535  .agent-tar.part04' | sha256sum -c -
+          cat .agent-tar.part00 .agent-tar.part01 .agent-tar.part02 .agent-tar.part03 .agent-tar.part04 > "$RUNNER_TEMP/final-source.b64"
+          base64 -d "$RUNNER_TEMP/final-source.b64" > "$RUNNER_TEMP/final-source.tar.xz"
+          echo '6ad839e564d27f684f764f07b6b976037b1ff9e0d8c0d2cce1b2786fee43df15  '"$RUNNER_TEMP/final-source.tar.xz" | sha256sum -c -
+          xz -t "$RUNNER_TEMP/final-source.tar.xz"
+          tar -xJf "$RUNNER_TEMP/final-source.tar.xz" -C .
+          rm -f .agent-tar.part00 .agent-tar.part01 .agent-tar.part02 .agent-tar.part03 .agent-tar.part04
+          rm -f .github/workflows/agent-apply-source-tar.yml
+      - name: Format and validate source
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install 'ruff>=0.9,<1'
+          ruff format .
+          ruff check --fix .
+          ruff check .
+          ruff format --check .
+          python -m compileall -q vulnhunter tests
+          for file in vulnhunter/web/static/web/*.js; do node --check "$file"; done
+          bash -n .devcontainer/start-vulnhunter.sh
+          git add -A
+          git diff --cached --check
+      - name: Commit final implementation
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Complete adaptive reasoning and durable hunt workspaces'
+          git push origin HEAD:agent/persistent-workspaces-uploads

@@ -11,8 +11,7 @@ jobs:
   repair:
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.head.ref == 'agent/phone-acceptance-repair' &&
-      contains(github.event.pull_request.changed_files && 'true' || 'true', 'true')
+      github.event.pull_request.head.ref == 'agent/phone-acceptance-repair'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -57,21 +56,37 @@ jobs:
 
       - name: Format and lint repaired files
         if: steps.guard.outputs.apply == 'true'
+        shell: bash
         run: |
-          python -m ruff format \
-            vulnhunter/providers/groq.py \
-            vulnhunter/web/conversation_service.py \
-            vulnhunter/web/management/commands/vh_verify_groq.py \
-            tests/unit/test_phone_acceptance_repairs.py
-          python -m ruff check \
-            vulnhunter/providers/groq.py \
-            vulnhunter/web/conversation_service.py \
-            vulnhunter/web/management/commands/vh_verify_groq.py \
-            tests/unit/test_phone_acceptance_repairs.py
-          node --check vulnhunter/web/static/web/conversation.js
-          node --check vulnhunter/web/static/web/conversation-upload-coordinator.js
-          bash -n .devcontainer/start-vulnhunter.sh
-          bash -n .devcontainer/post-create.sh
+          set +e
+          {
+            python -m ruff format \
+              vulnhunter/providers/groq.py \
+              vulnhunter/web/conversation_service.py \
+              vulnhunter/web/management/commands/vh_verify_groq.py \
+              tests/unit/test_phone_acceptance_repairs.py
+            python -m ruff check \
+              vulnhunter/providers/groq.py \
+              vulnhunter/web/conversation_service.py \
+              vulnhunter/web/management/commands/vh_verify_groq.py \
+              tests/unit/test_phone_acceptance_repairs.py
+            node --check vulnhunter/web/static/web/conversation.js
+            node --check vulnhunter/web/static/web/conversation-upload-coordinator.js
+            bash -n .devcontainer/start-vulnhunter.sh
+            bash -n .devcontainer/post-create.sh
+          } > /tmp/phone-acceptance-lint.log 2>&1
+          status=$?
+          cat /tmp/phone-acceptance-lint.log
+          exit $status
+
+      - name: Upload repair diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: phone-acceptance-repair-diagnostics
+          path: /tmp/phone-acceptance-lint.log
+          if-no-files-found: warn
+          retention-days: 3
 
       - name: Run focused acceptance tests
         if: steps.guard.outputs.apply == 'true'

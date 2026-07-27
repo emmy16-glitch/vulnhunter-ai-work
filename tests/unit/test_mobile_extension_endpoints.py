@@ -48,7 +48,7 @@ def _mobile_plan() -> dict[str, object]:
 
 
 @pytest.mark.django_db
-def test_mobile_extension_approval_and_status_are_bound_to_the_chat_session(
+def test_mobile_extension_approval_and_status_follow_the_durable_workspace(
     client,
     settings,
     tmp_path,
@@ -106,7 +106,17 @@ def test_mobile_extension_approval_and_status_are_bound_to_the_chat_session(
         assert owner_status.status_code == 200
         assert owner_status.json()["mobile_extension"]["state"] == "queued"
 
-        other_session = Client()
-        other_session.force_login(user)
-        hidden = other_session.get(status_url)
+        second_session = Client()
+        second_session.force_login(user)
+        reopened = second_session.get(status_url)
+        assert reopened.status_code == 200
+        assert reopened.json()["mobile_extension"]["state"] == "queued"
+
+        intruder = get_user_model().objects.create_user(
+            username="mobile-endpoint-intruder",
+            password="long-test-password-1234",
+        )
+        intruder_session = Client()
+        intruder_session.force_login(intruder)
+        hidden = intruder_session.get(status_url)
         assert hidden.status_code == 404

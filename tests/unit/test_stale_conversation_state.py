@@ -38,6 +38,14 @@ def test_new_conversation_does_not_attach_latest_completed_run(monkeypatch) -> N
             object(),
             target="http://10.0.1.51:8010/",
         )
+        is None
+    )
+    assert (
+        conversational_views._authoritative_run(
+            {"target": "http://10.0.1.51:8010/"},
+            object(),
+            target="http://10.0.1.51:8010/",
+        )
         is latest
     )
 
@@ -77,3 +85,27 @@ def test_provider_cannot_reclassify_ordinary_chat_as_status(monkeypatch) -> None
 
     assert interpreted.intent == "chat"
     assert interpreted.assistant_copy == "Natural help response"
+
+
+def test_scan_deduplication_is_limited_to_the_bound_workspace(monkeypatch):
+    latest = SimpleNamespace(run_id="existing-run")
+    calls = []
+
+    def latest_for_target(actor, target=None):
+        calls.append(target)
+        return latest
+
+    monkeypatch.setattr(
+        conversational_views,
+        "_latest_visible_run",
+        latest_for_target,
+    )
+
+    target = "http://10.0.1.51:8010/"
+    assert conversational_views._existing_run_bound_to_state({}, object(), target) is None
+    assert calls == []
+    assert (
+        conversational_views._existing_run_bound_to_state({"target": target}, object(), target)
+        is latest
+    )
+    assert calls == [target]

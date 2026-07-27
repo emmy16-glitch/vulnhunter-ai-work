@@ -1,26 +1,29 @@
-# Advisory Routing and Privacy Gate
+# Groq Routing and Privacy Gate
 
-VulnHunter remains fully usable without an advisory provider. Deterministic processing is authoritative for authorization, scope, approval, parsing, hashing, limits, evidence integrity, verification state and publication gates.
+VulnHunter remains fully usable when Groq is disabled. Deterministic processing is authoritative for authorization, scope, approval, parsing, hashing, repository inventory, limits, evidence integrity, verification state and publication gates.
 
 Central rule:
 
-> Advisory analysis may propose; VulnHunter verifies and enforces.
+> Groq proposes; VulnHunter verifies and enforces.
+
+Groq is the only AI/model provider in the production architecture. No Claude, Qwen, OpenAI API or local-model runtime is required or selected by the provider registry.
 
 ## Deterministic-first routing
 
 Every request is first classified by privacy and task type.
 
 - Deterministic processing is used whenever rules, schema validation, hashing or direct evidence are sufficient.
-- Customer-private or secret data is denied remote routing.
-- Sanitized non-sensitive evidence may use one explicitly approved Groq advisory attempt.
-- Repeated remote loops are blocked and routed to a human analyst.
-- Provider failure, timeout, cancellation, malformed output or unavailable quota returns `ABSTAIN`.
+- Customer data, credentials, cookies, authorization records, private keys and detected secrets are denied remote routing.
+- Sanitized non-sensitive evidence may use an explicitly approved bounded Groq advisory request.
+- Source code requires a separate exact, time-limited Groq source-processing approval.
+- Repeated open-ended remote loops are blocked.
+- Provider failure, timeout, cancellation, malformed output, invented evidence or unavailable quota returns `ABSTAIN` or a safe failure state.
 
-## Groq advisory provider
+## Groq provider contract
 
 Groq is optional and disabled by default. The provider contract enforces:
 
-- the official HTTPS API endpoint only;
+- the approved HTTPS API endpoint only;
 - an owner-private API-key file;
 - an explicit model allowlist;
 - bounded input, output and timeout limits;
@@ -29,17 +32,51 @@ Groq is optional and disabled by default. The provider contract enforces:
 - no trusted, verified, approved or published output state;
 - request/response hashes and bounded provenance without raw credentials.
 
-Private source code, private targets, authorization records, customer data, tokens, cookies, credentials, unpublished findings and raw evidence are denied remote routing.
+Groq cannot authorize, expand scope, execute a tool, contact a target, verify a finding, determine final severity, apply a patch, merge code or publish a result.
 
-## Assessment integration
+## Normal advisory analysis
 
-Groq is not consulted before authorization, planning, approval or scanning. It may be used after evidence exists when deterministic processing cannot summarize or classify sanitized non-sensitive material confidently.
+Groq is not consulted before target authorization, passive planning, approval or scanning. After scanner evidence exists, it may summarize or classify sanitized non-sensitive evidence through bounded analyst, critic and synthesizer stages.
 
-Groq output is stored as advisory provenance under the unified finding. It never creates a separate finding and cannot change deterministic verification or human-review state.
+Groq output is stored as advisory provenance under the unified finding. It never creates an independently authoritative finding and cannot change deterministic verification or human-review state.
+
+## Exact source-code processing
+
+Source Hunt is a distinct route. Before source excerpts are transmitted, VulnHunter creates an approval bound to:
+
+- repository identifier;
+- exact revision;
+- complete eligible-file snapshot SHA-256;
+- permitted repository-relative paths;
+- repository visibility;
+- Groq as the provider;
+- approving identity;
+- approval and expiry timestamps;
+- approval-record SHA-256.
+
+The browser requires password re-authentication. The CLI requires an authenticated governance administrator and an owner-only secret file. Any snapshot drift, path expansion, expired approval or provider mismatch fails closed.
+
+Only bounded excerpts selected from deterministic attack surfaces are sent. Every returned path, source hash and line range is checked against the exact snapshot. Groq references that were not supplied are rejected.
+
+Customer data and secret material remain prohibited even when source processing is approved.
+
+## Source Hunt stages
+
+The bounded Groq sequence is:
+
+```text
+reconnaissance
+→ attacker-first hypothesis
+→ separate falsification
+→ capability assessment
+→ remediation and RED test proposal
+```
+
+Hard limits cover files, bytes, attack surfaces, candidates, call-path depth, model calls, prompt bytes, output tokens and timeout. The model is not allowed to declare verification or completion.
 
 ## Graph context
 
-A validated repository graph may supply a bounded subgraph. When external graph tooling is missing or stale, the context broker uses the native deterministic repository graph and bounded source excerpts. It never fabricates graph relationships or send an unrestricted repository to a provider.
+A validated repository graph may supply a bounded subgraph. When external graph tooling is missing or stale, the context broker uses the native deterministic repository graph and bounded source excerpts. It never fabricates graph relationships or sends an unrestricted repository automatically.
 
 ## Activation dependencies
 
@@ -49,8 +86,10 @@ Groq remains disabled until all of these pass:
 2. approved model inventory check;
 3. harmless structured-response test;
 4. privacy and redaction acceptance tests;
-5. per-task and operational usage limits;
-6. cancellation, timeout and failure tests;
-7. human review of provider terms and data controls.
+5. exact source-processing approval tests;
+6. evidence-reference integrity tests;
+7. per-task and operational usage limits;
+8. cancellation, timeout and failure tests;
+9. human review of provider terms, retention and data controls.
 
-Deterministic workflows continue when Groq is disabled or unavailable.
+Deterministic workflows continue when Groq is disabled or unavailable. Source Hunt details are documented in [`SOURCE_HUNT.md`](SOURCE_HUNT.md).

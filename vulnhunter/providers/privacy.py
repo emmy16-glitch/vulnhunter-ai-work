@@ -1,4 +1,4 @@
-"""Fail-closed privacy gate for local and remote model providers."""
+"""Fail-closed privacy gate for Groq advisory and approved source processing."""
 
 from __future__ import annotations
 
@@ -31,36 +31,60 @@ class PrivacyGate:
         *,
         contains_private_source: bool,
         contains_customer_data: bool,
+        remote_source_processing_approved: bool = False,
     ) -> PrivacyGateResult:
         redacted = redact_text(content)
         redacted = _PRIVATE_IP.sub("[REDACTED_PRIVATE_IP]", redacted)
         redacted = _DOMAIN.sub("[REDACTED_PRIVATE_DOMAIN]", redacted)
-        if contains_private_source or _CODE_BLOCK.search(content):
-            return PrivacyGateResult(
-                allowed_for_remote=False,
-                reason="Private source code must remain with the local provider.",
-                redacted_content=redacted,
-            )
         if contains_customer_data:
             return PrivacyGateResult(
                 allowed_for_remote=False,
-                reason="Customer data must remain with the local provider.",
+                reason="Customer data may not be transmitted to Groq.",
                 redacted_content=redacted,
             )
+        source_detected = contains_private_source or _CODE_BLOCK.search(content) is not None
         blocked_markers = (
+            "[REDACTED]",
+            "[REDACTED_EMAIL]",
+            "[REDACTED_PAYMENT_DATA]",
             "[REDACTED_SECRET]",
             "[REDACTED_AUTHORIZATION]",
             "[REDACTED_COOKIE]",
             "[REDACTED_PRIVATE_KEY]",
         )
-        if any(marker in redacted for marker in blocked_markers):
+        sensitive_redaction_applied = any(marker in redacted for marker in blocked_markers)
+        if sensitive_redaction_applied and not (
+            source_detected and remote_source_processing_approved
+        ):
             return PrivacyGateResult(
                 allowed_for_remote=False,
-                reason="Sensitive values were detected and remote fallback was denied.",
+                reason="Sensitive values were detected and Groq routing was denied.",
+                redacted_content=redacted,
+            )
+        if source_detected and not remote_source_processing_approved:
+            return PrivacyGateResult(
+                allowed_for_remote=False,
+                reason=(
+                    "Source code requires an exact, time-limited Groq source-processing approval."
+                ),
+                redacted_content=redacted,
+            )
+        if remote_source_processing_approved and not contains_private_source:
+            return PrivacyGateResult(
+                allowed_for_remote=False,
+                reason="Remote source-processing approval was supplied for a non-source request.",
                 redacted_content=redacted,
             )
         return PrivacyGateResult(
             allowed_for_remote=True,
-            reason="The request passed the remote-provider privacy gate.",
+            reason=(
+                "The exact source-processing request passed after sensitive values were redacted."
+                if source_detected and sensitive_redaction_applied
+                else (
+                    "The exact source-processing request passed the Groq privacy gate."
+                    if source_detected
+                    else "The request passed the Groq privacy gate."
+                )
+            ),
             redacted_content=redacted,
         )

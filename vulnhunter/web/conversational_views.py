@@ -188,6 +188,21 @@ def _latest_visible_run(actor: object, target: str | None = None):
     return None
 
 
+def _existing_run_bound_to_state(
+    state: dict[str, object],
+    actor: object,
+    target: str,
+):
+    stored_target = state.get("target")
+    if not (
+        isinstance(stored_target, str)
+        and stored_target
+        and canonical_target(stored_target) == canonical_target(target)
+    ):
+        return None
+    return _latest_visible_run(actor, target=target)
+
+
 def _authoritative_run(
     state: dict[str, object],
     actor: object,
@@ -209,7 +224,7 @@ def _authoritative_run(
             if current_target == canonical_target(target):
                 return current
     if target:
-        return _latest_visible_run(actor, target=target)
+        return _existing_run_bound_to_state(state, actor, target)
     return None
 
 
@@ -784,7 +799,7 @@ def message_view(request: HttpRequest) -> JsonResponse:
         )
         return JsonResponse({"message": message}, status=400)
 
-    existing = _latest_visible_run(actor, target=canonical)
+    existing = _existing_run_bound_to_state(state, actor, canonical)
     if existing is not None and not _repeat_scan_requested(text) and interpreted.intent == "scan":
         payload = _run_payload(existing)
         state = _sync_state_from_run(request, state, existing)

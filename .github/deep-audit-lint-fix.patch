@@ -1,0 +1,75 @@
+--- a/vulnhunter/product/service.py
++++ b/vulnhunter/product/service.py
+@@ -2,6 +2,7 @@
+ 
+ from __future__ import annotations
+ 
++import sqlite3
+ from collections import Counter
+ from dataclasses import dataclass
+ from datetime import UTC, datetime
+@@ -255,7 +256,9 @@
+             ValueError,
+             sqlite3.Error,
+         ) as exc:
+-            raise ProductServiceError(f"Campaign {campaign_id!r} could not be loaded safely.") from exc
++            raise ProductServiceError(
++                f"Campaign {campaign_id!r} could not be loaded safely."
++            ) from exc
+         authorizations = self._load_authorizations(applications)
+         scope_summary = tuple(
+             sorted(
+--- a/vulnhunter/web/services.py
++++ b/vulnhunter/web/services.py
+@@ -58,7 +58,11 @@
+ def actor_can_read_cross_scope(actor: object) -> bool:
+     """Return whether an actor may read assessment records across owners."""
+ 
+-    roles = tuple(str(item) for item in getattr(actor, "product_roles", ()) if isinstance(item, str))
++    roles = tuple(
++        str(item)
++        for item in getattr(actor, "product_roles", ())
++        if isinstance(item, str)
++    )
+     if not roles:
+         return False
+     return role_policy().any_role_allows(
+@@ -80,7 +84,11 @@
+ 
+     if run_visible_to_actor(run, actor):
+         return True
+-    roles = tuple(str(item) for item in getattr(actor, "product_roles", ()) if isinstance(item, str))
++    roles = tuple(
++        str(item)
++        for item in getattr(actor, "product_roles", ())
++        if isinstance(item, str)
++    )
+     return bool(roles and role_policy().any_role_allows(roles, "settings.manage"))
+ 
+ 
+--- a/tests/unit/test_deep_independent_audit.py
++++ b/tests/unit/test_deep_independent_audit.py
+@@ -505,7 +505,10 @@
+     ):
+         assert str(tmp_path) not in capability.detail
+         assert "sqlite" not in capability.detail.lower()
+-        assert capability.evidence_reference is None or str(tmp_path) not in capability.evidence_reference
++        assert (
++            capability.evidence_reference is None
++            or str(tmp_path) not in capability.evidence_reference
++        )
+ 
+     missing_service = ProductApplicationService(
+         ProductPaths(
+@@ -526,7 +529,10 @@
+         missing_status.agent_runtime,
+     ):
+         assert str(tmp_path) not in capability.detail
+-        assert capability.evidence_reference is None or str(tmp_path) not in capability.evidence_reference
++        assert (
++            capability.evidence_reference is None
++            or str(tmp_path) not in capability.evidence_reference
++        )
+     with pytest.raises(ProductServiceError, match="Campaign records could not be loaded safely"):
+         missing_service.list_campaigns()
+     with pytest.raises(ProductServiceError, match="Assessment runs could not be loaded safely"):

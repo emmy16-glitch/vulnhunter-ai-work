@@ -8,7 +8,7 @@ from django.contrib.auth import get_user_model
 
 from vulnhunter.web import conversational_views
 from vulnhunter.web.conversation_threads import ThreadSessionProxy, create_thread
-from vulnhunter.web.models import ConversationThread
+from vulnhunter.web.models import ConversationThread, WebUserMapping
 
 
 class _Workflow:
@@ -24,6 +24,14 @@ def workspace_actor():
     )
 
 
+def _map_workspace_user(user, *, governance_identity_id: str = "persistent-user") -> None:
+    WebUserMapping.objects.create(
+        user=user,
+        governance_identity_id=governance_identity_id,
+        product_roles=["campaign-operator"],
+    )
+
+
 @pytest.mark.django_db
 def test_new_workspace_is_persisted_and_reopenable(client, settings, workspace_actor):
     settings.ALLOWED_HOSTS = ["testserver"]
@@ -31,6 +39,7 @@ def test_new_workspace_is_persisted_and_reopenable(client, settings, workspace_a
     user = get_user_model().objects.create_user(
         username="persistent-user", password="safe-pass-1234"
     )
+    _map_workspace_user(user)
     client.force_login(user)
 
     with (
@@ -135,6 +144,7 @@ def test_workspace_assets_include_thread_routing_and_background_upload_coordinat
 def test_legacy_session_conversation_is_migrated_once(client, settings, workspace_actor):
     settings.ALLOWED_HOSTS = ["testserver"]
     user = get_user_model().objects.create_user(username="legacy-user", password="safe-pass-1234")
+    _map_workspace_user(user)
     client.force_login(user)
     session = client.session
     session["vulnhunter_conversation_messages"] = [
@@ -151,7 +161,8 @@ def test_legacy_session_conversation_is_migrated_once(client, settings, workspac
     assert response.status_code == 200
     thread = ConversationThread.objects.get(owner=user)
     assert (
-        thread.data["vulnhunter_conversation_messages"][0]["content"] == "Keep this APK discussion"
+        thread.data["vulnhunter_conversation_messages"][0]["content"]
+        == "Keep this APK discussion"
     )
     assert thread.data["vulnhunter_conversation_state"]["target"] == "http://127.0.0.1:8010/"
     refreshed_session = client.session

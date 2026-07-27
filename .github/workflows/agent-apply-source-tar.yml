@@ -37,57 +37,27 @@ jobs:
           xz -t "$RUNNER_TEMP/final-source.tar.xz"
           tar -xJf "$RUNNER_TEMP/final-source.tar.xz" -C .
           rm -f .agent-tar.part00 .agent-tar.part01 .agent-tar.part02 .agent-tar.part03 .agent-tar.part04
-          rm -f .github/workflows/agent-apply-source-tar.yml .github/workflows/agent-validate-tar.yml
+          git checkout -- .github/workflows/quality.yml
       - name: Format and validate source
         shell: bash
         run: |
-          set -o pipefail
-          set +e
-          {
-            set -x
-            python -m pip install 'ruff>=0.9,<1'
-            ruff format .
-            ruff check --fix .
-            ruff check .
-            ruff format --check .
-            python -m compileall -q vulnhunter tests
-            for file in vulnhunter/web/static/web/*.js; do node --check "$file"; done
-            bash -n .devcontainer/start-vulnhunter.sh
-            git add -A
-            git diff --cached --check
-          } 2>&1 | tee "$RUNNER_TEMP/source-validation.log"
-          status=${PIPESTATUS[0]}
-          exit "$status"
-      - name: Upload validation diagnostics
-        if: failure()
-        uses: actions/upload-artifact@v6
-        with:
-          name: source-validation-diagnostics
-          path: ${{ runner.temp }}/source-validation.log
-          if-no-files-found: error
-          retention-days: 1
+          set -euo pipefail
+          python -m pip install 'ruff>=0.9,<1'
+          ruff format .
+          ruff check --fix .
+          ruff check .
+          ruff format --check .
+          python -m compileall -q vulnhunter tests
+          for file in vulnhunter/web/static/web/*.js; do node --check "$file"; done
+          bash -n .devcontainer/start-vulnhunter.sh
+          git add -A
+          git diff --cached --check
       - name: Commit final implementation
         shell: bash
         run: |
-          set -o pipefail
-          set +e
-          {
-            set -x
-            git status --short
-            git config user.name 'github-actions[bot]'
-            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-            git add -A
-            git diff --cached --stat
-            git commit -m 'Complete adaptive reasoning and durable hunt workspaces'
-            git push origin HEAD:agent/persistent-workspaces-uploads
-          } 2>&1 | tee "$RUNNER_TEMP/source-commit.log"
-          status=${PIPESTATUS[0]}
-          exit "$status"
-      - name: Upload commit diagnostics
-        if: failure()
-        uses: actions/upload-artifact@v6
-        with:
-          name: source-commit-diagnostics
-          path: ${{ runner.temp }}/source-commit.log
-          if-no-files-found: ignore
-          retention-days: 1
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Complete adaptive reasoning and durable hunt workspaces'
+          git push origin HEAD:agent/persistent-workspaces-uploads

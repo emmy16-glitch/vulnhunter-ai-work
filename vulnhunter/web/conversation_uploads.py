@@ -21,6 +21,7 @@ from uuid import uuid4
 
 from django.conf import settings
 from django.core.files.uploadedfile import UploadedFile
+from django.db import DatabaseError
 
 _SESSION_KEY = "vulnhunter_conversation_apk_uploads"
 _UPLOAD_ID = re.compile(r"^upload-[0-9a-f]{32}$")
@@ -192,6 +193,44 @@ def _prune(request: _Request) -> dict[str, dict[str, object]]:
     return retained
 
 
+def _owner_upload_records(
+    request: _Request,
+    current: dict[str, dict[str, object]],
+) -> dict[str, dict[str, object]]:
+    """Collect live upload reservations across all durable workspaces for this user."""
+
+    try:
+        from vulnhunter.web.models import ConversationThread
+
+        owner_pk = getattr(request.user, "pk", None)
+        if owner_pk is None:
+            return current
+        now = time.time()
+        ttl = _upload_ttl_seconds()
+        combined: dict[str, dict[str, object]] = {}
+        for data in ConversationThread.objects.filter(
+            owner_id=owner_pk,
+            archived=False,
+        ).values_list("data", flat=True):
+            if not isinstance(data, dict):
+                continue
+            raw = data.get(_SESSION_KEY)
+            if not isinstance(raw, dict):
+                continue
+            for upload_id, record in raw.items():
+                if not isinstance(upload_id, str) or not isinstance(record, dict):
+                    continue
+                try:
+                    updated_at = float(record.get("updated_at", record["created_at"]))
+                except (KeyError, TypeError, ValueError):
+                    continue
+                if now - updated_at <= ttl and str(record.get("owner_id", "")) == _owner_id(request):
+                    combined[upload_id] = dict(record)
+        return combined or current
+    except (DatabaseError, OSError, RuntimeError):
+        return current
+
+
 def _preflight_capacity(expected_bytes: int, records: dict[str, dict[str, object]]) -> None:
     root = _upload_root()
     maximum = int(settings.VULNHUNTER_MOBILE_MAX_APK_BYTES)
@@ -247,12 +286,13 @@ def begin_apk_upload(
         )
 
     records = _prune(request)
-    if len(records) >= _maximum_active_uploads():
+    owner_records = _owner_upload_records(request, records)
+    if len(owner_records) >= _maximum_active_uploads():
         raise ConversationUploadError(
-            "Too many APK uploads are active in this session. "
+            "Too many APK uploads are active across your workspaces. "
             "Finish or cancel one before starting another."
         )
-    _preflight_capacity(expected_bytes, records)
+    _preflight_capacity(expected_bytes, owner_records)
 
     upload_id = f"upload-{uuid4().hex}"
     path = _path(upload_id)
@@ -281,6 +321,32 @@ def begin_apk_upload(
     records[upload_id] = record
     _save_records(request, records)
     return StagedApkUpload(upload_id, safe_name, expected_bytes, 0, path)
+
+
+def get_apk_upload(request: _Request, *, upload_id: str) -> StagedApkUpload:
+    """Return the authoritative resumable offset for one owned staged upload."""
+
+    records = _prune(request)
+    record = records.get(upload_id)
+    if record is None or str(record.get("owner_id", "")) != _owner_id(request):
+        raise ConversationUploadError("This APK upload is missing or has expired.")
+    try:
+        filename = str(record["filename"])
+        expected = int(record["expected_bytes"])
+        received = int(record["received_bytes"])
+    except (KeyError, TypeError, ValueError) as exc:
+        discard_apk_upload(request, upload_id=upload_id)
+        raise ConversationUploadError("The staged APK upload record is invalid.") from exc
+    path = _path(upload_id)
+    try:
+        actual = path.stat().st_size
+    except OSError as exc:
+        discard_apk_upload(request, upload_id=upload_id)
+        raise ConversationUploadError("The staged APK upload file is unavailable.") from exc
+    if actual != received or received < 0 or received > expected:
+        discard_apk_upload(request, upload_id=upload_id)
+        raise ConversationUploadError("The staged APK upload offset failed integrity validation.")
+    return StagedApkUpload(upload_id, filename, expected, received, path)
 
 
 def append_apk_chunk(

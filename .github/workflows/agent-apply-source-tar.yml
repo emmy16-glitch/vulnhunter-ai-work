@@ -33,11 +33,11 @@ jobs:
           echo 'bd976e5d02542cb32dc7c381969ed56ebfd7736c4816972f994e61427a104535  .agent-tar.part04' | sha256sum -c -
           cat .agent-tar.part00 .agent-tar.part01 .agent-tar.part02 .agent-tar.part03 .agent-tar.part04 > "$RUNNER_TEMP/final-source.b64"
           base64 -d "$RUNNER_TEMP/final-source.b64" > "$RUNNER_TEMP/final-source.tar.xz"
-          echo '6ad839e564d27f684f764f07b6b976037b1ff9e0d8c0d2cce1b2786fee43df15  '"$RUNNER_TEMP/final-source.tar.xz" | sha256sum -c -
+          echo 'ff6fcc523fad658c0647d0c19c64db011b23978dae47f45af1939726a2e7fb90  '"$RUNNER_TEMP/final-source.tar.xz" | sha256sum -c -
           xz -t "$RUNNER_TEMP/final-source.tar.xz"
           tar -xJf "$RUNNER_TEMP/final-source.tar.xz" -C .
           rm -f .agent-tar.part00 .agent-tar.part01 .agent-tar.part02 .agent-tar.part03 .agent-tar.part04
-          rm -f .github/workflows/agent-apply-source-tar.yml
+          rm -f .github/workflows/agent-apply-source-tar.yml .github/workflows/agent-validate-tar.yml
       - name: Format and validate source
         shell: bash
         run: |

@@ -16,6 +16,7 @@ import httpx
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from vulnhunter.providers.models import (
+    ProviderCapability,
     ProviderHealth,
     ProviderInvocation,
     ProviderKind,
@@ -49,6 +50,13 @@ class _StructuredModelOutput(BaseModel):
 
     output_kind: ProviderOutputKind
     content: str = Field(min_length=1, max_length=40_000)
+
+
+class _ConversationModelOutput(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    message: str = Field(min_length=1, max_length=40_000)
+    recommended_profile: str | None = Field(default=None, max_length=64)
 
 
 def load_groq_api_key_file(path: Path) -> str:
@@ -222,7 +230,7 @@ class GroqProvider:
             response_text = message.get("content")
             if not isinstance(response_text, str):
                 raise _GroqProtocolError("Groq response omitted structured content")
-            structured = _StructuredModelOutput.model_validate_json(response_text)
+            structured = self._decode_structured_output(invocation, response_text)
             output_bytes = structured.content.encode("utf-8")
             if len(output_bytes) > invocation.maximum_output_bytes:
                 raise _GroqProtocolError("Groq response exceeded the output byte limit")
@@ -272,6 +280,38 @@ class GroqProvider:
                 raw_content,
                 requested_at,
                 f"Groq response was rejected safely: {type(exc).__name__}.",
+            )
+
+    @staticmethod
+    def _decode_structured_output(
+        invocation: ProviderInvocation,
+        response_text: str,
+    ) -> _StructuredModelOutput:
+        """Accept the governed envelope and one conversation-only compatibility shape.
+
+        The provider-level contract remains authoritative. The compatibility path exists
+        only because JSON-object models can follow the conversation prompt's inner schema
+        directly instead of encoding that object as the outer ``content`` string.
+        """
+
+        try:
+            return _StructuredModelOutput.model_validate_json(response_text)
+        except ValidationError:
+            if invocation.capability != ProviderCapability.CONVERSATION:
+                raise
+            conversation = _ConversationModelOutput.model_validate_json(response_text)
+            content = json.dumps(
+                {
+                    "message": conversation.message,
+                    "recommended_profile": conversation.recommended_profile,
+                },
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+            )
+            return _StructuredModelOutput(
+                output_kind=ProviderOutputKind.CANDIDATE_ANALYSIS,
+                content=content,
             )
 
     def _model_inventory(self) -> frozenset[str]:

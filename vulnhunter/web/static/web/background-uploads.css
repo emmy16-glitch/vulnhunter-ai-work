@@ -22,4 +22,14 @@
 .vh-background-upload a, .vh-background-upload button { border: 0; border-radius: .5rem; padding: .42rem .6rem; background: rgba(126, 157, 255, .14); color: inherit; font: inherit; text-decoration: none; cursor: pointer; }
 .vh-background-upload.is-completed { border-left: .2rem solid #55d6a4; }
 .vh-background-upload.is-failed { border-left: .2rem solid #ff7c8a; }
-@media (max-width: 700px) { .vh-background-upload-dock { right: .65rem; bottom: .65rem; width: calc(100vw - 1.3rem); } }
+@media (max-width: 700px) {
+  .vh-background-upload-dock {
+    right: .65rem;
+    bottom: 8.25rem;
+    width: calc(100vw - 1.3rem);
+    max-height: min(38dvh, 22rem);
+    overflow-y: auto;
+  }
+  .vh-background-upload { grid-template-columns: minmax(0, 1fr); }
+  .vh-background-upload > div:last-child { justify-content: flex-end; }
+}

@@ -51,3 +51,89 @@
   border-color: #8793ff;
   background: #7a88ff;
 }
+
+/* Phone acceptance: make reasoning/provider state readable and prevent overlap. */
+.vh-message-reasoning {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  margin-top: .55rem;
+  padding: .28rem .48rem;
+  border: 1px solid rgba(108, 124, 255, .22);
+  border-radius: 999px;
+  color: var(--vh-final-muted);
+  background: rgba(108, 124, 255, .07);
+  font-size: .68rem;
+  line-height: 1.25;
+}
+
+.vh-message-reasoning.is-degraded {
+  border-color: rgba(232, 162, 61, .38);
+  color: #f5c77f;
+  background: rgba(232, 162, 61, .09);
+}
+
+.vh-provider-runtime {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  white-space: nowrap;
+}
+
+.vh-provider-runtime::before {
+  width: .45rem;
+  height: .45rem;
+  border-radius: 50%;
+  background: var(--vh-final-blocked);
+  content: "";
+}
+
+.vh-provider-runtime.is-ready::before { background: var(--vh-final-authorized); }
+.vh-provider-runtime.is-warning::before { background: var(--vh-final-pending); }
+
+@media (max-width: 767px) {
+  .vh-conversation-body .vh-chat-input-shell {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr) minmax(6.5rem, auto) 44px;
+    align-items: end;
+    gap: .42rem;
+    padding: .48rem;
+  }
+
+  .vh-conversation-body .vh-chat-input-shell textarea {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .vh-conversation-body .vh-reasoning-control,
+  .vh-conversation-body .vh-reasoning-control select {
+    min-width: 6.5rem;
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .vh-conversation-body .vh-chat-composer-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .55rem;
+    padding-inline: .2rem;
+    font-size: .68rem;
+  }
+
+  .vh-conversation-body .vh-chat-composer .vh-chat-composer-meta .vh-provider-runtime {
+    display: inline-flex;
+  }
+
+  .vh-conversation-body .vh-chat-composer-meta > span:first-child {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 420px) {
+  .vh-conversation-body .vh-chat-input-shell {
+    grid-template-columns: 42px minmax(0, 1fr) 6.5rem 42px;
+  }
+}

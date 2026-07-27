@@ -31,8 +31,15 @@ MOBSF_API_KEY_FILE="$RUNTIME_DIR/mobsf-api.key"
 MOBILE_RUNTIME_POLICY_FILE="$RUNTIME_DIR/mobile-runtime.json"
 MOBILE_RUNTIME_APPROVAL_KEY="$RUNTIME_DIR/mobile-runtime-approval.key"
 GROQ_KEY="$STATE_DIR/groq-api-key"
+WEB_SECRET_KEY="$STATE_DIR/web-secret.key"
 mkdir -p "$RUNTIME_DIR"
 chmod 700 "$STATE_DIR" "$RUNTIME_DIR"
+
+if [[ ! -s "$WEB_SECRET_KEY" ]]; then
+  umask 077
+  python -c 'import secrets,sys; sys.stdout.write(secrets.token_urlsafe(64))' > "$WEB_SECRET_KEY"
+fi
+chmod 600 "$WEB_SECRET_KEY"
 
 if [[ -e "$TEMPLATE_ROOT" ]]; then
   chmod -R u+w "$TEMPLATE_ROOT" 2>/dev/null || true
@@ -103,6 +110,7 @@ export VULNHUNTER_WEB_DEBUG=true
 export VULNHUNTER_WEB_HTTPS=false
 export VULNHUNTER_WEB_ALLOWED_HOSTS=".app.github.dev,localhost,127.0.0.1"
 export VULNHUNTER_WEB_CSRF_TRUSTED_ORIGINS="https://*.app.github.dev,https://localhost:8002"
+export VULNHUNTER_WEB_SECRET_KEY_FILE="$WEB_SECRET_KEY"
 export VULNHUNTER_WEB_DATABASE="$ROOT/.local/vulnhunter-web.sqlite3"
 export VULNHUNTER_AUTHORIZATION_DATABASE="$ROOT/.local/runtime/authorization/authorizations.db"
 export VULNHUNTER_GOVERNANCE_DATABASE="$ROOT/.local/runtime/governance/governance.db"

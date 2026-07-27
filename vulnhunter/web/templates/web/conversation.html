@@ -2,26 +2,26 @@
 {% load static %}
 
 {% block extra_styles %}
-  <link rel="stylesheet" href="{% static 'web/conversation.css' %}?v=20260725-consolidate1">
-  <link rel="stylesheet" href="{% static 'web/conversation-layout.css' %}?v=20260725-consolidate1">
-  <link rel="stylesheet" href="{% static 'web/conversation-mobile.css' %}?v=20260725-consolidate1">
-  <link rel="stylesheet" href="{% static 'web/conversation-upload.css' %}?v=20260725-consolidate1">
-  <link rel="stylesheet" href="{% static 'web/conversation-mobile-execution.css' %}?v=20260725-consolidate1">
-  <link rel="stylesheet" href="{% static 'web/conversation-mobile-inspector.css' %}?v=20260725-consolidate1">
-  <link rel="stylesheet" href="{% static 'web/conversation-mobile-deferred-tools.css' %}?v=20260725-consolidate1">
-  <link rel="stylesheet" href="{% static 'web/conversation-threads.css' %}?v=20260727-workspaces1">
+  <link rel="stylesheet" href="{% static 'web/conversation.css' %}?v=20260727-phone-acceptance1">
+  <link rel="stylesheet" href="{% static 'web/conversation-layout.css' %}?v=20260727-phone-acceptance1">
+  <link rel="stylesheet" href="{% static 'web/conversation-mobile.css' %}?v=20260727-phone-acceptance1">
+  <link rel="stylesheet" href="{% static 'web/conversation-upload.css' %}?v=20260727-phone-acceptance1">
+  <link rel="stylesheet" href="{% static 'web/conversation-mobile-execution.css' %}?v=20260727-phone-acceptance1">
+  <link rel="stylesheet" href="{% static 'web/conversation-mobile-inspector.css' %}?v=20260727-phone-acceptance1">
+  <link rel="stylesheet" href="{% static 'web/conversation-mobile-deferred-tools.css' %}?v=20260727-phone-acceptance1">
+  <link rel="stylesheet" href="{% static 'web/conversation-threads.css' %}?v=20260727-phone-acceptance1">
 {% endblock %}
 
 {% block extra_scripts %}
-  <script src="{% static 'web/conversation-thread-client.js' %}?v=20260727-workspaces1" defer></script>
-  <script src="{% static 'web/conversation-runtime-compat.js' %}?v=20260725-consolidate1"></script>
-  <script src="{% static 'web/conversation.js' %}?v=20260725-consolidate1" defer></script>
-  <script src="{% static 'web/conversation-autoscroll.js' %}?v=20260725-consolidate1" defer></script>
-  <script src="{% static 'web/conversation-mobile-bridge.js' %}?v=20260725-consolidate1" defer></script>
-  <script src="{% static 'web/conversation-mobile.js' %}?v=20260725-consolidate1" defer></script>
-  <script src="{% static 'web/conversation-mobile-context.js' %}?v=20260725-consolidate1" defer></script>
-  <script src="{% static 'web/conversation-mobile-inspector.js' %}?v=20260725-consolidate1" defer></script>
-  <script src="{% static 'web/conversation-mobile-deferred-tools.js' %}?v=20260725-consolidate1" defer></script>
+  <script src="{% static 'web/conversation-thread-client.js' %}?v=20260727-phone-acceptance1" defer></script>
+  <script src="{% static 'web/conversation-runtime-compat.js' %}?v=20260727-phone-acceptance1"></script>
+  <script src="{% static 'web/conversation.js' %}?v=20260727-phone-acceptance1" defer></script>
+  <script src="{% static 'web/conversation-autoscroll.js' %}?v=20260727-phone-acceptance1" defer></script>
+  <script src="{% static 'web/conversation-mobile-bridge.js' %}?v=20260727-phone-acceptance1" defer></script>
+  <script src="{% static 'web/conversation-mobile.js' %}?v=20260727-phone-acceptance1" defer></script>
+  <script src="{% static 'web/conversation-mobile-context.js' %}?v=20260727-phone-acceptance1" defer></script>
+  <script src="{% static 'web/conversation-mobile-inspector.js' %}?v=20260727-phone-acceptance1" defer></script>
+  <script src="{% static 'web/conversation-mobile-deferred-tools.js' %}?v=20260727-phone-acceptance1" defer></script>
 {% endblock %}
 
 {% block content %}
@@ -117,6 +117,9 @@
         </div>
         <div class="vh-chat-composer-meta">
           <span><b data-reasoning-copy>{{ conversation.reasoning_effort|title }}</b> reasoning · Website and APK assessments start here · Enter to send</span>
+          <span class="vh-provider-runtime{% if groq.live_verified %} is-ready{% elif groq.configured %} is-warning{% else %} is-offline{% endif %}" data-provider-runtime title="{{ groq.label }}">
+            {% if groq.live_verified %}Groq live{% elif groq.configured %}Groq needs verified restart{% else %}Groq unavailable{% endif %}
+          </span>
         </div>
       </form>
     </main>

@@ -22,6 +22,11 @@ class Command(BaseCommand):
     def add_arguments(self, parser) -> None:
         parser.add_argument("--model", default=settings.VULNHUNTER_GROQ_MODEL)
         parser.add_argument("--timeout", type=int, default=settings.VULNHUNTER_GROQ_TIMEOUT_SECONDS)
+        parser.add_argument(
+            "--conversation-smoke",
+            action="store_true",
+            help="Also verify the exact conversational interpretation path used by the web UI.",
+        )
 
     def handle(self, *args, **options) -> None:
         if not settings.VULNHUNTER_GROQ_ENABLED:
@@ -75,10 +80,33 @@ class Command(BaseCommand):
             raise CommandError(response.safe_error or "Groq abstained during readiness test")
         if "VULNHUNTER_GROQ_READY" not in response.content:
             raise CommandError("Groq response passed schema validation but missed the marker")
+
+        conversation_ready = False
+        if options["conversation_smoke"]:
+            from vulnhunter.web.conversation_service import interpret_request
+
+            marker = "VULNHUNTER_CHAT_READY"
+            interpreted = interpret_request(
+                (
+                    "Answer this harmless readiness request. Your complete user-facing "
+                    f"message must include the exact marker {marker}."
+                ),
+                available_profiles=("passive",),
+                reasoning_effort="low",
+                provider_preference="groq",
+            )
+            if interpreted.provider != "groq" or marker not in (interpreted.assistant_copy or ""):
+                raise CommandError(
+                    "Groq conversation smoke test failed safely: "
+                    f"provider={interpreted.provider} detail={interpreted.provider_detail}"
+                )
+            conversation_ready = True
+
+        suffix = " conversation=ready" if conversation_ready else ""
         self.stdout.write(
             self.style.SUCCESS(
                 "Groq verified: "
                 f"model={response.model} output_kind={response.output_kind.value} "
-                f"trusted={response.trusted}."
+                f"trusted={response.trusted}.{suffix}"
             )
         )

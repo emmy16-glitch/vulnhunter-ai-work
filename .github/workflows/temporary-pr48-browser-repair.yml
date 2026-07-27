@@ -1,0 +1,183 @@
+name: Temporary PR 48 browser repair
+
+on:
+  push:
+    branches: [agent/full-system-audit]
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    if: github.event.head_commit.message == 'Apply PR 48 browser repair'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out audit branch
+        uses: actions/checkout@v6
+        with:
+          ref: agent/full-system-audit
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Apply focused browser and composer repairs
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: str, old: str, new: str) -> None:
+              target = Path(path)
+              text = target.read_text(encoding="utf-8")
+              if old not in text:
+                  if new in text:
+                      return
+                  raise SystemExit(f"Expected marker missing from {path}: {old[:100]!r}")
+              target.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+          replace_once(
+              "vulnhunter/web/static/web/conversation-mobile.css",
+              "    height: 30px !important;",
+              "    height: 44px !important;",
+          )
+          replace_once(
+              "vulnhunter/web/static/web/conversation-mobile.css",
+              "    width: 5.65rem;",
+              "    width: 6.5rem;",
+          )
+          replace_once(
+              "tests/ui/conversation_e2e.cjs",
+              'const fs = require("fs");\n',
+              'const fs = require("fs");\nconst path = require("path");\n',
+          )
+          replace_once(
+              "tests/ui/conversation_e2e.cjs",
+              '''const failureScreenshot = "/tmp/vh-ui/screenshots/conversation-e2e-failure.png";
+const serverLog = "/tmp/vh-ui/server.log";
+''',
+              '''const outputDir = process.env.VULNHUNTER_UI_OUTPUT || "/tmp/vh-ui/screenshots";
+const failureScreenshot = path.join(outputDir, "conversation-e2e-failure.png");
+const serverLog =
+  process.env.VULNHUNTER_UI_SERVER_LOG || path.join(path.dirname(outputDir), "server.log");
+''',
+          )
+          replace_once(
+              "tests/ui/conversation_e2e.cjs",
+              '''    await Promise.all([
+      page.waitForURL(`${baseUrl}/`),
+      page.getByRole("button", { name: /sign in securely/i }).click(),
+    ]);
+    const input = page.locator("[data-conversation-input]");
+''',
+              '''    await Promise.all([
+      page.waitForURL(`${baseUrl}/`),
+      page.getByRole("button", { name: /sign in securely/i }).click(),
+    ]);
+    const previousWorkspaceUrl = page.url();
+    await Promise.all([
+      page.waitForURL(
+        (url) => url.toString() !== previousWorkspaceUrl && url.searchParams.has("thread"),
+        { timeout: 15000 },
+      ),
+      page.getByRole("button", { name: /new workspace/i }).click(),
+    ]);
+    await page.locator("[data-conversation-workspace]").waitFor({ timeout: 15000 });
+    const input = page.locator("[data-conversation-input]");
+''',
+          )
+          replace_once(
+              "tests/ui/conversation_e2e.cjs",
+              '    const runId = await page.locator("[data-run-card]").getAttribute("data-run-id");',
+              '    const runId = await page.locator("[data-run-card]").last().getAttribute("data-run-id");',
+          )
+          replace_once(
+              "tests/ui/conversation_e2e.cjs",
+              '      fs.mkdirSync("/tmp/vh-ui/screenshots", { recursive: true });',
+              '      fs.mkdirSync(outputDir, { recursive: true });',
+          )
+
+          test_path = Path("tests/unit/test_mobile_composer_contract.py")
+          test_text = test_path.read_text(encoding="utf-8")
+          contract = '''
+
+
+def test_repeated_browser_lifecycle_uses_a_fresh_workspace_and_configured_evidence_path():
+    root = Path(__file__).resolve().parents[2]
+    script = (root / "tests/ui/conversation_e2e.cjs").read_text()
+
+    assert 'name: /new workspace/i' in script
+    assert 'url.searchParams.has("thread")' in script
+    assert 'locator("[data-run-card]").last()' in script
+    assert "process.env.VULNHUNTER_UI_OUTPUT" in script
+'''
+          if "test_repeated_browser_lifecycle_uses_a_fresh_workspace" not in test_text:
+              test_path.write_text(test_text.rstrip() + contract + "\n", encoding="utf-8")
+
+          audit_path = Path(".github/workflows/temporary-full-system-audit.yml")
+          audit = audit_path.read_text(encoding="utf-8")
+          old_loop = '''          for cycle in $(seq 1 7); do
+            echo "Browser/UI cycle ${cycle}/7"
+            node tests/ui/conversation_e2e.cjs
+            node .playwright-validate.cjs
+          done
+'''
+          new_loop = '''          : > /tmp/vh-stress-ui/browser-repeat.log
+          for cycle in $(seq 1 7); do
+            {
+              echo "Browser/UI cycle ${cycle}/7"
+              node tests/ui/conversation_e2e.cjs
+              node .playwright-validate.cjs
+            } 2>&1 | tee -a /tmp/vh-stress-ui/browser-repeat.log
+          done
+'''
+          if old_loop in audit:
+              audit = audit.replace(old_loop, new_loop, 1)
+          elif new_loop not in audit:
+              raise SystemExit("Repeated browser loop marker is missing")
+          old_artifact = '''            /tmp/vh-stress-ui/server.log
+'''
+          new_artifact = '''            /tmp/vh-stress-ui/server.log
+            /tmp/vh-stress-ui/browser-repeat.log
+'''
+          if new_artifact not in audit:
+              if old_artifact not in audit:
+                  raise SystemExit("Repeated browser artifact marker is missing")
+              audit = audit.replace(old_artifact, new_artifact, 1)
+          audit_path.write_text(audit, encoding="utf-8")
+          PY
+
+      - name: Validate focused repairs
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .
+          python -m pip install pytest pytest-django ruff
+          python -m ruff format tests/unit/test_mobile_composer_contract.py
+          python -m ruff check tests/unit/test_mobile_composer_contract.py
+          node --check tests/ui/conversation_e2e.cjs
+          python -m pytest -q tests/unit/test_mobile_composer_contract.py
+
+      - name: Commit verified repair and remove helper
+        shell: bash
+        run: |
+          rm .github/workflows/temporary-pr48-browser-repair.yml
+          git config user.name 'vulnhunter-audit-bot'
+          git config user.email 'vulnhunter-audit-bot@users.noreply.github.com'
+          git add \
+            .github/workflows/temporary-full-system-audit.yml \
+            .github/workflows/temporary-pr48-browser-repair.yml \
+            tests/ui/conversation_e2e.cjs \
+            tests/unit/test_mobile_composer_contract.py \
+            vulnhunter/web/static/web/conversation-mobile.css
+          git commit -m 'Repair repeated browser lifecycle and mobile composer'
+          git push origin HEAD:agent/full-system-audit

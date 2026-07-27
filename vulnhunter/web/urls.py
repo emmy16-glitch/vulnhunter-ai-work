@@ -101,6 +101,16 @@ urlpatterns = [
     path("audit/", audit_views.audit_overview_view, name="web-audit-overview"),
     path("authorizations/", views.authorization_list_view, name="web-authorization-list"),
     path(
+        "authorizations/<str:authorization_id>/",
+        views.authorization_detail_view,
+        name="web-authorization-detail",
+    ),
+    path(
+        "authorizations/<str:authorization_id>/revoke/",
+        views.authorization_revoke_view,
+        name="web-authorization-revoke",
+    ),
+    path(
         "scans/new/",
         RedirectView.as_view(url="/?intent=new-assessment", permanent=False),
         name="web-new-scan",

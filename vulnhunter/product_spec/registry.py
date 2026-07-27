@@ -130,9 +130,11 @@ class ProductInterfaceSpec:
         )
         operation_ids: set[str] = set()
         resource_allowed_roles: dict[str, set[str]] = {}
+        resource_operations: dict[str, dict[str, set[str]]] = {}
         for resource in self.resources:
             resource_id = str(resource.get("resource_id", ""))
             resource_allowed_roles[resource_id] = set()
+            resource_operations[resource_id] = {}
             for operation in resource.get("operations", []):
                 operation_id = operation.get("operation_id")
                 if not operation_id or operation_id in operation_ids:
@@ -140,6 +142,8 @@ class ProductInterfaceSpec:
                 operation_ids.add(operation_id)
                 operation_roles = set(operation.get("allowed_roles", []))
                 resource_allowed_roles[resource_id].update(operation_roles)
+                if operation_id:
+                    resource_operations[resource_id][str(operation_id)] = operation_roles
                 unknown = operation_roles - role_ids
                 if unknown:
                     errors.append(
@@ -159,17 +163,34 @@ class ProductInterfaceSpec:
                     f"{sorted(unknown_resources)}"
                 )
             for action in page.get("actions", []):
-                if action.get("api_resource_id") not in resource_ids:
+                action_id = action.get("action_id")
+                action_resource_id = action.get("api_resource_id")
+                if action_resource_id not in resource_ids:
                     errors.append(
-                        f"Action {action.get('action_id')!r} on {page_id!r} references an "
+                        f"Action {action_id!r} on {page_id!r} references an "
                         "unknown API resource."
                     )
+                    backing_roles: set[str] | None = None
+                else:
+                    backing_roles = resource_operations.get(str(action_resource_id), {}).get(
+                        str(action_id)
+                    )
+                    if backing_roles is None:
+                        errors.append(
+                            f"Action {action_id!r} on {page_id!r} has no matching API operation "
+                            f"on resource {action_resource_id!r}."
+                        )
                 action_roles = set(action.get("allowed_roles", []))
                 if not action_roles or not action_roles.issubset(
                     set(page.get("allowed_roles", []))
                 ):
                     errors.append(
                         f"Action {action.get('action_id')!r} on {page_id!r} has invalid roles."
+                    )
+                if backing_roles is not None and not action_roles.issubset(backing_roles):
+                    errors.append(
+                        f"Action {action_id!r} on {page_id!r} grants roles not allowed by its "
+                        f"API operation: {sorted(action_roles - backing_roles)}"
                     )
                 if action.get("dangerous") and not action.get("confirmation_required"):
                     errors.append(

@@ -49,7 +49,7 @@ form, upload surface, or backend workflow.
 Implemented browser surfaces include:
 
 - authenticated dashboard and system readiness;
-- authorization inspection;
+- authorization registry and detail inspection with confirmed, append-only revocation;
 - bounded assessment creation and assessment workspaces;
 - exact digest-bound approval decisions;
 - signed passive Nuclei worker-pilot visibility and cancellation controls;
@@ -157,6 +157,8 @@ not persisted by the web application.
 - `/status/`
 - `/audit/`
 - `/authorizations/`
+- `/authorizations/<authorization_id>/`
+- `/authorizations/<authorization_id>/revoke/` (POST only; system-administrator recovery action)
 - `/scans/new/` (compatibility redirect to `/?intent=new-assessment`)
 - `/scans/`
 - `/scans/<run_id>/`

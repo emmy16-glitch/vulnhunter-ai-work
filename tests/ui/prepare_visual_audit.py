@@ -183,6 +183,7 @@ def main() -> int:
 
     review_reference = assignment.record_sha256[:24]
     campaign_id = world["campaign"].campaign_id
+    authorization_id = world["authorization"].authorization_id
     manifest = {
         "simulation_only": True,
         "external_actions_performed": False,
@@ -262,6 +263,12 @@ def main() -> int:
             },
             {"name": "status", "path": "/status/", "persona": "admin"},
             {"name": "authorizations", "path": "/authorizations/", "persona": "admin"},
+            {
+                "name": "authorization-detail",
+                "path": f"/authorizations/{authorization_id}/",
+                "persona": "admin",
+                "responsive": True,
+            },
             {"name": "review-queue", "path": "/reviews/", "persona": "reviewer"},
             {
                 "name": "adjudication-queue",
@@ -287,7 +294,7 @@ def main() -> int:
             {"name": "roles", "path": "/roles/", "persona": "admin"},
             {
                 "name": "role-detail",
-                "path": "/roles/system-administrator/",
+                "path": "/roles/orchestrator/",
                 "persona": "admin",
             },
             {"name": "skills", "path": "/skills/", "persona": "admin"},

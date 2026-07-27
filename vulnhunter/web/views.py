@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import sqlite3
 from pathlib import Path
 
 from django.conf import settings
@@ -15,10 +16,20 @@ from django.views.decorators.cache import cache_control
 from django.views.decorators.http import require_GET, require_http_methods
 
 from vulnhunter.agent import AgentStore, AgentStoreError
+from vulnhunter.authorization.models import AuthorizationEvent, AuthorizationRecord
 from vulnhunter.authorization.store import AuthorizationStore
-from vulnhunter.exceptions import GovernanceError
+from vulnhunter.exceptions import (
+    AuthorizationError,
+    AuthorizationNotFoundError,
+    AuthorizationPolicyError,
+    GovernanceError,
+)
 from vulnhunter.product import ProductNotFoundError, ProductServiceError
-from vulnhunter.web.forms import StopRunForm, VulnHunterAuthenticationForm
+from vulnhunter.web.forms import (
+    AuthorizationRevokeForm,
+    StopRunForm,
+    VulnHunterAuthenticationForm,
+)
 from vulnhunter.web.services import (
     WebCapabilityUnavailable,
     WebPermissionDenied,
@@ -179,6 +190,41 @@ def status_view(request: HttpRequest) -> HttpResponse:
     )
 
 
+def _authorization_record_data(
+    authorization_id: str,
+) -> tuple[AuthorizationStore, AuthorizationRecord, tuple[AuthorizationEvent, ...]]:
+    store = AuthorizationStore.from_path(Path(settings.VULNHUNTER_AUTHORIZATION_DATABASE))
+    store.initialize()
+    authorization = store.get(authorization_id)
+    events = store.list_events(authorization_id, limit=250)
+    return store, authorization, events
+
+
+def _render_authorization_detail(
+    request: HttpRequest,
+    *,
+    authorization: AuthorizationRecord,
+    events: tuple[AuthorizationEvent, ...],
+    can_revoke: bool,
+    revoke_form: AuthorizationRevokeForm | None = None,
+    status: int = 200,
+) -> HttpResponse:
+    return _render(
+        request,
+        "web/authorization_detail.html",
+        {
+            "page_title": "Authorization Detail",
+            "authorization": authorization,
+            "events": events,
+            "can_revoke": can_revoke,
+            "revoke_form": (
+                revoke_form if revoke_form is not None else AuthorizationRevokeForm()
+            ),
+        },
+        status=status,
+    )
+
+
 @cache_control(private=True, no_store=True)
 @login_required
 @require_GET
@@ -188,23 +234,118 @@ def authorization_list_view(request: HttpRequest) -> HttpResponse:
     except WebPermissionDenied as exc:
         return _denied(request, str(exc))
 
-    error_message = None
     try:
         store = AuthorizationStore.from_path(Path(settings.VULNHUNTER_AUTHORIZATION_DATABASE))
         store.initialize()
         authorizations = store.list(limit=250)
-    except (OSError, RuntimeError, ValueError) as exc:
-        authorizations = ()
-        error_message = str(exc)
+    except (AuthorizationError, OSError, RuntimeError, ValueError, sqlite3.Error):
+        return operational_unavailable(
+            request,
+            "Authorization records are temporarily unavailable.",
+        )
     return _render(
         request,
         "web/authorizations_overview.html",
         {
             "page_title": "Authorizations",
             "authorizations": authorizations,
-            "error_message": error_message,
         },
     )
+
+
+@cache_control(private=True, no_store=True)
+@login_required
+@require_GET
+def authorization_detail_view(
+    request: HttpRequest,
+    authorization_id: str,
+) -> HttpResponse:
+    try:
+        actor = _protected(request, required_actions=("authorization.read",))
+    except WebPermissionDenied as exc:
+        return _denied(request, str(exc))
+
+    try:
+        _, authorization, events = _authorization_record_data(authorization_id)
+    except AuthorizationNotFoundError as exc:
+        raise Http404("Authorization record not found.") from exc
+    except (AuthorizationError, OSError, RuntimeError, ValueError, sqlite3.Error):
+        return operational_unavailable(
+            request,
+            "Authorization records are temporarily unavailable.",
+        )
+
+    can_revoke = role_policy().any_role_allows(actor.product_roles, "settings.manage")
+    return _render_authorization_detail(
+        request,
+        authorization=authorization,
+        events=events,
+        can_revoke=can_revoke,
+    )
+
+
+@cache_control(private=True, no_store=True)
+@login_required
+@require_http_methods(["POST"])
+def authorization_revoke_view(
+    request: HttpRequest,
+    authorization_id: str,
+) -> HttpResponse:
+    try:
+        _protected(request, required_actions=("settings.manage",))
+    except WebPermissionDenied as exc:
+        return _denied(request, str(exc))
+
+    form = AuthorizationRevokeForm(request.POST)
+    try:
+        store, authorization, events = _authorization_record_data(authorization_id)
+    except AuthorizationNotFoundError as exc:
+        raise Http404("Authorization record not found.") from exc
+    except (AuthorizationError, OSError, RuntimeError, ValueError, sqlite3.Error):
+        return operational_unavailable(
+            request,
+            "Authorization records are temporarily unavailable.",
+        )
+
+    if not form.is_valid():
+        return _render_authorization_detail(
+            request,
+            authorization=authorization,
+            events=events,
+            can_revoke=True,
+            revoke_form=form,
+            status=400,
+        )
+
+    try:
+        store.revoke(authorization_id, reason=form.cleaned_data["reason"])
+    except AuthorizationNotFoundError as exc:
+        raise Http404("Authorization record not found.") from exc
+    except AuthorizationPolicyError as exc:
+        form.add_error(None, str(exc))
+        try:
+            _, authorization, events = _authorization_record_data(authorization_id)
+        except (AuthorizationError, OSError, RuntimeError, ValueError, sqlite3.Error):
+            return operational_unavailable(
+                request,
+                "Authorization records are temporarily unavailable.",
+            )
+        return _render_authorization_detail(
+            request,
+            authorization=authorization,
+            events=events,
+            can_revoke=authorization.status == "active",
+            revoke_form=form,
+            status=409,
+        )
+    except (AuthorizationError, OSError, RuntimeError, ValueError, sqlite3.Error):
+        return operational_unavailable(
+            request,
+            "Authorization records are temporarily unavailable.",
+        )
+
+    messages.success(request, "Authorization revoked. Future validation will fail closed.")
+    return redirect("web-authorization-detail", authorization_id=authorization_id)
 
 
 def _identity_assignments(identity_id: str) -> tuple[tuple[object, object], ...]:

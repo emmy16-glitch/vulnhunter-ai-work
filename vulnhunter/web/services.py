@@ -406,7 +406,11 @@ def navigation_for(user: Any) -> tuple[dict[str, object], ...]:
             "url_name": "web-authorization-list",
             "icon": "authorization",
             "actions": ("authorization.read",),
-            "active_routes": ("web-authorization-list",),
+            "active_routes": (
+                "web-authorization-list",
+                "web-authorization-detail",
+                "web-authorization-revoke",
+            ),
         },
         "scan-runs": {
             "url_name": "web-scan-run-list",

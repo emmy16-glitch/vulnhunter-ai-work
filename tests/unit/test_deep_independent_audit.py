@@ -7,8 +7,14 @@ from unittest.mock import patch
 
 import pytest
 from django.contrib.auth import get_user_model
-from django.test import RequestFactory
-from governance_test_support import ADMIN_SECRET, NOW, add_identity, make_governance_store
+from django.test import Client, RequestFactory
+from governance_test_support import (
+    ADMIN_SECRET,
+    NOW,
+    add_identity,
+    create_authorization,
+    make_governance_store,
+)
 
 from vulnhunter.agent.store import AgentStore
 from vulnhunter.approvals import ApprovalRequest, ApprovalStore
@@ -138,6 +144,116 @@ def _run(*, owner: str = "operator-a", run_id: str = "run-owned-by-operator"):
         attack_path=(),
     )
 
+
+
+@pytest.mark.django_db
+def test_authorization_detail_and_revocation_are_fully_wired(deep_paths, client) -> None:
+    store, authorization = create_authorization(deep_paths / "authorization.db")
+    administrator = _user(
+        username="authorization-admin",
+        identity="admin-a",
+        roles=["system-administrator"],
+        staff=True,
+    )
+    client.force_login(administrator)
+
+    detail_path = f"/authorizations/{authorization.authorization_id}/"
+    detail = client.get(detail_path)
+    assert detail.status_code == 200
+    assert authorization.authorization_id.encode() in detail.content
+    assert authorization.target_url.encode() in detail.content
+    assert b"Revoke authorization" in detail.content
+    assert b'aria-current="page"' in detail.content
+
+    invalid = client.post(
+        f"{detail_path}revoke/",
+        {"reason": "No longer approved."},
+    )
+    assert invalid.status_code == 400
+    assert store.get(authorization.authorization_id).status == "active"
+
+    revoked = client.post(
+        f"{detail_path}revoke/",
+        {
+            "reason": "The approved test window has ended.",
+            "confirm_revocation": "on",
+        },
+    )
+    assert revoked.status_code == 302
+    assert revoked["Location"].endswith(detail_path)
+    record = store.get(authorization.authorization_id)
+    assert record.status == "revoked"
+    assert record.revocation_reason == "The approved test window has ended."
+    assert store.list_events(authorization.authorization_id)[0].event_type == "revoked"
+
+
+@pytest.mark.django_db
+def test_authorization_revocation_requires_system_management_permission(
+    deep_paths, client
+) -> None:
+    _, authorization = create_authorization(deep_paths / "authorization.db")
+    operator = _user(
+        username="authorization-operator",
+        identity="operator-a",
+        roles=["campaign-operator"],
+    )
+    client.force_login(operator)
+    detail_path = f"/authorizations/{authorization.authorization_id}/"
+
+    detail = client.get(detail_path)
+    assert detail.status_code == 200
+    assert b"Revoke authorization" not in detail.content
+    denied = client.post(
+        f"{detail_path}revoke/",
+        {"reason": "Attempted", "confirm_revocation": "on"},
+    )
+    assert denied.status_code == 403
+
+
+@pytest.mark.django_db
+def test_authorization_surfaces_fail_closed_without_internal_storage_detail(
+    deep_paths, client, settings
+) -> None:
+    administrator = _user(
+        username="authorization-corruption-admin",
+        identity="admin-a",
+        roles=["system-administrator"],
+        staff=True,
+    )
+    client.force_login(administrator)
+    database = Path(settings.VULNHUNTER_AUTHORIZATION_DATABASE)
+    database.write_bytes(b"not-a-sqlite-database")
+
+    for path in ("/authorizations/", "/authorizations/auth-does-not-matter/"):
+        response = client.get(path)
+        assert response.status_code == 503
+        assert b"Authorization records are temporarily unavailable." in response.content
+        assert str(database).encode() not in response.content
+        assert b"not a database" not in response.content
+
+
+@pytest.mark.django_db
+def test_unknown_authorization_is_404_and_revoke_requires_csrf(deep_paths, client) -> None:
+    administrator = _user(
+        username="authorization-not-found-admin",
+        identity="admin-a",
+        roles=["system-administrator"],
+        staff=True,
+    )
+    client.force_login(administrator)
+    assert client.get("/authorizations/auth-missing/").status_code == 404
+
+    _, authorization = create_authorization(deep_paths / "authorization.db")
+    csrf_client = Client(enforce_csrf_checks=True)
+    csrf_client.force_login(administrator)
+    response = csrf_client.post(
+        f"/authorizations/{authorization.authorization_id}/revoke/",
+        {"reason": "No token", "confirm_revocation": "on"},
+    )
+    assert response.status_code == 403
+    assert AuthorizationStore.from_path(deep_paths / "authorization.db").get(
+        authorization.authorization_id
+    ).status == "active"
 
 @pytest.mark.django_db
 def test_navigation_respects_page_roles_and_does_not_offer_dead_destinations(deep_paths) -> None:

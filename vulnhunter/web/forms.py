@@ -24,3 +24,15 @@ class StopRunForm(forms.Form):
         widget=forms.Textarea(attrs={"rows": 4}),
         help_text="Explain the exact bounded reason for stopping the run.",
     )
+
+
+class AuthorizationRevokeForm(forms.Form):
+    reason = forms.CharField(
+        label="Revocation reason",
+        max_length=2_000,
+        widget=forms.Textarea(attrs={"rows": 4}),
+        help_text="Explain why this permission boundary must no longer be usable.",
+    )
+    confirm_revocation = forms.BooleanField(
+        label="I understand that revocation is immediate and cannot be undone.",
+    )

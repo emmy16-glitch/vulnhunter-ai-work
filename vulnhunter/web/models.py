@@ -62,7 +62,9 @@ class ConversationThread(models.Model):
 
     class Meta:
         indexes = [
-            models.Index(fields=("owner", "archived", "-updated_at"), name="vh_thread_owner_recent"),
+            models.Index(
+                fields=("owner", "archived", "-updated_at"), name="vh_thread_owner_recent"
+            ),
         ]
 
     def __str__(self) -> str:

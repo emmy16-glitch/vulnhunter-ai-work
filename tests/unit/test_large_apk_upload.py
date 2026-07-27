@@ -129,10 +129,9 @@ def test_workspace_uses_resumable_uploads_and_codespaces_sets_one_gigabyte():
     assert "prepare_mobile_static_worker.py" in start_script
     assert "automatic isolated static/native worker ready" in start_script
 
+
 @pytest.mark.django_db
-def test_chunked_apk_upload_reports_server_confirmed_resume_offset(
-    client, settings, tmp_path
-):
+def test_chunked_apk_upload_reports_server_confirmed_resume_offset(client, settings, tmp_path):
     settings.ALLOWED_HOSTS = ["testserver"]
     settings.VULNHUNTER_MOBILE_ARTIFACT_ROOT = str(tmp_path / "mobile-artifacts")
     settings.VULNHUNTER_MOBILE_MAX_APK_BYTES = 1_000_000_000

@@ -224,7 +224,9 @@ def _owner_upload_records(
                     updated_at = float(record.get("updated_at", record["created_at"]))
                 except (KeyError, TypeError, ValueError):
                     continue
-                if now - updated_at <= ttl and str(record.get("owner_id", "")) == _owner_id(request):
+                if now - updated_at <= ttl and str(record.get("owner_id", "")) == _owner_id(
+                    request
+                ):
                     combined[upload_id] = dict(record)
         return combined or current
     except (DatabaseError, OSError, RuntimeError):

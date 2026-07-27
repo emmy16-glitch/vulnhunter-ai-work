@@ -22,7 +22,8 @@ jobs:
         run: |
           set -euo pipefail
           cat \
-            .agent-remaining.part00 \
+            .agent-remaining.part00a \
+            .agent-remaining.part00b \
             .agent-remaining.part01 \
             .agent-remaining.part02 \
             .agent-remaining.part03 \
@@ -33,6 +34,8 @@ jobs:
           tar -xzf "$RUNNER_TEMP/remaining-files.tar.gz" -C .
           rm -f \
             .agent-remaining.part00 \
+            .agent-remaining.part00a \
+            .agent-remaining.part00b \
             .agent-remaining.part01 \
             .agent-remaining.part02 \
             .agent-remaining.part03 \

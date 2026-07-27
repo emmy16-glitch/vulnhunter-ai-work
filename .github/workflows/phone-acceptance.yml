@@ -30,7 +30,10 @@ jobs:
       VULNHUNTER_UI_BASE_URL: http://127.0.0.1:8767
       VULNHUNTER_GROQ_ENABLED: "false"
       VULNHUNTER_INTELLIGENCE_ENABLED: "false"
+      VULNHUNTER_NUCLEI_READINESS_REPORT: /tmp/vh-phone/nuclei-readiness.json
       VULNHUNTER_NUCLEI_PILOT_ENQUEUE_ENABLED: "false"
+      VULNHUNTER_NUCLEI_WORKER_SIGNING_KEY_FILE: /tmp/vh-phone/worker-signing.key
+      VULNHUNTER_NUCLEI_WORKER_SPOOL_ROOT: /tmp/vh-phone/worker-spool
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
@@ -57,11 +60,15 @@ jobs:
           npx playwright install --with-deps chromium
 
       - name: Prepare deterministic phone workspace
+        shell: bash
         run: |
+          set -o pipefail
           rm -rf /tmp/vh-phone
           mkdir -p /tmp/vh-phone/screenshots
-          python manage.py migrate --noinput
-          python tests/ui/prepare_visual_audit.py
+          {
+            python manage.py migrate --noinput
+            python tests/ui/prepare_visual_audit.py
+          } 2>&1 | tee /tmp/vh-phone/prepare.log
 
       - name: Start local application
         run: |
@@ -85,6 +92,7 @@ jobs:
           name: phone-acceptance-diagnostics
           path: |
             /tmp/vh-phone/screenshots
+            /tmp/vh-phone/prepare.log
             /tmp/vh-phone/server.log
           if-no-files-found: warn
           retention-days: 7

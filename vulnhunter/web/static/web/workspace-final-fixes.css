@@ -121,6 +121,10 @@
     font-size: .68rem;
   }
 
+  .vh-conversation-body .vh-chat-composer .vh-chat-composer-meta .vh-provider-runtime {
+    display: inline-flex;
+  }
+
   .vh-conversation-body .vh-chat-composer-meta > span:first-child {
     overflow: hidden;
     text-overflow: ellipsis;

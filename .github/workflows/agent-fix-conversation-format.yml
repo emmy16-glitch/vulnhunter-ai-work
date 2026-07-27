@@ -1,0 +1,64 @@
+name: Fix conversation service formatting
+
+on:
+  pull_request:
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: ${{ github.actor != 'github-actions[bot]' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: agent/persistent-workspaces-uploads
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Fix exact lint failures
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("vulnhunter/web/conversation_service.py")
+          text = path.read_text(encoding="utf-8")
+          replacements = {
+              '            "assessment state. Use New workspace for another task and History to reopen earlier work."\n': (
+                  '            "assessment state. Use New workspace for another task and History to "\n'
+                  '            "reopen earlier work."\n'
+              ),
+              '            "I can show the controlled target for the selected assessment. If this workspace has no "\n': (
+                  '            "I can show the controlled target for the selected assessment. If this "\n'
+                  '            "workspace has no "\n'
+              ),
+              '            "Describe the security question, paste an authorised http or https target, or attach an "\n': (
+                  '            "Describe the security question, paste an authorised http or https target, "\n'
+                  '            "or attach an "\n'
+              ),
+              '            "I have not lost the workspace context. Add the exact point you want examined next, and "\n': (
+                  '            "I have not lost the workspace context. Add the exact point you want examined "\n'
+                  '            "next, and "\n'
+              ),
+          }
+          for old, new in replacements.items():
+              if old not in text:
+                  raise SystemExit(f"Expected source fragment missing: {old!r}")
+              text = text.replace(old, new, 1)
+          path.write_text(text, encoding="utf-8")
+          PY
+          python -m pip install ruff
+          python -m ruff check vulnhunter/web/conversation_service.py
+          python -m ruff format --check vulnhunter/web/conversation_service.py
+          git diff --check
+      - name: Publish formatting fix
+        run: |
+          git add vulnhunter/web/conversation_service.py
+          git config user.name "VulnHunter automation"
+          git config user.email "actions@users.noreply.github.com"
+          git commit -m "Fix conversation service lint"
+          git push origin HEAD:agent/persistent-workspaces-uploads

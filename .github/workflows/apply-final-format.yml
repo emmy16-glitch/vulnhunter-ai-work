@@ -20,10 +20,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          base64 --decode .github/final-format.patch.gz.b64 | gzip --decompress > "$RUNNER_TEMP/final-format.patch"
-          git apply --check "$RUNNER_TEMP/final-format.patch"
-          git apply "$RUNNER_TEMP/final-format.patch"
-          rm .github/final-format.patch.gz.b64
+          python -m pip install --disable-pip-version-check 'ruff==0.12.4'
+          ruff format \
+            tests/unit/test_deep_independent_audit.py \
+            tests/unit/test_product_interface_specification.py \
+            tests/unit/test_reference_ui_contract.py \
+            vulnhunter/product_spec/registry.py \
+            vulnhunter/web/views.py
+          rm -f .github/final-format.patch.gz.b64
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A

@@ -18,6 +18,7 @@ jobs:
           ref: agent/persistent-workspaces-uploads
           fetch-depth: 0
       - name: Apply exact remaining patch
+        id: apply
         shell: bash
         run: |
           set -euo pipefail
@@ -26,7 +27,17 @@ jobs:
           echo "fa7d0f15c8fb402f2dc8fb6ee8261697ed0cc21f3c0ff4b8a27cf7a6c5735839  $RUNNER_TEMP/remaining.xz" \
             | sha256sum -c -
           xz -dc "$RUNNER_TEMP/remaining.xz" > "$RUNNER_TEMP/remaining.diff"
-          git apply --index --binary "$RUNNER_TEMP/remaining.diff"
+          if ! git apply --3way --index --binary "$RUNNER_TEMP/remaining.diff"; then
+            {
+              echo "=== git status ==="
+              git status --short
+              echo "=== patch targets ==="
+              grep '^diff --git ' "$RUNNER_TEMP/remaining.diff" || true
+              echo "=== verbose check ==="
+              git apply --check --verbose "$RUNNER_TEMP/remaining.diff" || true
+            } | tee "$RUNNER_TEMP/apply-diagnostic.txt"
+            exit 1
+          fi
           rm -f \
             .agent-remaining.part00 \
             .agent-remaining.part01 \
@@ -37,3 +48,11 @@ jobs:
           git config user.email "actions@users.noreply.github.com"
           git commit -m "Complete persistent workspace and upload integration"
           git push origin HEAD:agent/persistent-workspaces-uploads
+      - name: Upload application diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: remaining-patch-diagnostic
+          path: ${{ runner.temp }}/apply-diagnostic.txt
+          if-no-files-found: warn
+          retention-days: 1

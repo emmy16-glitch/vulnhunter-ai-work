@@ -58,7 +58,11 @@ def run_visible_to_actor(run: object, actor: object) -> bool:
 def actor_can_read_cross_scope(actor: object) -> bool:
     """Return whether an actor may read assessment records across owners."""
 
-    roles = tuple(str(item) for item in getattr(actor, "product_roles", ()) if isinstance(item, str))
+    roles = tuple(
+        str(item)
+        for item in getattr(actor, "product_roles", ())
+        if isinstance(item, str)
+    )
     if not roles:
         return False
     return role_policy().any_role_allows(
@@ -80,7 +84,11 @@ def run_controllable_by_actor(run: object, actor: object) -> bool:
 
     if run_visible_to_actor(run, actor):
         return True
-    roles = tuple(str(item) for item in getattr(actor, "product_roles", ()) if isinstance(item, str))
+    roles = tuple(
+        str(item)
+        for item in getattr(actor, "product_roles", ())
+        if isinstance(item, str)
+    )
     return bool(roles and role_policy().any_role_allows(roles, "settings.manage"))
 
 

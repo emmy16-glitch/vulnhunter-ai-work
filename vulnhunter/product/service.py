@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sqlite3
 from collections import Counter
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -255,7 +256,9 @@ class ProductApplicationService:
             ValueError,
             sqlite3.Error,
         ) as exc:
-            raise ProductServiceError(f"Campaign {campaign_id!r} could not be loaded safely.") from exc
+            raise ProductServiceError(
+                f"Campaign {campaign_id!r} could not be loaded safely."
+            ) from exc
         authorizations = self._load_authorizations(applications)
         scope_summary = tuple(
             sorted(

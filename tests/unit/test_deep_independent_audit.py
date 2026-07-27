@@ -505,7 +505,10 @@ def test_product_service_translates_storage_and_registry_errors(tmp_path: Path) 
     ):
         assert str(tmp_path) not in capability.detail
         assert "sqlite" not in capability.detail.lower()
-        assert capability.evidence_reference is None or str(tmp_path) not in capability.evidence_reference
+        assert (
+            capability.evidence_reference is None
+            or str(tmp_path) not in capability.evidence_reference
+        )
 
     missing_service = ProductApplicationService(
         ProductPaths(
@@ -526,7 +529,10 @@ def test_product_service_translates_storage_and_registry_errors(tmp_path: Path) 
         missing_status.agent_runtime,
     ):
         assert str(tmp_path) not in capability.detail
-        assert capability.evidence_reference is None or str(tmp_path) not in capability.evidence_reference
+        assert (
+            capability.evidence_reference is None
+            or str(tmp_path) not in capability.evidence_reference
+        )
     with pytest.raises(ProductServiceError, match="Campaign records could not be loaded safely"):
         missing_service.list_campaigns()
     with pytest.raises(ProductServiceError, match="Assessment runs could not be loaded safely"):

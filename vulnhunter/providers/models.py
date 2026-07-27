@@ -58,6 +58,12 @@ class ProviderCapability(StrEnum):
     REPOSITORY_NAVIGATION = "repository_navigation"
     PUBLIC_INFORMATION = "public_information"
     CONVERSATION = "conversation"
+    SOURCE_RECONNAISSANCE = "source_reconnaissance"
+    ATTACK_PATH_ANALYSIS = "attack_path_analysis"
+    CANDIDATE_FALSIFICATION = "candidate_falsification"
+    CAPABILITY_ASSESSMENT = "capability_assessment"
+    REMEDIATION_PLANNING = "remediation_planning"
+    FIX_REVIEW = "fix_review"
 
 
 class ProviderHealth(BaseModel):

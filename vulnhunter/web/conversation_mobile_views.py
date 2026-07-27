@@ -20,11 +20,18 @@ from vulnhunter.web.conversation_attachments import (
     remember_apk_attachment,
 )
 from vulnhunter.web.conversation_service import interpret_request
+from vulnhunter.web.conversation_threads import (
+    maybe_title_thread,
+    thread_memory,
+    thread_preferences,
+)
+from vulnhunter.web.conversation_tools import build_safe_tool_context
 from vulnhunter.web.conversation_uploads import (
     ConversationUploadError,
     append_apk_chunk,
     begin_apk_upload,
     discard_apk_upload,
+    get_apk_upload,
 )
 from vulnhunter.web.conversational_views import _actor, _append_message, _messages
 from vulnhunter.web.mobile_conversation import build_mobile_chat_plan, mobile_plan_reply
@@ -150,6 +157,7 @@ def upload_start_view(request: HttpRequest) -> JsonResponse:
             filename=filename,
             expected_bytes=expected_bytes,
         )
+        maybe_title_thread(request, f"APK analysis · {staged.filename}")
     except (TypeError, ValueError, ConversationUploadError) as exc:
         detail = str(exc) or "The APK upload request is invalid."
         return JsonResponse({"detail": detail}, status=400)
@@ -159,6 +167,14 @@ def upload_start_view(request: HttpRequest) -> JsonResponse:
             "upload_id": staged.upload_id,
             "chunk_url": reverse(
                 "web-conversation-upload-chunk",
+                kwargs={"upload_id": staged.upload_id},
+            ),
+            "status_url": reverse(
+                "web-conversation-upload-status",
+                kwargs={"upload_id": staged.upload_id},
+            ),
+            "cancel_url": reverse(
+                "web-conversation-upload-cancel",
                 kwargs={"upload_id": staged.upload_id},
             ),
             "chunk_bytes": int(
@@ -229,6 +245,45 @@ def upload_chunk_view(request: HttpRequest, upload_id: str) -> JsonResponse:
         "complete": True,
     }
     return JsonResponse(payload)
+
+
+@cache_control(private=True, no_store=True)
+@login_required
+@require_GET
+def upload_status_view(request: HttpRequest, upload_id: str) -> JsonResponse:
+    try:
+        _actor(request, "scan.create")
+    except WebPermissionDenied as exc:
+        return JsonResponse({"detail": str(exc)}, status=403)
+    try:
+        staged = get_apk_upload(request, upload_id=upload_id)
+    except ConversationUploadError as exc:
+        return JsonResponse({"detail": str(exc)}, status=404)
+    return JsonResponse(
+        {
+            "upload_id": staged.upload_id,
+            "filename": staged.filename,
+            "received_bytes": staged.received_bytes,
+            "expected_bytes": staged.expected_bytes,
+            "complete": staged.complete,
+        }
+    )
+
+
+@cache_control(private=True, no_store=True)
+@login_required
+@require_POST
+def upload_cancel_view(request: HttpRequest, upload_id: str) -> JsonResponse:
+    try:
+        _actor(request, "scan.create")
+    except WebPermissionDenied as exc:
+        return JsonResponse({"detail": str(exc)}, status=403)
+    try:
+        get_apk_upload(request, upload_id=upload_id)
+    except ConversationUploadError as exc:
+        return JsonResponse({"detail": str(exc)}, status=404)
+    discard_apk_upload(request, upload_id=upload_id)
+    return JsonResponse({"cancelled": True, "upload_id": upload_id})
 
 
 @cache_control(private=True, no_store=True)
@@ -335,10 +390,15 @@ def mobile_followup_view(request: HttpRequest) -> JsonResponse:
         return JsonResponse(
             {"detail": "No mobile hunt is selected in this conversation."}, status=404
         )
+    reasoning_effort, provider_preference = thread_preferences(request)
     interpreted = interpret_request(
         text,
         available_profiles=("static", "static_and_native", "dynamic", "full", "retest"),
         conversation_context=_conversation_context(request),
+        memory_summary=thread_memory(request),
+        tool_context=build_safe_tool_context(request),
+        reasoning_effort=reasoning_effort,
+        provider_preference=provider_preference,
     )
     if interpreted.intent in {"scan", "authorize", "approve", "cancel"}:
         clear_mobile_plan(request)
@@ -356,7 +416,12 @@ def mobile_followup_view(request: HttpRequest) -> JsonResponse:
         role="assistant",
         kind="result" if interpreted.intent == "results" else "text",
         content=copy,
-        metadata={"provider": interpreted.provider, "mobile_plan_id": plan.get("plan_id")},
+        metadata={
+            "provider": interpreted.provider,
+            "model": interpreted.model,
+            "reasoning_effort": interpreted.reasoning_effort,
+            "mobile_plan_id": plan.get("plan_id"),
+        },
     )
     return JsonResponse({"message": message, "mobile_plan": plan})
 

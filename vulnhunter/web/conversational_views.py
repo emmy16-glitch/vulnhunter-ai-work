@@ -23,8 +23,8 @@ from vulnhunter.web.assessment_workflow import (
     AssessmentWorkflowService,
 )
 from vulnhunter.web.conversation_service import (
+    advisory_runtime_status,
     canonical_target,
-    groq_runtime_status,
     interpret_request,
 )
 from vulnhunter.web.conversation_state import (
@@ -34,6 +34,16 @@ from vulnhunter.web.conversation_state import (
     results_reply,
     status_reply,
 )
+from vulnhunter.web.conversation_threads import (
+    list_threads,
+    maybe_title_thread,
+    refresh_thread_memory,
+    thread_memory,
+    thread_preferences,
+    thread_summary,
+    update_thread_preferences,
+)
+from vulnhunter.web.conversation_tools import build_safe_tool_context
 from vulnhunter.web.conversational_authorization import (
     ConversationalAuthorizationError,
     prepare_conversational_authorization,
@@ -51,7 +61,7 @@ from vulnhunter.web.services import (
 
 _SESSION_MESSAGES = "vulnhunter_conversation_messages"
 _SESSION_STATE = "vulnhunter_conversation_state"
-_MAX_MESSAGES = 50
+_MAX_MESSAGES = 400
 
 
 def _render(
@@ -116,8 +126,12 @@ def _append_message(
     }
     messages = _messages(request)
     messages.append(message)
-    request.session[_SESSION_MESSAGES] = messages[-_MAX_MESSAGES:]
+    if role == "user":
+        maybe_title_thread(request, message["content"])
+    stored = messages[-_MAX_MESSAGES:]
+    request.session[_SESSION_MESSAGES] = stored
     request.session.modified = True
+    refresh_thread_memory(request, stored)
     return message
 
 
@@ -453,11 +467,18 @@ def workspace_view(request: HttpRequest) -> HttpResponse:
     active_run = _run_payload(authoritative) if authoritative is not None else None
     if authoritative is not None:
         state = _sync_state_from_run(request, state, authoritative)
+    current_thread = getattr(request, "vulnhunter_thread", None)
+    thread_items = tuple(thread_summary(item) for item in list_threads(request.user))
     initial = {
+        "thread_id": str(current_thread.thread_id) if current_thread is not None else "",
+        "thread_title": current_thread.title
+        if current_thread is not None
+        else "Assessment Workspace",
+        "threads": thread_items,
         "messages": _messages(request),
         "active_run": active_run,
         "recent_runs": _recent_runs(actor),
-        "groq": groq_runtime_status(),
+        "groq": advisory_runtime_status(),
         "message_url": reverse("web-conversation-message"),
         "status_url_template": reverse(
             "web-conversation-status",
@@ -465,6 +486,11 @@ def workspace_view(request: HttpRequest) -> HttpResponse:
         ),
         "approval_url": reverse("web-conversation-approve"),
         "reset_url": reverse("web-conversation-reset"),
+        "thread_create_url": reverse("web-conversation-thread-create"),
+        "thread_list_url": reverse("web-conversation-thread-list"),
+        "reasoning_url": reverse("web-conversation-reasoning"),
+        "reasoning_effort": thread_preferences(request)[0],
+        "provider_preference": thread_preferences(request)[1],
     }
     return _render(
         request,
@@ -474,6 +500,8 @@ def workspace_view(request: HttpRequest) -> HttpResponse:
             "conversation": initial,
             "groq": initial["groq"],
             "recent_runs": initial["recent_runs"],
+            "conversation_threads": initial["threads"],
+            "current_thread": current_thread,
         },
     )
 
@@ -493,33 +521,53 @@ def message_view(request: HttpRequest) -> JsonResponse:
             status=400,
         )
 
-    _append_message(request, role="user", content=text)
+    requested_effort = request.POST.get("reasoning_effort", "").strip().casefold()
+    requested_provider = request.POST.get("provider_preference", "").strip().casefold()
+    try:
+        if requested_effort or requested_provider:
+            update_thread_preferences(
+                request,
+                reasoning_effort=requested_effort or None,
+                provider_preference=requested_provider or None,
+            )
+    except ValueError as exc:
+        return JsonResponse({"detail": str(exc)}, status=400)
+    reasoning_effort, provider_preference = thread_preferences(request)
+
+    _append_message(
+        request,
+        role="user",
+        content=text,
+        metadata={"reasoning_effort": reasoning_effort},
+    )
     state = _state(request)
     workflow = AssessmentWorkflowService.from_settings()
+    authorization_unavailable = False
     try:
         choices = workflow.list_authorizations(
             identity_id=actor.governance_identity.reviewer_id,
             username=request.user.get_username(),
         )
     except (OSError, RuntimeError, ValueError):
-        message = _append_message(
-            request,
-            role="assistant",
-            kind="error",
-            content="The authorization service is temporarily unavailable.",
-        )
-        return JsonResponse({"message": message}, status=503)
+        choices = ()
+        authorization_unavailable = True
 
     profiles = tuple(sorted({profile for item in choices for profile in item.approved_profiles}))
     context = tuple(
         (str(item.get("role", "")), str(item.get("content", "")))
-        for item in _messages(request)[-8:]
+        for item in _messages(request)[-30:]
         if isinstance(item, dict)
     )
+    selected = _authoritative_run(state, actor)
+    selected_payload = _run_payload(selected) if selected is not None else None
     interpreted = interpret_request(
         text,
         available_profiles=profiles,
         conversation_context=context,
+        memory_summary=thread_memory(request),
+        tool_context=build_safe_tool_context(request, active_run=selected_payload),
+        reasoning_effort=reasoning_effort,
+        provider_preference=provider_preference,
     )
     stored_target = state.get("target")
     target_hint = _target_for_request(
@@ -683,7 +731,12 @@ def message_view(request: HttpRequest) -> JsonResponse:
                 reply_payload,
                 interpreted.assistant_copy,
             ),
-            metadata={"provider": interpreted.provider},
+            metadata={
+                "provider": interpreted.provider,
+                "model": interpreted.model,
+                "reasoning_effort": interpreted.reasoning_effort,
+                "provider_detail": interpreted.provider_detail,
+            },
         )
         response: dict[str, object] = {"message": message}
         if reply_payload is not None:
@@ -691,6 +744,15 @@ def message_view(request: HttpRequest) -> JsonResponse:
         if detach_terminal:
             response["clear_run"] = True
         return JsonResponse(response)
+
+    if authorization_unavailable and interpreted.intent in {"scan", "authorize"}:
+        message = _append_message(
+            request,
+            role="assistant",
+            kind="error",
+            content="The authorization service is temporarily unavailable.",
+        )
+        return JsonResponse({"message": message}, status=503)
 
     target = target_hint
     if target is None:

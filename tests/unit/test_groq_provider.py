@@ -103,7 +103,7 @@ def test_groq_structured_output_is_advisory_and_has_no_tools():
     assert "tools" not in body
     assert "tool_choice" not in body
     assert body["include_reasoning"] is False
-    assert body["reasoning_effort"] == "low"
+    assert body["reasoning_effort"] == "medium"
     assert body["response_format"] == {"type": "json_object"}
     assert body["model"] == "openai/gpt-oss-120b"
 
@@ -146,3 +146,10 @@ def test_groq_key_is_not_written_to_provenance_or_response():
     )
     serialized = response.model_dump_json()
     assert secret not in serialized
+
+
+def test_groq_forwards_selected_high_reasoning_effort():
+    seen = []
+    provider = GroqProvider(api_key="gsk_test", transport=_transport(seen=seen))
+    provider.invoke(_invocation(reasoning_effort="high"), "safe public evidence")
+    assert seen[0]["reasoning_effort"] == "high"

@@ -82,6 +82,37 @@ def _restore_latest_non_terminal_run(request) -> None:
         return
 
 
+class ConversationThreadMiddleware:
+    """Select a durable workspace and isolate its legacy session-backed state."""
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        is_workspace_path = request.path == "/" or request.path.startswith("/workspace/")
+        if is_workspace_path and getattr(request.user, "is_authenticated", False):
+            from vulnhunter.web.conversation_threads import (
+                ConversationThreadNotFound,
+                ThreadSessionProxy,
+                resolve_thread,
+            )
+
+            base_session = request.session
+            try:
+                thread = resolve_thread(request)
+            except ConversationThreadNotFound as exc:
+                if request.path.startswith("/workspace/") or (
+                    "application/json" in request.headers.get("Accept", "")
+                ):
+                    return JsonResponse({"detail": str(exc)}, status=404)
+                thread = None
+            if thread is not None:
+                request.vulnhunter_base_session = base_session
+                request.vulnhunter_thread = thread
+                request.session = ThreadSessionProxy(base_session, thread)
+        return self.get_response(request)
+
+
 class ContentSecurityPolicyMiddleware:
     """Attach CSP headers, restore live context, and keep API failures JSON."""
 

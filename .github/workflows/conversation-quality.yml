@@ -44,6 +44,8 @@ jobs:
         run: |
           node --check vulnhunter/web/static/web/conversation-runtime-compat.js
           node --check vulnhunter/web/static/web/conversation.js
+          node --check vulnhunter/web/static/web/conversation-upload-coordinator.js
+          node --check vulnhunter/web/static/web/conversation-thread-client.js
           node --check vulnhunter/web/static/web/conversation-mobile-bridge.js
           node --check vulnhunter/web/static/web/conversation-mobile.js
           node --check vulnhunter/web/static/web/conversation-mobile-context.js
@@ -73,6 +75,8 @@ jobs:
             vulnhunter/mobile/static_toolchain.py \
             vulnhunter/mobile/static_worker.py \
             vulnhunter/web/conversation_service.py \
+            vulnhunter/web/conversation_threads.py \
+            vulnhunter/web/conversation_thread_views.py \
             vulnhunter/web/conversation_state.py \
             vulnhunter/web/conversation_attachments.py \
             vulnhunter/web/conversation_mobile_extension_views.py \
@@ -100,6 +104,7 @@ jobs:
             tests/unit/test_conversation_core_redesign.py \
             tests/unit/test_conversational_url_targets.py \
             tests/unit/test_conversation_experience.py \
+            tests/unit/test_persistent_conversation_threads.py \
             tests/unit/test_conversational_workspace.py \
             tests/unit/test_inline_confirmation_endpoint.py \
             tests/unit/test_inline_confirmation_store.py \
@@ -132,6 +137,8 @@ jobs:
             vulnhunter/mobile/static_toolchain.py \
             vulnhunter/mobile/static_worker.py \
             vulnhunter/web/conversation_service.py \
+            vulnhunter/web/conversation_threads.py \
+            vulnhunter/web/conversation_thread_views.py \
             vulnhunter/web/conversation_state.py \
             vulnhunter/web/conversation_attachments.py \
             vulnhunter/web/conversation_mobile_extension_views.py \
@@ -159,6 +166,7 @@ jobs:
             tests/unit/test_conversation_core_redesign.py \
             tests/unit/test_conversational_url_targets.py \
             tests/unit/test_conversation_experience.py \
+            tests/unit/test_persistent_conversation_threads.py \
             tests/unit/test_conversational_workspace.py \
             tests/unit/test_inline_confirmation_endpoint.py \
             tests/unit/test_inline_confirmation_store.py \
@@ -192,6 +200,7 @@ jobs:
             tests/unit/test_conversation_core_redesign.py \
             tests/unit/test_conversational_url_targets.py \
             tests/unit/test_conversation_experience.py \
+            tests/unit/test_persistent_conversation_threads.py \
             tests/unit/test_conversational_workspace.py \
             tests/unit/test_inline_confirmation_endpoint.py \
             tests/unit/test_inline_confirmation_store.py \

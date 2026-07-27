@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from datetime import datetime
 from enum import StrEnum
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -13,6 +14,7 @@ _IDENTIFIER = re.compile(r"^[a-z0-9][a-z0-9._-]{1,127}$")
 
 class ProviderKind(StrEnum):
     GROQ_ADVISORY = "groq_advisory"
+    HUGGINGFACE_ADVISORY = "huggingface_advisory"
 
 
 class ProviderRequest(BaseModel):
@@ -48,6 +50,7 @@ class ProviderCapability(StrEnum):
     REMEDIATION_DRAFTING = "remediation_drafting"
     REPOSITORY_NAVIGATION = "repository_navigation"
     PUBLIC_INFORMATION = "public_information"
+    CONVERSATION = "conversation"
 
 
 class ProviderHealth(BaseModel):
@@ -77,8 +80,9 @@ class ProviderInvocation(BaseModel):
     maximum_input_bytes: int = Field(default=24_000, ge=1, le=100_000)
     maximum_output_bytes: int = Field(default=8_000, ge=1, le=40_000)
     maximum_input_tokens: int = Field(default=6_000, ge=1, le=25_000)
-    maximum_output_tokens: int = Field(default=1_200, ge=1, le=4_000)
-    timeout_seconds: int = Field(default=60, ge=1, le=180)
+    maximum_output_tokens: int = Field(default=1_200, ge=1, le=8_192)
+    timeout_seconds: int = Field(default=60, ge=1, le=300)
+    reasoning_effort: Literal["low", "medium", "high"] = "medium"
 
     @field_validator("invocation_id", "request_id")
     @classmethod

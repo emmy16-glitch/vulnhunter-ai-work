@@ -1,0 +1,17 @@
+.vh-thread-list { display: grid; gap: .45rem; margin-bottom: 1rem; }
+.vh-thread-item { display: grid; grid-template-columns: .55rem minmax(0, 1fr) auto; align-items: center; gap: .65rem; padding: .7rem; border: 1px solid transparent; border-radius: .75rem; color: inherit; text-decoration: none; background: rgba(255,255,255,.035); }
+.vh-thread-item:hover, .vh-thread-item[aria-current="page"] { border-color: rgba(131, 158, 255, .34); background: rgba(112, 142, 255, .09); }
+.vh-thread-item > i { width: .48rem; height: .48rem; border-radius: 999px; background: #71809a; }
+.vh-thread-item > i.is-uploading, .vh-thread-item > i.is-running, .vh-thread-item > i.is-queued { background: #7ea2ff; box-shadow: 0 0 .8rem rgba(126,162,255,.65); }
+.vh-thread-item > span { min-width: 0; display: grid; gap: .18rem; }
+.vh-thread-item strong, .vh-thread-item small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vh-thread-item small { color: var(--vh-text-muted, #9fa9ba); text-transform: capitalize; }
+.vh-thread-item b { min-width: 1.4rem; text-align: center; font-size: .72rem; border-radius: 999px; background: rgba(126,162,255,.16); }
+.vh-history-section-title { margin: .65rem 0 .45rem; color: var(--vh-text-muted, #9fa9ba); font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; }
+.vh-persisted-attachment, .vh-persisted-mobile-plan { display: grid; gap: .2rem; margin: .35rem 0 .55rem; padding: .65rem .75rem; border: 1px solid rgba(126,162,255,.2); border-radius: .7rem; background: rgba(126,162,255,.06); }
+.vh-persisted-attachment small, .vh-persisted-mobile-plan small { color: var(--vh-text-muted, #9fa9ba); }
+.vh-reasoning-control { flex: 0 0 auto; display: inline-flex; align-items: center; }
+.vh-reasoning-control select { min-height: 2.35rem; max-width: 7rem; border: 1px solid rgba(126,162,255,.28); border-radius: 999px; padding: .35rem 1.75rem .35rem .7rem; background: rgba(126,162,255,.09); color: inherit; font: inherit; font-size: .82rem; font-weight: 700; cursor: pointer; }
+.vh-reasoning-control select:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+.vh-message-reasoning { display: inline-flex; margin-top: .45rem; padding: .18rem .48rem; border: 1px solid rgba(126,162,255,.22); border-radius: 999px; color: var(--vh-text-muted, #9fa9ba); font-size: .68rem; text-transform: capitalize; }
+@media (max-width: 600px) { .vh-reasoning-control select { max-width: 5.8rem; padding-left: .55rem; font-size: .75rem; } }

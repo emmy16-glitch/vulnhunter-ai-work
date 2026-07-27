@@ -49,15 +49,17 @@ jobs:
           path = Path('tests/unit/test_knowledge_ingestion.py')
           text = path.read_text(encoding='utf-8')
           old = '''    log = store.ingest_log_path.read_text(encoding="utf-8")
-    for index in range(40):
-        assert log.count(f"concurrent-entry-{index}") == 1
-    assert not tuple(store.root.rglob("*.tmp"))
-'''
+              for index in range(40):
+                  assert log.count(f"concurrent-entry-{index}") == 1
+              assert not tuple(store.root.rglob("*.tmp"))
+          '''
           new = '''    log_lines = store.ingest_log_path.read_text(encoding="utf-8").splitlines()
-    for index in range(40):
-        assert log_lines.count(f"- concurrent-entry-{index}") == 1
-    assert not tuple(store.root.rglob("*.tmp"))
-'''
+              for index in range(40):
+                  assert log_lines.count(f"- concurrent-entry-{index}") == 1
+              assert not tuple(store.root.rglob("*.tmp"))
+          '''
+          old = old.replace('              ', '    ')
+          new = new.replace('              ', '    ')
           if old in text:
               text = text.replace(old, new, 1)
           elif new not in text:

@@ -39,6 +39,11 @@ urlpatterns = [
         name="web-conversation-thread-list",
     ),
     path(
+        "workspace/reasoning/",
+        conversation_thread_views.thread_reasoning_view,
+        name="web-conversation-reasoning",
+    ),
+    path(
         "workspace/threads/new/",
         conversation_thread_views.thread_create_view,
         name="web-conversation-thread-create",

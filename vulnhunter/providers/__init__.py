@@ -1,6 +1,11 @@
 """Bounded Groq advisory routing contracts."""
 
 from vulnhunter.providers.groq import GroqProvider, GroqProviderError, load_groq_api_key_file
+from vulnhunter.providers.huggingface import (
+    HuggingFaceProvider,
+    HuggingFaceProviderError,
+    load_huggingface_token_file,
+)
 from vulnhunter.providers.models import (
     ProviderCapability,
     ProviderHealth,
@@ -20,6 +25,9 @@ __all__ = [
     "load_groq_api_key_file",
     "GroqProviderError",
     "GroqProvider",
+    "HuggingFaceProvider",
+    "HuggingFaceProviderError",
+    "load_huggingface_token_file",
     "PrivacyGate",
     "ProviderCapability",
     "ProviderHealth",

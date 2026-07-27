@@ -152,6 +152,8 @@ def thread_summary(thread: ConversationThread) -> dict[str, object]:
         "updated_at": thread.updated_at.isoformat(),
         "status": status,
         "upload_count": len(uploads),
+        "reasoning_effort": thread.reasoning_effort,
+        "provider_preference": thread.provider_preference,
         "url": workspace_url(thread),
     }
 
@@ -271,3 +273,89 @@ class ThreadSessionProxy:
 
     def __getattr__(self, name: str) -> Any:
         return getattr(self.base_session, name)
+
+
+REASONING_EFFORTS = frozenset({"low", "medium", "high"})
+PROVIDER_PREFERENCES = frozenset({"auto", "groq", "huggingface"})
+
+
+def thread_preferences(request: object) -> tuple[str, str]:
+    thread = getattr(request, "vulnhunter_thread", None)
+    if not isinstance(thread, ConversationThread):
+        return "medium", "auto"
+    effort = thread.reasoning_effort if thread.reasoning_effort in REASONING_EFFORTS else "medium"
+    provider = (
+        thread.provider_preference if thread.provider_preference in PROVIDER_PREFERENCES else "auto"
+    )
+    return effort, provider
+
+
+def update_thread_preferences(
+    request: object,
+    *,
+    reasoning_effort: str | None = None,
+    provider_preference: str | None = None,
+) -> ConversationThread:
+    thread = getattr(request, "vulnhunter_thread", None)
+    if not isinstance(thread, ConversationThread):
+        raise ConversationThreadNotFound("The active workspace is unavailable.")
+    effort = reasoning_effort or thread.reasoning_effort
+    provider = provider_preference or thread.provider_preference
+    if effort not in REASONING_EFFORTS:
+        raise ValueError("Reasoning effort must be low, medium, or high.")
+    if provider not in PROVIDER_PREFERENCES:
+        raise ValueError("Provider preference must be automatic, Groq, or Hugging Face.")
+    with transaction.atomic():
+        current = ConversationThread.objects.select_for_update().get(
+            thread_id=thread.thread_id,
+            owner=thread.owner,
+            archived=False,
+        )
+        current.reasoning_effort = effort
+        current.provider_preference = provider
+        current.save(update_fields=("reasoning_effort", "provider_preference", "updated_at"))
+    thread.reasoning_effort = effort
+    thread.provider_preference = provider
+    thread.updated_at = current.updated_at
+    return thread
+
+
+def refresh_thread_memory(request: object, messages: list[dict[str, object]]) -> str:
+    """Persist a compact, deterministic rolling summary for later model context."""
+
+    thread = getattr(request, "vulnhunter_thread", None)
+    if not isinstance(thread, ConversationThread):
+        return ""
+    lines: list[str] = []
+    for item in messages[-80:]:
+        role = str(item.get("role", "")).strip()
+        content = " ".join(str(item.get("content", "")).split()).strip()
+        if role not in {"user", "assistant"} or not content:
+            continue
+        label = "User" if role == "user" else "Assistant"
+        lines.append(f"{label}: {content[:900]}")
+    summary = "\n".join(lines)
+    if len(summary) > 12_000:
+        pinned = "\n".join(lines[:8])
+        remaining = max(0, 12_000 - len(pinned) - 1)
+        recent = "\n".join(lines[8:])[-remaining:]
+        first_break = recent.find("\n")
+        if first_break >= 0:
+            recent = recent[first_break + 1 :]
+        summary = f"{pinned}\n{recent}".strip()
+    if summary == thread.memory_summary:
+        return summary
+    ConversationThread.objects.filter(
+        thread_id=thread.thread_id,
+        owner=thread.owner,
+        archived=False,
+    ).update(memory_summary=summary)
+    thread.memory_summary = summary
+    return summary
+
+
+def thread_memory(request: object) -> str:
+    thread = getattr(request, "vulnhunter_thread", None)
+    if not isinstance(thread, ConversationThread):
+        return ""
+    return str(thread.memory_summary or "")[:12_000]

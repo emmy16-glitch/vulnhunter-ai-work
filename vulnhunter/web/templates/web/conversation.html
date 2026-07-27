@@ -88,6 +88,7 @@
         data-thread-id="{{ conversation.thread_id }}"
         data-thread-create-url="{{ conversation.thread_create_url }}"
         data-thread-list-url="{{ conversation.thread_list_url }}"
+        data-reasoning-url="{{ conversation.reasoning_url }}"
         method="post"
         action="{{ conversation.message_url }}"
         enctype="multipart/form-data"
@@ -101,12 +102,20 @@
           </button>
           <input type="file" name="attachment" accept=".apk,application/vnd.android.package-archive" data-conversation-file hidden>
           <textarea id="vh-chat-message" name="message" rows="1" maxlength="4000" autocomplete="off" spellcheck="true" placeholder="Message VulnHunter — describe a target, attach an APK, or ask about a finding" data-conversation-input required></textarea>
+          <label class="vh-reasoning-control" title="Reasoning level for the next answer">
+            <span class="vh-visually-hidden">Reasoning level</span>
+            <select name="reasoning_effort" data-reasoning-effort aria-label="Reasoning level">
+              <option value="low"{% if conversation.reasoning_effort == "low" %} selected{% endif %}>Low</option>
+              <option value="medium"{% if conversation.reasoning_effort == "medium" %} selected{% endif %}>Medium</option>
+              <option value="high"{% if conversation.reasoning_effort == "high" %} selected{% endif %}>High</option>
+            </select>
+          </label>
           <button type="submit" class="vh-chat-send" data-conversation-send aria-label="Send message">
             <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m4 12 16-8-5.5 16-3.2-6.8z"/><path d="m11.3 13.2 4.6-4.6"/></svg>
           </button>
         </div>
         <div class="vh-chat-composer-meta">
-          <span>Website and APK assessments both start here · Enter to send · Shift+Enter for a new line</span>
+          <span><b data-reasoning-copy>{{ conversation.reasoning_effort|title }}</b> reasoning · Website and APK assessments start here · Enter to send</span>
         </div>
       </form>
     </main>

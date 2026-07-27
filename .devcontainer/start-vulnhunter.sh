@@ -14,6 +14,8 @@ fi
 export VULNHUNTER_GROQ_ENABLED="${VULNHUNTER_GROQ_ENABLED:-true}"
 export VULNHUNTER_GROQ_API_KEY_FILE="${VULNHUNTER_GROQ_API_KEY_FILE:-$ROOT/.codespaces/groq-api-key}"
 export VULNHUNTER_INTELLIGENCE_ENABLED="${VULNHUNTER_INTELLIGENCE_ENABLED:-true}"
+export VULNHUNTER_HUGGINGFACE_ENABLED="${VULNHUNTER_HUGGINGFACE_ENABLED:-false}"
+export VULNHUNTER_HUGGINGFACE_TOKEN_FILE="${VULNHUNTER_HUGGINGFACE_TOKEN_FILE:-$ROOT/.codespaces/huggingface-token}"
 export VULNHUNTER_MOBILE_MAX_APK_BYTES="${VULNHUNTER_MOBILE_MAX_APK_BYTES:-1000000000}"
 export VULNHUNTER_MOBILE_UPLOAD_CHUNK_BYTES="${VULNHUNTER_MOBILE_UPLOAD_CHUNK_BYTES:-8388608}"
 
@@ -159,14 +161,26 @@ if [[ -s "${VULNHUNTER_MOBILE_EXTENSION_SIGNING_KEY_FILE:-}" && \
 fi
 
 GROQ_STATE="deterministic fallback"
+HUGGINGFACE_STATE="disabled"
 INTELLIGENCE_STATE="disabled"
 if [[ "$VULNHUNTER_GROQ_ENABLED" == "true" && -s "$VULNHUNTER_GROQ_API_KEY_FILE" ]]; then
-  GROQ_STATE="configured advisory"
-  if [[ "$VULNHUNTER_INTELLIGENCE_ENABLED" == "true" ]]; then
-    python manage.py vh_run_intelligence_worker --watch --poll-seconds 0.5 \
-      >"$LOG_ROOT/intelligence.log" 2>&1 &
-    INTELLIGENCE_PID=$!
-    INTELLIGENCE_STATE="analyst → critic → synthesizer ready"
+  if python manage.py vh_verify_groq >"$LOG_ROOT/groq-verification.log" 2>&1; then
+    GROQ_STATE="live inference verified"
+    if [[ "$VULNHUNTER_INTELLIGENCE_ENABLED" == "true" ]]; then
+      python manage.py vh_run_intelligence_worker --watch --poll-seconds 0.5 \
+        >"$LOG_ROOT/intelligence.log" 2>&1 &
+      INTELLIGENCE_PID=$!
+      INTELLIGENCE_STATE="analyst → critic → synthesizer ready"
+    fi
+  else
+    GROQ_STATE="configuration present but live verification failed"
+  fi
+fi
+if [[ "$VULNHUNTER_HUGGINGFACE_ENABLED" == "true" && -s "$VULNHUNTER_HUGGINGFACE_TOKEN_FILE" ]]; then
+  if python manage.py vh_verify_huggingface >"$LOG_ROOT/huggingface-verification.log" 2>&1; then
+    HUGGINGFACE_STATE="live inference verified"
+  else
+    HUGGINGFACE_STATE="configuration present but live verification failed"
   fi
 fi
 
@@ -176,6 +190,7 @@ VulnHunter is ready.
 Controlled target: $LAB_URL
 Login username: $VULNHUNTER_USERNAME
 Groq: $GROQ_STATE
+Hugging Face: $HUGGINGFACE_STATE
 Reasoning: $INTELLIGENCE_STATE
 Nuclei: pinned passive worker ready
 APK upload limit: $VULNHUNTER_MOBILE_MAX_APK_BYTES bytes via bounded chunks

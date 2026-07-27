@@ -55,6 +55,17 @@ class ConversationThread(models.Model):
         related_name="vulnhunter_conversation_threads",
     )
     title = models.CharField(max_length=96, default="New security workspace")
+    reasoning_effort = models.CharField(
+        max_length=8,
+        choices=(("low", "Low"), ("medium", "Medium"), ("high", "High")),
+        default="medium",
+    )
+    provider_preference = models.CharField(
+        max_length=16,
+        choices=(("auto", "Automatic"), ("groq", "Groq"), ("huggingface", "Hugging Face")),
+        default="auto",
+    )
+    memory_summary = models.TextField(blank=True, default="")
     data = models.JSONField(default=dict, blank=True)
     archived = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)

@@ -24,9 +24,9 @@ from vulnhunter.providers.models import (
     ProviderResponse,
 )
 
-_PROMPT_TEMPLATE_VERSION = "vulnhunter-groq-advisory-v2"
+_PROMPT_TEMPLATE_VERSION = "vulnhunter-groq-advisory-v3"
 _DEFAULT_API_BASE = "https://api.groq.com/openai/v1"
-_REMOTE_SLOT = threading.BoundedSemaphore(1)
+_REMOTE_SLOT = threading.BoundedSemaphore(4)
 
 
 class GroqProviderError(RuntimeError):
@@ -207,7 +207,7 @@ class GroqProvider:
                     ],
                     "temperature": 0.1,
                     "max_completion_tokens": invocation.maximum_output_tokens,
-                    "reasoning_effort": "low",
+                    "reasoning_effort": invocation.reasoning_effort,
                     "include_reasoning": False,
                     "response_format": {"type": "json_object"},
                     "stream": False,

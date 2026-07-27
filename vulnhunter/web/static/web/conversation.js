@@ -19,6 +19,8 @@
   const thinking = workspace.querySelector("[data-conversation-thinking]");
   const thinkingCopy = workspace.querySelector("[data-thinking-copy]");
   const reset = workspace.querySelector("[data-conversation-reset]");
+  const reasoningSelect = workspace.querySelector("[data-reasoning-effort]");
+  const reasoningCopy = workspace.querySelector("[data-reasoning-copy]");
   const historyToggle = workspace.querySelector("[data-history-toggle]");
   const historyPanel = workspace.querySelector("[data-history-panel]");
   const historyClose = workspace.querySelector("[data-history-close]");
@@ -173,6 +175,14 @@
       detail.textContent = `${Number(mobilePlan.tool_count || 0)} tools · ${prettyState(mobilePlan.execution?.state || "prepared")}`;
       planSummary.append(label, detail);
       body.append(planSummary);
+    }
+    if (role === "assistant" && metadata.reasoning_effort) {
+      const badge = document.createElement("span");
+      badge.className = "vh-message-reasoning";
+      const provider = text(metadata.provider || "deterministic");
+      const model = text(metadata.model || "");
+      badge.textContent = `${prettyState(metadata.reasoning_effort)} reasoning · ${prettyState(provider)}${model ? ` · ${model}` : ""}`;
+      body.append(badge);
     }
     const suggestions = Array.isArray(metadata.suggestions) ? metadata.suggestions : [];
     suggestions.forEach((suggestion) => {
@@ -720,6 +730,29 @@
     if (event.key === "Escape" && historyPanel && !historyPanel.hidden) openHistory(false);
   });
 
+
+  reasoningSelect?.addEventListener("change", async () => {
+    const effort = reasoningSelect.value;
+    reasoningSelect.disabled = true;
+    try {
+      const data = await postForm(initial.reasoning_url, {
+        reasoning_effort: effort,
+        provider_preference: initial.provider_preference || "auto",
+      });
+      initial.reasoning_effort = data.reasoning_effort;
+      if (reasoningCopy) reasoningCopy.textContent = prettyState(data.reasoning_effort);
+    } catch (error) {
+      reasoningSelect.value = initial.reasoning_effort || "medium";
+      appendMessage(
+        { role: "assistant", kind: "error", content: error.message, timestamp: new Date().toISOString() },
+        { animate: true },
+      );
+    } finally {
+      reasoningSelect.disabled = false;
+      input.focus();
+    }
+  });
+
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     if (requestBusy) return;
@@ -731,7 +764,11 @@
 
     setBusy(true, "Understanding your request and checking authorised scope…");
     try {
-      const data = await postForm(initial.message_url, { message: value });
+      const data = await postForm(initial.message_url, {
+        message: value,
+        reasoning_effort: reasoningSelect?.value || initial.reasoning_effort || "medium",
+        provider_preference: initial.provider_preference || "auto",
+      });
       if (data.message) appendMessage(data.message, { animate: true });
       if (data.clear_run) {
         if (pollTimer) window.clearTimeout(pollTimer);

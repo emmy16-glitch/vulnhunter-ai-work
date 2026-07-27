@@ -20,7 +20,12 @@ from vulnhunter.web.conversation_attachments import (
     remember_apk_attachment,
 )
 from vulnhunter.web.conversation_service import interpret_request
-from vulnhunter.web.conversation_threads import maybe_title_thread
+from vulnhunter.web.conversation_threads import (
+    maybe_title_thread,
+    thread_memory,
+    thread_preferences,
+)
+from vulnhunter.web.conversation_tools import build_safe_tool_context
 from vulnhunter.web.conversation_uploads import (
     ConversationUploadError,
     append_apk_chunk,
@@ -385,10 +390,15 @@ def mobile_followup_view(request: HttpRequest) -> JsonResponse:
         return JsonResponse(
             {"detail": "No mobile hunt is selected in this conversation."}, status=404
         )
+    reasoning_effort, provider_preference = thread_preferences(request)
     interpreted = interpret_request(
         text,
         available_profiles=("static", "static_and_native", "dynamic", "full", "retest"),
         conversation_context=_conversation_context(request),
+        memory_summary=thread_memory(request),
+        tool_context=build_safe_tool_context(request),
+        reasoning_effort=reasoning_effort,
+        provider_preference=provider_preference,
     )
     if interpreted.intent in {"scan", "authorize", "approve", "cancel"}:
         clear_mobile_plan(request)
@@ -406,7 +416,12 @@ def mobile_followup_view(request: HttpRequest) -> JsonResponse:
         role="assistant",
         kind="result" if interpreted.intent == "results" else "text",
         content=copy,
-        metadata={"provider": interpreted.provider, "mobile_plan_id": plan.get("plan_id")},
+        metadata={
+            "provider": interpreted.provider,
+            "model": interpreted.model,
+            "reasoning_effort": interpreted.reasoning_effort,
+            "mobile_plan_id": plan.get("plan_id"),
+        },
     )
     return JsonResponse({"message": message, "mobile_plan": plan})
 

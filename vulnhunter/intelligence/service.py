@@ -230,6 +230,7 @@ class GroqFindingReasoningLoop:
         if len(raw) > self.maximum_input_bytes:
             raise IntelligenceAnalysisError("bounded intelligence context exceeded its byte limit")
         invocation_id = f"{stage.value}-{uuid4().hex[:20]}"
+        stage_effort = "medium" if stage == ReasoningStage.ANALYST else "high"
         invocation = ProviderInvocation(
             invocation_id=invocation_id,
             request_id=request.analysis_id,
@@ -244,6 +245,7 @@ class GroqFindingReasoningLoop:
             maximum_input_tokens=min(16_000, max(1, self.maximum_input_bytes // 4)),
             maximum_output_tokens=self.maximum_output_tokens,
             timeout_seconds=self.timeout_seconds,
+            reasoning_effort=stage_effort,
         )
         response = self.connector.invoke(invocation, prompt, cancelled=cancelled)
         if response.output_kind == ProviderOutputKind.ABSTAIN:
@@ -260,7 +262,7 @@ class GroqFindingReasoningLoop:
         return AdvisoryStageResult(
             stage=stage,
             model=response.model,
-            reasoning_effort="low",
+            reasoning_effort=stage_effort,
             payload=payload,
             output_sha256=response.output_sha256,
         )

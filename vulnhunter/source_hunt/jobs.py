@@ -200,9 +200,7 @@ class SourceHuntJobStore:
                     jobs.append(self._load_path(path))
                 except (OSError, ValueError):
                     continue
-        return tuple(
-            sorted(jobs, key=lambda item: item.created_at, reverse=True)[:limit]
-        )
+        return tuple(sorted(jobs, key=lambda item: item.created_at, reverse=True)[:limit])
 
     def _move_and_write(
         self,
@@ -266,9 +264,7 @@ def process_next_source_hunt_job(
                 existing.approval_id != job.approval.approval_id
                 or existing.snapshot.snapshot_sha256 != job.snapshot.snapshot_sha256
             ):
-                raise ValueError(
-                    "persisted source-hunt report does not match the claimed job"
-                )
+                raise ValueError("persisted source-hunt report does not match the claimed job")
             return job_store.complete(job, existing)
         report = GroqSourceHunt(connector=connector, policy=policy).run(
             Path(job.repository_root),

@@ -134,6 +134,28 @@ def security_runtime() -> dict[str, object]:
 
 @register.simple_tag
 def canonical_navigation(user: Any) -> tuple[dict[str, object], ...]:
-    """Return the single blueprint-backed role-aware product navigation."""
+    """Return role-aware product navigation including the governed source workflow."""
 
-    return navigation_for(user)
+    items = list(navigation_for(user))
+    if user_can(user, "scan.create") and not any(
+        str(item.get("label")) == "Source Hunt" for item in items
+    ):
+        source_item: dict[str, object] = {
+            "label": "Source Hunt",
+            "url_name": "web-source-hunt",
+            "icon": "assessment",
+            "active_routes": ("web-source-hunt",),
+            "badge": None,
+            "section_start": False,
+            "section_label": "Analysis",
+        }
+        insert_at = next(
+            (
+                index + 1
+                for index, item in enumerate(items)
+                if str(item.get("label")) == "Assessment Workspace"
+            ),
+            len(items),
+        )
+        items.insert(insert_at, source_item)
+    return tuple(items)

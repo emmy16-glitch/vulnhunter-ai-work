@@ -79,29 +79,38 @@ jobs:
           cat /tmp/phone-acceptance-lint.log
           exit $status
 
+      - name: Run focused acceptance tests
+        if: steps.guard.outputs.apply == 'true'
+        shell: bash
+        run: |
+          set +e
+          {
+            python manage.py migrate --noinput
+            python -m pytest -q \
+              tests/unit/test_phone_acceptance_repairs.py \
+              tests/unit/test_groq_provider.py \
+              tests/unit/test_verify_groq_command.py \
+              tests/unit/test_conversation_reasoning.py \
+              tests/unit/test_conversation_experience.py \
+              tests/unit/test_persistent_conversation_threads.py \
+              tests/unit/test_large_apk_upload.py \
+              tests/unit/test_mobile_composer_contract.py \
+              tests/unit/test_codespaces_configuration.py
+          } > /tmp/phone-acceptance-tests.log 2>&1
+          status=$?
+          cat /tmp/phone-acceptance-tests.log
+          exit $status
+
       - name: Upload repair diagnostics
         if: failure()
         uses: actions/upload-artifact@v6
         with:
           name: phone-acceptance-repair-diagnostics
-          path: /tmp/phone-acceptance-lint.log
+          path: |
+            /tmp/phone-acceptance-lint.log
+            /tmp/phone-acceptance-tests.log
           if-no-files-found: warn
           retention-days: 3
-
-      - name: Run focused acceptance tests
-        if: steps.guard.outputs.apply == 'true'
-        run: |
-          python manage.py migrate --noinput
-          python -m pytest -q \
-            tests/unit/test_phone_acceptance_repairs.py \
-            tests/unit/test_groq_provider.py \
-            tests/unit/test_verify_groq_command.py \
-            tests/unit/test_conversation_reasoning.py \
-            tests/unit/test_conversation_experience.py \
-            tests/unit/test_persistent_conversation_threads.py \
-            tests/unit/test_large_apk_upload.py \
-            tests/unit/test_mobile_composer_contract.py \
-            tests/unit/test_codespaces_configuration.py
 
       - name: Run complete Python suite
         if: steps.guard.outputs.apply == 'true'

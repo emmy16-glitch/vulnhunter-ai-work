@@ -1,0 +1,91 @@
+name: Temporary finalize audit branch
+
+on:
+  push:
+    branches: [agent/full-system-audit]
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    if: github.event.head_commit.message != 'Apply final format and browser diagnostics'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v6
+        with:
+          ref: agent/full-system-audit
+          fetch-depth: 0
+
+      - name: Apply exact final repairs
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install 'ruff>=0.9,<1'
+          python -m ruff format vulnhunter/source_hunt/jobs.py
+          python - <<'PY'
+          from pathlib import Path
+
+          replacements = {
+              "vulnhunter/web/static/web/conversation-mobile.css": [
+                  ("height: 30px !important", "height: 44px !important"),
+                  ("width: 5.65rem", "width: 6.5rem"),
+              ],
+              "vulnhunter/web/static/web/conversation.js": [
+                  ('input.style.height = "30px"', 'input.style.height = "44px"'),
+              ],
+              "vulnhunter/web/static/web/conversation.css": [
+                  ("min-height: 30px;", "min-height: 44px;"),
+              ],
+          }
+          for path, pairs in replacements.items():
+              target = Path(path)
+              text = target.read_text(encoding="utf-8")
+              for old, new in pairs:
+                  if new in text:
+                      continue
+                  if old not in text:
+                      raise SystemExit(f"Missing expected marker in {path}: {old}")
+                  text = text.replace(old, new, 1)
+              target.write_text(text, encoding="utf-8")
+
+          workflow = Path(".github/workflows/temporary-full-system-audit.yml")
+          text = workflow.read_text(encoding="utf-8")
+          old = '''          for cycle in $(seq 1 7); do
+            echo "Browser/UI cycle ${cycle}/7"
+            node tests/ui/conversation_e2e.cjs
+            node .playwright-validate.cjs
+          done
+'''
+          new = '''          : > /tmp/vh-stress-ui/browser-repeat.log
+          for cycle in $(seq 1 7); do
+            {
+              echo "Browser/UI cycle ${cycle}/7"
+              node tests/ui/conversation_e2e.cjs
+              node .playwright-validate.cjs
+            } 2>&1 | tee -a /tmp/vh-stress-ui/browser-repeat.log
+          done
+'''
+          if new not in text:
+              if old not in text:
+                  raise SystemExit("Browser-cycle workflow marker is missing")
+              text = text.replace(old, new, 1)
+          artifact_marker = '''            /tmp/vh-stress-ui/server.log
+'''
+          artifact_replacement = '''            /tmp/vh-stress-ui/server.log
+            /tmp/vh-stress-ui/browser-repeat.log
+'''
+          if artifact_replacement not in text:
+              if artifact_marker not in text:
+                  raise SystemExit("Browser diagnostic artifact marker is missing")
+              text = text.replace(artifact_marker, artifact_replacement, 1)
+          workflow.write_text(text, encoding="utf-8")
+          PY
+
+          git config user.name 'vulnhunter-audit-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add -A
+          git commit -m 'Apply final format and browser diagnostics'
+          git push origin HEAD:agent/full-system-audit

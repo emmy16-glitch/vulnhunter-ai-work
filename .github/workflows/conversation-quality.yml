@@ -27,7 +27,7 @@ jobs:
       VULNHUNTER_GROQ_ENABLED: "false"
       VULNHUNTER_INTELLIGENCE_ENABLED: "false"
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v6
         with:
           python-version: "3.12"

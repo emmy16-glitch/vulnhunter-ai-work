@@ -3,7 +3,7 @@ name: Temporary audit-branch repair
 on:
   pull_request_target:
     branches: [main]
-    types: [synchronize]
+    types: [reopened]
 
 permissions:
   contents: write

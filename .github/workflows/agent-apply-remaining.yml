@@ -17,7 +17,7 @@ jobs:
         with:
           ref: agent/persistent-workspaces-uploads
           fetch-depth: 0
-      - name: Extract exact validated files
+      - name: Rebuild and verify exact archive
         shell: bash
         run: |
           set -euo pipefail
@@ -29,9 +29,25 @@ jobs:
             .agent-remaining.part03 \
             .agent-remaining.part04 \
             | base64 -d > "$RUNNER_TEMP/remaining-files.tar.gz"
-          echo "320db09a727fb28aeb888a71b4421ad6f61128e8be82f5368ab9f4ea83ece4af  $RUNNER_TEMP/remaining-files.tar.gz" \
-            | sha256sum -c -
-          tar -xzf "$RUNNER_TEMP/remaining-files.tar.gz" -C .
+          actual="$(sha256sum "$RUNNER_TEMP/remaining-files.tar.gz" | awk '{print $1}')"
+          echo "archive sha256: $actual"
+          test "$actual" = "320db09a727fb28aeb888a71b4421ad6f61128e8be82f5368ab9f4ea83ece4af"
+          tar -tzf "$RUNNER_TEMP/remaining-files.tar.gz"
+      - name: Extract exact files
+        run: tar -xzf "$RUNNER_TEMP/remaining-files.tar.gz" -C .
+      - name: Validate extracted implementation
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m compileall -q \
+            vulnhunter/web/conversation_service.py \
+            vulnhunter/web/conversational_views.py
+          node --check vulnhunter/web/static/web/conversation.js
+          git diff --check
+      - name: Remove applicator and publish implementation
+        shell: bash
+        run: |
+          set -euo pipefail
           rm -f \
             .agent-remaining.part00 \
             .agent-remaining.part00a \
@@ -41,10 +57,6 @@ jobs:
             .agent-remaining.part03 \
             .agent-remaining.part04 \
             .github/workflows/agent-apply-remaining.yml
-          python -m compileall -q \
-            vulnhunter/web/conversation_service.py \
-            vulnhunter/web/conversational_views.py
-          node --check vulnhunter/web/static/web/conversation.js
           git add -A
           git diff --cached --check
           git config user.name "VulnHunter automation"

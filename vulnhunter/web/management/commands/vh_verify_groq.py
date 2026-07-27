@@ -88,8 +88,8 @@ class Command(BaseCommand):
             marker = "VULNHUNTER_CHAT_READY"
             interpreted = interpret_request(
                 (
-                    "Answer this harmless readiness request. Your complete user-facing message must "
-                    f"include the exact marker {marker}."
+                    "Answer this harmless readiness request. Your complete user-facing "
+                    f"message must include the exact marker {marker}."
                 ),
                 available_profiles=("passive",),
                 reasoning_effort="low",

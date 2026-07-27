@@ -6,11 +6,11 @@ def test_empty_mobile_composer_stays_compact_and_controls_keep_space():
     mobile_css = (root / "vulnhunter/web/static/web/conversation-mobile.css").read_text()
 
     assert ".vh-chat-input-shell textarea:placeholder-shown" in mobile_css
-    assert "height: 30px !important" in mobile_css
+    assert "height: 44px !important" in mobile_css
     assert "flex: 1 1 auto" in mobile_css
     assert "min-width: 0" in mobile_css
     assert ".vh-reasoning-control select" in mobile_css
-    assert "width: 5.65rem" in mobile_css
+    assert "width: 6.5rem" in mobile_css
     assert "gap: .4rem" in mobile_css
 
 

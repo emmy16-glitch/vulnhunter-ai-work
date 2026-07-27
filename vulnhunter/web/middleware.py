@@ -28,6 +28,10 @@ def _restore_latest_non_terminal_run(request) -> None:
         return
     if not getattr(request.user, "is_authenticated", False):
         return
+    # Durable workspaces own their run binding. Global recovery is retained only
+    # for legacy requests that are not attached to a ConversationThread.
+    if getattr(request, "vulnhunter_thread", None) is not None:
+        return
     raw_state = request.session.get(_SESSION_STATE, {})
     state = dict(raw_state) if isinstance(raw_state, dict) else {}
     if isinstance(state.get("run_id"), str) and state["run_id"]:

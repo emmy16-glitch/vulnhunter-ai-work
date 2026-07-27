@@ -208,7 +208,13 @@ def _authoritative_run(
             )
             if current_target == canonical_target(target):
                 return current
-    if target:
+    stored_target = state.get("target")
+    if (
+        target
+        and isinstance(stored_target, str)
+        and stored_target
+        and canonical_target(stored_target) == canonical_target(target)
+    ):
         return _latest_visible_run(actor, target=target)
     return None
 

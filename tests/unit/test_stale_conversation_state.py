@@ -38,6 +38,14 @@ def test_new_conversation_does_not_attach_latest_completed_run(monkeypatch) -> N
             object(),
             target="http://10.0.1.51:8010/",
         )
+        is None
+    )
+    assert (
+        conversational_views._authoritative_run(
+            {"target": "http://10.0.1.51:8010/"},
+            object(),
+            target="http://10.0.1.51:8010/",
+        )
         is latest
     )
 

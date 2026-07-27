@@ -13,16 +13,16 @@ concurrency:
 
 jobs:
   integrate:
-    if: github.event.head_commit.message == 'Run temporary source-hunt integration'
+    if: github.event.head_commit.message == 'Trigger source-hunt integration branch'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 15
     steps:
       - name: Check out current main
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
-      - name: Merge the stale source-hunt branch onto current main
+      - name: Merge source-hunt history and publish an integration branch
         shell: bash
         run: |
           set -euo pipefail
@@ -30,9 +30,20 @@ jobs:
           git config user.email 'actions@users.noreply.github.com'
           git fetch origin agent/groq-source-hunt-loop
           git checkout -B agent/full-system-audit origin/main
-          if ! git merge --no-ff -X ours origin/agent/groq-source-hunt-loop \
-            -m 'Integrate source hunt with persistent workspaces'; then
+
+          set +e
+          git merge --no-ff -X ours origin/agent/groq-source-hunt-loop \
+            -m 'Integrate source hunt with persistent workspaces'
+          merge_status=$?
+          set -e
+
+          if [[ $merge_status -ne 0 ]]; then
             mapfile -t unresolved < <(git diff --name-only --diff-filter=U)
+            if [[ ${#unresolved[@]} -eq 0 ]]; then
+              echo 'Merge failed without resolvable file conflicts.' >&2
+              exit $merge_status
+            fi
+            printf 'Keeping current-main versions for conflicts:\n%s\n' "${unresolved[*]}"
             for path in "${unresolved[@]}"; do
               if git checkout --ours -- "$path" 2>/dev/null; then
                 git add -- "$path"
@@ -43,347 +54,9 @@ jobs:
             git commit --no-edit
           fi
 
-      - name: Align source hunt with the current product contracts
-        shell: bash
-        run: |
-          set -euo pipefail
-          python - <<'PY'
-          from __future__ import annotations
-
-          import json
-          from pathlib import Path
-
-          def replace_once(path: str, old: str, new: str) -> None:
-              target = Path(path)
-              text = target.read_text(encoding='utf-8')
-              if new in text:
-                  return
-              count = text.count(old)
-              if count != 1:
-                  raise SystemExit(f'Expected one marker in {path}, found {count}: {old[:100]!r}')
-              target.write_text(text.replace(old, new), encoding='utf-8')
-
-          navigation_path = Path('config/product_interface/navigation.json')
-          navigation = json.loads(navigation_path.read_text(encoding='utf-8'))
-          analysis = next(
-              section for section in navigation['sections'] if section['section_id'] == 'analysis'
-          )
-          if not any(item['page_id'] == 'source-hunt' for item in analysis['items']):
-              analysis['items'].append(
-                  {'icon': 'search-code', 'label': 'Source Hunt', 'page_id': 'source-hunt'}
-              )
-          navigation_path.write_text(json.dumps(navigation, indent=2) + '\n', encoding='utf-8')
-
-          pages_path = Path('config/product_interface/pages.json')
-          pages_document = json.loads(pages_path.read_text(encoding='utf-8'))
-          if not any(page['page_id'] == 'source-hunt' for page in pages_document['pages']):
-              source_page = {
-                  'actions': [
-                      {
-                          'action_id': 'scan.create',
-                          'allowed_roles': ['campaign-operator'],
-                          'api_resource_id': 'scans',
-                          'confirmation_required': True,
-                          'dangerous': False,
-                      }
-                  ],
-                  'allowed_roles': ['campaign-operator'],
-                  'nav_section': 'analysis',
-                  'page_id': 'source-hunt',
-                  'required_api_resources': ['scans'],
-                  'responsive_priority': 'high',
-                  'route': '/source-hunt',
-                  'shows_blockers': True,
-                  'title': 'Source Hunt',
-              }
-              findings_index = next(
-                  index
-                  for index, page in enumerate(pages_document['pages'])
-                  if page['page_id'] == 'findings'
-              )
-              pages_document['pages'].insert(findings_index + 1, source_page)
-          pages_path.write_text(json.dumps(pages_document, indent=2) + '\n', encoding='utf-8')
-
-          services = Path('vulnhunter/web/services.py')
-          services_text = services.read_text(encoding='utf-8')
-          if '"source-hunt": {' not in services_text:
-              marker = '''        "findings": {\n            "url_name": "web-findings-overview",'''
-              insertion = '''        "source-hunt": {\n            "url_name": "web-source-hunt",\n            "icon": "assessment",\n            "actions": ("scan.create",),\n            "active_routes": ("web-source-hunt",),\n        },\n        "findings": {\n            "url_name": "web-findings-overview",'''
-              if marker not in services_text:
-                  raise SystemExit('Could not bind Source Hunt into blueprint-backed navigation.')
-              services.write_text(services_text.replace(marker, insertion, 1), encoding='utf-8')
-
-          urls = Path('vulnhunter/web/urls.py')
-          urls_text = urls.read_text(encoding='utf-8')
-          if '    source_hunt_views,\n' not in urls_text:
-              urls_text = urls_text.replace(
-                  '    report_views,\n', '    report_views,\n    source_hunt_views,\n', 1
-              )
-          if 'name="web-source-hunt"' not in urls_text:
-              urls_text = urls_text.replace(
-                  '    path("status/", views.status_view, name="web-status"),\n',
-                  '    path("source-hunt/", source_hunt_views.source_hunt_view, name="web-source-hunt"),\n'
-                  '    path("status/", views.status_view, name="web-status"),\n',
-                  1,
-              )
-          urls.write_text(urls_text, encoding='utf-8')
-
-          models = Path('vulnhunter/providers/models.py')
-          models_text = models.read_text(encoding='utf-8')
-          if 'remote_source_processing_approved: bool = False' not in models_text:
-              models_text = models_text.replace(
-                  '    contains_customer_data: bool = False\n',
-                  '    contains_customer_data: bool = False\n'
-                  '    remote_source_processing_approved: bool = False\n',
-                  1,
-              )
-          if 'def private_source_requires_explicit_approval' not in models_text:
-              models_text = models_text.replace(
-                  '        return value\n\n\nclass ProviderRoute',
-                  '        return value\n\n'
-                  '    @model_validator(mode="after")\n'
-                  '    def private_source_requires_explicit_approval(self):\n'
-                  '        if self.remote_source_processing_approved and not self.contains_private_source:\n'
-                  '            raise ValueError(\n'
-                  '                "remote source approval is valid only for a private-source request"\n'
-                  '            )\n'
-                  '        return self\n\n\nclass ProviderRoute',
-                  1,
-              )
-          capabilities = [
-              ('SOURCE_RECONNAISSANCE', 'source_reconnaissance'),
-              ('ATTACK_PATH_ANALYSIS', 'attack_path_analysis'),
-              ('CANDIDATE_FALSIFICATION', 'candidate_falsification'),
-              ('CAPABILITY_ASSESSMENT', 'capability_assessment'),
-              ('REMEDIATION_PLANNING', 'remediation_planning'),
-              ('FIX_REVIEW', 'fix_review'),
-          ]
-          capability_marker = '    CONVERSATION = "conversation"\n'
-          additions = ''.join(
-              f'    {name} = "{value}"\n'
-              for name, value in capabilities
-              if f'    {name} = "{value}"\n' not in models_text
-          )
-          if additions:
-              models_text = models_text.replace(
-                  capability_marker, capability_marker + additions, 1
-              )
-          models.write_text(models_text, encoding='utf-8')
-
-          privacy = Path('vulnhunter/providers/privacy.py')
-          privacy.write_text(
-              '''"""Fail-closed privacy gate for advisory and approved source processing."""\n\n'
-              'from __future__ import annotations\n\n'
-              'import re\n\n'
-              'from pydantic import BaseModel, ConfigDict\n\n'
-              'from vulnhunter.security import redact_text\n\n'
-              '_PRIVATE_IP = re.compile(\n'
-              '    r"\\b(?:10(?:\\.\\d{1,3}){3}|192\\.168(?:\\.\\d{1,3}){2}|"\n'
-              '    r"172\\.(?:1[6-9]|2\\d|3[01])(?:\\.\\d{1,3}){2})\\b"\n'
-              ')\n'
-              '_DOMAIN = re.compile(r"\\b(?:[a-z0-9-]+\\.)+(?:internal|local|lan|corp)\\b", re.I)\n'
-              '_CODE_BLOCK = re.compile(r"```[\\s\\S]{300,}?```")\n\n\n'
-              'class PrivacyGateResult(BaseModel):\n'
-              '    model_config = ConfigDict(frozen=True, extra="forbid")\n\n'
-              '    allowed_for_remote: bool\n'
-              '    reason: str\n'
-              '    redacted_content: str\n\n\n'
-              'class PrivacyGate:\n'
-              '    def evaluate(\n'
-              '        self,\n'
-              '        content: str,\n'
-              '        *,\n'
-              '        contains_private_source: bool,\n'
-              '        contains_customer_data: bool,\n'
-              '        remote_source_processing_approved: bool = False,\n'
-              '    ) -> PrivacyGateResult:\n'
-              '        redacted = redact_text(content)\n'
-              '        redacted = _PRIVATE_IP.sub("[REDACTED_PRIVATE_IP]", redacted)\n'
-              '        redacted = _DOMAIN.sub("[REDACTED_PRIVATE_DOMAIN]", redacted)\n'
-              '        if contains_customer_data:\n'
-              '            return PrivacyGateResult(\n'
-              '                allowed_for_remote=False,\n'
-              '                reason="Customer data may not be transmitted to a remote provider.",\n'
-              '                redacted_content=redacted,\n'
-              '            )\n'
-              '        source_detected = contains_private_source or _CODE_BLOCK.search(content) is not None\n'
-              '        blocked_markers = (\n'
-              '            "[REDACTED]",\n'
-              '            "[REDACTED_EMAIL]",\n'
-              '            "[REDACTED_PAYMENT_DATA]",\n'
-              '            "[REDACTED_SECRET]",\n'
-              '            "[REDACTED_AUTHORIZATION]",\n'
-              '            "[REDACTED_COOKIE]",\n'
-              '            "[REDACTED_PRIVATE_KEY]",\n'
-              '        )\n'
-              '        sensitive_redaction_applied = any(marker in redacted for marker in blocked_markers)\n'
-              '        if sensitive_redaction_applied and not (\n'
-              '            source_detected and remote_source_processing_approved\n'
-              '        ):\n'
-              '            return PrivacyGateResult(\n'
-              '                allowed_for_remote=False,\n'
-              '                reason="Sensitive values were detected and remote routing was denied.",\n'
-              '                redacted_content=redacted,\n'
-              '            )\n'
-              '        if source_detected and not remote_source_processing_approved:\n'
-              '            return PrivacyGateResult(\n'
-              '                allowed_for_remote=False,\n'
-              '                reason=(\n'
-              '                    "Source code requires an exact, time-limited remote source-processing approval."\n'
-              '                ),\n'
-              '                redacted_content=redacted,\n'
-              '            )\n'
-              '        if remote_source_processing_approved and not contains_private_source:\n'
-              '            return PrivacyGateResult(\n'
-              '                allowed_for_remote=False,\n'
-              '                reason="Remote source-processing approval was supplied for a non-source request.",\n'
-              '                redacted_content=redacted,\n'
-              '            )\n'
-              '        return PrivacyGateResult(\n'
-              '            allowed_for_remote=True,\n'
-              '            reason=(\n'
-              '                "The exact source-processing request passed after sensitive values were redacted."\n'
-              '                if source_detected and sensitive_redaction_applied\n'
-              '                else (\n'
-              '                    "The exact source-processing request passed the privacy gate."\n'
-              '                    if source_detected\n'
-              '                    else "The request passed the remote-provider privacy gate."\n'
-              '                )\n'
-              '            ),\n'
-              '            redacted_content=redacted,\n'
-              '        )\n''',
-              encoding='utf-8',
-          )
-
-          registry = Path('vulnhunter/providers/registry.py')
-          registry_text = registry.read_text(encoding='utf-8')
-          if 'remote_source_processing_approved=request.remote_source_processing_approved' not in registry_text:
-              registry_text = registry_text.replace(
-                  '            contains_customer_data=request.contains_customer_data,\n',
-                  '            contains_customer_data=request.contains_customer_data,\n'
-                  '            remote_source_processing_approved=request.remote_source_processing_approved,\n',
-                  1,
-              )
-          registry_text = registry_text.replace(
-              'reason="Sanitized advisory analysis passed the deterministic privacy gate.",',
-              'reason=gate.reason,',
-          )
-          registry.write_text(registry_text, encoding='utf-8')
-
-          conversation = Path('vulnhunter/web/templates/web/conversation.html')
-          conversation_text = conversation.read_text(encoding='utf-8')
-          conversation_text = conversation_text.replace(
-              'Conversational analysis for authorised websites and APKs',
-              'Conversational analysis for authorised websites, APKs and source repositories',
-          )
-          if "{% url 'web-source-hunt' %}" not in conversation_text:
-              conversation_text = conversation_text.replace(
-                  '    <div class="vh-chat-runtime" aria-label="Workspace actions">\n',
-                  '    <div class="vh-chat-runtime" aria-label="Workspace actions">\n'
-                  '      <a class="vh-chat-history-toggle" href="{% url \'web-source-hunt\' %}">Source Hunt</a>\n',
-                  1,
-              )
-          conversation_text = conversation_text.replace(
-              'Website and APK assessments both start here · Enter to send · Shift+Enter for a new line',
-              'Website and APK assessments start here · Source repositories use the exact Source Hunt flow · Enter to send · Shift+Enter for a new line',
-          )
-          conversation_text = conversation_text.replace(
-              'No assessments yet. Paste an authorised website URL or attach an APK to begin.',
-              'No assessments yet. Paste an authorised website URL, attach an APK, or open Source Hunt for a repository.',
-          )
-          conversation.write_text(conversation_text, encoding='utf-8')
-
-          visual = Path('tests/ui/prepare_visual_audit.py')
-          visual_text = visual.read_text(encoding='utf-8')
-          if '"name": "source-hunt"' not in visual_text:
-              marker = '            {"name": "new-scan", "path": "/scans/new/", "persona": "admin"},\n'
-              insertion = (
-                  '            {\n'
-                  '                "name": "source-hunt",\n'
-                  '                "path": "/source-hunt/",\n'
-                  '                "persona": "admin",\n'
-                  '                "responsive": True,\n'
-                  '            },\n'
-                  + marker
-              )
-              if marker not in visual_text:
-                  raise SystemExit('Could not add Source Hunt to the browser manifest.')
-              visual.write_text(visual_text.replace(marker, insertion, 1), encoding='utf-8')
-
-          start = Path('.devcontainer/start-vulnhunter.sh')
-          start_text = start.read_text(encoding='utf-8')
-          if 'VULNHUNTER_SOURCE_HUNT_ROOTS' not in start_text:
-              start_text = start_text.replace(
-                  'export VULNHUNTER_INTELLIGENCE_ENABLED="${VULNHUNTER_INTELLIGENCE_ENABLED:-true}"\n',
-                  'export VULNHUNTER_INTELLIGENCE_ENABLED="${VULNHUNTER_INTELLIGENCE_ENABLED:-true}"\n'
-                  'export VULNHUNTER_SOURCE_HUNT_ROOTS="${VULNHUNTER_SOURCE_HUNT_ROOTS:-/workspaces}"\n'
-                  'export VULNHUNTER_SOURCE_HUNT_JOB_ROOT="${VULNHUNTER_SOURCE_HUNT_JOB_ROOT:-$ROOT/.local/source-hunt-jobs}"\n'
-                  'export VULNHUNTER_SOURCE_HUNT_REPORT_ROOT="${VULNHUNTER_SOURCE_HUNT_REPORT_ROOT:-$ROOT/.local/source-hunt-reports}"\n',
-                  1,
-              )
-          if 'SOURCE_HUNT_PID=""' not in start_text:
-              start_text = start_text.replace(
-                  'INTELLIGENCE_PID=""\n', 'INTELLIGENCE_PID=""\nSOURCE_HUNT_PID=""\n', 1
-              )
-          if 'kill "$SOURCE_HUNT_PID"' not in start_text:
-              start_text = start_text.replace(
-                  'cleanup() {\n  set +e\n',
-                  'cleanup() {\n  set +e\n'
-                  '  if [[ -n "$SOURCE_HUNT_PID" ]]; then\n'
-                  '    kill "$SOURCE_HUNT_PID" 2>/dev/null\n'
-                  '    wait "$SOURCE_HUNT_PID" 2>/dev/null\n'
-                  '  fi\n',
-                  1,
-              )
-          if 'SOURCE_HUNT_STATE="disabled"' not in start_text:
-              start_text = start_text.replace(
-                  'INTELLIGENCE_STATE="disabled"\n',
-                  'INTELLIGENCE_STATE="disabled"\nSOURCE_HUNT_STATE="disabled"\n',
-                  1,
-              )
-          worker_marker = 'if [[ "$VULNHUNTER_GROQ_ENABLED" == "true" && -s "$VULNHUNTER_GROQ_API_KEY_FILE" ]]; then\n'
-          worker_block = (
-              worker_marker
-              + '  python manage.py vh_run_source_hunt_worker --poll-seconds 0.5 \\\n'
-              + '    >"$LOG_ROOT/source-hunt-worker.log" 2>&1 &\n'
-              + '  SOURCE_HUNT_PID=$!\n'
-              + '  SOURCE_HUNT_STATE="exact-approval queue ready"\n'
-          )
-          if 'vh_run_source_hunt_worker' not in start_text:
-              start_text = start_text.replace(worker_marker, worker_block, 1)
-          if 'Source Hunt: $SOURCE_HUNT_STATE' not in start_text:
-              start_text = start_text.replace(
-                  'Reasoning: $INTELLIGENCE_STATE\n',
-                  'Reasoning: $INTELLIGENCE_STATE\nSource Hunt: $SOURCE_HUNT_STATE\n',
-                  1,
-              )
-          start.write_text(start_text, encoding='utf-8')
-
-          env_path = Path('.env.example')
-          env_text = env_path.read_text(encoding='utf-8')
-          if 'VULNHUNTER_SOURCE_HUNT_ROOTS=' not in env_text:
-              env_text = env_text.replace(
-                  'VULNHUNTER_TASK_GRAPH_ROOT=/srv/vulnhunter/state/task-graphs\n',
-                  'VULNHUNTER_TASK_GRAPH_ROOT=/srv/vulnhunter/state/task-graphs\n'
-                  'VULNHUNTER_SOURCE_HUNT_ROOTS=/srv/vulnhunter/authorised-repositories\n'
-                  'VULNHUNTER_SOURCE_HUNT_JOB_ROOT=/srv/vulnhunter/state/source-hunt-jobs\n'
-                  'VULNHUNTER_SOURCE_HUNT_REPORT_ROOT=/srv/vulnhunter/evidence/source-hunts\n',
-                  1,
-              )
-          env_path.write_text(env_text, encoding='utf-8')
-          PY
-
-      - name: Remove temporary and unsafe branch-only workflows
-        run: |
           rm -f .github/workflows/source-hunt-privacy-hardening.yml
-          rm -f .github/workflows/temporary-source-hunt-integration.yml
-
-      - name: Commit and publish the integration branch
-        shell: bash
-        run: |
-          set -euo pipefail
           git add -A
           if ! git diff --cached --quiet; then
-            git commit -m 'Align source hunt with current product contracts'
+            git commit -m 'Remove temporary source-hunt mutation workflow'
           fi
           git push --force-with-lease origin HEAD:agent/full-system-audit

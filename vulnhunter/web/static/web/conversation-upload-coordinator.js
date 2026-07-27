@@ -11,7 +11,8 @@
   const text = (value) => (value === null || value === undefined ? "" : String(value));
   const csrfToken = () => {
     const match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
-    return match ? decodeURIComponent(match[1]) : "";
+    if (match) return decodeURIComponent(match[1]);
+    return document.querySelector("input[name='csrfmiddlewaretoken']")?.value || "";
   };
   const absoluteUrl = (value) => new URL(value, window.location.origin).toString();
   const sameOrigin = (value) => new URL(value, window.location.origin).origin === window.location.origin;
@@ -137,7 +138,32 @@
     }
   };
 
-  const request = async (url, options, threadId) => {
+  const refreshSessionProtection = async () => {
+    const response = await fetch(window.location.href, {
+      method: "GET",
+      credentials: "same-origin",
+      cache: "no-store",
+    });
+    if (response.redirected || response.url.includes("/login/")) {
+      const error = new Error("Your session expired. Refresh the page and sign in again.");
+      error.status = 401;
+      throw error;
+    }
+    const html = await response.text();
+    const parsed = new DOMParser().parseFromString(html, "text/html");
+    const fresh = parsed.querySelector("input[name='csrfmiddlewaretoken']")?.value || "";
+    if (!fresh) {
+      const error = new Error("Session protection could not be refreshed. Reload the page.");
+      error.status = 403;
+      throw error;
+    }
+    document.querySelectorAll("input[name='csrfmiddlewaretoken']").forEach((input) => {
+      input.value = fresh;
+    });
+    return fresh;
+  };
+
+  const request = async (url, options, threadId, retried = false) => {
     const headers = new Headers(options.headers || {});
     headers.set("Accept", "application/json");
     if (threadId) headers.set("X-VulnHunter-Thread", threadId);
@@ -152,6 +178,10 @@
       cache: "no-store",
     });
     const payload = await readJson(response);
+    if (response.status === 403 && !retried) {
+      await refreshSessionProtection();
+      return request(url, options, threadId, true);
+    }
     if (!response.ok) {
       const error = new Error(payload.detail || "The upload request failed.");
       error.status = response.status;
@@ -336,6 +366,13 @@
         open.textContent = "Open";
         actions.append(open);
       }
+      if (record.state === "failed") {
+        const retryButton = document.createElement("button");
+        retryButton.type = "button";
+        retryButton.textContent = "Retry";
+        retryButton.addEventListener("click", () => window.VulnHunterUploads.retry(record.localId));
+        actions.append(retryButton);
+      }
       if (!["completed", "cancelled"].includes(record.state)) {
         const cancel = document.createElement("button");
         cancel.type = "button";
@@ -390,6 +427,22 @@
     return record;
   };
 
+  const retry = async (localId) => {
+    const record = await getRecord(localId);
+    if (!record) return;
+    if (!(record.file instanceof Blob) || record.file.size !== record.size) {
+      record.state = "failed";
+      record.error = "The browser no longer has the selected APK bytes. Choose the file again.";
+      await putRecord(record);
+      return;
+    }
+    record.state = "queued";
+    record.error = "";
+    record.retryAt = 0;
+    await putRecord(record);
+    schedule();
+  };
+
   const cancel = async (localId) => {
     const record = await getRecord(localId);
     if (!record) return;
@@ -405,7 +458,7 @@
     emit("vh:upload-cancelled", record);
   };
 
-  window.VulnHunterUploads = { enqueue, cancel, list: listRecords, resume: schedule };
+  window.VulnHunterUploads = { enqueue, retry, cancel, list: listRecords, resume: schedule };
   document.addEventListener("DOMContentLoaded", () => {
     renderDock();
     schedule();

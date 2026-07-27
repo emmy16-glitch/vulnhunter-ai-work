@@ -8,6 +8,14 @@ if [[ -f "$ROOT/.codespaces/vulnhunter-user.env" ]]; then
   source "$ROOT/.codespaces/vulnhunter-user.env"
 fi
 
+WEB_SECRET_KEY_FILE="${VULNHUNTER_WEB_SECRET_KEY_FILE:-$ROOT/.codespaces/web-secret.key}"
+if [[ ! -s "$WEB_SECRET_KEY_FILE" ]]; then
+  umask 077
+  python -c 'import secrets,sys; sys.stdout.write(secrets.token_urlsafe(64))' > "$WEB_SECRET_KEY_FILE"
+fi
+chmod 600 "$WEB_SECRET_KEY_FILE"
+export VULNHUNTER_WEB_SECRET_KEY_FILE="$WEB_SECRET_KEY_FILE"
+
 : "${VULNHUNTER_USER_ID:?Run bash .devcontainer/first-run.sh first.}"
 : "${VULNHUNTER_USERNAME:?Run bash .devcontainer/first-run.sh first.}"
 
@@ -169,12 +177,14 @@ if [[ -s "${VULNHUNTER_MOBILE_EXTENSION_SIGNING_KEY_FILE:-}" && \
 fi
 
 GROQ_STATE="deterministic fallback"
+export VULNHUNTER_GROQ_RUNTIME_VERIFIED=false
 HUGGINGFACE_STATE="disabled"
 INTELLIGENCE_STATE="disabled"
 SOURCE_HUNT_STATE="disabled"
 if [[ "$VULNHUNTER_GROQ_ENABLED" == "true" && -s "$VULNHUNTER_GROQ_API_KEY_FILE" ]]; then
-  if python manage.py vh_verify_groq >"$LOG_ROOT/groq-verification.log" 2>&1; then
-    GROQ_STATE="live inference verified"
+  if python manage.py vh_verify_groq --conversation-smoke >"$LOG_ROOT/groq-verification.log" 2>&1; then
+    export VULNHUNTER_GROQ_RUNTIME_VERIFIED=true
+    GROQ_STATE="live conversation verified"
     python manage.py vh_run_source_hunt_worker --poll-seconds 0.5 \
       >"$LOG_ROOT/source-hunt-worker.log" 2>&1 &
     SOURCE_HUNT_PID=$!

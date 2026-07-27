@@ -26,7 +26,11 @@
   const historyClose = workspace.querySelector("[data-history-close]");
   const messageTemplate = document.getElementById("vh-message-template");
   const runTemplate = document.getElementById("vh-run-template");
-  const csrfToken = form?.querySelector("input[name='csrfmiddlewaretoken']")?.value || "";
+  const csrfToken = () => {
+    const cookie = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
+    if (cookie) return decodeURIComponent(cookie[1]);
+    return form?.querySelector("input[name='csrfmiddlewaretoken']")?.value || "";
+  };
 
   if (!feed || !form || !input || !messageTemplate || !runTemplate) return;
 
@@ -181,7 +185,13 @@
       badge.className = "vh-message-reasoning";
       const provider = text(metadata.provider || "deterministic");
       const model = text(metadata.model || "");
-      badge.textContent = `${prettyState(metadata.reasoning_effort)} reasoning · ${prettyState(provider)}${model ? ` · ${model}` : ""}`;
+      const detail = text(metadata.provider_detail || "");
+      const degraded = provider === "deterministic" && /groq/i.test(detail);
+      if (degraded) badge.classList.add("is-degraded");
+      badge.textContent = degraded
+        ? `${prettyState(metadata.reasoning_effort)} reasoning · Groq unavailable · deterministic fallback`
+        : `${prettyState(metadata.reasoning_effort)} reasoning · ${prettyState(provider)}${model ? ` · ${model}` : ""}`;
+      if (detail) badge.title = detail;
       body.append(badge);
     }
     const suggestions = Array.isArray(metadata.suggestions) ? metadata.suggestions : [];
@@ -599,20 +609,42 @@
     );
   };
 
-  const postForm = async (url, values) => {
+  const refreshSessionProtection = async () => {
+    const response = await fetch(window.location.href, {
+      method: "GET",
+      credentials: "same-origin",
+      cache: "no-store",
+    });
+    if (response.redirected || response.url.includes("/login/")) {
+      throw new Error("Your session expired. Refresh the page and sign in again.");
+    }
+    const html = await response.text();
+    const parsed = new DOMParser().parseFromString(html, "text/html");
+    const fresh = parsed.querySelector("input[name='csrfmiddlewaretoken']")?.value || "";
+    if (!fresh) throw new Error("Session protection could not be refreshed. Reload the page.");
+    form.querySelectorAll("input[name='csrfmiddlewaretoken']").forEach((element) => {
+      element.value = fresh;
+    });
+  };
+
+  const postForm = async (url, values, retried = false) => {
     const payload = new FormData();
     Object.entries(values).forEach(([key, value]) => payload.append(key, text(value)));
     const response = await fetch(url, {
       method: "POST",
       body: payload,
       credentials: "same-origin",
-      headers: { "X-CSRFToken": csrfToken, Accept: "application/json" },
+      headers: { "X-CSRFToken": csrfToken(), Accept: "application/json" },
     });
     let data = {};
     try {
       data = await response.json();
     } catch (_error) {
       data = { detail: "The server returned an unreadable response." };
+    }
+    if (response.status === 403 && !retried) {
+      await refreshSessionProtection();
+      return postForm(url, values, true);
     }
     if (!response.ok) throw new Error(data.detail || data.message?.content || "The request could not be completed.");
     return data;
@@ -762,7 +794,14 @@
     input.value = "";
     resizeInput();
 
-    setBusy(true, "Understanding your request and checking authorised scope…");
+    const selectedEffort = reasoningSelect?.value || initial.reasoning_effort || "medium";
+    const busyCopy =
+      selectedEffort === "high"
+        ? "Asking Groq to analyse deeply and checking governed context…"
+        : selectedEffort === "low"
+          ? "Asking Groq for a direct answer…"
+          : "Asking Groq to reason through the request…";
+    setBusy(true, busyCopy);
     try {
       const data = await postForm(initial.message_url, {
         message: value,

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -421,10 +422,11 @@ def _advisory_prompt(
         "changes scope, approves or cancels actions, executes scanners, verifies findings, "
         "sets final "
         "severity, or publishes results. Do not reveal hidden chain-of-thought; provide "
-        "conclusions "
-        "and concise supporting rationale. Return JSON with keys message and recommended_profile. "
-        "message must contain the complete user-facing answer. recommended_profile must be one "
-        "available profile or null. "
+        "conclusions and concise supporting rationale. The provider wrapper requires exactly one "
+        "outer JSON object with output_kind and content. Set output_kind to CANDIDATE_ANALYSIS. "
+        "Set content to a JSON-encoded string containing message and recommended_profile. message "
+        "must contain the complete user-facing answer. recommended_profile must be one available "
+        "profile or null. Do not return message and recommended_profile as the outer object. "
         + json.dumps(envelope, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     )
 
@@ -709,15 +711,31 @@ def advisory_runtime_status() -> dict[str, object]:
     groq_configured = groq_enabled and groq_key.is_file()
     hf_configured = hf_enabled and hf_token.is_file()
     configured = groq_configured or hf_configured
+    runtime_verified = os.environ.get("VULNHUNTER_GROQ_RUNTIME_VERIFIED", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
     providers = []
     if groq_configured:
         providers.append("Groq")
     if hf_configured:
         providers.append("Hugging Face")
+    live_verified = bool(groq_configured and runtime_verified)
+    if live_verified:
+        label = "Groq live conversation ready"
+    elif groq_configured:
+        label = "Groq configured; restart to verify live conversation"
+    elif providers:
+        label = f"{' + '.join(providers)} configured"
+    else:
+        label = "AI provider setup required"
     return {
         "enabled": groq_enabled or hf_enabled,
         "configured": configured,
-        "label": f"{' + '.join(providers)} ready" if providers else "AI provider setup required",
+        "live_verified": live_verified,
+        "label": label,
         "model": settings.VULNHUNTER_GROQ_MODEL
         if groq_configured
         else settings.VULNHUNTER_HUGGINGFACE_MODEL,

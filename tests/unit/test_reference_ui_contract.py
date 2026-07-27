@@ -414,7 +414,6 @@ def test_navigation_is_filtered_by_product_role():
     labels = {str(item["label"]) for item in canonical_navigation(user)}
     assert labels == {
         "Assessment Workspace",
-        "Findings",
         "Review Queue",
         "Reports",
         "Settings",

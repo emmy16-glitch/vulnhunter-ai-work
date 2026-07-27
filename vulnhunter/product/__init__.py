@@ -13,7 +13,11 @@ from vulnhunter.product.models import (
     SkillDetail,
     SkillSummary,
 )
-from vulnhunter.product.service import ProductApplicationService, ProductServiceError
+from vulnhunter.product.service import (
+    ProductApplicationService,
+    ProductNotFoundError,
+    ProductServiceError,
+)
 
 __all__ = [
     "AgentRunDetail",
@@ -22,6 +26,7 @@ __all__ = [
     "CampaignSummary",
     "DashboardSummary",
     "ProductApplicationService",
+    "ProductNotFoundError",
     "ProductServiceError",
     "ProductStatusSummary",
     "ReadinessSummary",

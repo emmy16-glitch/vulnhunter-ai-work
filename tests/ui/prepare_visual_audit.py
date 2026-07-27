@@ -101,6 +101,9 @@ def main() -> int:
     mapped_user("visual-admin", "admin-a", all_roles, password)
     mapped_user("visual-reviewer", "reviewer-a", ["reviewer"], password)
     mapped_user("visual-adjudicator", "lead-c", ["adjudicator"], password)
+    mapped_user("visual-approver", "admin-b", ["campaign-approver"], password)
+    mapped_user("visual-auditor", "admin-a", ["security-auditor"], password)
+    mapped_user("visual-observer", "reviewer-b", ["read-only-observer"], password)
 
     controller = _controller(runtime_root)
     task = controller.create_task(
@@ -193,6 +196,9 @@ def main() -> int:
                 "username": "visual-adjudicator",
                 "password": password,
             },
+            "approver": {"username": "visual-approver", "password": password},
+            "auditor": {"username": "visual-auditor", "password": password},
+            "observer": {"username": "visual-observer", "password": password},
         },
         "pages": [
             {
@@ -254,6 +260,97 @@ def main() -> int:
                 "persona": "admin",
                 "responsive": True,
             },
+            {"name": "status", "path": "/status/", "persona": "admin"},
+            {"name": "authorizations", "path": "/authorizations/", "persona": "admin"},
+            {"name": "review-queue", "path": "/reviews/", "persona": "reviewer"},
+            {
+                "name": "adjudication-queue",
+                "path": "/adjudications/",
+                "persona": "adjudicator",
+            },
+            {
+                "name": "release-detail",
+                "path": f"/releases/{campaign_id}/",
+                "persona": "admin",
+            },
+            {
+                "name": "dataset-detail",
+                "path": f"/datasets/{campaign_id}/",
+                "persona": "admin",
+            },
+            {
+                "name": "model-detail",
+                "path": "/models/graph-context/",
+                "persona": "admin",
+            },
+            {"name": "governance", "path": "/governance/", "persona": "admin"},
+            {"name": "roles", "path": "/roles/", "persona": "admin"},
+            {
+                "name": "role-detail",
+                "path": "/roles/system-administrator/",
+                "persona": "admin",
+            },
+            {"name": "skills", "path": "/skills/", "persona": "admin"},
+            {
+                "name": "skill-detail",
+                "path": "/skills/bounded-task-routing/",
+                "persona": "admin",
+            },
+            {"name": "legacy-runs", "path": "/agent/runs/", "persona": "admin"},
+            {
+                "name": "readiness-detail",
+                "path": f"/readiness/{campaign_id}/",
+                "persona": "admin",
+            },
+            {"name": "pilot-plans", "path": "/pilot/plans/", "persona": "admin"},
+            {
+                "name": "pilot-plan-detail",
+                "path": "/pilot/plans/pilot-local-lab-example/",
+                "persona": "admin",
+            },
+            {
+                "name": "pilot-plan-validation",
+                "path": "/pilot/plans/pilot-local-lab-example/validation/",
+                "persona": "admin",
+            },
+            {
+                "name": "security-tools",
+                "path": "/security-tools/",
+                "persona": "admin",
+            },
+            {
+                "name": "advanced-assessment",
+                "path": "/advanced-assessment/",
+                "persona": "admin",
+            },
+            {
+                "name": "approver-scan-runs",
+                "path": "/scans/",
+                "persona": "approver",
+            },
+            {
+                "name": "approver-approval-readonly",
+                "path": "/approvals/ui-approval-request/",
+                "persona": "approver",
+            },
+            {
+                "name": "auditor-findings",
+                "path": "/findings/",
+                "persona": "auditor",
+            },
+            {
+                "name": "observer-scan-summaries",
+                "path": "/scans/",
+                "persona": "observer",
+                "responsive": True,
+            },
+            {
+                "name": "observer-campaign-summaries",
+                "path": "/campaigns/",
+                "persona": "observer",
+            },
+            {"name": "observer-reports", "path": "/reports/", "persona": "observer"},
+            {"name": "observer-settings", "path": "/settings/", "persona": "observer"},
         ],
     }
     output = Path(

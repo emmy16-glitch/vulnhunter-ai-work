@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import sqlite3
 from pathlib import Path
 
 from django.conf import settings
@@ -28,6 +29,8 @@ from vulnhunter.web.assessment_workflow import (
 from vulnhunter.web.services import (
     WebPermissionDenied,
     authorized_actor,
+    operational_unavailable,
+    role_policy,
 )
 
 
@@ -168,7 +171,10 @@ def approval_list_view(request: HttpRequest) -> HttpResponse:
             {"page_title": "Access Denied", "denied_message": str(exc)},
             status=403,
         )
-    approvals = _approval_store().list()
+    try:
+        approvals = _approval_store().list()
+    except (ApprovalStoreError, OSError, ValueError, sqlite3.Error):
+        return operational_unavailable(request, "Approval records are temporarily unavailable.")
     return _render(
         request,
         "web/approvals.html",
@@ -181,7 +187,9 @@ def approval_list_view(request: HttpRequest) -> HttpResponse:
 @require_GET
 def approval_detail_view(request: HttpRequest, request_id: str) -> HttpResponse:
     try:
-        authorized_actor(request.user, required_actions=("audit.read", "settings.manage"))
+        actor = authorized_actor(
+            request.user, required_actions=("audit.read", "settings.manage")
+        )
     except WebPermissionDenied as exc:
         return _render(
             request,
@@ -189,12 +197,14 @@ def approval_detail_view(request: HttpRequest, request_id: str) -> HttpResponse:
             {"page_title": "Access Denied", "denied_message": str(exc)},
             status=403,
         )
-    store = _approval_store()
     try:
+        store = _approval_store()
         approval = store.get(request_id)
         events = store.events(request_id)
     except ApprovalNotFoundError as exc:
         raise Http404(str(exc)) from exc
+    except (ApprovalStoreError, OSError, ValueError, sqlite3.Error):
+        return operational_unavailable(request, "Approval records are temporarily unavailable.")
     return _render(
         request,
         "web/approval_detail.html",
@@ -203,6 +213,9 @@ def approval_detail_view(request: HttpRequest, request_id: str) -> HttpResponse:
             "approval": approval,
             "events": events,
             "decisions": tuple(ApprovalDecision),
+            "can_decide": role_policy().any_role_allows(
+                actor.product_roles, "settings.manage"
+            ),
         },
     )
 
@@ -250,8 +263,10 @@ def approval_decision_view(request: HttpRequest, request_id: str) -> HttpRespons
             request=decided,
             actor_id=actor.governance_identity.reviewer_id,
         )
-    except (ApprovalStoreError, AssessmentWorkflowError) as exc:
+    except AssessmentWorkflowError as exc:
         messages.error(request, str(exc))
+    except (ApprovalStoreError, OSError, ValueError, sqlite3.Error):
+        messages.error(request, "The approval decision could not be recorded safely.")
     else:
         messages.success(request, f"Decision recorded: {decision.value}.")
     return _approval_redirect(request, request_id)

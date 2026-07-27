@@ -11,13 +11,13 @@ from django.http import Http404, HttpRequest, JsonResponse, StreamingHttpRespons
 from django.views.decorators.cache import cache_control
 from django.views.decorators.http import require_GET
 
-from vulnhunter.product import ProductServiceError
+from vulnhunter.product import ProductNotFoundError, ProductServiceError
 from vulnhunter.web.services import (
     WebPermissionDenied,
     activity_payload,
     authorized_actor,
     product_service,
-    run_visible_to_actor,
+    run_readable_to_actor,
 )
 
 
@@ -101,9 +101,11 @@ def agent_activity_stream_view(request: HttpRequest, run_id: str):
 
     try:
         run = product_service().get_agent_run(run_id)
-    except ProductServiceError as exc:
+    except ProductNotFoundError as exc:
         raise Http404(str(exc)) from exc
-    if not run_visible_to_actor(run, actor):
+    except ProductServiceError:
+        return JsonResponse({"detail": "assessment service unavailable"}, status=503)
+    if not run_readable_to_actor(run, actor):
         raise Http404("Assessment run does not exist.")
 
     payload = activity_payload(run_id, after_sequence=after_sequence)

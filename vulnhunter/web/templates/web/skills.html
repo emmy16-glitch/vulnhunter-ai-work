@@ -5,6 +5,8 @@
     <div><p class="vh-eyebrow">Governance</p><h1>Skills</h1><p>Bounded capability definitions from the skill registry.</p></div>
   </header>
 
+  {% if error_message %}<section class="vh-operational-notice is-danger"><strong>Skill registry unavailable</strong><p>{{ error_message }}</p></section>{% endif %}
+
   <section class="vh-summary-strip"><article class="vh-summary-item"><small>Skills</small><strong>{{ skills|length }}</strong><span>Registry entries</span></article><article class="vh-summary-item"><small>Execution</small><strong>Policy controlled</strong><span>Definitions do not grant authority</span></article></section>
 
   <section class="vh-surface">

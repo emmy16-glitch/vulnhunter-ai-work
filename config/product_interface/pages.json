@@ -165,8 +165,6 @@
         "system-administrator",
         "campaign-operator",
         "campaign-approver",
-        "reviewer",
-        "adjudicator",
         "security-auditor"
       ],
       "nav_section": "analysis",
@@ -185,8 +183,6 @@
         "system-administrator",
         "campaign-operator",
         "campaign-approver",
-        "reviewer",
-        "adjudicator",
         "security-auditor"
       ],
       "nav_section": null,
@@ -543,6 +539,8 @@
         "system-administrator",
         "campaign-operator",
         "campaign-approver",
+        "reviewer",
+        "adjudicator",
         "security-auditor",
         "model-analyst",
         "read-only-observer"
@@ -570,7 +568,14 @@
         }
       ],
       "allowed_roles": [
-        "system-administrator"
+        "system-administrator",
+        "campaign-operator",
+        "campaign-approver",
+        "reviewer",
+        "adjudicator",
+        "security-auditor",
+        "model-analyst",
+        "read-only-observer"
       ],
       "nav_section": "system",
       "page_id": "settings",

@@ -147,6 +147,16 @@ def test_unknown_page_resource_is_rejected(tmp_path: Path) -> None:
         ProductInterfaceSpec.from_path(root)
 
 
+def test_navigation_role_requires_a_backing_api_operation(tmp_path: Path) -> None:
+    def change(data):
+        page = next(item for item in data["pages"] if item["page_id"] == "models")
+        page["allowed_roles"].append("campaign-operator")
+
+    root = mutate(tmp_path, "pages.json", change)
+    with pytest.raises(SpecValidationError, match="without any 'models' API operation"):
+        ProductInterfaceSpec.from_path(root)
+
+
 def test_dangerous_action_without_confirmation_is_rejected(tmp_path: Path) -> None:
     def change(data):
         page = next(item for item in data["pages"] if item["page_id"] == "new-scan")

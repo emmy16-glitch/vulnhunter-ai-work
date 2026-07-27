@@ -129,13 +129,18 @@ class ProductInterfaceSpec:
             errors,
         )
         operation_ids: set[str] = set()
+        resource_allowed_roles: dict[str, set[str]] = {}
         for resource in self.resources:
+            resource_id = str(resource.get("resource_id", ""))
+            resource_allowed_roles[resource_id] = set()
             for operation in resource.get("operations", []):
                 operation_id = operation.get("operation_id")
                 if not operation_id or operation_id in operation_ids:
                     errors.append(f"Duplicate or missing API operation ID: {operation_id!r}")
                 operation_ids.add(operation_id)
-                unknown = set(operation.get("allowed_roles", [])) - role_ids
+                operation_roles = set(operation.get("allowed_roles", []))
+                resource_allowed_roles[resource_id].update(operation_roles)
+                unknown = operation_roles - role_ids
                 if unknown:
                     errors.append(
                         f"API operation {operation_id!r} references unknown roles: "
@@ -227,6 +232,14 @@ class ProductInterfaceSpec:
                     errors.append(
                         f"Navigation label for {page_id!r} must match the page title exactly."
                     )
+                page_roles = set(page.get("allowed_roles", []))
+                for resource_id in page.get("required_api_resources", []):
+                    unsupported = page_roles - resource_allowed_roles.get(resource_id, set())
+                    if unsupported:
+                        errors.append(
+                            f"Navigation page {page_id!r} grants roles without any {resource_id!r} "
+                            f"API operation: {sorted(unsupported)}"
+                        )
 
         if len(navigation_page_ids) != len(set(navigation_page_ids)):
             errors.append("Every navigation page must appear exactly once.")

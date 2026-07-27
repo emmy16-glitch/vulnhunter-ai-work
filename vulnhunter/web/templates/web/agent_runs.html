@@ -7,10 +7,10 @@
     <div>
       <p class="vh-eyebrow">Workspace records</p>
       <h1 id="assessment-page-title">Assessment History</h1>
-      <p>Review assessment state, approvals, evidence and findings created from the VulnHunter Workspace.</p>
+      <p>{% if summary_only %}Review redacted assessment summaries. Evidence, findings and controls remain restricted.{% else %}Review assessment state, approvals, evidence and findings created from the VulnHunter Workspace.{% endif %}</p>
     </div>
     <div class="vh-page-actions">
-      <a class="vh-button-primary" href="{% url 'web-dashboard' %}">Open workspace</a>
+      <a class="vh-button-primary" href="{% url 'web-dashboard' %}">{% if summary_only %}Open dashboard{% else %}Open workspace{% endif %}</a>
     </div>
   </header>
 
@@ -51,9 +51,9 @@
   </section>
 
   <section class="vh-surface">
-    <header class="vh-surface-header"><div><h2>Assessment runs</h2><p>Open a run for approval, activity, evidence, findings and safety controls.</p></div><span class="vh-panel-count">{{ runs|length }}</span></header>
+    <header class="vh-surface-header"><div><h2>Assessment runs</h2><p>{% if summary_only %}Redacted state summaries visible to observer roles.{% else %}Open a run for approval, activity, evidence, findings and safety controls.{% endif %}</p></div><span class="vh-panel-count">{{ runs|length }}</span></header>
     {% if runs %}
-      <div class="vh-table-wrap"><table class="vh-table vh-assessment-table"><thead><tr><th>Assessment</th><th>State</th><th>Scanner</th><th>Profile</th><th>Approval</th><th>Updated</th><th></th></tr></thead><tbody>{% for run in runs %}<tr><td data-label="Assessment"><strong>{{ run.objective }}</strong><code>{{ run.run_id }}</code></td><td data-label="State"><span class="vh-status-chip">{{ run.current_state }}</span>{% if run.execution_blocking_reason %}<small>{{ run.execution_blocking_reason|truncatechars:80 }}</small>{% endif %}</td><td data-label="Scanner">{{ run.requested_tool|default:"Not selected" }}</td><td data-label="Profile">{{ run.risk_classification|default:run.selected_skill|default:"Not set" }}</td><td data-label="Approval">{{ run.approval_state }}</td><td data-label="Updated">{{ run.updated_at }}</td><td data-label="Action"><a class="vh-table-action" href="{% url 'web-scan-run-detail' run.run_id %}">{% if can_decide_approval and run.approval_state.value == 'pending' %}Review plan →{% else %}Open assessment →{% endif %}</a></td></tr>{% endfor %}</tbody></table></div>
+      <div class="vh-table-wrap"><table class="vh-table vh-assessment-table"><thead><tr><th>Assessment</th><th>State</th><th>Scanner</th><th>Profile</th><th>Approval</th><th>Updated</th>{% if not summary_only %}<th></th>{% endif %}</tr></thead><tbody>{% for run in runs %}<tr><td data-label="Assessment">{% if summary_only %}<strong>Assessment summary</strong><small>Identifier and scope withheld</small>{% else %}<strong>{{ run.objective }}</strong><code>{{ run.run_id }}</code>{% endif %}</td><td data-label="State"><span class="vh-status-chip">{{ run.current_state }}</span>{% if run.execution_blocking_reason and not summary_only %}<small>{{ run.execution_blocking_reason|truncatechars:80 }}</small>{% endif %}</td><td data-label="Scanner">{{ run.requested_tool|default:"Not selected" }}</td><td data-label="Profile">{% if summary_only %}Restricted{% else %}{{ run.risk_classification|default:run.selected_skill|default:"Not set" }}{% endif %}</td><td data-label="Approval">{{ run.approval_state }}</td><td data-label="Updated">{{ run.updated_at }}</td>{% if not summary_only %}<td data-label="Action"><a class="vh-table-action" href="{% url 'web-scan-run-detail' run.run_id %}">{% if can_decide_approval and run.approval_state.value == 'pending' %}Review plan →{% else %}Open assessment →{% endif %}</a></td>{% endif %}</tr>{% endfor %}</tbody></table></div>
     {% else %}
       <div class="vh-empty-panel"><svg aria-hidden="true"><use href="#vh-i-assessment"></use></svg><h3>No assessments yet</h3>{% if can_create_assessment %}<p>Start an authorised web scan or attach an APK in the VulnHunter Workspace. The resulting plan and evidence will appear here.</p><a class="vh-button-primary" href="{% url 'web-dashboard' %}">Open workspace</a>{% elif can_decide_approval %}<p>No assessment currently needs your approval. New workspace-created plans will appear here automatically.</p>{% else %}<p>No assessment is visible to this account.</p>{% endif %}</div>
     {% endif %}

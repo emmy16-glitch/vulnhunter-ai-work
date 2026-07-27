@@ -25,7 +25,7 @@ from vulnhunter.web.services import (
     authorized_actor,
     governance_store,
     product_service,
-    run_visible_to_actor,
+    run_readable_to_actor,
 )
 from vulnhunter.web.workspace_forms import (
     GovernedAdjudicationForm,
@@ -152,7 +152,7 @@ def finding_detail_view(request: HttpRequest, finding_id: str) -> HttpResponse:
     try:
         service = product_service()
         for summary in service.list_agent_runs():
-            if not run_visible_to_actor(summary, actor):
+            if not run_readable_to_actor(summary, actor):
                 continue
             run = service.get_agent_run(summary.run_id)
             for finding in run.findings:
@@ -206,7 +206,7 @@ def review_workspace_view(
     try:
         actor = authorized_actor(
             request.user,
-            required_actions=("review.read", "review.read_assigned"),
+            required_actions=("review.read_assigned",),
         )
         store, campaign, assignment = _resolve_assignment(assignment_reference)
         actor_id = actor.governance_identity.reviewer_id
@@ -305,10 +305,7 @@ def adjudication_workspace_view(
     try:
         actor = authorized_actor(
             request.user,
-            required_actions=(
-                "adjudication.read",
-                "adjudication.read_assigned",
-            ),
+            required_actions=("adjudication.read_assigned",),
         )
         store, campaign, assignment = _resolve_assignment(assignment_reference)
         actor_id = actor.governance_identity.reviewer_id

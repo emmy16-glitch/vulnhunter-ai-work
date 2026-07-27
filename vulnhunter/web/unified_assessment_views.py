@@ -18,7 +18,7 @@ from django.views.decorators.http import require_GET
 from vulnhunter.adversary_lab.store import AdversaryLabStore, AdversaryLabStoreError
 from vulnhunter.approvals import ApprovalStatus, ApprovalStore
 from vulnhunter.approvals.store import ApprovalStoreError
-from vulnhunter.product import ProductServiceError
+from vulnhunter.product import ProductNotFoundError, ProductServiceError
 from vulnhunter.web import stream_views, views
 from vulnhunter.web.forms import VulnHunterAuthenticationForm
 from vulnhunter.web.services import (
@@ -26,8 +26,10 @@ from vulnhunter.web.services import (
     activity_payload,
     authorized_actor,
     control_availability,
+    operational_unavailable,
     product_service,
     role_policy,
+    run_readable_to_actor,
     run_visible_to_actor,
 )
 
@@ -105,7 +107,7 @@ def _can_view_cross_scope(actor) -> bool:
 
 
 def _run_is_visible(run, actor) -> bool:
-    return run_visible_to_actor(run, actor) or _can_view_cross_scope(actor)
+    return run_readable_to_actor(run, actor)
 
 
 class UnifiedLoginView(LoginView):
@@ -114,12 +116,13 @@ class UnifiedLoginView(LoginView):
     redirect_authenticated_user = True
 
     def get_success_url(self) -> str:
-        can_approve = _can(self.request.user, "settings.manage", "campaign.approve")
+        can_decide_run_approval = _can(self.request.user, "settings.manage")
         can_create = _can(self.request.user, "scan.create")
+        can_read_runs = _can(self.request.user, "scan.read", "audit.read", "scan.read_summary")
         pending = _pending_approvals()
-        if can_approve and not can_create and pending:
+        if can_decide_run_approval and not can_create and pending:
             return reverse("web-scan-run-detail", kwargs={"run_id": pending[0].run_id})
-        if can_approve and not can_create:
+        if can_read_runs and not can_create:
             return reverse("web-scan-run-list")
         return reverse("web-dashboard")
 
@@ -129,7 +132,10 @@ class UnifiedLoginView(LoginView):
 @require_GET
 def assessment_list_view(request: HttpRequest) -> HttpResponse:
     try:
-        actor = views._protected(request, required_actions=("audit.read", "scan.read"))
+        actor = views._protected(
+            request,
+            required_actions=("audit.read", "scan.read", "scan.read_summary"),
+        )
     except WebPermissionDenied as exc:
         return _render(
             request,
@@ -139,7 +145,10 @@ def assessment_list_view(request: HttpRequest) -> HttpResponse:
         )
     can_create = _role_allows(actor, "scan.create")
     can_decide = _role_allows(actor, "settings.manage")
-    cross_scope = _can_view_cross_scope(actor)
+    summary_only = _role_allows(actor, "scan.read_summary") and not _role_allows(
+        actor, "scan.read", "audit.read"
+    )
+    cross_scope = _can_view_cross_scope(actor) or summary_only
     try:
         all_runs = product_service().list_agent_runs()
         visible_runs = (
@@ -154,7 +163,11 @@ def assessment_list_view(request: HttpRequest) -> HttpResponse:
     else:
         error = None
     run_ids = {run.run_id for run in runs}
-    pending = tuple(item for item in _pending_approvals() if item.run_id in run_ids)
+    pending = (
+        ()
+        if summary_only or not can_decide
+        else tuple(item for item in _pending_approvals() if item.run_id in run_ids)
+    )
     return _render(
         request,
         "web/agent_runs.html",
@@ -166,6 +179,7 @@ def assessment_list_view(request: HttpRequest) -> HttpResponse:
             "can_decide_approval": can_decide,
             "approval_only": can_decide and not can_create,
             "pending_approvals": pending,
+            "summary_only": summary_only,
         },
     )
 
@@ -185,8 +199,10 @@ def assessment_detail_view(request: HttpRequest, run_id: str) -> HttpResponse:
         )
     try:
         run = product_service().get_agent_run(run_id)
-    except ProductServiceError as exc:
+    except ProductNotFoundError as exc:
         raise Http404(str(exc)) from exc
+    except ProductServiceError:
+        return operational_unavailable(request)
     if not _run_is_visible(run, actor):
         raise Http404("Assessment run does not exist.")
 
@@ -194,6 +210,7 @@ def assessment_detail_view(request: HttpRequest, run_id: str) -> HttpResponse:
     controls = control_availability(request.user, run.current_state, run.approval_state.value)
     approval_record, pending_approval = _approval_context_for_run(run_id)
     can_decide_approval = _role_allows(actor, "settings.manage")
+    can_view_approval = _role_allows(actor, "audit.read", "settings.manage")
     try:
         lab_store = AdversaryLabStore(Path(settings.VULNHUNTER_ADVERSARY_LAB_DATABASE))
         lab_store.initialize()
@@ -215,6 +232,7 @@ def assessment_detail_view(request: HttpRequest, run_id: str) -> HttpResponse:
             "approval_record": approval_record,
             "pending_approval": pending_approval,
             "can_decide_approval": can_decide_approval,
+            "can_view_approval": can_view_approval,
             "lab_runs": lab_runs,
             "latest_lab": latest_lab,
             "can_request_lab": can_request_lab,
@@ -232,8 +250,10 @@ def assessment_activity_view(request: HttpRequest, run_id: str) -> JsonResponse:
         return JsonResponse({"detail": "forbidden"}, status=403)
     try:
         run = product_service().get_agent_run(run_id)
-    except ProductServiceError as exc:
+    except ProductNotFoundError as exc:
         raise Http404(str(exc)) from exc
+    except ProductServiceError:
+        return JsonResponse({"detail": "assessment service unavailable"}, status=503)
     if not _run_is_visible(run, actor):
         raise Http404("Assessment run does not exist.")
     raw = request.GET.get("after_sequence", "0")
@@ -258,8 +278,10 @@ def assessment_activity_stream_view(request: HttpRequest, run_id: str):
         return JsonResponse({"detail": str(exc)}, status=400)
     try:
         run = product_service().get_agent_run(run_id)
-    except ProductServiceError as exc:
+    except ProductNotFoundError as exc:
         raise Http404(str(exc)) from exc
+    except ProductServiceError:
+        return JsonResponse({"detail": "assessment service unavailable"}, status=503)
     if not _run_is_visible(run, actor):
         raise Http404("Assessment run does not exist.")
 

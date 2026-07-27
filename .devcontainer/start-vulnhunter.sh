@@ -16,6 +16,9 @@ export VULNHUNTER_GROQ_API_KEY_FILE="${VULNHUNTER_GROQ_API_KEY_FILE:-$ROOT/.code
 export VULNHUNTER_INTELLIGENCE_ENABLED="${VULNHUNTER_INTELLIGENCE_ENABLED:-true}"
 export VULNHUNTER_HUGGINGFACE_ENABLED="${VULNHUNTER_HUGGINGFACE_ENABLED:-false}"
 export VULNHUNTER_HUGGINGFACE_TOKEN_FILE="${VULNHUNTER_HUGGINGFACE_TOKEN_FILE:-$ROOT/.codespaces/huggingface-token}"
+export VULNHUNTER_SOURCE_HUNT_ROOTS="${VULNHUNTER_SOURCE_HUNT_ROOTS:-/workspaces}"
+export VULNHUNTER_SOURCE_HUNT_JOB_ROOT="${VULNHUNTER_SOURCE_HUNT_JOB_ROOT:-$ROOT/.local/source-hunt-jobs}"
+export VULNHUNTER_SOURCE_HUNT_REPORT_ROOT="${VULNHUNTER_SOURCE_HUNT_REPORT_ROOT:-$ROOT/.local/source-hunt-reports}"
 export VULNHUNTER_MOBILE_MAX_APK_BYTES="${VULNHUNTER_MOBILE_MAX_APK_BYTES:-1000000000}"
 export VULNHUNTER_MOBILE_UPLOAD_CHUNK_BYTES="${VULNHUNTER_MOBILE_UPLOAD_CHUNK_BYTES:-8388608}"
 
@@ -172,6 +175,10 @@ SOURCE_HUNT_STATE="disabled"
 if [[ "$VULNHUNTER_GROQ_ENABLED" == "true" && -s "$VULNHUNTER_GROQ_API_KEY_FILE" ]]; then
   if python manage.py vh_verify_groq >"$LOG_ROOT/groq-verification.log" 2>&1; then
     GROQ_STATE="live inference verified"
+    python manage.py vh_run_source_hunt_worker --poll-seconds 0.5 \
+      >"$LOG_ROOT/source-hunt-worker.log" 2>&1 &
+    SOURCE_HUNT_PID=$!
+    SOURCE_HUNT_STATE="exact-approval queue ready"
     if [[ "$VULNHUNTER_INTELLIGENCE_ENABLED" == "true" ]]; then
       python manage.py vh_run_intelligence_worker --watch --poll-seconds 0.5 \
         >"$LOG_ROOT/intelligence.log" 2>&1 &

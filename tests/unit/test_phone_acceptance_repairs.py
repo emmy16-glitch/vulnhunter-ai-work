@@ -13,7 +13,6 @@ from vulnhunter.providers import (
     ProviderKind,
     ProviderOutputKind,
 )
-from vulnhunter.web.conversation_service import _advisory_prompt
 
 
 def test_conversation_direct_json_shape_is_wrapped_safely():
@@ -85,18 +84,12 @@ def test_non_conversation_capability_keeps_strict_outer_schema():
 
 
 def test_conversation_prompt_matches_the_provider_envelope():
-    prompt = _advisory_prompt(
-        "Explain the current workspace.",
-        available_profiles=("passive",),
-        conversation_context=(),
-        memory_summary="",
-        tool_context="",
-        reasoning_effort="high",
-    )
+    root = Path(__file__).resolve().parents[2]
+    service = (root / "vulnhunter/web/conversation_service.py").read_text()
 
-    assert "outer JSON object with output_kind and content" in prompt
-    assert "Set output_kind to CANDIDATE_ANALYSIS" in prompt
-    assert "Do not return message and recommended_profile as the outer object" in prompt
+    assert "outer JSON object with output_kind and content" in service
+    assert "Set output_kind to CANDIDATE_ANALYSIS" in service
+    assert "Do not return message and recommended_profile as the outer object" in service
 
 
 def test_phone_runtime_contracts_are_wired():

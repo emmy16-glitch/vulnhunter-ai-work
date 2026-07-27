@@ -31,8 +31,13 @@ WORKER_PID=""
 MOBILE_WORKER_PID=""
 EXTENSION_WORKER_PID=""
 INTELLIGENCE_PID=""
+SOURCE_HUNT_PID=""
 cleanup() {
   set +e
+  if [[ -n "$SOURCE_HUNT_PID" ]]; then
+    kill "$SOURCE_HUNT_PID" 2>/dev/null
+    wait "$SOURCE_HUNT_PID" 2>/dev/null
+  fi
   if [[ -n "$INTELLIGENCE_PID" ]]; then
     kill "$INTELLIGENCE_PID" 2>/dev/null
     wait "$INTELLIGENCE_PID" 2>/dev/null
@@ -163,6 +168,7 @@ fi
 GROQ_STATE="deterministic fallback"
 HUGGINGFACE_STATE="disabled"
 INTELLIGENCE_STATE="disabled"
+SOURCE_HUNT_STATE="disabled"
 if [[ "$VULNHUNTER_GROQ_ENABLED" == "true" && -s "$VULNHUNTER_GROQ_API_KEY_FILE" ]]; then
   if python manage.py vh_verify_groq >"$LOG_ROOT/groq-verification.log" 2>&1; then
     GROQ_STATE="live inference verified"
@@ -192,6 +198,7 @@ Login username: $VULNHUNTER_USERNAME
 Groq: $GROQ_STATE
 Hugging Face: $HUGGINGFACE_STATE
 Reasoning: $INTELLIGENCE_STATE
+Source Hunt: $SOURCE_HUNT_STATE
 Nuclei: pinned passive worker ready
 APK upload limit: $VULNHUNTER_MOBILE_MAX_APK_BYTES bytes via bounded chunks
 Mobile APK: $MOBILE_STATE
@@ -200,8 +207,8 @@ ADB/Frida: $RUNTIME_STATE
 Extension worker: $EXTENSION_STATE
 
 Open the private port-8002 Codespaces URL and sign in once. Use the plus button to
-attach an APK or request an authorised web scan. A valid APK automatically enters
-the available static/native tool queue; dynamic execution remains separately approved.
+attach an APK or request an authorised web scan. Source repositories enter the exact
+Source Hunt queue; dynamic APK execution remains separately approved.
 
 MESSAGE
 

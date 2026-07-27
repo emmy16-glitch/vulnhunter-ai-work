@@ -26,6 +26,7 @@ class ProviderRequest(BaseModel):
     allow_current_public_information: bool = False
     contains_private_source: bool = False
     contains_customer_data: bool = False
+    remote_source_processing_approved: bool = False
 
     @field_validator("request_id")
     @classmethod
@@ -33,6 +34,12 @@ class ProviderRequest(BaseModel):
         if _IDENTIFIER.fullmatch(value) is None:
             raise ValueError("request_id must be a stable lowercase identifier")
         return value
+
+    @model_validator(mode="after")
+    def private_source_requires_explicit_approval(self):
+        if self.remote_source_processing_approved and not self.contains_private_source:
+            raise ValueError("remote source approval is valid only for a private-source request")
+        return self
 
 
 class ProviderRoute(BaseModel):

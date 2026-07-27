@@ -1,0 +1,79 @@
+{% extends "web/base.html" %}
+{% block content %}
+<section class="vh-page-shell">
+  <header class="vh-page-header">
+    <div><p class="vh-eyebrow">Authorization</p><h1>{{ authorization.authorization_id }}</h1><p>Inspect the exact permission boundary, integrity digest and append-only lifecycle events used by backend validation.</p></div>
+    <div class="vh-page-actions"><a class="vh-button-secondary" href="{% url 'web-authorization-list' %}">All Authorizations</a></div>
+  </header>
+
+  <section class="vh-summary-strip" aria-label="Authorization summary">
+    <article class="vh-summary-item"><small>Status</small><strong>{{ authorization.status }}</strong><span>{% if authorization.revoked_at %}Revoked {{ authorization.revoked_at }}{% else %}Expires {{ authorization.expires_at }}{% endif %}</span></article>
+    <article class="vh-summary-item"><small>Origin</small><strong>{{ authorization.hostname }}:{{ authorization.port }}</strong><span>{{ authorization.scheme|upper }}</span></article>
+    <article class="vh-summary-item"><small>Path boundary</small><strong>{{ authorization.path_boundary }}</strong><span>Exact server-side containment</span></article>
+    <article class="vh-summary-item"><small>Integrity</small><strong>Verified</strong><span><code>{{ authorization.record_sha256|slice:":18" }}…</code></span></article>
+  </section>
+
+  <div class="vh-surface-grid">
+    <section class="vh-surface vh-surface-span-6">
+      <header class="vh-surface-header"><div><h2>Permission boundary</h2><p>This record authorizes only the stored origin, path, addresses, time window and budgets.</p></div></header>
+      <div class="vh-surface-body">
+        <dl class="vh-definition-grid">
+          <div><dt>Target</dt><dd><code>{{ authorization.target_url }}</code></dd></div>
+          <div><dt>Owner</dt><dd>{{ authorization.owner }}</dd></div>
+          <div><dt>Approved by</dt><dd>{{ authorization.approved_by }}</dd></div>
+          <div><dt>Purpose</dt><dd>{{ authorization.purpose }}</dd></div>
+          <div><dt>Issued</dt><dd>{{ authorization.issued_at }}</dd></div>
+          <div><dt>Valid from</dt><dd>{{ authorization.valid_from }}</dd></div>
+          <div><dt>Expires</dt><dd>{{ authorization.expires_at }}</dd></div>
+          {% if authorization.evidence_reference %}<div><dt>Evidence reference</dt><dd>{{ authorization.evidence_reference }}</dd></div>{% endif %}
+        </dl>
+        <h3>Approved addresses</h3>
+        <ul class="vh-rows">{% for address in authorization.approved_addresses %}<li><code>{{ address }}</code></li>{% empty %}<li>No approved addresses are present.</li>{% endfor %}</ul>
+      </div>
+    </section>
+
+    <section class="vh-surface vh-surface-span-6">
+      <header class="vh-surface-header"><div><h2>Request ceilings</h2><p>The backend rejects any assessment request that exceeds these immutable limits.</p></div></header>
+      <div class="vh-surface-body">
+        <ul class="vh-fact-list">
+          <li><span>Maximum pages</span><strong>{{ authorization.limits.maximum_pages }}</strong></li>
+          <li><span>Maximum depth</span><strong>{{ authorization.limits.maximum_depth }}</strong></li>
+          <li><span>Maximum requests</span><strong>{{ authorization.limits.maximum_requests }}</strong></li>
+          <li><span>Minimum request delay</span><strong>{{ authorization.limits.minimum_request_delay_seconds }} seconds</strong></li>
+        </ul>
+        {% if authorization.revocation_reason %}<div class="vh-operational-notice is-danger"><strong>Revocation reason</strong><p>{{ authorization.revocation_reason }}</p></div>{% endif %}
+      </div>
+    </section>
+
+    <section class="vh-surface vh-surface-span-12">
+      <header class="vh-surface-header"><div><h2>Authorization events</h2><p>Newest append-only events are shown first. Event details are redacted before persistence.</p></div><span class="vh-panel-count">{{ events|length }}</span></header>
+      <div class="vh-surface-body">
+        {% if events %}
+          <div>
+            {% for event in events %}
+              <article class="vh-audit-event"><time datetime="{{ event.occurred_at|date:'c' }}">{{ event.occurred_at }}</time><div><strong>{{ event.event_id }} · {{ event.event_type }}</strong>{% if event.detail %}<dl class="vh-definition-grid">{% for key, value in event.detail.items %}<div><dt>{{ key }}</dt><dd><code>{{ value }}</code></dd></div>{% endfor %}</dl>{% endif %}</div><code>{{ event.authorization_id }}</code></article>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="vh-product-empty"><h3>No authorization events</h3><p>The record has no append-only lifecycle events.</p></div>
+        {% endif %}
+      </div>
+    </section>
+
+    {% if can_revoke and authorization.status == 'active' %}
+      <section class="vh-surface vh-surface-span-12">
+        <header class="vh-surface-header"><div><h2>Revoke authorization</h2><p>Revocation is an immediate, audited safety action. It does not delete this record or its event history.</p></div></header>
+        <div class="vh-surface-body">
+          <form method="post" action="{% url 'web-authorization-revoke' authorization.authorization_id %}" class="vh-form">
+            {% csrf_token %}
+            {{ revoke_form.non_field_errors }}
+            <div class="vh-form-field">{{ revoke_form.reason.label_tag }}{{ revoke_form.reason }}{{ revoke_form.reason.errors }}<small>{{ revoke_form.reason.help_text }}</small></div>
+            <div class="vh-form-field">{{ revoke_form.confirm_revocation }}{{ revoke_form.confirm_revocation.label_tag }}{{ revoke_form.confirm_revocation.errors }}</div>
+            <button class="vh-button-danger" type="submit">Revoke authorization</button>
+          </form>
+        </div>
+      </section>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

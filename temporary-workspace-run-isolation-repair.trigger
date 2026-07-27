@@ -1,1 +1,1 @@
-Branch-only trigger for the verified durable workspace run-isolation repair.
+Trigger the pull-request workflow that applies and validates durable workspace run isolation.

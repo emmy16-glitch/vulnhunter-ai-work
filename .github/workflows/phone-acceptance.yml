@@ -84,7 +84,10 @@ jobs:
           exit 1
 
       - name: Verify phone reasoning, provider status and upload recovery
-        run: node tests/ui/phone_acceptance_e2e.cjs
+        shell: bash
+        run: |
+          set -o pipefail
+          node tests/ui/phone_acceptance_e2e.cjs 2>&1 | tee /tmp/vh-phone/acceptance.log
 
       - name: Upload phone diagnostics
         if: always()
@@ -94,6 +97,7 @@ jobs:
           path: |
             /tmp/vh-phone/screenshots
             /tmp/vh-phone/prepare.log
+            /tmp/vh-phone/acceptance.log
             /tmp/vh-phone/server.log
           if-no-files-found: warn
           retention-days: 7

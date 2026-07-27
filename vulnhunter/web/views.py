@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import sqlite3
 from pathlib import Path
 
 from django.conf import settings
@@ -15,10 +16,20 @@ from django.views.decorators.cache import cache_control
 from django.views.decorators.http import require_GET, require_http_methods
 
 from vulnhunter.agent import AgentStore, AgentStoreError
+from vulnhunter.authorization.models import AuthorizationEvent, AuthorizationRecord
 from vulnhunter.authorization.store import AuthorizationStore
-from vulnhunter.exceptions import GovernanceError
-from vulnhunter.product import ProductServiceError
-from vulnhunter.web.forms import StopRunForm, VulnHunterAuthenticationForm
+from vulnhunter.exceptions import (
+    AuthorizationError,
+    AuthorizationNotFoundError,
+    AuthorizationPolicyError,
+    GovernanceError,
+)
+from vulnhunter.product import ProductNotFoundError, ProductServiceError
+from vulnhunter.web.forms import (
+    AuthorizationRevokeForm,
+    StopRunForm,
+    VulnHunterAuthenticationForm,
+)
 from vulnhunter.web.services import (
     WebCapabilityUnavailable,
     WebPermissionDenied,
@@ -29,9 +40,11 @@ from vulnhunter.web.services import (
     governance_store,
     intelligence_status,
     list_pilot_plan_records,
+    operational_unavailable,
     product_service,
     role_policy,
-    run_visible_to_actor,
+    run_controllable_by_actor,
+    run_readable_to_actor,
     stop_agent_run,
 )
 
@@ -177,6 +190,39 @@ def status_view(request: HttpRequest) -> HttpResponse:
     )
 
 
+def _authorization_record_data(
+    authorization_id: str,
+) -> tuple[AuthorizationStore, AuthorizationRecord, tuple[AuthorizationEvent, ...]]:
+    store = AuthorizationStore.from_path(Path(settings.VULNHUNTER_AUTHORIZATION_DATABASE))
+    store.initialize()
+    authorization = store.get(authorization_id)
+    events = store.list_events(authorization_id, limit=250)
+    return store, authorization, events
+
+
+def _render_authorization_detail(
+    request: HttpRequest,
+    *,
+    authorization: AuthorizationRecord,
+    events: tuple[AuthorizationEvent, ...],
+    can_revoke: bool,
+    revoke_form: AuthorizationRevokeForm | None = None,
+    status: int = 200,
+) -> HttpResponse:
+    return _render(
+        request,
+        "web/authorization_detail.html",
+        {
+            "page_title": "Authorization Detail",
+            "authorization": authorization,
+            "events": events,
+            "can_revoke": can_revoke,
+            "revoke_form": (revoke_form if revoke_form is not None else AuthorizationRevokeForm()),
+        },
+        status=status,
+    )
+
+
 @cache_control(private=True, no_store=True)
 @login_required
 @require_GET
@@ -186,23 +232,118 @@ def authorization_list_view(request: HttpRequest) -> HttpResponse:
     except WebPermissionDenied as exc:
         return _denied(request, str(exc))
 
-    error_message = None
     try:
         store = AuthorizationStore.from_path(Path(settings.VULNHUNTER_AUTHORIZATION_DATABASE))
         store.initialize()
         authorizations = store.list(limit=250)
-    except (OSError, RuntimeError, ValueError) as exc:
-        authorizations = ()
-        error_message = str(exc)
+    except (AuthorizationError, OSError, RuntimeError, ValueError, sqlite3.Error):
+        return operational_unavailable(
+            request,
+            "Authorization records are temporarily unavailable.",
+        )
     return _render(
         request,
         "web/authorizations_overview.html",
         {
             "page_title": "Authorizations",
             "authorizations": authorizations,
-            "error_message": error_message,
         },
     )
+
+
+@cache_control(private=True, no_store=True)
+@login_required
+@require_GET
+def authorization_detail_view(
+    request: HttpRequest,
+    authorization_id: str,
+) -> HttpResponse:
+    try:
+        actor = _protected(request, required_actions=("authorization.read",))
+    except WebPermissionDenied as exc:
+        return _denied(request, str(exc))
+
+    try:
+        _, authorization, events = _authorization_record_data(authorization_id)
+    except AuthorizationNotFoundError as exc:
+        raise Http404("Authorization record not found.") from exc
+    except (AuthorizationError, OSError, RuntimeError, ValueError, sqlite3.Error):
+        return operational_unavailable(
+            request,
+            "Authorization records are temporarily unavailable.",
+        )
+
+    can_revoke = role_policy().any_role_allows(actor.product_roles, "settings.manage")
+    return _render_authorization_detail(
+        request,
+        authorization=authorization,
+        events=events,
+        can_revoke=can_revoke,
+    )
+
+
+@cache_control(private=True, no_store=True)
+@login_required
+@require_http_methods(["POST"])
+def authorization_revoke_view(
+    request: HttpRequest,
+    authorization_id: str,
+) -> HttpResponse:
+    try:
+        _protected(request, required_actions=("settings.manage",))
+    except WebPermissionDenied as exc:
+        return _denied(request, str(exc))
+
+    form = AuthorizationRevokeForm(request.POST)
+    try:
+        store, authorization, events = _authorization_record_data(authorization_id)
+    except AuthorizationNotFoundError as exc:
+        raise Http404("Authorization record not found.") from exc
+    except (AuthorizationError, OSError, RuntimeError, ValueError, sqlite3.Error):
+        return operational_unavailable(
+            request,
+            "Authorization records are temporarily unavailable.",
+        )
+
+    if not form.is_valid():
+        return _render_authorization_detail(
+            request,
+            authorization=authorization,
+            events=events,
+            can_revoke=True,
+            revoke_form=form,
+            status=400,
+        )
+
+    try:
+        store.revoke(authorization_id, reason=form.cleaned_data["reason"])
+    except AuthorizationNotFoundError as exc:
+        raise Http404("Authorization record not found.") from exc
+    except AuthorizationPolicyError as exc:
+        form.add_error(None, str(exc))
+        try:
+            _, authorization, events = _authorization_record_data(authorization_id)
+        except (AuthorizationError, OSError, RuntimeError, ValueError, sqlite3.Error):
+            return operational_unavailable(
+                request,
+                "Authorization records are temporarily unavailable.",
+            )
+        return _render_authorization_detail(
+            request,
+            authorization=authorization,
+            events=events,
+            can_revoke=authorization.status == "active",
+            revoke_form=form,
+            status=409,
+        )
+    except (AuthorizationError, OSError, RuntimeError, ValueError, sqlite3.Error):
+        return operational_unavailable(
+            request,
+            "Authorization records are temporarily unavailable.",
+        )
+
+    messages.success(request, "Authorization revoked. Future validation will fail closed.")
+    return redirect("web-authorization-detail", authorization_id=authorization_id)
 
 
 def _identity_assignments(identity_id: str) -> tuple[tuple[object, object], ...]:
@@ -220,7 +361,7 @@ def _identity_assignments(identity_id: str) -> tuple[tuple[object, object], ...]
 @require_GET
 def review_queue_view(request: HttpRequest) -> HttpResponse:
     try:
-        actor = _protected(request, required_actions=("review.read", "review.read_assigned"))
+        actor = _protected(request, required_actions=("review.read_assigned",))
     except WebPermissionDenied as exc:
         return _denied(request, str(exc))
 
@@ -231,9 +372,9 @@ def review_queue_view(request: HttpRequest) -> HttpResponse:
             for campaign, assignment in _identity_assignments(actor.governance_identity.reviewer_id)
             if actor.governance_identity.reviewer_id in assignment.primary_reviewers
         )
-    except (GovernanceError, OSError, RuntimeError) as exc:
+    except (GovernanceError, OSError, RuntimeError, ValueError, sqlite3.Error):
         assignments = ()
-        error_message = str(exc)
+        error_message = "Governance records are temporarily unavailable."
     return _render(
         request,
         "web/review_queue.html",
@@ -252,7 +393,7 @@ def adjudication_queue_view(request: HttpRequest) -> HttpResponse:
     try:
         actor = _protected(
             request,
-            required_actions=("adjudication.read", "adjudication.read_assigned"),
+            required_actions=("adjudication.read_assigned",),
         )
     except WebPermissionDenied as exc:
         return _denied(request, str(exc))
@@ -264,9 +405,9 @@ def adjudication_queue_view(request: HttpRequest) -> HttpResponse:
             for campaign, assignment in _identity_assignments(actor.governance_identity.reviewer_id)
             if assignment.adjudicator_id == actor.governance_identity.reviewer_id
         )
-    except (GovernanceError, OSError, RuntimeError) as exc:
+    except (GovernanceError, OSError, RuntimeError, ValueError, sqlite3.Error):
         assignments = ()
-        error_message = str(exc)
+        error_message = "Governance records are temporarily unavailable."
     return _render(
         request,
         "web/adjudications_overview.html",
@@ -333,9 +474,15 @@ def dataset_list_view(request: HttpRequest) -> HttpResponse:
 @require_GET
 def campaign_list_view(request: HttpRequest) -> HttpResponse:
     try:
-        _protected(request, required_actions=("campaign.read",))
+        actor = _protected(
+            request,
+            required_actions=("campaign.read", "campaign.read_summary"),
+        )
     except WebPermissionDenied as exc:
         return _denied(request, str(exc))
+    summary_only = role_policy().any_role_allows(
+        actor.product_roles, "campaign.read_summary"
+    ) and not role_policy().any_role_allows(actor.product_roles, "campaign.read")
     try:
         campaigns = product_service().list_campaigns()
     except ProductServiceError as exc:
@@ -346,7 +493,12 @@ def campaign_list_view(request: HttpRequest) -> HttpResponse:
     return _render(
         request,
         "web/campaigns.html",
-        {"page_title": "Campaigns", "campaigns": campaigns, "error_message": error},
+        {
+            "page_title": "Campaigns",
+            "campaigns": campaigns,
+            "error_message": error,
+            "summary_only": summary_only,
+        },
     )
 
 
@@ -360,8 +512,10 @@ def campaign_detail_view(request: HttpRequest, campaign_id: str) -> HttpResponse
         return _denied(request, str(exc))
     try:
         campaign = product_service().get_campaign(campaign_id)
-    except ProductServiceError as exc:
+    except ProductNotFoundError as exc:
         raise Http404(str(exc)) from exc
+    except ProductServiceError:
+        return operational_unavailable(request)
     return _render(
         request,
         "web/campaign_detail.html",
@@ -379,8 +533,10 @@ def readiness_view(request: HttpRequest, campaign_id: str) -> HttpResponse:
         return _denied(request, str(exc))
     try:
         campaign = product_service().get_campaign(campaign_id)
-    except ProductServiceError as exc:
+    except ProductNotFoundError as exc:
         raise Http404(str(exc)) from exc
+    except ProductServiceError:
+        return operational_unavailable(request)
     return _render(
         request,
         "web/readiness.html",
@@ -400,8 +556,18 @@ def role_list_view(request: HttpRequest) -> HttpResponse:
         _protected(request, required_actions=("audit.read",))
     except WebPermissionDenied as exc:
         return _denied(request, str(exc))
-    roles = product_service().list_roles()
-    return _render(request, "web/roles.html", {"page_title": "Roles", "roles": roles})
+    try:
+        roles = product_service().list_roles()
+    except ProductServiceError as exc:
+        roles = ()
+        error_message = str(exc)
+    else:
+        error_message = None
+    return _render(
+        request,
+        "web/roles.html",
+        {"page_title": "Roles", "roles": roles, "error_message": error_message},
+    )
 
 
 @cache_control(private=True, no_store=True)
@@ -414,8 +580,10 @@ def role_detail_view(request: HttpRequest, role_id: str) -> HttpResponse:
         return _denied(request, str(exc))
     try:
         role = product_service().get_role(role_id)
-    except ProductServiceError as exc:
+    except ProductNotFoundError as exc:
         raise Http404(str(exc)) from exc
+    except ProductServiceError:
+        return operational_unavailable(request)
     return _render(
         request,
         "web/role_detail.html",
@@ -431,8 +599,18 @@ def skill_list_view(request: HttpRequest) -> HttpResponse:
         _protected(request, required_actions=("audit.read",))
     except WebPermissionDenied as exc:
         return _denied(request, str(exc))
-    skills = product_service().list_skills()
-    return _render(request, "web/skills.html", {"page_title": "Skills", "skills": skills})
+    try:
+        skills = product_service().list_skills()
+    except ProductServiceError as exc:
+        skills = ()
+        error_message = str(exc)
+    else:
+        error_message = None
+    return _render(
+        request,
+        "web/skills.html",
+        {"page_title": "Skills", "skills": skills, "error_message": error_message},
+    )
 
 
 @cache_control(private=True, no_store=True)
@@ -445,8 +623,10 @@ def skill_detail_view(request: HttpRequest, skill_id: str) -> HttpResponse:
         return _denied(request, str(exc))
     try:
         skill = product_service().get_skill(skill_id)
-    except ProductServiceError as exc:
+    except ProductNotFoundError as exc:
         raise Http404(str(exc)) from exc
+    except ProductServiceError:
+        return operational_unavailable(request)
     return _render(
         request,
         "web/skill_detail.html",
@@ -464,7 +644,7 @@ def agent_run_list_view(request: HttpRequest) -> HttpResponse:
         return _denied(request, str(exc))
     try:
         runs = tuple(
-            run for run in product_service().list_agent_runs() if run_visible_to_actor(run, actor)
+            run for run in product_service().list_agent_runs() if run_readable_to_actor(run, actor)
         )
     except ProductServiceError as exc:
         runs = ()
@@ -488,9 +668,11 @@ def agent_activity_view(request: HttpRequest, run_id: str) -> JsonResponse:
         return JsonResponse({"detail": "forbidden"}, status=403)
     try:
         run = product_service().get_agent_run(run_id)
-    except ProductServiceError as exc:
+    except ProductNotFoundError as exc:
         raise Http404(str(exc)) from exc
-    if not run_visible_to_actor(run, actor):
+    except ProductServiceError:
+        return JsonResponse({"detail": "assessment service unavailable"}, status=503)
+    if not run_readable_to_actor(run, actor):
         raise Http404("Assessment run does not exist.")
     try:
         after_sequence = _after_sequence_or_400(request)
@@ -509,9 +691,11 @@ def stop_run_view(request: HttpRequest, run_id: str) -> HttpResponse:
         return _denied(request, str(exc))
     try:
         run = product_service().get_agent_run(run_id)
-    except ProductServiceError as exc:
+    except ProductNotFoundError as exc:
         raise Http404(str(exc)) from exc
-    if not run_visible_to_actor(run, actor):
+    except ProductServiceError:
+        return operational_unavailable(request)
+    if not run_controllable_by_actor(run, actor):
         raise Http404("Assessment run does not exist.")
 
     controls = control_availability(request.user, run.current_state, run.approval_state.value)

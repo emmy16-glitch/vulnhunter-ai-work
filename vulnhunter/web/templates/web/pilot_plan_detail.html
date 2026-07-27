@@ -2,7 +2,7 @@
 {% block content %}
 <section class="vh-card">
   {% if record.plan %}
-    <h3>{{ record.plan.title }}</h3>
+    <h1>{{ record.plan.title }}</h1>
     <p>{{ record.plan.purpose }}</p>
     <ul class="vh-key-value-list">
       <li><strong>Plan ID</strong><code>{{ record.plan.plan_id }}</code></li>
@@ -20,7 +20,7 @@
     </ul>
     <p><a href="{% url 'web-pilot-plan-validation' record.plan_id %}">Open validation result</a></p>
   {% else %}
-    <h3>Invalid pilot plan</h3>
+    <h1>Invalid pilot plan</h1>
     <p class="vh-empty-state">{{ record.error }}</p>
   {% endif %}
 </section>

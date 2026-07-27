@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sqlite3
 from collections import Counter
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -50,6 +51,10 @@ class ProductServiceError(RuntimeError):
     """Base error for the product application layer."""
 
 
+class ProductNotFoundError(ProductServiceError):
+    """Raised when a requested product object does not exist."""
+
+
 @dataclass(frozen=True)
 class ProductPaths:
     """Repository and local store locations used by the product layer."""
@@ -82,36 +87,54 @@ class ProductApplicationService:
 
         try:
             runtime = load_runtime_config(self.paths.runtime_config)
-        except RuntimeConfigError as exc:
+        except RuntimeConfigError:
             agent_runtime = CapabilityStatus(
                 name="agent_runtime",
                 state=AvailabilityState.INVALID,
-                detail=str(exc),
+                detail="Bounded runtime configuration is invalid or unavailable.",
             )
         else:
             runtime_fingerprint = runtime_config_fingerprint(runtime)
-            try:
-                agent_store = self._open_agent_store(required=True)
-                task_count = len(agent_store.list_tasks())
-            except (ProductServiceError, AgentStoreError) as exc:
+            agent_store_path = self.paths.agent_database.expanduser().resolve()
+            if not agent_store_path.is_file():
                 agent_runtime = CapabilityStatus(
                     name="agent_runtime",
                     state=AvailabilityState.INVALID,
-                    detail=f"Bounded runtime store is unavailable: {exc}",
+                    detail="Agent store is missing.",
                     evidence_reference=runtime_fingerprint,
                 )
             else:
-                agent_runtime = CapabilityStatus(
-                    name="agent_runtime",
-                    state=(
-                        AvailabilityState.EMPTY if task_count == 0 else AvailabilityState.AVAILABLE
-                    ),
-                    detail=(
-                        "Bounded runtime configuration and schema-versioned store are available. "
-                        "Connectors, unrestricted shell, and public scanning remain disabled."
-                    ),
-                    evidence_reference=runtime_fingerprint,
-                )
+                try:
+                    agent_store = self._open_agent_store(required=True)
+                    task_count = len(agent_store.list_tasks())
+                except (
+                    ProductServiceError,
+                    AgentStoreError,
+                    OSError,
+                    ValueError,
+                    sqlite3.Error,
+                ):
+                    agent_runtime = CapabilityStatus(
+                        name="agent_runtime",
+                        state=AvailabilityState.INVALID,
+                        detail="Bounded runtime storage is invalid or unavailable.",
+                        evidence_reference=runtime_fingerprint,
+                    )
+                else:
+                    agent_runtime = CapabilityStatus(
+                        name="agent_runtime",
+                        state=(
+                            AvailabilityState.EMPTY
+                            if task_count == 0
+                            else AvailabilityState.AVAILABLE
+                        ),
+                        detail=(
+                            "Bounded runtime configuration and schema-versioned "
+                            "store are available. Connectors, unrestricted shell, "
+                            "and public scanning remain disabled."
+                        ),
+                        evidence_reference=runtime_fingerprint,
+                    )
 
         role_registry_status = self._role_registry_status()
         authorization_status = self._authorization_store_status()
@@ -136,7 +159,10 @@ class ProductApplicationService:
         if governance is None:
             return DashboardSummary(status=status)
 
-        campaigns = governance.list_campaigns()
+        try:
+            campaigns = governance.list_campaigns()
+        except (GovernanceError, OSError, RuntimeError, ValueError, sqlite3.Error):
+            return DashboardSummary(status=status)
         totals = dict(Counter(campaign.status for campaign in campaigns))
         pending_reviews = 0
         pending_adjudications = 0
@@ -164,10 +190,17 @@ class ProductApplicationService:
 
         agent_store = self._open_agent_store()
         if agent_store is not None:
-            pending_human_approvals = sum(
-                task.status == TaskStatus.PAUSED_APPROVAL for task in agent_store.list_tasks()
-            )
-            for event in agent_store.list_recent_events(limit=5):
+            try:
+                tasks = agent_store.list_tasks()
+                recent_agent_events = agent_store.list_recent_events(limit=5)
+            except (AgentStoreError, OSError, ValueError, sqlite3.Error):
+                tasks = ()
+                recent_agent_events = ()
+            else:
+                pending_human_approvals = sum(
+                    task.status == TaskStatus.PAUSED_APPROVAL for task in tasks
+                )
+            for event in recent_agent_events:
                 audit_activity.append(
                     AuditActivitySummary(
                         source="agent",
@@ -178,7 +211,11 @@ class ProductApplicationService:
                     )
                 )
 
-        for event in governance.list_events(limit=5):
+        try:
+            recent_governance_events = governance.list_events(limit=5)
+        except (GovernanceError, OSError, RuntimeError, ValueError, sqlite3.Error):
+            recent_governance_events = ()
+        for event in recent_governance_events:
             audit_activity.append(
                 AuditActivitySummary(
                     source="governance",
@@ -204,17 +241,42 @@ class ProductApplicationService:
         )
 
     def list_campaigns(self) -> tuple[CampaignSummary, ...]:
-        governance = self._open_governance_store(required=True)
-        return tuple(
-            self._campaign_summary(campaign.campaign_id) for campaign in governance.list_campaigns()
-        )
+        try:
+            governance = self._open_governance_store(required=True)
+            return tuple(
+                self._campaign_summary(campaign.campaign_id)
+                for campaign in governance.list_campaigns()
+            )
+        except (
+            ProductServiceError,
+            GovernanceError,
+            OSError,
+            RuntimeError,
+            ValueError,
+            sqlite3.Error,
+        ) as exc:
+            raise ProductServiceError("Campaign records could not be loaded safely.") from exc
 
     def get_campaign(self, campaign_id: str) -> CampaignDetail:
-        governance = self._open_governance_store(required=True)
-        campaign = governance.get_campaign(campaign_id)
-        applications = governance.list_applications(campaign_id)
-        scans = governance.list_scans(campaign_id)
-        assignments = governance.list_assignments(campaign_id)
+        try:
+            governance = self._open_governance_store(required=True)
+            campaign = governance.get_campaign(campaign_id)
+            applications = governance.list_applications(campaign_id)
+            scans = governance.list_scans(campaign_id)
+            assignments = governance.list_assignments(campaign_id)
+        except GovernanceNotFoundError as exc:
+            raise ProductNotFoundError(f"Campaign {campaign_id!r} does not exist.") from exc
+        except (
+            ProductServiceError,
+            GovernanceError,
+            OSError,
+            RuntimeError,
+            ValueError,
+            sqlite3.Error,
+        ) as exc:
+            raise ProductServiceError(
+                f"Campaign {campaign_id!r} could not be loaded safely."
+            ) from exc
         authorizations = self._load_authorizations(applications)
         scope_summary = tuple(
             sorted(
@@ -285,12 +347,20 @@ class ProductApplicationService:
         )
 
     def list_roles(self) -> tuple[RoleSummary, ...]:
-        registry = self._load_registry(required=True)
-        return tuple(self._role_summary(role) for role in registry.roles)
+        try:
+            registry = self._load_registry(required=True)
+            return tuple(self._role_summary(role) for role in registry.roles)
+        except (ProductServiceError, RegistryError, OSError, ValueError) as exc:
+            raise ProductServiceError("Role registry could not be read safely.") from exc
 
     def get_role(self, role_id: str) -> RoleDetail:
-        registry = self._load_registry(required=True)
-        role = registry.get_role(role_id)
+        try:
+            registry = self._load_registry(required=True)
+            role = registry.get_role(role_id)
+        except RegistryError as exc:
+            raise ProductNotFoundError(f"Role {role_id!r} does not exist.") from exc
+        except (ProductServiceError, OSError, ValueError) as exc:
+            raise ProductServiceError(f"Role {role_id!r} could not be loaded safely.") from exc
         summary = self._role_summary(role)
         return RoleDetail(
             **summary.model_dump(),
@@ -305,12 +375,20 @@ class ProductApplicationService:
         )
 
     def list_skills(self) -> tuple[SkillSummary, ...]:
-        registry = self._load_registry(required=True)
-        return tuple(self._skill_summary(skill) for skill in registry.skills)
+        try:
+            registry = self._load_registry(required=True)
+            return tuple(self._skill_summary(skill) for skill in registry.skills)
+        except (ProductServiceError, RegistryError, OSError, ValueError) as exc:
+            raise ProductServiceError("Skill registry could not be read safely.") from exc
 
     def get_skill(self, skill_id: str) -> SkillDetail:
-        registry = self._load_registry(required=True)
-        skill = registry.get_skill(skill_id)
+        try:
+            registry = self._load_registry(required=True)
+            skill = registry.get_skill(skill_id)
+        except RegistryError as exc:
+            raise ProductNotFoundError(f"Skill {skill_id!r} does not exist.") from exc
+        except (ProductServiceError, OSError, ValueError) as exc:
+            raise ProductServiceError(f"Skill {skill_id!r} could not be loaded safely.") from exc
         summary = self._skill_summary(skill)
         return SkillDetail(
             **summary.model_dump(),
@@ -320,8 +398,11 @@ class ProductApplicationService:
         )
 
     def list_agent_runs(self) -> tuple[AgentRunSummary, ...]:
-        store = self._open_agent_store(required=True)
-        return tuple(self._agent_run_summary(task.task_id) for task in store.list_tasks())
+        try:
+            store = self._open_agent_store(required=True)
+            return tuple(self._agent_run_summary(task.task_id) for task in store.list_tasks())
+        except (ProductServiceError, AgentStoreError, OSError, ValueError, sqlite3.Error) as exc:
+            raise ProductServiceError("Assessment runs could not be loaded safely.") from exc
 
     def get_agent_run(self, run_id: str) -> AgentRunDetail:
         try:
@@ -330,7 +411,11 @@ class ProductApplicationService:
             events = store.list_events(run_id)
             summary = self._agent_run_summary(run_id)
         except AgentStoreError as exc:
-            raise ProductServiceError(str(exc)) from exc
+            if str(exc).startswith("Unknown task:"):
+                raise ProductNotFoundError(f"Assessment run {run_id!r} does not exist.") from exc
+            raise ProductServiceError("Assessment run could not be loaded safely.") from exc
+        except (ProductServiceError, OSError, ValueError, sqlite3.Error) as exc:
+            raise ProductServiceError("Assessment run could not be loaded safely.") from exc
         planner_output = None
         recent_events = []
         for event in events[-10:]:
@@ -779,16 +864,16 @@ class ProductApplicationService:
             return CapabilityStatus(
                 name="authorization_store",
                 state=AvailabilityState.MISSING,
-                detail=f"Authorization store is missing: {path}",
+                detail="Authorization storage is not initialised.",
             )
         try:
             store = AuthorizationStore.from_path(path)
             records = store.list(limit=1)
-        except Exception as exc:
+        except Exception:
             return CapabilityStatus(
                 name="authorization_store",
                 state=AvailabilityState.INVALID,
-                detail=f"Authorization store could not be read safely: {exc}",
+                detail="Authorization storage is invalid or unavailable.",
             )
         return CapabilityStatus(
             name="authorization_store",
@@ -798,7 +883,6 @@ class ProductApplicationService:
                 if not records
                 else "Authorization store is available."
             ),
-            evidence_reference=str(path),
         )
 
     def _governance_store_status(self) -> CapabilityStatus:
@@ -807,16 +891,16 @@ class ProductApplicationService:
             return CapabilityStatus(
                 name="governance_store",
                 state=AvailabilityState.MISSING,
-                detail=f"Governance store is missing: {path}",
+                detail="Governance storage is not initialised.",
             )
         try:
             store = GovernanceStore.from_path(path)
             campaigns = store.list_campaigns()
-        except Exception as exc:
+        except Exception:
             return CapabilityStatus(
                 name="governance_store",
                 state=AvailabilityState.INVALID,
-                detail=f"Governance store could not be read safely: {exc}",
+                detail="Governance storage is invalid or unavailable.",
             )
         return CapabilityStatus(
             name="governance_store",
@@ -826,17 +910,16 @@ class ProductApplicationService:
                 if not campaigns
                 else "Governance store is available."
             ),
-            evidence_reference=str(path),
         )
 
     def _role_registry_status(self) -> CapabilityStatus:
         try:
             registry = self._load_registry(required=True)
-        except ProductServiceError as exc:
+        except ProductServiceError:
             return CapabilityStatus(
                 name="role_registry",
                 state=AvailabilityState.INVALID,
-                detail=str(exc),
+                detail="Role and skill registry is invalid or unavailable.",
             )
         report = registry.validate()
         detail = "Role and skill registry loaded."
@@ -871,9 +954,9 @@ class ProductApplicationService:
         if governance is not None:
             try:
                 governance.verify_integrity()
-            except Exception as exc:
+            except Exception:
                 states.append(AvailabilityState.INVALID)
-                messages.append(f"governance audit invalid: {exc}")
+                messages.append("governance audit invalid")
             else:
                 states.append(AvailabilityState.AVAILABLE)
                 messages.append("governance audit verified")
@@ -883,9 +966,9 @@ class ProductApplicationService:
             try:
                 for task in agent_store.list_tasks():
                     agent_store.verify_integrity(task.task_id)
-            except Exception as exc:
+            except Exception:
                 states.append(AvailabilityState.INVALID)
-                messages.append(f"agent audit invalid: {exc}")
+                messages.append("agent audit invalid")
             else:
                 states.append(AvailabilityState.AVAILABLE)
                 messages.append("agent audit verified")

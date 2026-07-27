@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import sqlite3
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 from django.conf import settings
+from django.http import HttpRequest, HttpResponse
+from django.shortcuts import render
 
 from vulnhunter.agent.config import load_runtime_config
 from vulnhunter.agent.controller import AgentController, AgentRuntime
@@ -17,7 +20,7 @@ from vulnhunter.agent.tools import ToolRegistry
 from vulnhunter.agent_activity.read_models import snapshot_to_public_dict
 from vulnhunter.agent_activity.service import AgentActivityService
 from vulnhunter.agent_activity.store import ActivityStoreError, AppendOnlyActivityStore
-from vulnhunter.exceptions import GovernanceNotFoundError
+from vulnhunter.exceptions import GovernanceError, GovernanceNotFoundError
 from vulnhunter.governance.models import ReviewerIdentity
 from vulnhunter.governance.store import GovernanceStore
 from vulnhunter.pilot import PilotPlan, PilotPlanLoadError, assess_pilot_plan, load_pilot_plan
@@ -44,13 +47,64 @@ class WebCapabilityUnavailable(RuntimeError):
 
 
 def run_visible_to_actor(run: object, actor: object) -> bool:
-    """Keep assessment workflow records scoped to their governed creator."""
+    """Keep owner-scoped workflow records limited to their governed creator."""
 
     owner = getattr(run, "assessment_owner", None)
     if owner is None:
         return True
     identity = getattr(getattr(actor, "governance_identity", None), "reviewer_id", None)
     return owner == identity
+
+
+def actor_can_read_cross_scope(actor: object) -> bool:
+    """Return whether an actor may read assessment records across owners."""
+
+    roles = tuple(
+        str(item) for item in getattr(actor, "product_roles", ()) if isinstance(item, str)
+    )
+    if not roles:
+        return False
+    return role_policy().any_role_allows(
+        roles,
+        "settings.manage",
+        "campaign.approve",
+        "audit.read",
+    )
+
+
+def run_readable_to_actor(run: object, actor: object) -> bool:
+    """Apply the shared owner-or-governed-cross-scope read contract."""
+
+    return run_visible_to_actor(run, actor) or actor_can_read_cross_scope(actor)
+
+
+def run_controllable_by_actor(run: object, actor: object) -> bool:
+    """Allow cross-owner controls only to system administrators."""
+
+    if run_visible_to_actor(run, actor):
+        return True
+    roles = tuple(
+        str(item) for item in getattr(actor, "product_roles", ()) if isinstance(item, str)
+    )
+    return bool(roles and role_policy().any_role_allows(roles, "settings.manage"))
+
+
+def operational_unavailable(
+    request: HttpRequest,
+    message: str = "A required backend service is temporarily unavailable. Retry later.",
+) -> HttpResponse:
+    """Return a safe 503 page without exposing internal storage details."""
+
+    return render(
+        request,
+        "web/unavailable.html",
+        {
+            "page_title": "Temporarily Unavailable",
+            "current_route": (request.resolver_match.url_name if request.resolver_match else ""),
+            "unavailable_message": message,
+        },
+        status=503,
+    )
 
 
 @dataclass(frozen=True)
@@ -189,6 +243,10 @@ def authorized_actor(user: Any, *, required_actions: tuple[str, ...]) -> Authori
         identity = governance_store().get_identity(mapping.governance_identity_id)
     except GovernanceNotFoundError as exc:
         raise WebPermissionDenied("The mapped governed identity does not exist.") from exc
+    except (GovernanceError, OSError, RuntimeError, ValueError, sqlite3.Error) as exc:
+        raise WebPermissionDenied(
+            "Governed identity verification is temporarily unavailable."
+        ) from exc
     if identity.status != "active":
         raise WebPermissionDenied("The mapped governed identity is not active.")
 
@@ -258,6 +316,8 @@ def stop_agent_run(user: Any, *, run_id: str, reason: str) -> None:
     actor = authorized_actor(user, required_actions=("scan.cancel", "settings.manage"))
     service = product_service()
     run = service.get_agent_run(run_id)
+    if not run_controllable_by_actor(run, actor):
+        raise WebPermissionDenied("Assessment run does not exist.")
     if run.current_state in {"completed", "failed", "cancelled", "stopped", "blocked"}:
         raise WebCapabilityUnavailable("The run is already in a terminal state.")
 
@@ -351,7 +411,11 @@ def navigation_for(user: Any) -> tuple[dict[str, object], ...]:
             "url_name": "web-authorization-list",
             "icon": "authorization",
             "actions": ("authorization.read",),
-            "active_routes": ("web-authorization-list",),
+            "active_routes": (
+                "web-authorization-list",
+                "web-authorization-detail",
+                "web-authorization-revoke",
+            ),
         },
         "scan-runs": {
             "url_name": "web-scan-run-list",
@@ -391,13 +455,13 @@ def navigation_for(user: Any) -> tuple[dict[str, object], ...]:
         "review-queue": {
             "url_name": "web-review-queue",
             "icon": "review",
-            "actions": ("review.read", "review.read_assigned"),
+            "actions": ("review.read_assigned",),
             "active_routes": ("web-review-queue", "web-review-detail"),
         },
         "adjudication-queue": {
             "url_name": "web-adjudication-queue",
             "icon": "scale",
-            "actions": ("adjudication.read", "adjudication.read_assigned"),
+            "actions": ("adjudication.read_assigned",),
             "active_routes": ("web-adjudication-queue", "web-adjudication-detail"),
         },
         "campaigns": {
@@ -428,7 +492,7 @@ def navigation_for(user: Any) -> tuple[dict[str, object], ...]:
         "models": {
             "url_name": "web-model-list",
             "icon": "model",
-            "actions": ("model.read", "audit.read"),
+            "actions": ("model.read",),
             "active_routes": ("web-model-list", "web-model-detail"),
         },
         "audit": {
@@ -480,6 +544,10 @@ def navigation_for(user: Any) -> tuple[dict[str, object], ...]:
                 raise WebCapabilityUnavailable(
                     f"Navigation page {page_id!r} has no Django route binding."
                 ) from exc
+            page = spec.page(page_id)
+            allowed_roles = {str(item) for item in page.get("allowed_roles", ())}
+            if not any(role_id in allowed_roles for role_id in roles):
+                continue
             actions = tuple(str(item) for item in binding["actions"])
             if not policy.any_role_allows(roles, *actions):
                 continue

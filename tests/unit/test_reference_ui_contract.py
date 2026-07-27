@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 
 import pytest
+from django.urls import resolve
 
 ROOT = Path(__file__).resolve().parents[2]
 WEB = ROOT / "vulnhunter" / "web"
@@ -15,6 +16,7 @@ BASE = TEMPLATES / "base.html"
 CSS = STATIC / "workspace-polish.css"
 SCRIPT = STATIC / "workspace-state.js"
 BLUEPRINT_NAVIGATION = ROOT / "config" / "product_interface" / "navigation.json"
+BLUEPRINT_PAGES = ROOT / "config" / "product_interface" / "pages.json"
 URLS = WEB / "urls.py"
 AUDIT_VIEWS = WEB / "audit_views.py"
 FINDINGS_VIEWS = WEB / "findings_views.py"
@@ -61,10 +63,26 @@ def test_canonical_navigation_matches_the_unified_product():
     assert len(labels) == len(set(labels))
 
 
+def test_every_blueprint_page_route_resolves_to_the_runtime_router():
+    pages = json.loads(_text(BLUEPRINT_PAGES))["pages"]
+    for page in pages:
+        segments = [
+            "contract-sample" if segment.startswith(":") else segment
+            for segment in page["route"].split("/")
+        ]
+        runtime_path = "/".join(segments) or "/"
+        if runtime_path != "/" and not runtime_path.endswith("/"):
+            runtime_path += "/"
+        match = resolve(runtime_path)
+        assert match.url_name, (page["page_id"], runtime_path)
+
+
 def test_canonical_routes_and_legacy_aliases_are_explicit():
     urls = _text(URLS)
     for route_name in (
         "web-authorization-list",
+        "web-authorization-detail",
+        "web-authorization-revoke",
         "web-new-scan",
         "web-scan-run-list",
         "web-scan-run-detail",
@@ -414,7 +432,6 @@ def test_navigation_is_filtered_by_product_role():
     labels = {str(item["label"]) for item in canonical_navigation(user)}
     assert labels == {
         "Assessment Workspace",
-        "Findings",
         "Review Queue",
         "Reports",
         "Settings",

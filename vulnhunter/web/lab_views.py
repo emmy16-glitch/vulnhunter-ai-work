@@ -28,7 +28,7 @@ from vulnhunter.web.services import (
     activity_payload,
     authorized_actor,
     product_service,
-    run_visible_to_actor,
+    run_readable_to_actor,
 )
 
 _STEP_UP_SESSION_KEY = "vulnhunter_lab_step_up"
@@ -91,7 +91,7 @@ def _assessment_for_actor(request: HttpRequest, assessment_id: str):
         raise
     except ProductServiceError as exc:
         raise Http404(str(exc)) from exc
-    if not run_visible_to_actor(run, actor):
+    if not run_readable_to_actor(run, actor):
         raise Http404("Assessment run does not exist.")
     return actor, run
 

@@ -501,12 +501,12 @@ def message_view(request: HttpRequest) -> JsonResponse:
             identity_id=actor.governance_identity.reviewer_id,
             username=request.user.get_username(),
         )
-    except (OSError, RuntimeError, ValueError) as exc:
+    except (OSError, RuntimeError, ValueError):
         message = _append_message(
             request,
             role="assistant",
             kind="error",
-            content=f"The authorization service is unavailable: {exc}",
+            content="The authorization service is temporarily unavailable.",
         )
         return JsonResponse({"message": message}, status=503)
 
@@ -576,7 +576,7 @@ def message_view(request: HttpRequest) -> JsonResponse:
                 actor_id=actor.governance_identity.reviewer_id,
                 reason="Confirmed in the conversation for this exact authorised passive plan.",
             )
-        except (ApprovalConflictError, ApprovalStoreError, AssessmentWorkflowError) as exc:
+        except (ApprovalConflictError, AssessmentWorkflowError) as exc:
             message = _append_message(
                 request,
                 role="assistant",
@@ -584,6 +584,14 @@ def message_view(request: HttpRequest) -> JsonResponse:
                 content=str(exc),
             )
             return JsonResponse({"message": message}, status=409)
+        except (ApprovalStoreError, OSError, RuntimeError, ValueError):
+            message = _append_message(
+                request,
+                role="assistant",
+                kind="error",
+                content="The approval service is temporarily unavailable.",
+            )
+            return JsonResponse({"message": message}, status=503)
         state = _sync_state_from_run(request, state, refreshed)
         payload = _run_payload(refreshed)
         copy = (
@@ -763,7 +771,7 @@ def message_view(request: HttpRequest) -> JsonResponse:
         except WebPermissionDenied as exc:
             message = _append_message(request, role="assistant", kind="error", content=str(exc))
             return JsonResponse({"message": message}, status=403)
-        except (ConversationalAuthorizationError, OSError, RuntimeError, ValueError) as exc:
+        except ConversationalAuthorizationError as exc:
             state.update({"target": canonical, "profile": interpreted.profile or "passive"})
             _save_state(request, state)
             message = _append_message(
@@ -784,6 +792,14 @@ def message_view(request: HttpRequest) -> JsonResponse:
                 },
             )
             return JsonResponse({"message": message})
+        except (OSError, RuntimeError, ValueError):
+            message = _append_message(
+                request,
+                role="assistant",
+                kind="error",
+                content="The authorization service is temporarily unavailable.",
+            )
+            return JsonResponse({"message": message}, status=503)
         for item in choices:
             if any(canonical_target(value) == canonical for value in item.approved_targets):
                 matched = item
@@ -867,7 +883,7 @@ def message_view(request: HttpRequest) -> JsonResponse:
             identity_id=actor.governance_identity.reviewer_id,
             username=request.user.get_username(),
         )
-    except (AssessmentWorkflowError, OSError, RuntimeError, ValueError) as exc:
+    except AssessmentWorkflowError as exc:
         message = _append_message(
             request,
             role="assistant",
@@ -875,6 +891,14 @@ def message_view(request: HttpRequest) -> JsonResponse:
             content=str(exc),
         )
         return JsonResponse({"message": message}, status=409)
+    except (OSError, RuntimeError, ValueError):
+        message = _append_message(
+            request,
+            role="assistant",
+            kind="error",
+            content="The assessment service is temporarily unavailable.",
+        )
+        return JsonResponse({"message": message}, status=503)
 
     run = product_service().get_agent_run(result.task.task_id)
     state = {

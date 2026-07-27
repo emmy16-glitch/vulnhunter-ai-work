@@ -7,6 +7,8 @@ const manifestPath = process.env.VULNHUNTER_UI_MANIFEST;
 const outputRoot = process.env.VULNHUNTER_UI_OUTPUT || "/tmp/vulnhunter-ui-audit";
 if (!manifestPath) throw new Error("VULNHUNTER_UI_MANIFEST is required");
 const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+const navigationTimeoutMs = Number(process.env.VULNHUNTER_UI_NAVIGATION_TIMEOUT_MS || 15000);
+const actionTimeoutMs = Number(process.env.VULNHUNTER_UI_ACTION_TIMEOUT_MS || 10000);
 const viewports = [
   { name: "reference-1672", width: 1672, height: 941 },
   { name: "desktop-1440", width: 1440, height: 900 },
@@ -19,17 +21,25 @@ function safeName(value) {
   return value.replace(/[^a-zA-Z0-9._-]+/g, "-");
 }
 
+function persistReport(report) {
+  fs.writeFileSync(
+    path.join(outputRoot, "validation-report.json"),
+    JSON.stringify(report, null, 2),
+  );
+}
+
+const report = {
+  pages: [],
+  modals: [],
+  consoleErrors: [],
+  pageErrors: [],
+  assetFailures: [],
+  failures: [],
+};
+
 (async () => {
   fs.mkdirSync(outputRoot, { recursive: true });
   const browser = await chromium.launch({ headless: true });
-  const report = {
-    pages: [],
-    modals: [],
-    consoleErrors: [],
-    pageErrors: [],
-    assetFailures: [],
-    failures: [],
-  };
   const contextCache = new Map();
 
   async function contextFor(viewport, personaName) {
@@ -41,15 +51,26 @@ function safeName(value) {
       reducedMotion: "reduce",
     });
     const page = await context.newPage();
+    page.setDefaultTimeout(actionTimeoutMs);
+    page.setDefaultNavigationTimeout(navigationTimeoutMs);
     const persona = manifest.personas[personaName];
-    const login = await page.goto(`${baseUrl}/login/`, { waitUntil: "networkidle" });
+    const login = await page.goto(`${baseUrl}/login/`, {
+      waitUntil: "domcontentloaded",
+      timeout: navigationTimeoutMs,
+    });
     if (!login || login.status() >= 400) {
       throw new Error(`Login page failed for ${personaName}`);
     }
     await page.getByLabel("Username").fill(persona.username);
     await page.getByLabel("Password").fill(persona.password);
     await Promise.all([
-      page.waitForURL(`${baseUrl}/`),
+      page.waitForURL(
+        (url) => new URL(url).pathname !== "/login/",
+        {
+          waitUntil: "domcontentloaded",
+          timeout: navigationTimeoutMs,
+        },
+      ),
       page.getByRole("button", { name: /sign in securely/i }).click(),
     ]);
     await page.close();
@@ -60,8 +81,24 @@ function safeName(value) {
   for (const pageDefinition of manifest.pages) {
     const targets = pageDefinition.responsive ? viewports : [viewports[1]];
     for (const viewport of targets) {
-      const context = await contextFor(viewport, pageDefinition.persona);
+      let context;
+      try {
+        context = await contextFor(viewport, pageDefinition.persona);
+      } catch (error) {
+        const routeKey = `${pageDefinition.name}:${viewport.name}`;
+        report.failures.push(`${routeKey} login failed: ${error.message}`);
+        report.pages.push({
+          ...pageDefinition,
+          viewport: viewport.name,
+          status: 0,
+          loginError: error.message,
+        });
+        persistReport(report);
+        continue;
+      }
       const page = await context.newPage();
+      page.setDefaultTimeout(actionTimeoutMs);
+      page.setDefaultNavigationTimeout(navigationTimeoutMs);
       const routeKey = `${pageDefinition.name}:${viewport.name}`;
       console.log(`Auditing ${routeKey}`);
       page.on("console", (message) => {
@@ -82,12 +119,29 @@ function safeName(value) {
         }
       });
 
-      const response = await page.goto(`${baseUrl}${pageDefinition.path}`, {
-        waitUntil: "networkidle",
-      });
-      await page.waitForTimeout(150);
+      let response;
+      try {
+        response = await page.goto(`${baseUrl}${pageDefinition.path}`, {
+          waitUntil: "domcontentloaded",
+          timeout: navigationTimeoutMs,
+        });
+        await page.locator("body").waitFor({ state: "visible", timeout: actionTimeoutMs });
+        await page.waitForTimeout(150);
+      } catch (error) {
+        report.failures.push(`${routeKey} navigation failed: ${error.message}`);
+        report.pages.push({
+          ...pageDefinition,
+          viewport: viewport.name,
+          status: 0,
+          navigationError: error.message,
+        });
+        persistReport(report);
+        await page.close();
+        continue;
+      }
 
-      const openDialog = page.locator("dialog[open]").first();
+      try {
+        const openDialog = page.locator("dialog[open]").first();
       if ((await openDialog.count()) > 0) {
         const modalAudit = await openDialog.evaluate((dialog) => {
           const style = getComputedStyle(dialog);
@@ -306,14 +360,20 @@ function safeName(value) {
           `${routeKey} mobile navigation is not closed with a visible toggle`,
         );
       }
-      await page.screenshot({
-        path: path.join(
-          outputRoot,
-          `${safeName(pageDefinition.name)}-${viewport.name}.png`,
-        ),
-        fullPage: true,
-      });
-      await page.close();
+        await page.screenshot({
+          path: path.join(
+            outputRoot,
+            `${safeName(pageDefinition.name)}-${viewport.name}.png`,
+          ),
+          fullPage: true,
+          timeout: actionTimeoutMs,
+        });
+      } catch (error) {
+        report.failures.push(`${routeKey} audit failed: ${error.message}`);
+      } finally {
+        persistReport(report);
+        await page.close();
+      }
     }
   }
 
@@ -328,10 +388,7 @@ function safeName(value) {
   if (report.assetFailures.length) {
     report.failures.push(`${report.assetFailures.length} failed static asset response(s)`);
   }
-  fs.writeFileSync(
-    path.join(outputRoot, "validation-report.json"),
-    JSON.stringify(report, null, 2),
-  );
+  persistReport(report);
   console.log(
     JSON.stringify(
       { pages: report.pages.length, modals: report.modals.length, failures: report.failures },
@@ -341,6 +398,8 @@ function safeName(value) {
   );
   if (report.failures.length) process.exitCode = 1;
 })().catch((error) => {
+  report.failures.push(`Fatal browser audit failure: ${error.message}`);
+  persistReport(report);
   console.error(error);
   process.exitCode = 1;
 });

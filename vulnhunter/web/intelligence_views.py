@@ -95,7 +95,7 @@ def _denied(request: HttpRequest, message: str) -> HttpResponse:
 @require_GET
 def model_list_view(request: HttpRequest) -> HttpResponse:
     try:
-        authorized_actor(request.user, required_actions=("model.read", "audit.read"))
+        authorized_actor(request.user, required_actions=("model.read",))
     except WebPermissionDenied as exc:
         return _denied(request, str(exc))
 
@@ -115,7 +115,7 @@ def model_list_view(request: HttpRequest) -> HttpResponse:
 @require_GET
 def model_detail_view(request: HttpRequest, component_id: str) -> HttpResponse:
     try:
-        authorized_actor(request.user, required_actions=("model.read", "audit.read"))
+        authorized_actor(request.user, required_actions=("model.read",))
     except WebPermissionDenied as exc:
         return _denied(request, str(exc))
 

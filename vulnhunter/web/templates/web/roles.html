@@ -6,6 +6,8 @@
   </header>
   <p class="vh-visually-hidden">Specialist instructions do not make a role automatically trustworthy</p>
 
+  {% if error_message %}<section class="vh-operational-notice is-danger"><strong>Role registry unavailable</strong><p>{{ error_message }}</p></section>{% endif %}
+
   <section class="vh-summary-strip"><article class="vh-summary-item"><small>Roles</small><strong>{{ roles|length }}</strong><span>Registry entries</span></article><article class="vh-summary-item"><small>Trust</small><strong>Explicit</strong><span>No role is trusted by name alone</span></article></section>
 
   <section class="vh-surface">

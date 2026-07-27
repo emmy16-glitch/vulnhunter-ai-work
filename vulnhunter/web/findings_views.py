@@ -11,7 +11,7 @@ from vulnhunter.web.services import (
     WebPermissionDenied,
     authorized_actor,
     product_service,
-    run_visible_to_actor,
+    run_readable_to_actor,
 )
 
 
@@ -42,7 +42,7 @@ def findings_overview_view(request: HttpRequest) -> HttpResponse:
     error_message = None
     try:
         service = product_service()
-        runs = tuple(run for run in service.list_agent_runs() if run_visible_to_actor(run, actor))
+        runs = tuple(run for run in service.list_agent_runs() if run_readable_to_actor(run, actor))
         for summary in runs:
             detail = service.get_agent_run(summary.run_id)
             for finding in detail.findings:

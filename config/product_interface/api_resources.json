@@ -169,8 +169,6 @@
             "system-administrator",
             "campaign-operator",
             "campaign-approver",
-            "reviewer",
-            "adjudicator",
             "security-auditor"
           ],
           "method": "GET",
@@ -182,8 +180,6 @@
             "system-administrator",
             "campaign-operator",
             "campaign-approver",
-            "reviewer",
-            "adjudicator",
             "security-auditor"
           ],
           "method": "GET",
@@ -513,6 +509,8 @@
             "system-administrator",
             "campaign-operator",
             "campaign-approver",
+            "reviewer",
+            "adjudicator",
             "security-auditor",
             "model-analyst",
             "read-only-observer"
@@ -526,6 +524,8 @@
             "system-administrator",
             "campaign-operator",
             "campaign-approver",
+            "reviewer",
+            "adjudicator",
             "security-auditor",
             "model-analyst"
           ],
@@ -552,7 +552,14 @@
       "operations": [
         {
           "allowed_roles": [
-            "system-administrator"
+            "system-administrator",
+            "campaign-operator",
+            "campaign-approver",
+            "reviewer",
+            "adjudicator",
+            "security-auditor",
+            "model-analyst",
+            "read-only-observer"
           ],
           "method": "GET",
           "operation_id": "settings.read",

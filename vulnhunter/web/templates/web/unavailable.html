@@ -1,0 +1,9 @@
+{% extends "web/base.html" %}
+{% block content %}
+<section class="vh-page-shell" aria-labelledby="unavailable-title">
+  <div class="vh-operational-notice is-danger">
+    <h1 id="unavailable-title">Temporarily unavailable</h1>
+    <p>{{ unavailable_message }}</p>
+  </div>
+</section>
+{% endblock %}

@@ -15,10 +15,8 @@
 
   <section class="vh-product-panel">
     <div class="vh-table-toolbar"><div><h2>Authorization registry</h2><p>Only stored records are shown; no permission is inferred by the browser.</p></div><span class="vh-panel-count">{{ authorizations|length }}</span></div>
-    {% if error_message %}
-      <div class="vh-operational-notice is-danger"><strong>Store unavailable</strong><p>{{ error_message }}</p></div>
-    {% elif authorizations %}
-      <div class="vh-table-wrap"><table class="vh-table"><thead><tr><th>Authorization</th><th>Target boundary</th><th>Status</th><th>Expires</th><th>Limits</th></tr></thead><tbody>{% for item in authorizations %}<tr><td><strong>{{ item.authorization_id }}</strong><code>{{ item.record_sha256|slice:":18" }}…</code></td><td><strong>{{ item.hostname }}:{{ item.port }}</strong><small>{{ item.path_boundary }}</small></td><td><span class="vh-status-chip {% if item.status == 'active' %}vh-status-safe{% else %}vh-status-danger{% endif %}">{{ item.status }}</span></td><td>{{ item.expires_at }}</td><td><small>{{ item.limits.maximum_requests }} requests · {{ item.limits.maximum_pages }} pages</small></td></tr>{% endfor %}</tbody></table></div>
+    {% if authorizations %}
+      <div class="vh-table-wrap"><table class="vh-table"><thead><tr><th>Authorization</th><th>Target boundary</th><th>Status</th><th>Expires</th><th>Limits</th></tr></thead><tbody>{% for item in authorizations %}<tr><td><a href="{% url 'web-authorization-detail' item.authorization_id %}"><strong>{{ item.authorization_id }}</strong></a><code>{{ item.record_sha256|slice:":18" }}…</code></td><td><strong>{{ item.hostname }}:{{ item.port }}</strong><small>{{ item.path_boundary }}</small></td><td><span class="vh-status-chip {% if item.status == 'active' %}vh-status-safe{% else %}vh-status-danger{% endif %}">{{ item.status }}</span></td><td>{{ item.expires_at }}</td><td><small>{{ item.limits.maximum_requests }} requests · {{ item.limits.maximum_pages }} pages</small></td></tr>{% endfor %}</tbody></table></div>
     {% else %}
       <div class="vh-product-empty"><svg aria-hidden="true"><use href="#vh-i-authorization"></use></svg><h3>No authorization records</h3><p>Create permission records through the governed authorization workflow before attempting an assessment.</p></div>
     {% endif %}

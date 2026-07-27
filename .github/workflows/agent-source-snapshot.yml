@@ -1,9 +1,9 @@
 name: Agent source snapshot
 
 on:
-  push:
+  pull_request:
     branches:
-      - agent/persistent-workspaces-uploads
+      - main
 
 permissions:
   contents: read
@@ -14,6 +14,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
+          ref: agent/persistent-workspaces-uploads
           fetch-depth: 0
       - name: Build source archive
         shell: bash
@@ -23,6 +24,6 @@ jobs:
       - name: Upload source archive
         uses: actions/upload-artifact@v6
         with:
-          name: vulnhunter-source-${{ github.sha }}
+          name: vulnhunter-source-${{ github.event.pull_request.head.sha }}
           path: ${{ runner.temp }}/vulnhunter-source.tar.xz
           retention-days: 1

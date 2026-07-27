@@ -1,4 +1,4 @@
-name: Apply final canonical formatting
+name: Apply final governance safety hardening
 
 on:
   pull_request:
@@ -16,21 +16,28 @@ jobs:
         with:
           ref: agent/deep-independent-audit
           fetch-depth: 0
-      - name: Apply exact Ruff formatting
+      - name: Apply governance fail-closed hardening
         shell: bash
         run: |
           set -euo pipefail
+          base64 --decode .github/governance-safety.patch.gz.b64 | gzip --decompress > "$RUNNER_TEMP/governance-safety.patch"
+          git apply --check "$RUNNER_TEMP/governance-safety.patch"
+          git apply "$RUNNER_TEMP/governance-safety.patch"
+          rm .github/governance-safety.patch.gz.b64
           python -m pip install --disable-pip-version-check 'ruff==0.12.4'
           ruff format \
             tests/unit/test_deep_independent_audit.py \
-            tests/unit/test_product_interface_specification.py \
-            tests/unit/test_reference_ui_contract.py \
-            vulnhunter/product_spec/registry.py \
+            vulnhunter/web/governance_workspace_views.py \
+            vulnhunter/web/services.py \
             vulnhunter/web/views.py
-          rm -f .github/final-format.patch.gz.b64
+          ruff check \
+            tests/unit/test_deep_independent_audit.py \
+            vulnhunter/web/governance_workspace_views.py \
+            vulnhunter/web/services.py \
+            vulnhunter/web/views.py
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
           git diff --cached --check
-          git commit -m "Apply canonical formatting to final audit"
+          git commit -m "Fail closed on governance storage errors"
           git push origin HEAD:agent/deep-independent-audit

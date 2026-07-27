@@ -46,98 +46,97 @@ jobs:
                   raise SystemExit(f"Expected marker missing from {path}: {old[:120]!r}")
               target.write_text(text.replace(old, new, 1), encoding="utf-8")
 
-          replace_once(
-              "vulnhunter/web/conversational_views.py",
-              """    if target:
-        return _latest_visible_run(actor, target=target)
-    return None
-""",
-              """    stored_target = state.get("target")
-    if (
-        target
-        and isinstance(stored_target, str)
-        and stored_target
-        and canonical_target(stored_target) == canonical_target(target)
-    ):
-        return _latest_visible_run(actor, target=target)
-    return None
-""",
+          old = (
+              "    if target:\n"
+              "        return _latest_visible_run(actor, target=target)\n"
+              "    return None\n"
           )
-          replace_once(
-              "vulnhunter/web/middleware.py",
-              """    if not getattr(request.user, "is_authenticated", False):
-        return
-    raw_state = request.session.get(_SESSION_STATE, {})
-""",
-              """    if not getattr(request.user, "is_authenticated", False):
-        return
-    # Durable workspaces own their run binding. Global recovery is retained only
-    # for legacy requests that are not attached to a ConversationThread.
-    if getattr(request, "vulnhunter_thread", None) is not None:
-        return
-    raw_state = request.session.get(_SESSION_STATE, {})
-""",
+          new = (
+              "    stored_target = state.get(\"target\")\n"
+              "    if (\n"
+              "        target\n"
+              "        and isinstance(stored_target, str)\n"
+              "        and stored_target\n"
+              "        and canonical_target(stored_target) == canonical_target(target)\n"
+              "    ):\n"
+              "        return _latest_visible_run(actor, target=target)\n"
+              "    return None\n"
           )
-          replace_once(
-              "tests/unit/test_stale_conversation_state.py",
-              """    assert conversational_views._authoritative_run({}, object()) is None
-    assert (
-        conversational_views._authoritative_run(
-            {},
-            object(),
-            target="http://10.0.1.51:8010/",
-        )
-        is latest
-    )
-""",
-              """    assert conversational_views._authoritative_run({}, object()) is None
-    assert (
-        conversational_views._authoritative_run(
-            {},
-            object(),
-            target="http://10.0.1.51:8010/",
-        )
-        is None
-    )
-    assert (
-        conversational_views._authoritative_run(
-            {"target": "http://10.0.1.51:8010/"},
-            object(),
-            target="http://10.0.1.51:8010/",
-        )
-        is latest
-    )
-""",
+          replace_once("vulnhunter/web/conversational_views.py", old, new)
+
+          old = (
+              "    if not getattr(request.user, \"is_authenticated\", False):\n"
+              "        return\n"
+              "    raw_state = request.session.get(_SESSION_STATE, {})\n"
           )
+          new = (
+              "    if not getattr(request.user, \"is_authenticated\", False):\n"
+              "        return\n"
+              "    # Durable workspaces own their run binding. Global recovery is retained only\n"
+              "    # for legacy requests that are not attached to a ConversationThread.\n"
+              "    if getattr(request, \"vulnhunter_thread\", None) is not None:\n"
+              "        return\n"
+              "    raw_state = request.session.get(_SESSION_STATE, {})\n"
+          )
+          replace_once("vulnhunter/web/middleware.py", old, new)
+
+          old = (
+              "    assert conversational_views._authoritative_run({}, object()) is None\n"
+              "    assert (\n"
+              "        conversational_views._authoritative_run(\n"
+              "            {},\n"
+              "            object(),\n"
+              "            target=\"http://10.0.1.51:8010/\",\n"
+              "        )\n"
+              "        is latest\n"
+              "    )\n"
+          )
+          new = (
+              "    assert conversational_views._authoritative_run({}, object()) is None\n"
+              "    assert (\n"
+              "        conversational_views._authoritative_run(\n"
+              "            {},\n"
+              "            object(),\n"
+              "            target=\"http://10.0.1.51:8010/\",\n"
+              "        )\n"
+              "        is None\n"
+              "    )\n"
+              "    assert (\n"
+              "        conversational_views._authoritative_run(\n"
+              "            {\"target\": \"http://10.0.1.51:8010/\"},\n"
+              "            object(),\n"
+              "            target=\"http://10.0.1.51:8010/\",\n"
+              "        )\n"
+              "        is latest\n"
+              "    )\n"
+          )
+          replace_once("tests/unit/test_stale_conversation_state.py", old, new)
 
           path = Path("tests/unit/test_product_consolidation_repairs.py")
           text = path.read_text(encoding="utf-8")
-          test = """
-
-
-def test_durable_empty_workspace_does_not_restore_another_live_run(monkeypatch):
-    user = SimpleNamespace(is_authenticated=True)
-    request = SimpleNamespace(
-        method="GET",
-        path="/",
-        user=user,
-        session=_Session(),
-        vulnhunter_thread=SimpleNamespace(thread_id="new-thread"),
-    )
-
-    def unexpected_service_lookup():
-        raise AssertionError("durable workspace recovery must not inspect global runs")
-
-    monkeypatch.setattr(
-        "vulnhunter.web.services.product_service",
-        unexpected_service_lookup,
-    )
-
-    _restore_latest_non_terminal_run(request)
-
-    assert "vulnhunter_conversation_state" not in request.session
-    assert request.session.modified is False
-"""
+          test = (
+              "\n\n"
+              "def test_durable_empty_workspace_does_not_restore_another_live_run(monkeypatch):\n"
+              "    user = SimpleNamespace(is_authenticated=True)\n"
+              "    request = SimpleNamespace(\n"
+              "        method=\"GET\",\n"
+              "        path=\"/\",\n"
+              "        user=user,\n"
+              "        session=_Session(),\n"
+              "        vulnhunter_thread=SimpleNamespace(thread_id=\"new-thread\"),\n"
+              "    )\n\n"
+              "    def unexpected_service_lookup():\n"
+              "        raise AssertionError(\n"
+              "            \"durable workspace recovery must not inspect global runs\"\n"
+              "        )\n\n"
+              "    monkeypatch.setattr(\n"
+              "        \"vulnhunter.web.services.product_service\",\n"
+              "        unexpected_service_lookup,\n"
+              "    )\n\n"
+              "    _restore_latest_non_terminal_run(request)\n\n"
+              "    assert \"vulnhunter_conversation_state\" not in request.session\n"
+              "    assert request.session.modified is False\n"
+          )
           if "test_durable_empty_workspace_does_not_restore_another_live_run" not in text:
               marker = "\n\ndef test_apk_upload_preflight_rejects_insufficient_storage"
               if marker not in text:

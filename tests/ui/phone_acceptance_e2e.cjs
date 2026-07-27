@@ -86,7 +86,9 @@ async function login(page) {
         throw new Error(`Composer is clipped at ${viewport.width}px: ${JSON.stringify(layout)}`);
       }
       if (!layout.reasoningVisible) {
-        throw new Error(`Reasoning selector is not usable at ${viewport.width}px`);
+        throw new Error(
+          `Reasoning selector is not usable at ${viewport.width}px: ${JSON.stringify(layout)}`,
+        );
       }
       if (layout.reasoningOptions.join(",") !== "Low,Medium,High") {
         throw new Error(`Reasoning options are incomplete: ${layout.reasoningOptions.join(",")}`);
@@ -98,7 +100,9 @@ async function login(page) {
         throw new Error(`Upload dock overlaps or leaves the viewport: ${JSON.stringify(layout)}`);
       }
 
-      const startUrl = await page.locator("[data-conversation-form]").getAttribute("data-upload-start-url");
+      const startUrl = await page
+        .locator("[data-conversation-form]")
+        .getAttribute("data-upload-start-url");
       if (!startUrl) throw new Error("Upload start URL is missing");
       const absoluteStartUrl = new URL(startUrl, baseUrl).toString();
       let startAttempts = 0;
@@ -126,18 +130,42 @@ async function login(page) {
           }),
         });
       });
+      await page.route("**/__phone-upload-chunk__", (route) =>
+        route.fulfill({
+          status: 503,
+          contentType: "application/json",
+          body: JSON.stringify({ detail: "Synthetic paused upload" }),
+        }),
+      );
+      await page.route("**/__phone-upload-status__", (route) =>
+        route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ state: "uploading", offset: 0 }),
+        }),
+      );
+      await page.route("**/__phone-upload-cancel__", (route) =>
+        route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ state: "cancelled" }),
+        }),
+      );
 
       await page.locator("[data-conversation-file]").setInputFiles({
         name: "phone-acceptance.apk",
         mimeType: "application/vnd.android.package-archive",
         buffer: Buffer.from("PK\u0003\u0004phone-acceptance"),
       });
-      await page.waitForFunction(() => {
-        const text = document.querySelector("[data-background-upload-dock]")?.textContent || "";
-        return /Retry/.test(text);
-      });
+      for (let attempt = 0; attempt < 100 && startAttempts < 2; attempt += 1) {
+        await page.waitForTimeout(50);
+      }
       if (startAttempts !== 2) {
         throw new Error(`Expected one automatic CSRF retry, observed ${startAttempts} start attempts`);
+      }
+      const dockText = await page.locator("[data-background-upload-dock]").textContent();
+      if (/session protection/i.test(dockText || "")) {
+        throw new Error("The stale CSRF response remained visible after automatic recovery");
       }
       await page.getByRole("button", { name: "Cancel" }).last().click();
       await context.close();

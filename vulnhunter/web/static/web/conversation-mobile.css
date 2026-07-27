@@ -285,7 +285,7 @@
   }
 
   .vh-chat-input-shell textarea:placeholder-shown {
-    height: 30px !important;
+    height: 44px !important;
   }
 
   .vh-reasoning-control {
@@ -294,7 +294,7 @@
   }
 
   .vh-reasoning-control select {
-    width: 5.65rem;
+    width: 6.5rem;
     max-width: 100%;
     min-height: 2.4rem;
     padding-inline: .65rem 1.55rem;

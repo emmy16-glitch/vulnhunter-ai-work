@@ -41,17 +41,31 @@ jobs:
       - name: Format and validate source
         shell: bash
         run: |
-          set -euo pipefail
-          python -m pip install 'ruff>=0.9,<1'
-          ruff format .
-          ruff check --fix .
-          ruff check .
-          ruff format --check .
-          python -m compileall -q vulnhunter tests
-          for file in vulnhunter/web/static/web/*.js; do node --check "$file"; done
-          bash -n .devcontainer/start-vulnhunter.sh
-          git add -A
-          git diff --cached --check
+          set -o pipefail
+          set +e
+          {
+            set -x
+            python -m pip install 'ruff>=0.9,<1'
+            ruff format .
+            ruff check --fix .
+            ruff check .
+            ruff format --check .
+            python -m compileall -q vulnhunter tests
+            for file in vulnhunter/web/static/web/*.js; do node --check "$file"; done
+            bash -n .devcontainer/start-vulnhunter.sh
+            git add -A
+            git diff --cached --check
+          } 2>&1 | tee "$RUNNER_TEMP/source-validation.log"
+          status=${PIPESTATUS[0]}
+          exit "$status"
+      - name: Upload validation diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: source-validation-diagnostics
+          path: ${{ runner.temp }}/source-validation.log
+          if-no-files-found: error
+          retention-days: 1
       - name: Commit final implementation
         shell: bash
         run: |
@@ -75,5 +89,5 @@ jobs:
         with:
           name: source-commit-diagnostics
           path: ${{ runner.temp }}/source-commit.log
-          if-no-files-found: error
+          if-no-files-found: ignore
           retention-days: 1

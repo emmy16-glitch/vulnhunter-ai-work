@@ -167,8 +167,7 @@ class ProductInterfaceSpec:
                 action_resource_id = action.get("api_resource_id")
                 if action_resource_id not in resource_ids:
                     errors.append(
-                        f"Action {action_id!r} on {page_id!r} references an "
-                        "unknown API resource."
+                        f"Action {action_id!r} on {page_id!r} references an unknown API resource."
                     )
                     backing_roles: set[str] | None = None
                 else:

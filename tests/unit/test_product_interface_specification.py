@@ -157,7 +157,6 @@ def test_navigation_role_requires_a_backing_api_operation(tmp_path: Path) -> Non
         ProductInterfaceSpec.from_path(root)
 
 
-
 def test_page_action_requires_matching_api_operation(tmp_path: Path) -> None:
     def change(data):
         page = next(item for item in data["pages"] if item["page_id"] == "authorization-detail")
@@ -176,6 +175,7 @@ def test_page_action_roles_must_match_api_operation(tmp_path: Path) -> None:
     root = mutate(tmp_path, "pages.json", change)
     with pytest.raises(SpecValidationError, match="not allowed by its API operation"):
         ProductInterfaceSpec.from_path(root)
+
 
 def test_dangerous_action_without_confirmation_is_rejected(tmp_path: Path) -> None:
     def change(data):

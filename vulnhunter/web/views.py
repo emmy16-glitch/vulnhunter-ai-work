@@ -217,9 +217,7 @@ def _render_authorization_detail(
             "authorization": authorization,
             "events": events,
             "can_revoke": can_revoke,
-            "revoke_form": (
-                revoke_form if revoke_form is not None else AuthorizationRevokeForm()
-            ),
+            "revoke_form": (revoke_form if revoke_form is not None else AuthorizationRevokeForm()),
         },
         status=status,
     )

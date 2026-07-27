@@ -63,7 +63,6 @@ def test_canonical_navigation_matches_the_unified_product():
     assert len(labels) == len(set(labels))
 
 
-
 def test_every_blueprint_page_route_resolves_to_the_runtime_router():
     pages = json.loads(_text(BLUEPRINT_PAGES))["pages"]
     for page in pages:
@@ -76,6 +75,7 @@ def test_every_blueprint_page_route_resolves_to_the_runtime_router():
             runtime_path += "/"
         match = resolve(runtime_path)
         assert match.url_name, (page["page_id"], runtime_path)
+
 
 def test_canonical_routes_and_legacy_aliases_are_explicit():
     urls = _text(URLS)

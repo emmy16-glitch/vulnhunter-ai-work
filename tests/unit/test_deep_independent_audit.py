@@ -145,7 +145,6 @@ def _run(*, owner: str = "operator-a", run_id: str = "run-owned-by-operator"):
     )
 
 
-
 @pytest.mark.django_db
 def test_authorization_detail_and_revocation_are_fully_wired(deep_paths, client) -> None:
     store, authorization = create_authorization(deep_paths / "authorization.db")
@@ -188,9 +187,7 @@ def test_authorization_detail_and_revocation_are_fully_wired(deep_paths, client)
 
 
 @pytest.mark.django_db
-def test_authorization_revocation_requires_system_management_permission(
-    deep_paths, client
-) -> None:
+def test_authorization_revocation_requires_system_management_permission(deep_paths, client) -> None:
     _, authorization = create_authorization(deep_paths / "authorization.db")
     operator = _user(
         username="authorization-operator",
@@ -251,9 +248,13 @@ def test_unknown_authorization_is_404_and_revoke_requires_csrf(deep_paths, clien
         {"reason": "No token", "confirm_revocation": "on"},
     )
     assert response.status_code == 403
-    assert AuthorizationStore.from_path(deep_paths / "authorization.db").get(
-        authorization.authorization_id
-    ).status == "active"
+    assert (
+        AuthorizationStore.from_path(deep_paths / "authorization.db")
+        .get(authorization.authorization_id)
+        .status
+        == "active"
+    )
+
 
 @pytest.mark.django_db
 def test_navigation_respects_page_roles_and_does_not_offer_dead_destinations(deep_paths) -> None:

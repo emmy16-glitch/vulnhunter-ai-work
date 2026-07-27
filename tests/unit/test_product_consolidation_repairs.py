@@ -223,6 +223,30 @@ def test_restore_latest_visible_non_terminal_run(monkeypatch):
     assert request.session.modified is True
 
 
+def test_durable_empty_workspace_does_not_restore_another_live_run(monkeypatch):
+    user = SimpleNamespace(is_authenticated=True)
+    request = SimpleNamespace(
+        method="GET",
+        path="/",
+        user=user,
+        session=_Session(),
+        vulnhunter_thread=SimpleNamespace(thread_id="new-thread"),
+    )
+
+    def unexpected_service_lookup():
+        raise AssertionError("durable workspace recovery must not inspect global runs")
+
+    monkeypatch.setattr(
+        "vulnhunter.web.services.product_service",
+        unexpected_service_lookup,
+    )
+
+    _restore_latest_non_terminal_run(request)
+
+    assert "vulnhunter_conversation_state" not in request.session
+    assert request.session.modified is False
+
+
 def test_apk_upload_preflight_rejects_insufficient_storage(monkeypatch, settings, tmp_path):
     settings.VULNHUNTER_MOBILE_ARTIFACT_ROOT = tmp_path
     settings.VULNHUNTER_MOBILE_MAX_APK_BYTES = 1_000_000_000

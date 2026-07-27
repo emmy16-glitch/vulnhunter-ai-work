@@ -1,12 +1,12 @@
 # VulnHunter
 
-VulnHunter is an authorised, laboratory-only security assessment and verification platform. It combines deterministic tools, evidence provenance, human authority and a conversational workspace without granting an AI model execution or approval power.
+VulnHunter is an authorised, laboratory-only security assessment and verification platform. It combines deterministic tools, evidence provenance, human authority and a conversational workspace without granting Groq execution, approval, verification or publication power.
 
 ## Current product state
 
 The repository currently provides:
 
-- one responsive assessment workspace for authorised website and APK work;
+- one responsive assessment workspace for authorised website, APK and source-repository work;
 - exact target, protocol, port, address and profile authorization;
 - immutable Nuclei plans with digest-bound confirmation or approval;
 - a signed manager-to-worker spool with replay and expiry protection;
@@ -16,7 +16,9 @@ The repository currently provides:
 - evidence normalization into candidate findings;
 - deterministic verification and proof capsules;
 - one finding lifecycle with independent review, adjudication and release gates;
-- optional sanitized Groq advisory analysis that is disabled by default;
+- Groq as the only AI reasoning provider, disabled by default and always non-authoritative;
+- an attacker-first Python Source Hunt path with exact source-processing approval, falsification and capability filtering;
+- evidence-backed remediation plans and a separate read-only fix verifier;
 - resumable APK upload and a networkless, read-only mobile static-analysis worker;
 - a controlled synthetic Active Validation workspace;
 - shared desktop, tablet and mobile product styling;
@@ -38,15 +40,33 @@ Pre-existing authorization or self-controlled private-lab authorization
 → governed release
 ```
 
-Exact passive-plan confirmation is limited to the immutable, authorised passive plan displayed to the run owner. Higher-risk actions, public-target authorization, active validation, review, adjudication and publication retain their separate human-control requirements.
+The canonical source-code path is:
 
-Scanner observations, deterministic verification, optional controlled validation and optional advisory analysis are consolidated into one finding record. Tool and provider details remain evidence provenance and audit metadata rather than separate competing findings.
+```text
+operator-approved repository root
+→ exact revision and content snapshot
+→ repository, revision, snapshot-hash and path-bound Groq approval
+→ deterministic Python entry-point and sink mapping
+→ Groq reconnaissance and attack-path hunt
+→ separate Groq falsification
+→ Groq capability filter
+→ evidence-bound remediation and RED test proposal
+→ developer-led isolated fix
+→ read-only deterministic fix verification
+→ human review and controlled merge
+```
+
+Exact passive-plan confirmation is limited to the immutable, authorised passive plan displayed to the run owner. Higher-risk actions, public-target authorization, remote source processing, active validation, review, adjudication and publication retain separate human-control requirements.
+
+Scanner observations, deterministic verification, optional controlled validation and Groq analysis are consolidated into governed evidence and finding records. Tool and provider details remain provenance and audit metadata rather than separate competing findings.
 
 ## Authorization boundary
 
 Conversational authorization creation is restricted to self-controlled private-network laboratory targets. Public targets cannot be authorised from chat. They must already be covered by an exact, independently approved authorization record before VulnHunter can prepare a plan.
 
 The default passive worker accepts a reviewed literal RFC1918 target and reviewed passive template with rate limit `1`, concurrency `1`, no redirects, no public OAST, no cloud upload, no automatic updates, no headless execution, and no code or file templates.
+
+Source Hunt accepts only regular files inside operator-approved repository roots. Private or public source excerpts are transmitted to Groq only after an exact, time-limited approval bound to the repository identifier, revision, eligible-file snapshot hash and permitted repository-relative paths. Customer data, credentials, cookies, authorization records and private keys remain prohibited.
 
 Public Internet scanning and destructive testing remain prohibited.
 
@@ -57,6 +77,7 @@ A normal repository checkout does not automatically:
 - install, enable or start a Nuclei worker;
 - contact a target;
 - create authorization for a public target;
+- transmit source code to Groq;
 - provision a signing key or SSH identity;
 - alter `authorized_keys`;
 - activate Groq or store its key;
@@ -65,13 +86,14 @@ A normal repository checkout does not automatically:
 - enable controlled learning;
 - enable the controlled validation worker in production;
 - deploy PostgreSQL, TLS, DNS or a reverse proxy;
+- apply or merge a source-code fix;
 - publish a finding without human review.
 
 The manager remains fail-closed. A browser request cannot install a scanner, enable a worker, change reviewed template trust, expand scope or grant itself authority. The Codespaces devcontainer is an explicit operator-selected private-lab environment that prepares local prerequisites outside the browser.
 
 ## Unified web workspace
 
-Assessment-capable accounts enter the conversational workspace at `/`. Website and APK work begin there. The former standalone New Assessment route redirects to it, while the historical Mobile APK Analysis URL remains only as a compatibility alias that renders the same workspace, navigation and backend flow.
+Assessment-capable accounts enter the conversational workspace at `/`. Website and APK work begin there, and assessment operators can open **Source Hunt** for an exact repository workflow. The former standalone New Assessment route redirects to the workspace, while the historical Mobile APK Analysis URL remains only as a compatibility alias that renders the same workspace, navigation and backend flow.
 
 The shared authenticated shell provides:
 
@@ -81,12 +103,13 @@ The shared authenticated shell provides:
 - exact passive-plan confirmation;
 - assessment history;
 - a website/APK assessment inspector;
+- an exact Groq source-processing form and persisted source-hunt reports;
 - evidence, findings, verification and remediation disclosures;
 - responsive desktop, tablet and mobile behaviour.
 
 The interface must display persisted values only. Unknown progress, unavailable tools, empty evidence and blockers are shown explicitly rather than replaced with fabricated counts or percentages.
 
-Follow [`docs/product/WEB_APPLICATION.md`](docs/product/WEB_APPLICATION.md) for local startup and web architecture.
+Follow [`docs/product/WEB_APPLICATION.md`](docs/product/WEB_APPLICATION.md) for local startup and web architecture, and [`docs/product/SOURCE_HUNT.md`](docs/product/SOURCE_HUNT.md) for source analysis.
 
 ## Phone-only private laboratory with Codespaces
 
@@ -135,11 +158,13 @@ The workspace displays genuine persisted activity such as policy checks, snapsho
 
 See `docs/product/ACTIVE_VALIDATION.md`.
 
-## Advisory analysis
+## Groq reasoning
 
-VulnHunter is model-provider neutral. Optional remote advisory providers are non-authoritative. Groq is the currently implemented provider; it is disabled by default, receives sanitized bounded content only, has no tools, cannot authorize or verify a finding, and returns proposals or `ABSTAIN`.
+Groq is the only AI/model provider in the production architecture. It is disabled by default, has no direct tools, cannot grant authorization, expand scope, execute scans, verify findings, set final severity, apply fixes, merge code or publish results.
 
-Deterministic verification and human review continue when no model is configured. See `docs/intelligence/ADR_003_MODEL_PROVIDER_NEUTRALITY.md`.
+Sanitized advisory evidence may be routed under the normal privacy gate. Source-code analysis requires a distinct exact source-processing approval. Every Groq source reference is checked against the supplied file path, SHA-256 and line range. An invented or stale reference is rejected.
+
+Deterministic workflows and human review continue when Groq is disabled or unavailable. See `docs/product/AI_ROUTING.md` and `docs/product/SOURCE_HUNT.md`.
 
 ## Verification expectations
 
@@ -150,6 +175,8 @@ Before production or public use, complete additional acceptance for the intended
 - the actual medium or large APK and complete configured static toolchain;
 - private MobSF when enabled;
 - disposable emulator, ADB and Frida when enabled;
+- real authorised repository evaluations across supported Python frameworks;
+- Groq source-processing terms, retention and privacy review;
 - public-authorization independence;
 - database backup and restore;
 - TLS, DNS, PostgreSQL, monitoring and incident response;

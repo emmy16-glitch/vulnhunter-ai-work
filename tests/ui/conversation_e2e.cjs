@@ -1,5 +1,6 @@
 const { execFile } = require("child_process");
 const fs = require("fs");
+const path = require("path");
 const { promisify } = require("util");
 const { chromium } = require("playwright");
 
@@ -7,8 +8,10 @@ const execFileAsync = promisify(execFile);
 const baseUrl = process.env.VULNHUNTER_UI_BASE_URL || "http://127.0.0.1:8767";
 const username = "conversation-e2e";
 const password = "Vh-Conversation-E2E-2026!";
-const failureScreenshot = "/tmp/vh-ui/screenshots/conversation-e2e-failure.png";
-const serverLog = "/tmp/vh-ui/server.log";
+const outputDir = process.env.VULNHUNTER_UI_OUTPUT || "/tmp/vh-ui/screenshots";
+const failureScreenshot = path.join(outputDir, "conversation-e2e-failure.png");
+const serverLog =
+  process.env.VULNHUNTER_UI_SERVER_LOG || path.join(path.dirname(outputDir), "server.log");
 
 let browser;
 let page;
@@ -28,6 +31,17 @@ let page;
       page.waitForURL(`${baseUrl}/`),
       page.getByRole("button", { name: /sign in securely/i }).click(),
     ]);
+
+    const previousWorkspaceUrl = page.url();
+    await Promise.all([
+      page.waitForURL(
+        (url) => url.toString() !== previousWorkspaceUrl && url.searchParams.has("thread"),
+        { timeout: 15000 },
+      ),
+      page.getByRole("button", { name: /new workspace/i }).click(),
+    ]);
+    await page.locator("[data-conversation-workspace]").waitFor({ timeout: 15000 });
+
     const input = page.locator("[data-conversation-input]");
     const send = page.locator("[data-conversation-send]");
     const assistantMessages = page.locator(".vh-chat-message.is-assistant .vh-message-copy");
@@ -49,7 +63,7 @@ let page;
     await send.click();
     await page.getByText(/Review and confirm the plan below/i).waitFor({ timeout: 15000 });
     await page.locator("[data-inline-approval]").waitFor({ state: "visible", timeout: 15000 });
-    const runId = await page.locator("[data-run-card]").getAttribute("data-run-id");
+    const runId = await page.locator("[data-run-card]").last().getAttribute("data-run-id");
     if (!runId) throw new Error("The conversation did not expose an authoritative run id");
 
     await input.fill("Confirm");
@@ -109,7 +123,7 @@ let page;
     console.error(detail);
     fs.appendFileSync(serverLog, `\n\n--- Conversational E2E failure ---\n${detail}\n`);
     if (page) {
-      fs.mkdirSync("/tmp/vh-ui/screenshots", { recursive: true });
+      fs.mkdirSync(outputDir, { recursive: true });
       await page.screenshot({ path: failureScreenshot, fullPage: true }).catch(() => undefined);
     }
     process.exitCode = 1;

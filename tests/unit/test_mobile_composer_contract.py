@@ -22,3 +22,13 @@ def test_source_hunt_worker_is_started_only_after_live_groq_verification():
     worker_index = launcher.index("vh_run_source_hunt_worker")
     ready_index = launcher.index('SOURCE_HUNT_STATE="exact-approval queue ready"')
     assert verify_index < worker_index < ready_index
+
+
+def test_repeated_browser_lifecycle_uses_a_fresh_workspace_and_configured_evidence_path():
+    root = Path(__file__).resolve().parents[2]
+    script = (root / "tests/ui/conversation_e2e.cjs").read_text()
+
+    assert "name: /new workspace/i" in script
+    assert 'url.searchParams.has("thread")' in script
+    assert 'locator("[data-run-card]").last()' in script
+    assert "process.env.VULNHUNTER_UI_OUTPUT" in script

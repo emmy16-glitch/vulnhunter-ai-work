@@ -92,9 +92,7 @@ def _remediator(request: HttpRequest):
 def _owner_id(request: HttpRequest, actor: object) -> str:
     governance = getattr(actor, "governance_identity", None)
     value = str(
-        getattr(governance, "reviewer_id", "")
-        or request.user.get_username()
-        or "remediation-owner"
+        getattr(governance, "reviewer_id", "") or request.user.get_username() or "remediation-owner"
     ).casefold()
     normalized = _IDENTIFIER_SANITIZER.sub("-", value).strip("-._")
     return (normalized or "remediation-owner")[:120]
@@ -478,9 +476,7 @@ def remediation_verify_view(request: HttpRequest, finding_id: str) -> HttpRespon
             "fixed_snapshot_json": request.POST.get("fixed_snapshot_json", "").strip(),
             "security_test_json": request.POST.get("security_test_json", "").strip(),
             "regression_tests_json": request.POST.get("regression_tests_json", "[]").strip(),
-            "fixed_evidence_refs_json": request.POST.get(
-                "fixed_evidence_refs_json", "[]"
-            ).strip(),
+            "fixed_evidence_refs_json": request.POST.get("fixed_evidence_refs_json", "[]").strip(),
             "original_attack_blocked": request.POST.get(
                 "original_attack_blocked", "unknown"
             ).strip(),

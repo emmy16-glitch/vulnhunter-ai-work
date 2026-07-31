@@ -81,8 +81,7 @@ def test_gated_worker_blocks_execution_and_cancels_downstream(tmp_path):
     assert statuses["approval"] == "completed"
     assert statuses["execution"] == "blocked"
     assert all(
-        statuses[stage] == "cancelled"
-        for stage in ("evidence", "verification", "review", "report")
+        statuses[stage] == "cancelled" for stage in ("evidence", "verification", "review", "report")
     )
 
 

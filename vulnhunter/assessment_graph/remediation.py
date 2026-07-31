@@ -16,6 +16,8 @@ from vulnhunter.assessment_graph.service import AssessmentGraphError, Assessment
 from vulnhunter.taskgraph.models import TERMINAL_STATUSES, GraphNode, NodeStatus, TaskGraph
 from vulnhunter.taskgraph.store import TaskGraphStoreError
 
+_FAILED_SAFE_PREFIX = "Remediation failed safely: "
+
 
 class RemediationAssessmentGraphService:
     """Bind one exact verified-finding remediation plan to the shared lifecycle."""
@@ -192,17 +194,20 @@ class RemediationAssessmentGraphService:
                 reason=reason or "The remediation plan was cancelled by its human owner.",
             )
         if normalized == "failed":
+            failure_reason = _FAILED_SAFE_PREFIX + (
+                reason or "The remediation plan could not continue safely."
+            )
             if execution.status not in TERMINAL_STATUSES:
                 graph = self.core._transition(
                     graph,
                     node_id=execution.node_id,
-                    status=NodeStatus.BLOCKED,
-                    last_error=reason or "The remediation plan failed safely.",
+                    status=NodeStatus.CANCELLED,
+                    last_error=failure_reason,
                 )
             self.core._cancel_downstream(
                 graph,
                 starting_stage=AssessmentStage.EVIDENCE,
-                reason=reason or "Remediation failure prevented fix evidence collection.",
+                reason=failure_reason,
             )
             return True
         return True
@@ -215,15 +220,29 @@ class RemediationAssessmentGraphService:
         if not isinstance(nodes, list):
             return payload
         by_stage = {
-            str(item.get("stage")): str(item.get("status"))
+            str(item.get("stage")): item
             for item in nodes
             if isinstance(item, dict)
         }
-        execution = by_stage.get(AssessmentStage.EXECUTION.value)
+        execution_node = by_stage.get(AssessmentStage.EXECUTION.value)
+        execution = (
+            str(execution_node.get("status"))
+            if isinstance(execution_node, dict)
+            else None
+        )
+        execution_error = (
+            str(execution_node.get("last_error") or "")
+            if isinstance(execution_node, dict)
+            else ""
+        )
         if execution == NodeStatus.READY.value:
             payload["chat_stage"] = "awaiting_developer_implementation"
         elif execution == NodeStatus.CANCELLED.value:
-            payload["chat_stage"] = "remediation_cancelled"
+            payload["chat_stage"] = (
+                "remediation_failed_safe"
+                if execution_error.startswith(_FAILED_SAFE_PREFIX)
+                else "remediation_cancelled"
+            )
         elif execution in {NodeStatus.BLOCKED.value, NodeStatus.FAILED.value}:
             payload["chat_stage"] = "remediation_failed_safe"
         return payload

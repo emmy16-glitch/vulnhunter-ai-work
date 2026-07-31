@@ -84,9 +84,7 @@ def _remediator(request: HttpRequest):
 def _owner_id(request: HttpRequest, actor: object) -> str:
     governance = getattr(actor, "governance_identity", None)
     value = str(
-        getattr(governance, "reviewer_id", "")
-        or request.user.get_username()
-        or "remediation-owner"
+        getattr(governance, "reviewer_id", "") or request.user.get_username() or "remediation-owner"
     ).casefold()
     normalized = _IDENTIFIER_SANITIZER.sub("-", value).strip("-._")
     return (normalized or "remediation-owner")[:120]
@@ -101,9 +99,7 @@ def _workspace_id(request: HttpRequest) -> str | None:
 def _split_values(value: str, *, maximum: int = 40) -> tuple[str, ...]:
     pieces = re.split(r"[\n,]+", value)
     cleaned = tuple(
-        redact_text(" ".join(piece.split()))[:1_000]
-        for piece in pieces
-        if piece.strip()
+        redact_text(" ".join(piece.split()))[:1_000] for piece in pieces if piece.strip()
     )
     if len(cleaned) > maximum:
         raise ValueError(f"no more than {maximum} bounded entries are allowed")
@@ -240,10 +236,10 @@ def remediation_create_view(request: HttpRequest, finding_id: str) -> HttpRespon
     except FindingStoreError as exc:
         raise Http404(str(exc)) from exc
 
-    eligible = (
-        finding.verification == VerificationState.VERIFIED
-        and finding.status in {FindingStatus.OPEN, FindingStatus.TRIAGED}
-    )
+    eligible = finding.verification == VerificationState.VERIFIED and finding.status in {
+        FindingStatus.OPEN,
+        FindingStatus.TRIAGED,
+    }
     error = None
     submitted = {
         "summary": "",

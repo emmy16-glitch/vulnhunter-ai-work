@@ -171,6 +171,8 @@ class GraphNode(BaseModel):
         for field_name in immutable:
             if getattr(self, field_name) != getattr(previous, field_name):
                 raise ValueError(f"task node field is immutable: {field_name}")
+        if self == previous:
+            return
         if self.status not in _ALLOWED_TRANSITIONS[previous.status]:
             raise ValueError(f"invalid node transition: {previous.status} -> {self.status}")
         if self.attempts < previous.attempts:

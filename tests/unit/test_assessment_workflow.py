@@ -409,3 +409,30 @@ def test_redaction_preserves_payment_like_authorization_id():
 
     assert redacted["engagement_record"]["authorization_id"] == authorization_id
     assert redacted["untrusted_note"] != original["untrusted_note"]
+
+
+def test_chat_workspace_assessment_persists_authoritative_task_graph(tmp_path):
+    from uuid import uuid4
+
+    service = _service(tmp_path)
+    record = _record(service.authorization_store)
+    _bind(service, record)
+    workspace_id = str(uuid4())
+
+    result = service.create_assessment(
+        authorization_id=record.authorization_id,
+        target=TARGET,
+        protocol="https",
+        port=443,
+        profile="passive",
+        identity_id="operator-a",
+        username="web-a",
+        workspace_id=workspace_id,
+    )
+
+    assert result.graph_id == f"{result.task.task_id}-graph"
+    graph = service.task_graph_service.status_payload(result.task.task_id)
+    assert graph is not None
+    assert graph["workspace_id"] == workspace_id
+    assert graph["chat_stage"] == "waiting_for_confirmation"
+    assert graph["nodes"][2]["stage"] == "approval"

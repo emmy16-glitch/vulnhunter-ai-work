@@ -17,6 +17,7 @@ from django.views.decorators.http import require_GET, require_POST
 
 from vulnhunter.approvals import ApprovalStatus, ApprovalStore
 from vulnhunter.approvals.store import ApprovalConflictError, ApprovalStoreError
+from vulnhunter.assessment_graph import AssessmentGraphError, AssessmentGraphService
 from vulnhunter.product import ProductServiceError
 from vulnhunter.web.assessment_workflow import (
     AssessmentWorkflowError,
@@ -156,6 +157,10 @@ def _target_for_request(
     if interpreted_target:
         return interpreted_target
     return stored_target if isinstance(stored_target, str) and stored_target else None
+
+
+def _assessment_graph_service() -> AssessmentGraphService:
+    return AssessmentGraphService(Path(settings.VULNHUNTER_TASK_GRAPH_ROOT))
 
 
 def _confirmation_store() -> InlineConfirmationStore:
@@ -431,6 +436,10 @@ def _run_payload(run: object) -> dict[str, object]:
         "detail_url": reverse("web-scan-run-detail", kwargs={"run_id": run_id}),
         "findings_url": reverse("web-findings-overview"),
     }
+    graph_payload = _assessment_graph_service().status_payload(run_id)
+    if graph_payload is not None:
+        payload["task_graph"] = graph_payload
+        payload["chat_stage"] = graph_payload["chat_stage"]
     return enrich_run_payload(
         payload,
         raw_events=raw_events,
@@ -703,6 +712,14 @@ def message_view(request: HttpRequest) -> JsonResponse:
                 content=str(exc),
             )
             return JsonResponse({"message": message}, status=409)
+        try:
+            _assessment_graph_service().project_terminal(
+                str(active.run_id),
+                outcome="cancelled",
+                reason="Cancelled from chat workspace",
+            )
+        except AssessmentGraphError:
+            pass
         refreshed = _visible_run(str(active.run_id), actor)
         payload = _run_payload(refreshed)
         message = _append_message(
@@ -959,6 +976,11 @@ def message_view(request: HttpRequest) -> JsonResponse:
             profile=profile,
             identity_id=actor.governance_identity.reviewer_id,
             username=request.user.get_username(),
+            workspace_id=(
+                str(request.vulnhunter_thread.thread_id)
+                if getattr(request, "vulnhunter_thread", None) is not None
+                else None
+            ),
         )
     except AssessmentWorkflowError as exc:
         message = _append_message(
@@ -983,6 +1005,7 @@ def message_view(request: HttpRequest) -> JsonResponse:
         "target": canonical,
         "profile": profile,
         "authorization_id": matched.authorization_id,
+        "graph_id": result.graph_id,
     }
     _save_state(request, state)
     message = _append_message(

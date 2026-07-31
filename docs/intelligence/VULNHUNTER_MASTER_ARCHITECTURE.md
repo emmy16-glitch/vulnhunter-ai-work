@@ -753,6 +753,8 @@ Acceptance:
 
 ### Step 18 — Unify all assessment tasks on one authoritative task graph
 
+**Implementation status:** `IN_PROGRESS` — the website chat workflow now creates an immutable workspace-bound task graph and projects approval, execution blocking, cancellation, and user-facing chat stages. APK, Source Hunt, Active Validation, remediation, retest, evidence completion, verification, review, and reporting still require migration to the shared graph.
+
 Ensure website, APK, Source Hunt, active validation, remediation and retest share consistent plan, state, approval, worker, cancellation, activity and receipt contracts.
 
 Acceptance:

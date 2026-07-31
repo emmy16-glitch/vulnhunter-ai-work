@@ -26,6 +26,7 @@ from vulnhunter.agent_activity.service import AgentActivityService
 from vulnhunter.agent_activity.store import AppendOnlyActivityStore
 from vulnhunter.approvals.models import ApprovalRequest
 from vulnhunter.approvals.store import ApprovalStore, ApprovalStoreError
+from vulnhunter.assessment_graph import AssessmentGraphError, AssessmentGraphService
 from vulnhunter.authorization.models import AuthorizationRecord
 from vulnhunter.authorization.store import AuthorizationStore
 from vulnhunter.security import redact_text
@@ -122,6 +123,7 @@ class AuthorizationChoice(BaseModel):
 class AssessmentCreationResult:
     task: AgentTask
     approval_request: ApprovalRequest | None
+    graph_id: str | None = None
 
 
 def bind_nuclei_authorization(
@@ -229,6 +231,7 @@ class AssessmentWorkflowService:
         template_root: Path,
         evidence_root: Path,
         readiness_report: Path,
+        task_graph_root: Path | None = None,
         clock: Callable[[], datetime] = lambda: datetime.now(UTC),
     ) -> None:
         self.authorization_store = authorization_store
@@ -240,6 +243,10 @@ class AssessmentWorkflowService:
         self.template_root = template_root
         self.evidence_root = evidence_root
         self.readiness_report = readiness_report
+        self.task_graph_service = AssessmentGraphService(
+            task_graph_root or evidence_root.parent / "task-graphs",
+            clock=clock,
+        )
         self.clock = clock
         self.authorization_store.initialize()
         self.approval_store.initialize()
@@ -260,6 +267,7 @@ class AssessmentWorkflowService:
             template_root=Path(settings.VULNHUNTER_NUCLEI_TEMPLATE_ROOT),
             evidence_root=Path(settings.VULNHUNTER_SECURITY_EVIDENCE_ROOT),
             readiness_report=Path(settings.VULNHUNTER_NUCLEI_READINESS_REPORT),
+            task_graph_root=Path(settings.VULNHUNTER_TASK_GRAPH_ROOT),
         )
 
     def list_authorizations(
@@ -309,6 +317,7 @@ class AssessmentWorkflowService:
         identity_id: str,
         username: str,
         resolver: Callable[[str], Iterable[str]] | None = None,
+        workspace_id: str | None = None,
     ) -> AssessmentCreationResult:
         now = self.clock().astimezone(UTC)
         record, engagement = load_nuclei_authorization(self.authorization_store, authorization_id)
@@ -362,7 +371,31 @@ class AssessmentWorkflowService:
                 event_type="run_blocked",
                 run_state="blocked",
             )
-            return AssessmentCreationResult(task=task, approval_request=None)
+            try:
+                graph = self.task_graph_service.create_website_assessment(
+                    run_id=run_id,
+                    workspace_id=workspace_id,
+                    owner_id=identity_id,
+                    authorization_id=engagement.authorization_id,
+                    target=scoped_target.url,
+                    expires_at=engagement.expires_at,
+                    profile=profile,
+                    plan_digest=None,
+                    readiness_blocked=True,
+                )
+                graph_id = graph.graph_id
+            except AssessmentGraphError as exc:
+                self.agent_store.append_event(
+                    run_id,
+                    "taskgraph.binding_failed",
+                    {"error_type": type(exc).__name__},
+                )
+                graph_id = None
+            return AssessmentCreationResult(
+                task=task,
+                approval_request=None,
+                graph_id=graph_id,
+            )
 
         manifest = self._load_template_manifest()
         selected_ids = tuple(
@@ -416,6 +449,53 @@ class AssessmentWorkflowService:
             readiness=readiness,
             blocking_reason="Human approval of the exact command-plan digest is required.",
         )
+        try:
+            graph = self.task_graph_service.create_website_assessment(
+                run_id=run_id,
+                workspace_id=workspace_id,
+                owner_id=identity_id,
+                authorization_id=engagement.authorization_id,
+                target=scoped_target.url,
+                expires_at=plan.expires_at,
+                profile=profile,
+                plan_digest=plan.plan_digest,
+                readiness_blocked=False,
+            )
+            graph_id = graph.graph_id
+        except AssessmentGraphError as exc:
+            workflow_memory = task.memory["assessment_workflow"]
+            blocked = task.evolved(
+                status=TaskStatus.BLOCKED,
+                paused_reason="Task graph binding failed closed.",
+                memory={
+                    **task.memory,
+                    "assessment_workflow": {
+                        **workflow_memory,
+                        "workflow_state": "taskgraph_blocked",
+                        "blocking_reason": "Task graph binding failed closed.",
+                    },
+                },
+            )
+            self.agent_store.save_task(blocked, expected_revision=task.revision)
+            self.agent_store.append_event(
+                run_id,
+                "taskgraph.binding_failed",
+                {"error_type": type(exc).__name__},
+            )
+            self._record_transition(
+                blocked,
+                previous_state="plan_generated",
+                new_state="taskgraph_blocked",
+                reason="Task graph binding failed closed.",
+                event_type="run_blocked",
+                run_state="blocked",
+            )
+            return AssessmentCreationResult(
+                task=blocked,
+                approval_request=None,
+                graph_id=None,
+            )
+
         approval = ApprovalRequest(
             request_id=f"approval-{uuid4().hex[:16]}",
             campaign_id=f"assessment-{uuid4().hex[:12]}",
@@ -461,7 +541,11 @@ class AssessmentWorkflowService:
             event_type="approval_requested",
             run_state="awaiting_approval",
         )
-        return AssessmentCreationResult(task=task, approval_request=approval)
+        return AssessmentCreationResult(
+            task=task,
+            approval_request=approval,
+            graph_id=graph_id,
+        )
 
     def record_approval_decision(
         self,
@@ -492,13 +576,28 @@ class AssessmentWorkflowService:
             raise AssessmentWorkflowError("The command plan has expired.")
 
         approved = request.decision is not None and request.decision.value.startswith("approve_")
-        queued_job = None
-        queue_error = None
-        if (
+        execution_intended = bool(
             approved
             and plan.exact_profile == "passive"
             and getattr(settings, "VULNHUNTER_NUCLEI_PILOT_ENQUEUE_ENABLED", False)
-        ):
+        )
+        queued_job = None
+        queue_error = None
+        try:
+            self.task_graph_service.project_approval(
+                task.task_id,
+                approved=approved,
+                execution_intended=execution_intended,
+                reason=(
+                    "The exact plan was denied."
+                    if not approved
+                    else "The isolated worker is not available."
+                ),
+            )
+        except AssessmentGraphError as exc:
+            execution_intended = False
+            queue_error = type(exc).__name__
+        if execution_intended and queue_error is None:
             try:
                 signing_key = load_worker_signing_key(
                     Path(settings.VULNHUNTER_NUCLEI_WORKER_SIGNING_KEY_FILE)
@@ -526,6 +625,13 @@ class AssessmentWorkflowService:
                 WorkerSpoolError,
             ) as exc:
                 queue_error = type(exc).__name__
+                try:
+                    self.task_graph_service.mark_execution_blocked(
+                        task.task_id,
+                        reason="Worker queue activation failed closed.",
+                    )
+                except AssessmentGraphError:
+                    pass
         if queued_job is not None:
             new_state = "queued"
             new_status = TaskStatus.RUNNING

@@ -13,6 +13,9 @@ from vulnhunter.actions.models import sha256_json
 
 _IDENTIFIER = re.compile(r"^[a-z0-9][a-z0-9._-]{1,127}$")
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
+_FIX_VERDICT = re.compile(
+    r"^(fixed|partially_fixed|not_fixed|regression_detected|cannot_verify|out_of_scope_change)$"
+)
 
 
 def utc_now() -> datetime:
@@ -48,6 +51,8 @@ class FindingStatus(StrEnum):
 
 class RemediationState(StrEnum):
     READY_FOR_IMPLEMENTATION = "ready_for_implementation"
+    NEEDS_REWORK = "needs_rework"
+    READY_FOR_RETEST = "ready_for_retest"
     CANCELLED = "cancelled"
     FAILED = "failed"
 
@@ -75,6 +80,48 @@ class EvidenceReference(BaseModel):
         return value
 
 
+class RemediationVerificationReference(BaseModel):
+    """Integrity pointer to one immutable developer handoff and verifier verdict."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    receipt_id: str
+    sha256: str
+    verdict: str
+    original_revision: str = Field(min_length=1, max_length=256)
+    fixed_revision: str = Field(min_length=1, max_length=256)
+    created_at: datetime
+
+    @field_validator("receipt_id")
+    @classmethod
+    def validate_receipt_id(cls, value: str) -> str:
+        if _IDENTIFIER.fullmatch(value) is None:
+            raise ValueError("verification receipt ID must be a stable identifier")
+        return value
+
+    @field_validator("sha256")
+    @classmethod
+    def validate_sha256(cls, value: str) -> str:
+        if _SHA256.fullmatch(value) is None:
+            raise ValueError("verification receipt sha256 must be a digest")
+        return value
+
+    @field_validator("verdict")
+    @classmethod
+    def validate_verdict(cls, value: str) -> str:
+        if _FIX_VERDICT.fullmatch(value) is None:
+            raise ValueError("verification verdict is not supported")
+        return value
+
+    @model_validator(mode="after")
+    def validate_reference(self) -> Self:
+        if self.original_revision == self.fixed_revision:
+            raise ValueError("verification reference requires a changed revision")
+        if self.created_at.tzinfo is None or self.created_at.utcoffset() is None:
+            raise ValueError("verification receipt time must be timezone-aware")
+        return self
+
+
 class RemediationRecord(BaseModel):
     """A legacy note or an exact human-owned remediation plan.
 
@@ -98,6 +145,7 @@ class RemediationRecord(BaseModel):
     regression_test: str | None = Field(default=None, min_length=3, max_length=4_000)
     verification_recipe: str | None = Field(default=None, min_length=3, max_length=4_000)
     compatibility_risks: tuple[str, ...] = ()
+    verification_history: tuple[RemediationVerificationReference, ...] = ()
     created_at: datetime | None = None
     expires_at: datetime | None = None
     cancelled_at: datetime | None = None
@@ -137,6 +185,7 @@ class RemediationRecord(BaseModel):
                 self.regression_test,
                 self.verification_recipe,
                 self.compatibility_risks,
+                self.verification_history,
                 self.created_at,
                 self.expires_at,
                 self.cancelled_at,
@@ -179,6 +228,18 @@ class RemediationRecord(BaseModel):
                 raise ValueError("remediation due time must be timezone-aware")
             if self.due_at < self.created_at:
                 raise ValueError("remediation due time cannot predate creation")
+
+        latest = self.verification_history[-1] if self.verification_history else None
+        if self.state == RemediationState.READY_FOR_IMPLEMENTATION:
+            if latest is not None:
+                raise ValueError("ready-for-implementation plans cannot already have verification")
+        elif self.state == RemediationState.NEEDS_REWORK:
+            if latest is None or latest.verdict == "fixed":
+                raise ValueError("needs-rework plans require a non-fixed verification receipt")
+        elif self.state == RemediationState.READY_FOR_RETEST:
+            if latest is None or latest.verdict != "fixed":
+                raise ValueError("ready-for-retest plans require a fixed verification receipt")
+
         if self.state == RemediationState.CANCELLED:
             if self.cancelled_at is None or self.cancellation_reason is None:
                 raise ValueError("cancelled remediation requires time and reason")
@@ -238,11 +299,42 @@ class RemediationRecord(BaseModel):
             expires_at=expires_at,
         )
 
+    def record_verification(
+        self,
+        reference: RemediationVerificationReference,
+    ) -> RemediationRecord:
+        if self.remediation_id is None or self.state is None:
+            raise ValueError("legacy remediation notes cannot record governed verification")
+        if self.state not in {
+            RemediationState.READY_FOR_IMPLEMENTATION,
+            RemediationState.NEEDS_REWORK,
+        }:
+            raise ValueError("the remediation plan is not accepting implementation receipts")
+        if any(item.receipt_id == reference.receipt_id for item in self.verification_history):
+            raise ValueError("the fix-verification receipt is already recorded")
+        state = (
+            RemediationState.READY_FOR_RETEST
+            if reference.verdict == "fixed"
+            else RemediationState.NEEDS_REWORK
+        )
+        return RemediationRecord.model_validate(
+            self.model_copy(
+                update={
+                    "state": state,
+                    "verification_history": self.verification_history + (reference,),
+                }
+            ).model_dump()
+        )
+
     def cancel(self, *, cancelled_at: datetime, reason: str) -> RemediationRecord:
         if self.remediation_id is None or self.state is None:
             raise ValueError("legacy remediation notes cannot be cancelled as governed plans")
-        if self.state in {RemediationState.CANCELLED, RemediationState.FAILED}:
-            raise ValueError("terminal remediation plans are immutable")
+        if self.state in {
+            RemediationState.CANCELLED,
+            RemediationState.FAILED,
+            RemediationState.READY_FOR_RETEST,
+        }:
+            raise ValueError("terminal or verified remediation plans cannot be cancelled")
         return RemediationRecord.model_validate(
             self.model_copy(
                 update={
@@ -322,9 +414,20 @@ class Finding(BaseModel):
             if (
                 self.remediation is None
                 or self.remediation.remediation_id is None
-                or self.remediation.state != RemediationState.READY_FOR_IMPLEMENTATION
+                or self.remediation.state
+                not in {
+                    RemediationState.READY_FOR_IMPLEMENTATION,
+                    RemediationState.NEEDS_REWORK,
+                }
             ):
-                raise ValueError("in-remediation findings require a ready governed plan")
+                raise ValueError("in-remediation findings require an active governed plan")
+        if self.status == FindingStatus.READY_FOR_RETEST:
+            if (
+                self.remediation is None
+                or self.remediation.remediation_id is None
+                or self.remediation.state != RemediationState.READY_FOR_RETEST
+            ):
+                raise ValueError("ready-for-retest findings require a fixed verification receipt")
         if self.status == FindingStatus.REMEDIATED:
             if not self.retests or self.retests[-1].outcome != "passed":
                 raise ValueError("remediated findings require a passed retest")
@@ -369,6 +472,17 @@ class Finding(BaseModel):
                 raise ValueError("governed remediation history cannot be removed")
             if new_remediation.remediation_id != old_remediation.remediation_id:
                 raise ValueError("governed remediation identifier is immutable")
-            if old_remediation.state in {RemediationState.CANCELLED, RemediationState.FAILED}:
+            if (
+                new_remediation.verification_history[
+                    : len(old_remediation.verification_history)
+                ]
+                != old_remediation.verification_history
+            ):
+                raise ValueError("remediation verification history is append-only")
+            if old_remediation.state in {
+                RemediationState.CANCELLED,
+                RemediationState.FAILED,
+                RemediationState.READY_FOR_RETEST,
+            }:
                 if new_remediation != old_remediation:
                     raise ValueError("terminal remediation record is immutable")

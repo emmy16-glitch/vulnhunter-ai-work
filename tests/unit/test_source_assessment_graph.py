@@ -100,6 +100,5 @@ def test_source_worker_failure_cancels_untrusted_downstream_claims(tmp_path):
     statuses = {item["stage"]: item["status"] for item in payload["nodes"]}
     assert statuses["execution"] == "failed"
     assert all(
-        statuses[stage] == "cancelled"
-        for stage in ("evidence", "verification", "review", "report")
+        statuses[stage] == "cancelled" for stage in ("evidence", "verification", "review", "report")
     )

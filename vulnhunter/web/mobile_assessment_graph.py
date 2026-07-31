@@ -2,14 +2,15 @@
 
 from __future__ import annotations
 
+import re
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from django.conf import settings
 
 from vulnhunter.assessment_graph import MobileAssessmentGraphService
-from vulnhunter.mobile.models import MobileArtifactRecord
-from vulnhunter.web.conversation_attachments import ConversationAttachment
+
+_IDENTIFIER_SANITIZER = re.compile(r"[^a-z0-9._-]+")
 
 
 def _service() -> MobileAssessmentGraphService:
@@ -22,16 +23,23 @@ def _workspace_id(request: object) -> str | None:
     return str(thread_id) if thread_id is not None else None
 
 
+def _owner_id(request: object) -> str:
+    user = getattr(request, "user", None)
+    username = str(getattr(user, "username", "") or "chat-operator").casefold()
+    normalized = _IDENTIFIER_SANITIZER.sub("-", username).strip("-._")
+    return (normalized or "chat-operator")[:120]
+
+
 def bind_mobile_assessment_graph(
     request: object,
     *,
     plan: dict[str, object],
-    attachment: ConversationAttachment,
-    artifact: MobileArtifactRecord,
-    owner_id: str,
 ) -> dict[str, object]:
     """Persist the shared lifecycle graph and return the enriched plan projection."""
 
+    artifact = plan.get("artifact")
+    if not isinstance(artifact, dict):
+        raise RuntimeError("The APK plan is missing its immutable artifact binding.")
     execution = plan.get("execution")
     execution = execution if isinstance(execution, dict) else {}
     state = str(execution.get("state") or "prepared")
@@ -42,10 +50,10 @@ def bind_mobile_assessment_graph(
     service.create(
         run_id=run_id,
         workspace_id=_workspace_id(request),
-        owner_id=owner_id,
-        authorization_id=attachment.attachment_id,
-        artifact_id=artifact.artifact_id,
-        artifact_sha256=artifact.sha256,
+        owner_id=_owner_id(request),
+        authorization_id=str(artifact["attachment_id"]),
+        artifact_id=str(artifact["artifact_id"]),
+        artifact_sha256=str(artifact["artifact_sha256"]),
         expires_at=datetime.now(UTC) + timedelta(hours=2),
         profile=str(plan["profile"]),
         plan_digest=str(plan["plan_digest"]),

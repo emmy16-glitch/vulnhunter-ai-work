@@ -203,9 +203,7 @@ def lab_create_view(request: HttpRequest, assessment_id: str) -> HttpResponse:
         )
         try:
             if not workspace_id:
-                raise ValueError(
-                    "Active Validation requires a workspace-bound parent assessment."
-                )
+                raise ValueError("Active Validation requires a workspace-bound parent assessment.")
             if selected_finding is None:
                 raise ValueError("Select a persisted finding from this assessment.")
             if not run.authorization_id:

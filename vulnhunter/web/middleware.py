@@ -97,6 +97,10 @@ def _refresh_specialist_workspaces(request) -> None:
         current_active_validation_plan,
         record_active_validation_event,
     )
+    from vulnhunter.web.remediation_conversation_state import (
+        current_remediation_plan,
+        record_remediation_event,
+    )
     from vulnhunter.web.source_hunt_conversation_state import (
         current_source_hunt_plan,
         record_source_hunt_event,
@@ -116,6 +120,13 @@ def _refresh_specialist_workspaces(request) -> None:
     except (OSError, RuntimeError, ValueError):
         logger.exception("Active Validation workspace refresh failed safely")
 
+    try:
+        remediation_plan = current_remediation_plan(request)
+        if remediation_plan is not None:
+            record_remediation_event(request, remediation_plan)
+    except (OSError, RuntimeError, ValueError, sqlite3.Error):
+        logger.exception("Remediation workspace refresh failed safely")
+
 
 class ConversationThreadMiddleware:
     """Select a durable workspace and isolate its legacy session-backed state."""
@@ -124,13 +135,22 @@ class ConversationThreadMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-        source_hunt_selected = request.path == "/source-hunt/" and bool(
+        thread_requested = bool(
             request.GET.get("thread")
             or (request.method == "POST" and request.POST.get("thread_id"))
             or request.headers.get("X-VulnHunter-Thread")
         )
+        source_hunt_selected = request.path == "/source-hunt/" and thread_requested
+        remediation_selected = (
+            request.path.startswith("/findings/")
+            and "/remediation/" in request.path
+            and thread_requested
+        )
         is_workspace_path = (
-            request.path == "/" or request.path.startswith("/workspace/") or source_hunt_selected
+            request.path == "/"
+            or request.path.startswith("/workspace/")
+            or source_hunt_selected
+            or remediation_selected
         )
         if is_workspace_path and getattr(request.user, "is_authenticated", False):
             from vulnhunter.web.conversation_threads import (
@@ -146,6 +166,7 @@ class ConversationThreadMiddleware:
                 if (
                     request.path.startswith("/workspace/")
                     or request.path == "/source-hunt/"
+                    or remediation_selected
                     or "application/json" in request.headers.get("Accept", "")
                 ):
                     return JsonResponse({"detail": str(exc)}, status=404)

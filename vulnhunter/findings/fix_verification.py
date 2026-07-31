@@ -11,7 +11,14 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    ValidationError,
+    field_validator,
+    model_validator,
+)
 
 from vulnhunter.actions.models import sha256_json
 from vulnhunter.findings.models import (
@@ -21,14 +28,20 @@ from vulnhunter.findings.models import (
     VerificationState,
 )
 from vulnhunter.findings.service import FindingLifecycleError, FindingService
-from vulnhunter.findings.store import FindingConflict, FindingStore
-from vulnhunter.source_hunt import (
+from vulnhunter.findings.store import (
+    FindingConflict,
+    FindingStore,
+    FindingStoreError,
+)
+from vulnhunter.source_hunt.fix_verify import (
     FixVerificationInput,
-    FixVerificationReport,
     ReadOnlyFixVerifier,
+    VerifierReceipt,
+)
+from vulnhunter.source_hunt.models import (
+    FixVerificationReport,
     RepositorySnapshot,
     SourceReference,
-    VerifierReceipt,
 )
 
 _IDENTIFIER = re.compile(r"^[a-z0-9][a-z0-9._-]{1,127}$")
@@ -88,7 +101,13 @@ class RemediationFixVerificationBundle(BaseModel):
     report: FixVerificationReport
     created_at: datetime
 
-    @field_validator("receipt_id", "finding_id", "remediation_id", "builder_id", "verifier_id")
+    @field_validator(
+        "receipt_id",
+        "finding_id",
+        "remediation_id",
+        "builder_id",
+        "verifier_id",
+    )
     @classmethod
     def validate_identifier(cls, value: str) -> str:
         if _IDENTIFIER.fullmatch(value) is None:
@@ -105,7 +124,10 @@ class RemediationFixVerificationBundle(BaseModel):
     @field_validator("allowed_paths", "changed_files", mode="before")
     @classmethod
     def validate_paths(cls, values):
-        return _normalize_paths(tuple(str(item) for item in values), label="fix-verification paths")
+        return _normalize_paths(
+            tuple(str(item) for item in values),
+            label="fix-verification paths",
+        )
 
     @model_validator(mode="after")
     def validate_binding(self):
@@ -183,8 +205,12 @@ class RemediationFixVerificationBundle(BaseModel):
             "changed_files": list(changed_files),
             "original_snapshot": original_snapshot.model_dump(mode="json"),
             "fixed_snapshot": fixed_snapshot.model_dump(mode="json"),
-            "security_test": security_test.model_dump(mode="json") if security_test else None,
-            "regression_tests": [item.model_dump(mode="json") for item in regression_tests],
+            "security_test": (
+                security_test.model_dump(mode="json") if security_test else None
+            ),
+            "regression_tests": [
+                item.model_dump(mode="json") for item in regression_tests
+            ],
             "fixed_evidence_refs": [
                 item.model_dump(mode="json") for item in fixed_evidence_refs
             ],
@@ -222,7 +248,9 @@ class RemediationFixVerificationStore:
 
     def _path(self, receipt_id: str) -> Path:
         if _IDENTIFIER.fullmatch(receipt_id) is None:
-            raise RemediationFixVerificationError("invalid fix-verification receipt identifier")
+            raise RemediationFixVerificationError(
+                "invalid fix-verification receipt identifier"
+            )
         return self.root / f"{receipt_id}.json"
 
     def save(self, bundle: RemediationFixVerificationBundle) -> tuple[Path, bool]:
@@ -318,18 +346,24 @@ class RemediationFixVerificationService:
         finding = self.finding_store.get(finding_id)
         if finding.revision != expected_revision:
             raise FindingConflict(
-                f"finding revision conflict: expected {expected_revision}, found {finding.revision}"
+                f"finding revision conflict: expected {expected_revision}, "
+                f"found {finding.revision}"
             )
         remediation = finding.remediation
         if finding.verification != VerificationState.VERIFIED:
-            raise FindingLifecycleError("fix verification requires an independently verified finding")
+            raise FindingLifecycleError(
+                "fix verification requires an independently verified finding"
+            )
         if (
             finding.status != FindingStatus.IN_REMEDIATION
             or remediation is None
             or remediation.remediation_id is None
             or remediation.plan_sha256 is None
             or remediation.state
-            not in {RemediationState.READY_FOR_IMPLEMENTATION, RemediationState.NEEDS_REWORK}
+            not in {
+                RemediationState.READY_FOR_IMPLEMENTATION,
+                RemediationState.NEEDS_REWORK,
+            }
         ):
             raise FindingLifecycleError(
                 "fix verification requires an active governed remediation plan"
@@ -389,7 +423,13 @@ class RemediationFixVerificationService:
                 expected_revision=expected_revision,
                 now=created_at,
             )
-        except Exception:
+        except (
+            FindingConflict,
+            FindingLifecycleError,
+            FindingStoreError,
+            OSError,
+            ValueError,
+        ):
             if created:
                 self.receipt_store.delete(bundle.receipt_id)
             raise

@@ -95,14 +95,9 @@ def test_remediation_failure_cancels_implementation_and_downstream_claims(tmp_pa
 
     assert payload is not None
     assert payload["chat_stage"] == "remediation_failed_safe"
-    nodes = {
-        item["stage"]: item
-        for item in payload["nodes"]
-    }
+    nodes = {item["stage"]: item for item in payload["nodes"]}
     assert nodes["execution"]["status"] == "cancelled"
-    assert str(nodes["execution"]["last_error"]).startswith(
-        "Remediation failed safely:"
-    )
+    assert str(nodes["execution"]["last_error"]).startswith("Remediation failed safely:")
     assert all(
         nodes[stage]["status"] == "cancelled"
         for stage in ("evidence", "verification", "review", "report")

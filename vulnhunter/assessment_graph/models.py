@@ -13,7 +13,6 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from vulnhunter.actions.models import ActionManifest, sha256_json
 
 _IDENTIFIER = re.compile(r"^[a-z0-9][a-z0-9._-]{1,127}$")
-_SHA256 = re.compile(r"^[0-9a-f]{64}$")
 
 
 class AssessmentKind(StrEnum):
@@ -58,27 +57,27 @@ class AssessmentGraphBundle(BaseModel):
     @classmethod
     def validate_identifier(cls, value: str) -> str:
         if _IDENTIFIER.fullmatch(value) is None:
-  raise ValueError("assessment graph identifiers must be stable lowercase values")
+            raise ValueError("assessment graph identifiers must be stable lowercase values")
         return value
 
     @field_validator("created_at")
     @classmethod
     def validate_created_at(cls, value: datetime) -> datetime:
         if value.tzinfo is None or value.utcoffset() is None:
-  raise ValueError("assessment graph timestamps must be timezone-aware")
+            raise ValueError("assessment graph timestamps must be timezone-aware")
         return value.astimezone(UTC)
 
     @model_validator(mode="after")
     def validate_bundle(self) -> Self:
         if not self.target_reference.strip():
-  raise ValueError("target_reference must not be blank")
+            raise ValueError("target_reference must not be blank")
         if len(set(self.node_stages)) != len(self.node_stages):
-  raise ValueError("task graph node identifiers must be unique")
+            raise ValueError("task graph node identifiers must be unique")
         fingerprints = [manifest.fingerprint() for manifest in self.manifests]
         if len(set(fingerprints)) != len(fingerprints):
-  raise ValueError("assessment action manifests must be unique")
+            raise ValueError("assessment action manifests must be unique")
         if len(self.node_stages) != len(self.manifests):
-  raise ValueError("every assessment graph node requires one action manifest")
+            raise ValueError("every assessment graph node requires one action manifest")
         return self
 
     def manifest_by_sha256(self) -> dict[str, ActionManifest]:

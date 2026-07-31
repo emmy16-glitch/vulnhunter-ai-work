@@ -32,12 +32,12 @@ from vulnhunter.web.remediation_assessment_graph import (
 from vulnhunter.web.remediation_conversation_state import (
     current_remediation_plan,
     record_remediation_event,
-    remember_remediation_workspace,
     remediation_chat_reply,
     remediation_create_url,
     remediation_detail_url,
     remediation_finding_store,
     remediation_workspace_url,
+    remember_remediation_workspace,
 )
 from vulnhunter.web.services import WebPermissionDenied, authorized_actor
 
@@ -428,7 +428,10 @@ def remediation_cancel_view(request: HttpRequest, finding_id: str) -> HttpRespon
     ) as exc:
         messages.error(request, str(exc))
     else:
-        messages.success(request, "The remediation plan was cancelled; the finding remains triaged.")
+        messages.success(
+            request,
+            "The remediation plan was cancelled; the finding remains triaged.",
+        )
     return redirect(remediation_detail_url(finding_id, workspace_id))
 
 

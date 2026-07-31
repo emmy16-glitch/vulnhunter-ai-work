@@ -78,20 +78,32 @@ def bind_source_hunt_assessment_graph(
     return graph
 
 
+def project_source_hunt_state(
+    job_id: str,
+    *,
+    state: str,
+    reason: str | None = None,
+) -> dict[str, object] | None:
+    """Project an observed state when the queue operation itself fails safely."""
+
+    service = _service()
+    service.project_execution(job_id, state=state, reason=reason)
+    return service.status_payload(job_id)
+
+
 def project_source_hunt_job(job: SourceHuntJob) -> dict[str, object] | None:
     """Project one observed queue/worker state into an existing source graph."""
 
-    service = _service()
-    service.project_execution(
+    return project_source_hunt_state(
         job.job_id,
         state=job.status.value,
         reason=job.safe_error,
     )
-    return service.status_payload(job.job_id)
 
 
 __all__ = [
     "bind_source_hunt_assessment_graph",
     "project_source_hunt_job",
+    "project_source_hunt_state",
     "source_hunt_plan_digest",
 ]

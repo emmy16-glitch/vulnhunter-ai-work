@@ -333,10 +333,12 @@ class RemediationAssessmentGraphService:
                 "Bind the remediation summary, exact targets, RED test and verification recipe."
             ),
             AssessmentStage.APPROVAL: (
-                "Record fresh human confirmation of the exact plan without granting merge authority."
+                "Record fresh human confirmation of the exact plan without granting "
+                "merge authority."
             ),
             AssessmentStage.EXECUTION: (
-                "Wait for developer-led implementation inside separately controlled engineering tools."
+                "Wait for developer-led implementation inside separately controlled "
+                "engineering tools."
             ),
             AssessmentStage.EVIDENCE: (
                 "Collect bounded before-and-after evidence and deterministic test receipts."

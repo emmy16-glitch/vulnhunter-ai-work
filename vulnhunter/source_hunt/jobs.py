@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Callable
 from datetime import UTC, datetime
 from enum import StrEnum
 from pathlib import Path
@@ -248,6 +249,7 @@ def process_next_source_hunt_job(
     report_store: SourceHuntStore,
     connector: SourceHuntConnector,
     policy: SourceHuntPolicy,
+    on_state_change: Callable[[SourceHuntJob], None] | None = None,
 ) -> SourceHuntJob | None:
     """Claim and execute one job, preserving a terminal state on every failure."""
 
@@ -255,6 +257,8 @@ def process_next_source_hunt_job(
     if job is None:
         return None
     try:
+        if on_state_change is not None:
+            on_state_change(job)
         try:
             existing = report_store.load(job.expected_report_id)
         except FileNotFoundError:
@@ -265,14 +269,26 @@ def process_next_source_hunt_job(
                 or existing.snapshot.snapshot_sha256 != job.snapshot.snapshot_sha256
             ):
                 raise ValueError("persisted source-hunt report does not match the claimed job")
-            return job_store.complete(job, existing)
+            completed = job_store.complete(job, existing)
+            if on_state_change is not None:
+                on_state_change(completed)
+            return completed
         report = GroqSourceHunt(connector=connector, policy=policy).run(
             Path(job.repository_root),
             approval=job.approval,
             revision=job.snapshot.revision,
         )
         report_store.save(report)
-        return job_store.complete(job, report)
+        completed = job_store.complete(job, report)
+        if on_state_change is not None:
+            on_state_change(completed)
+        return completed
     except Exception as exc:
         safe_error = redact_text(str(exc) or type(exc).__name__)
-        return job_store.fail(job, safe_error)
+        failed = job_store.fail(job, safe_error)
+        if on_state_change is not None:
+            try:
+                on_state_change(failed)
+            except Exception:
+                pass
+        return failed

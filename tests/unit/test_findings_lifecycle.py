@@ -80,7 +80,9 @@ def test_verified_finding_starts_exact_governed_remediation(tmp_path):
         summary="Enforce object ownership before returning the requested user record.",
         target_references=("app/users.py", "GET /users/{id}"),
         regression_test="The cross-user request must fail before the fix and pass after the fix.",
-        verification_recipe="Run the read-only security test and the complete user API regression suite.",
+        verification_recipe=(
+            "Run the read-only security test and the complete user API regression suite."
+        ),
         compatibility_risks=("Existing administrative access must remain available.",),
         references=("evidence-01",),
         expires_at=NOW + timedelta(days=7),

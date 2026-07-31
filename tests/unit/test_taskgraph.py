@@ -174,7 +174,6 @@ def test_task_graph_worker_leases_are_bounded_and_recoverable(tmp_path):
     assert recovered.nodes[0].status == NodeStatus.READY
 
 
-
 def test_task_graph_allows_unchanged_terminal_siblings(tmp_path):
     graph = TaskGraph(
         graph_id="graph-terminal-sibling",

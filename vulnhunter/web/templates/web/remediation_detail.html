@@ -8,6 +8,7 @@
       <p>{{ remediation.summary }}</p>
     </div>
     <div class="vh-page-actions">
+      {% if can_verify %}<a class="vh-button-primary" href="{{ verification_url }}">Record implementation and verify</a>{% endif %}
       {% if workspace_return_url %}<a class="vh-button-secondary" href="{{ workspace_return_url }}">Return to chat</a>{% endif %}
       <a class="vh-button-secondary" href="{% url 'web-findings-overview' %}">Findings</a>
     </div>
@@ -40,9 +41,9 @@
       <h3>Permanent boundaries</h3>
       <ul class="vh-fact-list">
         <li><span>Automatic source edits</span><strong>Not allowed</strong></li>
+        <li><span>Submitted command execution</span><strong>Not allowed</strong></li>
         <li><span>Model merge authority</span><strong>Not allowed</strong></li>
-        <li><span>Fix verdict</span><strong>Not recorded</strong></li>
-        <li><span>Finding closure</span><strong>Not allowed here</strong></li>
+        <li><span>Retest, closure or release</span><strong>Separate authority</strong></li>
       </ul>
     </section>
   </div>
@@ -58,15 +59,60 @@
     </div>
   </section>
 
+  {% if latest_verification %}
+  <section class="vh-surface">
+    <header class="vh-surface-header">
+      <div>
+        <h2>Latest immutable fix-verification receipt</h2>
+        <p>This is a read-only verdict for one exact implementation attempt. It is not a retest, review, merge or closure decision.</p>
+      </div>
+    </header>
+    <div class="vh-surface-body">
+      <dl class="vh-terminal-facts">
+        <div><dt>Receipt ID</dt><dd>{{ latest_verification.receipt_id }}</dd></div>
+        <div><dt>Verdict</dt><dd>{{ latest_verification.verdict }}</dd></div>
+        <div><dt>Original revision</dt><dd><code>{{ latest_verification.original_revision }}</code></dd></div>
+        <div><dt>Fixed revision</dt><dd><code>{{ latest_verification.fixed_revision }}</code></dd></div>
+        <div><dt>Receipt SHA-256</dt><dd><code>{{ latest_verification.sha256 }}</code></dd></div>
+        <div><dt>Recorded</dt><dd>{{ latest_verification.created_at }}</dd></div>
+      </dl>
+      {% if verification_bundle %}
+      <h3>Verifier summary</h3><p>{{ verification_bundle.report.summary }}</p>
+      <h3>Changed files</h3>
+      <ul class="vh-compact-list">{% for path in verification_bundle.changed_files %}<li><span>{{ path }}</span></li>{% endfor %}</ul>
+      <h3>Deterministic receipts</h3>
+      <ul class="vh-fact-list">
+        <li><span>Security receipt</span><strong>{% if verification_bundle.security_test %}{{ verification_bundle.security_test.verifier_id }}{% else %}Not supplied{% endif %}</strong></li>
+        <li><span>Regression receipts</span><strong>{{ verification_bundle.regression_tests|length }}</strong></li>
+        <li><span>Fixed evidence references</span><strong>{{ verification_bundle.fixed_evidence_refs|length }}</strong></li>
+        <li><span>Original attack blocked</span><strong>{{ verification_bundle.original_attack_blocked }}</strong></li>
+      </ul>
+      {% else %}
+      <div class="vh-alert vh-alert-danger" role="alert">The receipt pointer exists, but its immutable bundle could not be loaded or verified.</div>
+      {% endif %}
+    </div>
+  </section>
+  {% endif %}
+
+  {% if remediation.state.value == 'ready_for_retest' %}
+  <section class="vh-surface">
+    <div class="vh-empty-panel">
+      <svg aria-hidden="true"><use href="#vh-i-shield"></use></svg>
+      <h3>Fix verified; retest still required</h3>
+      <p>The independent receipt passed for the exact fixed revision. A separate governed retest must compare before-and-after evidence before review, merge, closure or release.</p>
+    </div>
+  </section>
+  {% endif %}
+
   {% if can_cancel %}
   <section class="vh-surface">
-    <header class="vh-surface-header"><div><h2>Cancel before implementation</h2><p>Cancellation is terminal for this exact plan. The verified finding returns to triaged state and the plan digest cannot be reused.</p></div></header>
+    <header class="vh-surface-header"><div><h2>Cancel active plan</h2><p>Cancellation is terminal for this exact plan. The verified finding returns to triaged state and the plan digest cannot be reused.</p></div></header>
     <div class="vh-surface-body">
       <form method="post" action="{% url 'web-remediation-cancel' finding.finding_id %}" class="vh-inline-action-form">
         {% csrf_token %}
         <input type="hidden" name="thread_id" value="{{ request.vulnhunter_thread.thread_id }}">
         <input type="hidden" name="expected_revision" value="{{ finding.revision }}">
-        <input type="hidden" name="reason" value="Human owner cancelled the remediation plan before developer implementation.">
+        <input type="hidden" name="reason" value="Human owner cancelled the active remediation plan.">
         <label class="vh-form-field"><span>Password</span><input type="password" name="password" autocomplete="current-password" required></label>
         <button class="vh-button-secondary" type="submit">Cancel exact plan</button>
       </form>

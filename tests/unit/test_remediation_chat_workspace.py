@@ -55,9 +55,7 @@ def _finding(*, verified: bool = True) -> Finding:
 
 
 def _actor() -> SimpleNamespace:
-    return SimpleNamespace(
-        governance_identity=SimpleNamespace(reviewer_id="remediation-owner")
-    )
+    return SimpleNamespace(governance_identity=SimpleNamespace(reviewer_id="remediation-owner"))
 
 
 @pytest.mark.django_db
@@ -300,9 +298,7 @@ def test_unverified_finding_is_not_eligible_for_protected_remediation(
         "vulnhunter.web.remediation_views._remediator",
         return_value=_actor(),
     ):
-        response = client.get(
-            f"/findings/finding-01/remediation/new/?thread={thread.thread_id}"
-        )
+        response = client.get(f"/findings/finding-01/remediation/new/?thread={thread.thread_id}")
 
     assert response.status_code == 409
     assert store.get("finding-01").remediation is None

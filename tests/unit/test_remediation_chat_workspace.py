@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -231,8 +232,7 @@ def test_remediation_cancellation_returns_finding_graph_and_chat_to_safe_state(
         target_references=("app/users.py",),
         regression_test="A cross-user request must be rejected.",
         verification_recipe="Run the read-only security and regression receipts.",
-        expires_at=__import__("datetime").datetime.now(__import__("datetime").UTC)
-        + __import__("datetime").timedelta(days=7),
+        expires_at=datetime.now(UTC) + timedelta(days=7),
         expected_revision=0,
     )
     graph = bind_remediation_assessment_graph(started, workspace_id=str(thread.thread_id))

@@ -34,9 +34,7 @@ def _configure(settings, tmp_path: Path) -> None:
 
 
 def _actor() -> SimpleNamespace:
-    return SimpleNamespace(
-        governance_identity=SimpleNamespace(reviewer_id="remediation-owner")
-    )
+    return SimpleNamespace(governance_identity=SimpleNamespace(reviewer_id="remediation-owner"))
 
 
 def _finding(now: datetime) -> Finding:
@@ -225,9 +223,7 @@ def test_protected_handoff_records_fixed_revision_verdict_graph_and_thread(
                 "original_snapshot_json": original.model_dump_json(),
                 "fixed_snapshot_json": fixed.model_dump_json(),
                 "security_test_json": _receipt("security-red").model_dump_json(),
-                "regression_tests_json": json.dumps(
-                    [_receipt("pytest").model_dump(mode="json")]
-                ),
+                "regression_tests_json": json.dumps([_receipt("pytest").model_dump(mode="json")]),
                 "fixed_evidence_refs_json": json.dumps(
                     [
                         SourceReference(

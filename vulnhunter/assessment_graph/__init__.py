@@ -1,5 +1,8 @@
 """Chat-bound authoritative assessment task graphs."""
 
+from vulnhunter.assessment_graph.active_validation import (
+    ActiveValidationAssessmentGraphService,
+)
 from vulnhunter.assessment_graph.mobile import MobileAssessmentGraphService
 from vulnhunter.assessment_graph.models import (
     AssessmentGraphBundle,
@@ -13,6 +16,7 @@ from vulnhunter.assessment_graph.service import (
 from vulnhunter.assessment_graph.source import SourceAssessmentGraphService
 
 __all__ = [
+    "ActiveValidationAssessmentGraphService",
     "AssessmentGraphBundle",
     "AssessmentGraphError",
     "AssessmentGraphService",

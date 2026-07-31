@@ -65,6 +65,63 @@ jobs:
               "                        run_id,\n                        reason=\"Worker queue activation failed closed.\",\n",
               "                        task.task_id,\n                        reason=\"Worker queue activation failed closed.\",\n",
           )
+          replace_exact(
+              "vulnhunter/taskgraph/models.py",
+              "        for field_name in immutable:\n"
+              "            if getattr(self, field_name) != getattr(previous, field_name):\n"
+              "                raise ValueError(f\"task node field is immutable: {field_name}\")\n"
+              "        if self.status not in _ALLOWED_TRANSITIONS[previous.status]:\n",
+              "        for field_name in immutable:\n"
+              "            if getattr(self, field_name) != getattr(previous, field_name):\n"
+              "                raise ValueError(f\"task node field is immutable: {field_name}\")\n"
+              "        if self == previous:\n"
+              "            return\n"
+              "        if self.status not in _ALLOWED_TRANSITIONS[previous.status]:\n",
+          )
+
+          test_path = Path("tests/unit/test_taskgraph.py")
+          test_text = test_path.read_text(encoding="utf-8")
+          test_name = "test_task_graph_allows_unchanged_terminal_siblings"
+          if test_name not in test_text:
+              test_text += '''
+
+
+def test_task_graph_allows_unchanged_terminal_siblings(tmp_path):
+    graph = TaskGraph(
+        graph_id="graph-terminal-sibling",
+        campaign_id="campaign-01",
+        run_id="run-01",
+        nodes=(
+            GraphNode(
+                node_id="authorize",
+                role_id="scope-guardian",
+                skill_id="exact-scope-validation",
+                action_manifest_sha256="a" * 64,
+                status=NodeStatus.COMPLETED,
+            ),
+            GraphNode(
+                node_id="execute",
+                role_id="scanner-evidence-specialist",
+                skill_id="governed-security-tool-operation",
+                action_manifest_sha256="b" * 64,
+                dependencies=("authorize",),
+            ),
+        ),
+    )
+    store = TaskGraphStore(tmp_path)
+    store.save(graph)
+
+    updated = store.update_status(
+        "graph-terminal-sibling",
+        node_id="execute",
+        status=NodeStatus.RUNNING,
+        expected_revision=0,
+    )
+
+    assert updated.nodes[0].status == NodeStatus.COMPLETED
+    assert updated.nodes[1].status == NodeStatus.RUNNING
+'''
+              test_path.write_text(test_text, encoding="utf-8")
           PY
       - name: Install verification dependencies
         run: |
@@ -74,33 +131,41 @@ jobs:
         run: |
           python -m ruff check --fix \
             vulnhunter/assessment_graph \
+            vulnhunter/taskgraph/models.py \
             vulnhunter/web/assessment_workflow.py \
             vulnhunter/web/conversational_views.py \
             tests/unit/test_assessment_graph.py \
-            tests/unit/test_assessment_workflow.py
+            tests/unit/test_assessment_workflow.py \
+            tests/unit/test_taskgraph.py
           python -m ruff format \
             vulnhunter/assessment_graph \
+            vulnhunter/taskgraph/models.py \
             vulnhunter/web/assessment_workflow.py \
             vulnhunter/web/conversational_views.py \
             tests/unit/test_assessment_graph.py \
-            tests/unit/test_assessment_workflow.py
+            tests/unit/test_assessment_workflow.py \
+            tests/unit/test_taskgraph.py
       - name: Verify repaired slice
         env:
           VULNHUNTER_WEB_SECRET_KEY: chat-taskgraph-check-secret
         run: |
           python -m ruff check \
             vulnhunter/assessment_graph \
+            vulnhunter/taskgraph/models.py \
             vulnhunter/web/assessment_workflow.py \
             vulnhunter/web/conversational_views.py \
             tests/unit/test_assessment_graph.py \
-            tests/unit/test_assessment_workflow.py
+            tests/unit/test_assessment_workflow.py \
+            tests/unit/test_taskgraph.py
           python -m ruff format --check \
             vulnhunter/assessment_graph \
+            vulnhunter/taskgraph/models.py \
             vulnhunter/web/assessment_workflow.py \
             vulnhunter/web/conversational_views.py \
             tests/unit/test_assessment_graph.py \
-            tests/unit/test_assessment_workflow.py
-          python -m compileall -q vulnhunter/assessment_graph vulnhunter/web
+            tests/unit/test_assessment_workflow.py \
+            tests/unit/test_taskgraph.py
+          python -m compileall -q vulnhunter/assessment_graph vulnhunter/taskgraph vulnhunter/web
           python -m pytest -q \
             tests/unit/test_assessment_graph.py \
             tests/unit/test_assessment_workflow.py \
@@ -117,9 +182,11 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add \
             vulnhunter/assessment_graph \
+            vulnhunter/taskgraph/models.py \
             vulnhunter/web/assessment_workflow.py \
             vulnhunter/web/conversational_views.py \
             tests/unit/test_assessment_graph.py \
-            tests/unit/test_assessment_workflow.py
+            tests/unit/test_assessment_workflow.py \
+            tests/unit/test_taskgraph.py
           git commit -m 'Repair chat taskgraph implementation [verified-repair]'
           git push origin HEAD:impl/chat-taskgraph-slice

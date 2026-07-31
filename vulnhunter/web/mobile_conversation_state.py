@@ -139,9 +139,7 @@ def mobile_chat_reply(
     if intent == "status":
         execution = plan.get("execution")
         graph = plan.get("assessment_graph")
-        graph_stage = (
-            str(graph.get("chat_stage") or "") if isinstance(graph, dict) else ""
-        )
+        graph_stage = str(graph.get("chat_stage") or "") if isinstance(graph, dict) else ""
         if isinstance(execution, dict):
             state = str(execution.get("state") or "prepared")
             reason = str(execution.get("reason") or "")

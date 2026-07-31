@@ -54,7 +54,12 @@ class FixVerificationInput(BaseModel):
 class ReadOnlyFixVerifier:
     """Issue a verdict from immutable snapshot data and deterministic verifier receipts."""
 
-    def verify(self, request: FixVerificationInput) -> FixVerificationReport:
+    def verify(
+        self,
+        request: FixVerificationInput,
+        *,
+        now: datetime | None = None,
+    ) -> FixVerificationReport:
         verdict = FixVerificationVerdict.CANNOT_VERIFY
         summary = "The fix could not be proven from the supplied deterministic evidence."
         regressions: tuple[str, ...] = ()
@@ -119,7 +124,7 @@ class ReadOnlyFixVerifier:
             summary=summary,
             evidence_refs=request.fixed_evidence_refs,
             regressions=regressions,
-            created_at=datetime.now(UTC),
+            created_at=(now or datetime.now(UTC)).astimezone(UTC),
         )
 
     @staticmethod

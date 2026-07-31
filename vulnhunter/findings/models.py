@@ -46,6 +46,12 @@ class FindingStatus(StrEnum):
     CLOSED = "closed"
 
 
+class RemediationState(StrEnum):
+    READY_FOR_IMPLEMENTATION = "ready_for_implementation"
+    CANCELLED = "cancelled"
+    FAILED = "failed"
+
+
 class EvidenceReference(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
@@ -70,12 +76,182 @@ class EvidenceReference(BaseModel):
 
 
 class RemediationRecord(BaseModel):
+    """A legacy note or an exact human-owned remediation plan.
+
+    The original summary-only shape remains valid for backward compatibility. A
+    governed record is present when ``remediation_id`` is set; all plan fields
+    then become mandatory and are digest-bound to one exact finding revision.
+    """
+
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     summary: str = Field(min_length=10, max_length=5_000)
     owner_id: str | None = None
     due_at: datetime | None = None
     references: tuple[str, ...] = ()
+    remediation_id: str | None = None
+    state: RemediationState | None = None
+    source_finding_revision: int | None = Field(default=None, ge=0)
+    source_finding_fingerprint: str | None = None
+    plan_sha256: str | None = None
+    target_references: tuple[str, ...] = ()
+    regression_test: str | None = Field(default=None, min_length=3, max_length=4_000)
+    verification_recipe: str | None = Field(default=None, min_length=3, max_length=4_000)
+    compatibility_risks: tuple[str, ...] = ()
+    created_at: datetime | None = None
+    expires_at: datetime | None = None
+    cancelled_at: datetime | None = None
+    cancellation_reason: str | None = Field(default=None, min_length=3, max_length=1_000)
+
+    @field_validator("owner_id")
+    @classmethod
+    def validate_owner_id(cls, value: str | None) -> str | None:
+        if value is not None and _IDENTIFIER.fullmatch(value) is None:
+            raise ValueError("remediation owner must be a stable lowercase identifier")
+        return value
+
+    @field_validator("source_finding_fingerprint", "plan_sha256")
+    @classmethod
+    def validate_optional_sha(cls, value: str | None) -> str | None:
+        if value is not None and _SHA256.fullmatch(value) is None:
+            raise ValueError("remediation digest fields must be SHA-256 values")
+        return value
+
+    @field_validator("target_references")
+    @classmethod
+    def validate_target_references(cls, values: tuple[str, ...]) -> tuple[str, ...]:
+        cleaned = tuple(" ".join(value.split()) for value in values if value.strip())
+        if any(len(value) > 1_000 for value in cleaned):
+            raise ValueError("remediation target references must not exceed 1,000 characters")
+        return cleaned
+
+    @model_validator(mode="after")
+    def validate_governed_record(self) -> Self:
+        if self.remediation_id is None:
+            governed_values = (
+                self.state,
+                self.source_finding_revision,
+                self.source_finding_fingerprint,
+                self.plan_sha256,
+                self.target_references,
+                self.regression_test,
+                self.verification_recipe,
+                self.compatibility_risks,
+                self.created_at,
+                self.expires_at,
+                self.cancelled_at,
+                self.cancellation_reason,
+            )
+            if any(value not in (None, (), "") for value in governed_values):
+                raise ValueError("governed remediation fields require remediation_id")
+            return self
+
+        if _IDENTIFIER.fullmatch(self.remediation_id) is None:
+            raise ValueError("remediation_id must be a stable lowercase identifier")
+        required = {
+            "owner_id": self.owner_id,
+            "state": self.state,
+            "source_finding_revision": self.source_finding_revision,
+            "source_finding_fingerprint": self.source_finding_fingerprint,
+            "plan_sha256": self.plan_sha256,
+            "regression_test": self.regression_test,
+            "verification_recipe": self.verification_recipe,
+            "created_at": self.created_at,
+            "expires_at": self.expires_at,
+        }
+        missing = [name for name, value in required.items() if value is None]
+        if missing:
+            raise ValueError(
+                "governed remediation record is missing: " + ", ".join(sorted(missing))
+            )
+        if not self.target_references:
+            raise ValueError("governed remediation plan requires exact target references")
+        assert self.created_at is not None
+        assert self.expires_at is not None
+        if self.created_at.tzinfo is None or self.created_at.utcoffset() is None:
+            raise ValueError("remediation creation time must be timezone-aware")
+        if self.expires_at.tzinfo is None or self.expires_at.utcoffset() is None:
+            raise ValueError("remediation expiry must be timezone-aware")
+        if self.expires_at <= self.created_at:
+            raise ValueError("remediation expiry must follow creation")
+        if self.due_at is not None:
+            if self.due_at.tzinfo is None or self.due_at.utcoffset() is None:
+                raise ValueError("remediation due time must be timezone-aware")
+            if self.due_at < self.created_at:
+                raise ValueError("remediation due time cannot predate creation")
+        if self.state == RemediationState.CANCELLED:
+            if self.cancelled_at is None or self.cancellation_reason is None:
+                raise ValueError("cancelled remediation requires time and reason")
+        elif self.cancelled_at is not None or self.cancellation_reason is not None:
+            raise ValueError("cancellation metadata requires cancelled remediation state")
+        return self
+
+    @classmethod
+    def create(
+        cls,
+        *,
+        finding_id: str,
+        finding_revision: int,
+        finding_fingerprint: str,
+        summary: str,
+        owner_id: str,
+        target_references: tuple[str, ...],
+        regression_test: str,
+        verification_recipe: str,
+        compatibility_risks: tuple[str, ...] = (),
+        references: tuple[str, ...] = (),
+        created_at: datetime,
+        expires_at: datetime,
+        due_at: datetime | None = None,
+    ) -> RemediationRecord:
+        canonical = {
+            "finding_id": finding_id,
+            "finding_revision": finding_revision,
+            "finding_fingerprint": finding_fingerprint,
+            "summary": " ".join(summary.split()),
+            "owner_id": owner_id,
+            "target_references": list(target_references),
+            "regression_test": " ".join(regression_test.split()),
+            "verification_recipe": " ".join(verification_recipe.split()),
+            "compatibility_risks": list(compatibility_risks),
+            "references": list(references),
+            "created_at": created_at.astimezone(UTC).isoformat(),
+            "expires_at": expires_at.astimezone(UTC).isoformat(),
+            "due_at": due_at.astimezone(UTC).isoformat() if due_at else None,
+        }
+        digest = sha256_json(canonical)
+        return cls(
+            remediation_id=f"remediation-{digest[:32]}",
+            state=RemediationState.READY_FOR_IMPLEMENTATION,
+            source_finding_revision=finding_revision,
+            source_finding_fingerprint=finding_fingerprint,
+            plan_sha256=digest,
+            summary=canonical["summary"],
+            owner_id=owner_id,
+            due_at=due_at,
+            references=references,
+            target_references=target_references,
+            regression_test=canonical["regression_test"],
+            verification_recipe=canonical["verification_recipe"],
+            compatibility_risks=compatibility_risks,
+            created_at=created_at,
+            expires_at=expires_at,
+        )
+
+    def cancel(self, *, cancelled_at: datetime, reason: str) -> RemediationRecord:
+        if self.remediation_id is None or self.state is None:
+            raise ValueError("legacy remediation notes cannot be cancelled as governed plans")
+        if self.state in {RemediationState.CANCELLED, RemediationState.FAILED}:
+            raise ValueError("terminal remediation plans are immutable")
+        return RemediationRecord.model_validate(
+            self.model_copy(
+                update={
+                    "state": RemediationState.CANCELLED,
+                    "cancelled_at": cancelled_at,
+                    "cancellation_reason": " ".join(reason.split())[:1_000],
+                }
+            ).model_dump()
+        )
 
 
 class RetestRecord(BaseModel):
@@ -142,6 +318,13 @@ class Finding(BaseModel):
             raise ValueError("updated_at cannot predate creation")
         if self.verification == VerificationState.VERIFIED and not self.evidence:
             raise ValueError("verified findings require evidence")
+        if self.status == FindingStatus.IN_REMEDIATION:
+            if (
+                self.remediation is None
+                or self.remediation.remediation_id is None
+                or self.remediation.state != RemediationState.READY_FOR_IMPLEMENTATION
+            ):
+                raise ValueError("in-remediation findings require a ready governed plan")
         if self.status == FindingStatus.REMEDIATED:
             if not self.retests or self.retests[-1].outcome != "passed":
                 raise ValueError("remediated findings require a passed retest")
@@ -179,3 +362,13 @@ class Finding(BaseModel):
             raise ValueError("finding evidence is append-only")
         if self.retests[: len(previous.retests)] != previous.retests:
             raise ValueError("finding retest history is append-only")
+        old_remediation = previous.remediation
+        new_remediation = self.remediation
+        if old_remediation is not None and old_remediation.remediation_id is not None:
+            if new_remediation is None:
+                raise ValueError("governed remediation history cannot be removed")
+            if new_remediation.remediation_id != old_remediation.remediation_id:
+                raise ValueError("governed remediation identifier is immutable")
+            if old_remediation.state in {RemediationState.CANCELLED, RemediationState.FAILED}:
+                if new_remediation != old_remediation:
+                    raise ValueError("terminal remediation record is immutable")

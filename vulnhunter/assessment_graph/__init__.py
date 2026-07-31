@@ -9,6 +9,7 @@ from vulnhunter.assessment_graph.models import (
     AssessmentKind,
     AssessmentStage,
 )
+from vulnhunter.assessment_graph.remediation import RemediationAssessmentGraphService
 from vulnhunter.assessment_graph.service import (
     AssessmentGraphError,
     AssessmentGraphService,
@@ -23,5 +24,6 @@ __all__ = [
     "AssessmentKind",
     "AssessmentStage",
     "MobileAssessmentGraphService",
+    "RemediationAssessmentGraphService",
     "SourceAssessmentGraphService",
 ]

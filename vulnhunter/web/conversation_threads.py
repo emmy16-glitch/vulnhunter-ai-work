@@ -27,6 +27,7 @@ SCOPED_SESSION_KEYS = frozenset(
         "vulnhunter_conversation_mobile_jobs",
         "vulnhunter_mobile_extension_jobs",
         "vulnhunter_conversation_apk_uploads",
+        "vulnhunter_conversation_source_hunt",
     }
 )
 DEFAULT_TITLE = "New security workspace"
@@ -135,12 +136,17 @@ def thread_summary(thread: ConversationThread) -> dict[str, object]:
     state = state if isinstance(state, dict) else {}
     mobile_plan = data.get("vulnhunter_conversation_mobile_plan")
     mobile_plan = mobile_plan if isinstance(mobile_plan, dict) else {}
-    execution = mobile_plan.get("execution")
-    execution = execution if isinstance(execution, dict) else {}
+    mobile_execution = mobile_plan.get("execution")
+    mobile_execution = mobile_execution if isinstance(mobile_execution, dict) else {}
+    source_plan = data.get("vulnhunter_conversation_source_hunt")
+    source_plan = source_plan if isinstance(source_plan, dict) else {}
+    source_execution = source_plan.get("execution")
+    source_execution = source_execution if isinstance(source_execution, dict) else {}
     uploads = data.get("vulnhunter_conversation_apk_uploads")
     uploads = uploads if isinstance(uploads, dict) else {}
     status = str(
-        execution.get("state")
+        source_execution.get("state")
+        or mobile_execution.get("state")
         or state.get("state")
         or ("active" if state.get("run_id") else "idle")
     )

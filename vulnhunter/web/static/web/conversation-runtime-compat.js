@@ -15,6 +15,76 @@
   const current = document.currentScript?.src;
   if (!current) return;
 
+  const sourceHuntMessage = (value) => {
+    const text = String(value || "").toLowerCase().replace(/\s+/g, " ").trim();
+    if (/\bsource hunt\b/.test(text)) return true;
+    const namesSource = /\b(source code|repository|repo)\b/.test(text);
+    const requestsAction = /\b(scan|assess|analyse|analyze|review|hunt|status|progress|result|results|finding|findings|evidence|next step|what next)\b/.test(text);
+    return namesSource && requestsAction;
+  };
+
+  const csrfToken = (form) => {
+    const field = form.querySelector("input[name='csrfmiddlewaretoken']");
+    if (field?.value) return field.value;
+    const cookie = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
+    return cookie ? decodeURIComponent(cookie[1]) : "";
+  };
+
+  document.addEventListener(
+    "submit",
+    async (event) => {
+      const form = event.target instanceof HTMLFormElement ? event.target : null;
+      if (!form?.matches("[data-conversation-form]")) return;
+      const input = form.querySelector("[data-conversation-input]");
+      const message = input?.value || "";
+      if (!sourceHuntMessage(message)) return;
+
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      if (form.dataset.sourceHuntBusy === "true") return;
+      form.dataset.sourceHuntBusy = "true";
+      const send = form.querySelector("[data-conversation-send]");
+      if (send) send.disabled = true;
+      if (input) input.disabled = true;
+
+      const workspace = document.querySelector("[data-conversation-workspace]");
+      const threadId = workspace?.dataset.threadId || form.dataset.threadId || "";
+      const payload = new FormData();
+      payload.set("message", message);
+      payload.set("source_chat_bridge", "yes");
+      if (threadId) payload.set("thread_id", threadId);
+      const csrf = csrfToken(form);
+      if (csrf) payload.set("csrfmiddlewaretoken", csrf);
+
+      try {
+        const headers = { Accept: "application/json" };
+        if (threadId) headers["X-VulnHunter-Thread"] = threadId;
+        const response = await fetch("/source-hunt/", {
+          method: "POST",
+          body: payload,
+          credentials: "same-origin",
+          headers,
+        });
+        const body = await response.json();
+        if (!response.ok) throw new Error(body.detail || "Source Hunt request failed.");
+        if (body.redirect_url) {
+          window.location.assign(body.redirect_url);
+          return;
+        }
+        window.location.reload();
+      } catch (error) {
+        form.dataset.sourceHuntBusy = "false";
+        if (send) send.disabled = false;
+        if (input) {
+          input.disabled = false;
+          input.focus();
+        }
+        window.alert(error instanceof Error ? error.message : "Source Hunt request failed.");
+      }
+    },
+    true,
+  );
+
   const loadScript = (filename, marker) => {
     if (document.querySelector(`script[${marker}]`)) return;
     const url = new URL(current, window.location.href);
@@ -27,7 +97,22 @@
     document.head.append(script);
   };
 
+  const bindSourceHuntLinks = () => {
+    const workspace = document.querySelector("[data-conversation-workspace]");
+    const threadId = workspace?.dataset.threadId || "";
+    if (!threadId) return;
+    document.querySelectorAll("a[href]").forEach((anchor) => {
+      const url = new URL(anchor.href, window.location.href);
+      if (!url.pathname.endsWith("/source-hunt/")) return;
+      url.searchParams.set("thread", threadId);
+      anchor.href = url.toString();
+    });
+    const subtitle = workspace?.querySelector(".vh-chat-subtitle");
+    if (subtitle) subtitle.textContent = "Conversational analysis for authorised websites, APKs and source repositories";
+  };
+
   const loadWorkspaceBridges = () => {
+    bindSourceHuntLinks();
     loadScript("workspace-state.js", "data-workspace-state-loader");
     loadScript("workspace-safety-polish.js", "data-workspace-safety-loader");
   };

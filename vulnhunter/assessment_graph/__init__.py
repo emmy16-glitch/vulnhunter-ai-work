@@ -10,6 +10,7 @@ from vulnhunter.assessment_graph.service import (
     AssessmentGraphError,
     AssessmentGraphService,
 )
+from vulnhunter.assessment_graph.source import SourceAssessmentGraphService
 
 __all__ = [
     "AssessmentGraphBundle",
@@ -18,4 +19,5 @@ __all__ = [
     "AssessmentKind",
     "AssessmentStage",
     "MobileAssessmentGraphService",
+    "SourceAssessmentGraphService",
 ]

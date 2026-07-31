@@ -11,6 +11,7 @@ from django.core.management.base import BaseCommand, CommandError
 from vulnhunter.providers import GroqProvider, GroqProviderError
 from vulnhunter.source_hunt import SourceHuntPolicy, SourceHuntStore
 from vulnhunter.source_hunt.jobs import SourceHuntJobStore, process_next_source_hunt_job
+from vulnhunter.web.source_hunt_assessment_graph import project_source_hunt_job
 
 
 def _approved_roots() -> tuple[Path, ...]:
@@ -96,6 +97,8 @@ class Command(BaseCommand):
         policy = _policy()
         worker_lock = _acquire_worker_lock(job_store)
         recovered = job_store.recover_running()
+        for recovered_job in recovered:
+            project_source_hunt_job(recovered_job)
         if recovered:
             self.stdout.write(f"recovered {len(recovered)} interrupted source-hunt job(s)")
 
@@ -107,6 +110,7 @@ class Command(BaseCommand):
                     report_store=report_store,
                     connector=provider,
                     policy=policy,
+                    on_state_change=project_source_hunt_job,
                 )
                 if job is not None:
                     processed += 1

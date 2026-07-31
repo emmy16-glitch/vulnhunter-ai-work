@@ -140,16 +140,19 @@ def test_source_hunt_job_queue_claims_and_completes_without_browser_state(tmp_pa
     job_store = SourceHuntJobStore(tmp_path / "jobs")
     report_store = SourceHuntStore(tmp_path / "reports")
     job_store.enqueue(job)
+    projected: list[SourceHuntJobStatus] = []
 
     completed = process_next_source_hunt_job(
         job_store=job_store,
         report_store=report_store,
         connector=_QueueGroq(),
         policy=policy,
+        on_state_change=lambda item: projected.append(item.status),
     )
 
     assert completed is not None
     assert completed.status == SourceHuntJobStatus.COMPLETED
+    assert projected == [SourceHuntJobStatus.RUNNING, SourceHuntJobStatus.COMPLETED]
     assert completed.report_id is not None
     assert report_store.load(completed.report_id).model_calls == 5
     assert job_store.load(job.job_id) == completed
@@ -161,6 +164,7 @@ def test_source_hunt_job_queue_persists_safe_failure(tmp_path):
     job, policy = _job(tmp_path)
     job_store = SourceHuntJobStore(tmp_path / "jobs")
     job_store.enqueue(job)
+    projected: list[SourceHuntJobStatus] = []
     (Path(job.repository_root) / "app.py").write_text(
         "def changed():\n    return True\n",
         encoding="utf-8",
@@ -171,10 +175,12 @@ def test_source_hunt_job_queue_persists_safe_failure(tmp_path):
         report_store=SourceHuntStore(tmp_path / "reports"),
         connector=_QueueGroq(),
         policy=policy,
+        on_state_change=lambda item: projected.append(item.status),
     )
 
     assert failed is not None
     assert failed.status == SourceHuntJobStatus.FAILED
+    assert projected == [SourceHuntJobStatus.RUNNING, SourceHuntJobStatus.FAILED]
     assert failed.report_id is None
     assert "repository snapshot" in (failed.safe_error or "")
     assert job_store.load(job.job_id) == failed

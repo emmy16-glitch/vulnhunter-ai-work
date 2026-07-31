@@ -67,8 +67,7 @@ class FindingService:
         finding = self.store.get(finding_id)
         if finding.revision != expected_revision:
             raise FindingConflict(
-                "finding revision conflict: "
-                f"expected {expected_revision}, found {finding.revision}"
+                f"finding revision conflict: expected {expected_revision}, found {finding.revision}"
             )
         if finding.verification != VerificationState.VERIFIED:
             raise FindingLifecycleError(
@@ -131,8 +130,7 @@ class FindingService:
         finding = self.store.get(finding_id)
         if finding.revision != expected_revision:
             raise FindingConflict(
-                "finding revision conflict: "
-                f"expected {expected_revision}, found {finding.revision}"
+                f"finding revision conflict: expected {expected_revision}, found {finding.revision}"
             )
         remediation = finding.remediation
         if (

@@ -303,13 +303,11 @@ def remediation_chat_reply(intent: str, plan: dict[str, object]) -> str:
             )
         if state == "cancelled":
             return (
-                "The verified finding remains triaged. Create a new exact remediation plan if the "
-                "issue still needs work; terminal plan authority is never reused."
+                "The verified finding remains triaged. This slice does not create a replacement "
+                "plan, and terminal plan authority is never reused."
             )
         return "Open the protected remediation workspace to inspect the exact plan and safe state."
-    return (
-        f"Remediation is tracking {finding_id}. Ask for status, plan results or the next step."
-    )
+    return f"Remediation is tracking {finding_id}. Ask for status, plan results or the next step."
 
 
 __all__ = [

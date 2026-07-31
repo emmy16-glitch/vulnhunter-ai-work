@@ -50,7 +50,9 @@ def test_remediation_graph_binds_exact_finding_plan_and_workspace(tmp_path):
     assert statuses["verification"] == "pending"
     assert all(manifest.parent_manifest_sha256 == "1" * 64 for manifest in bundle.manifests)
     execution_manifest = next(
-        manifest for manifest in bundle.manifests if manifest.action == "finding.remediation.implement"
+        manifest
+        for manifest in bundle.manifests
+        if manifest.action == "finding.remediation.implement"
     )
     assert execution_manifest.approval_required is True
     assert execution_manifest.action_class.value == "consequential"

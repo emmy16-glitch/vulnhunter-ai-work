@@ -1,5 +1,6 @@
 """Chat-bound authoritative assessment task graphs."""
 
+from vulnhunter.assessment_graph.mobile import MobileAssessmentGraphService
 from vulnhunter.assessment_graph.models import (
     AssessmentGraphBundle,
     AssessmentKind,
@@ -16,4 +17,5 @@ __all__ = [
     "AssessmentGraphService",
     "AssessmentKind",
     "AssessmentStage",
+    "MobileAssessmentGraphService",
 ]

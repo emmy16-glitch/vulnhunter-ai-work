@@ -86,6 +86,10 @@ class FindingService:
             raise FindingLifecycleError("an active remediation plan already exists")
 
         created_at = (now or datetime.now(UTC)).astimezone(UTC)
+        if created_at < finding.updated_at.astimezone(UTC):
+            raise FindingLifecycleError(
+                "remediation timestamp cannot predate the current finding revision"
+            )
         remediation = RemediationRecord.create(
             finding_id=finding.finding_id,
             finding_revision=finding.revision,
@@ -139,6 +143,10 @@ class FindingService:
         ):
             raise FindingLifecycleError("no active governed remediation plan can be cancelled")
         cancelled_at = (now or datetime.now(UTC)).astimezone(UTC)
+        if cancelled_at < finding.updated_at.astimezone(UTC):
+            raise FindingLifecycleError(
+                "remediation cancellation timestamp cannot predate the current finding revision"
+            )
         cancelled = remediation.cancel(cancelled_at=cancelled_at, reason=reason)
         updated = Finding.model_validate(
             finding.model_copy(

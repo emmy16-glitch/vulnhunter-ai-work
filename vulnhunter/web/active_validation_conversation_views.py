@@ -18,6 +18,21 @@ from vulnhunter.web.services import WebPermissionDenied, authorized_actor
 
 def _intent(text: str) -> str:
     lowered = " ".join(text.casefold().split())
+    if any(
+        phrase in lowered
+        for phrase in (
+            "start active validation",
+            "open active validation",
+            "create active validation",
+            "request active validation",
+            "run active validation",
+            "start adversary lab",
+            "open adversary lab",
+            "start synthetic lab",
+            "open synthetic lab",
+        )
+    ):
+        return "setup"
     if any(term in lowered for term in ("result", "finding", "evidence", "what happened")):
         return "results"
     if any(term in lowered for term in ("next step", "what next", "next action")):

@@ -13,11 +13,22 @@ from vulnhunter.web.mobile_execution import mobile_static_status
 _SESSION_MOBILE_PLAN = "vulnhunter_conversation_mobile_plan"
 
 
+def _supports_authoritative_graph(plan: dict[str, object]) -> bool:
+    artifact = plan.get("artifact")
+    if not isinstance(artifact, dict):
+        return False
+    required_plan = ("run_id", "plan_digest", "profile")
+    required_artifact = ("attachment_id", "artifact_id", "artifact_sha256")
+    return all(isinstance(plan.get(key), str) and plan.get(key) for key in required_plan) and all(
+        isinstance(artifact.get(key), str) and artifact.get(key) for key in required_artifact
+    )
+
+
 def remember_mobile_plan(request: HttpRequest, plan: dict[str, object]) -> None:
     """Persist bounded plan metadata, never APK bytes or raw tool output."""
 
     stored = plan
-    if not isinstance(plan.get("assessment_graph"), dict):
+    if not isinstance(plan.get("assessment_graph"), dict) and _supports_authoritative_graph(plan):
         stored = bind_mobile_assessment_graph(request, plan=plan)
         plan.clear()
         plan.update(stored)

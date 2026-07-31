@@ -93,7 +93,16 @@ class ConversationThreadMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-        is_workspace_path = request.path == "/" or request.path.startswith("/workspace/")
+        source_hunt_selected = request.path == "/source-hunt/" and bool(
+            request.GET.get("thread")
+            or (request.method == "POST" and request.POST.get("thread_id"))
+            or request.headers.get("X-VulnHunter-Thread")
+        )
+        is_workspace_path = (
+            request.path == "/"
+            or request.path.startswith("/workspace/")
+            or source_hunt_selected
+        )
         if is_workspace_path and getattr(request.user, "is_authenticated", False):
             from vulnhunter.web.conversation_threads import (
                 ConversationThreadNotFound,
@@ -105,8 +114,10 @@ class ConversationThreadMiddleware:
             try:
                 thread = resolve_thread(request)
             except ConversationThreadNotFound as exc:
-                if request.path.startswith("/workspace/") or (
-                    "application/json" in request.headers.get("Accept", "")
+                if (
+                    request.path.startswith("/workspace/")
+                    or request.path == "/source-hunt/"
+                    or "application/json" in request.headers.get("Accept", "")
                 ):
                     return JsonResponse({"detail": str(exc)}, status=404)
                 thread = None

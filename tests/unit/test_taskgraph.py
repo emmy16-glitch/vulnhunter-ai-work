@@ -172,3 +172,40 @@ def test_task_graph_worker_leases_are_bounded_and_recoverable(tmp_path):
     assert recovered.revision == 3
     assert recovered.nodes[0].lease is None
     assert recovered.nodes[0].status == NodeStatus.READY
+
+
+
+def test_task_graph_allows_unchanged_terminal_siblings(tmp_path):
+    graph = TaskGraph(
+        graph_id="graph-terminal-sibling",
+        campaign_id="campaign-01",
+        run_id="run-01",
+        nodes=(
+            GraphNode(
+                node_id="authorize",
+                role_id="scope-guardian",
+                skill_id="exact-scope-validation",
+                action_manifest_sha256="a" * 64,
+                status=NodeStatus.COMPLETED,
+            ),
+            GraphNode(
+                node_id="execute",
+                role_id="scanner-evidence-specialist",
+                skill_id="governed-security-tool-operation",
+                action_manifest_sha256="b" * 64,
+                dependencies=("authorize",),
+            ),
+        ),
+    )
+    store = TaskGraphStore(tmp_path)
+    store.save(graph)
+
+    updated = store.update_status(
+        "graph-terminal-sibling",
+        node_id="execute",
+        status=NodeStatus.RUNNING,
+        expected_revision=0,
+    )
+
+    assert updated.nodes[0].status == NodeStatus.COMPLETED
+    assert updated.nodes[1].status == NodeStatus.RUNNING

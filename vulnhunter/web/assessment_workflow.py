@@ -20,13 +20,13 @@ from uuid import uuid4
 from django.conf import settings
 from pydantic import BaseModel, ConfigDict
 
-from vulnhunter.assessment_graph import AssessmentGraphError, AssessmentGraphService
 from vulnhunter.agent.models import AgentTask, PermissionManifest, TaskStatus, ToolRisk
 from vulnhunter.agent.store import AgentStore, AgentStoreError
 from vulnhunter.agent_activity.service import AgentActivityService
 from vulnhunter.agent_activity.store import AppendOnlyActivityStore
 from vulnhunter.approvals.models import ApprovalRequest
 from vulnhunter.approvals.store import ApprovalStore, ApprovalStoreError
+from vulnhunter.assessment_graph import AssessmentGraphError, AssessmentGraphService
 from vulnhunter.authorization.models import AuthorizationRecord
 from vulnhunter.authorization.store import AuthorizationStore
 from vulnhunter.security import redact_text
@@ -585,7 +585,7 @@ class AssessmentWorkflowService:
         queue_error = None
         try:
             self.task_graph_service.project_approval(
-                run_id,
+                task.task_id,
                 approved=approved,
                 execution_intended=execution_intended,
                 reason=(
@@ -627,7 +627,7 @@ class AssessmentWorkflowService:
                 queue_error = type(exc).__name__
                 try:
                     self.task_graph_service.mark_execution_blocked(
-                        run_id,
+                        task.task_id,
                         reason="Worker queue activation failed closed.",
                     )
                 except AssessmentGraphError:

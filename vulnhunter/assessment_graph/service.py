@@ -79,7 +79,15 @@ class AssessmentGraphService:
         previous_node: str | None = None
         parent_reference = f"plan-sha256:{plan_digest}" if plan_digest else "plan-unavailable"
 
-        for stage, action, action_class, tool_id, operation, approval_required, status in stage_specs:
+        for (
+            stage,
+            action,
+            action_class,
+            tool_id,
+            operation,
+            approval_required,
+            status,
+        ) in stage_specs:
             node_id = f"{run_id}-{stage.value}"
             manifest = ActionManifest(
                 manifest_id=node_id,
@@ -211,7 +219,9 @@ class AssessmentGraphService:
                     last_error=None,
                 )
             elif approval.status != NodeStatus.COMPLETED:
-                raise AssessmentGraphError("approval projection conflicts with terminal graph state")
+                raise AssessmentGraphError(
+                    "approval projection conflicts with terminal graph state"
+                )
             execution_status = NodeStatus.RUNNING if execution_intended else NodeStatus.BLOCKED
             execution_reason = None if execution_intended else reason
             execution = self._stage_node(graph, AssessmentStage.EXECUTION)

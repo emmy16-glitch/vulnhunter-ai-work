@@ -436,4 +436,3 @@ def test_chat_workspace_assessment_persists_authoritative_task_graph(tmp_path):
     assert graph["workspace_id"] == workspace_id
     assert graph["chat_stage"] == "waiting_for_confirmation"
     assert graph["nodes"][2]["stage"] == "approval"
-

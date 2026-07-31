@@ -16,8 +16,8 @@ from django.views.decorators.cache import cache_control
 from django.views.decorators.http import require_GET, require_POST
 
 from vulnhunter.approvals import ApprovalStatus, ApprovalStore
-from vulnhunter.assessment_graph import AssessmentGraphError, AssessmentGraphService
 from vulnhunter.approvals.store import ApprovalConflictError, ApprovalStoreError
+from vulnhunter.assessment_graph import AssessmentGraphError, AssessmentGraphService
 from vulnhunter.product import ProductServiceError
 from vulnhunter.web.assessment_workflow import (
     AssessmentWorkflowError,

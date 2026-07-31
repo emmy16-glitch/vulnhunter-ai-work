@@ -1,0 +1,125 @@
+name: Fix chat taskgraph implementation
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    if: ${{ github.head_ref == 'impl/chat-taskgraph-slice' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: impl/chat-taskgraph-slice
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Apply exact repairs
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_exact(path: str, old: str, new: str, expected: int = 1) -> None:
+              file = Path(path)
+              text = file.read_text(encoding="utf-8")
+              count = text.count(old)
+              if count == 0 and new in text:
+                  return
+              if count != expected:
+                  raise SystemExit(f"{path}: expected {expected} matches, found {count}")
+              file.write_text(text.replace(old, new, expected), encoding="utf-8")
+
+          replace_exact(
+              "vulnhunter/assessment_graph/service.py",
+              "        for stage, action, action_class, tool_id, operation, approval_required, status in stage_specs:\n",
+              "        for (\n"
+              "            stage,\n"
+              "            action,\n"
+              "            action_class,\n"
+              "            tool_id,\n"
+              "            operation,\n"
+              "            approval_required,\n"
+              "            status,\n"
+              "        ) in stage_specs:\n",
+          )
+          replace_exact(
+              "vulnhunter/assessment_graph/service.py",
+              "                raise AssessmentGraphError(\"approval projection conflicts with terminal graph state\")\n",
+              "                raise AssessmentGraphError(\n"
+              "                    \"approval projection conflicts with terminal graph state\"\n"
+              "                )\n",
+          )
+          replace_exact(
+              "vulnhunter/web/assessment_workflow.py",
+              "                run_id,\n                approved=approved,\n",
+              "                task.task_id,\n                approved=approved,\n",
+          )
+          replace_exact(
+              "vulnhunter/web/assessment_workflow.py",
+              "                        run_id,\n                        reason=\"Worker queue activation failed closed.\",\n",
+              "                        task.task_id,\n                        reason=\"Worker queue activation failed closed.\",\n",
+          )
+          PY
+      - name: Install verification dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e '.[dev]'
+      - name: Format and organize imports
+        run: |
+          python -m ruff check --fix \
+            vulnhunter/assessment_graph \
+            vulnhunter/web/assessment_workflow.py \
+            vulnhunter/web/conversational_views.py \
+            tests/unit/test_assessment_graph.py \
+            tests/unit/test_assessment_workflow.py
+          python -m ruff format \
+            vulnhunter/assessment_graph \
+            vulnhunter/web/assessment_workflow.py \
+            vulnhunter/web/conversational_views.py \
+            tests/unit/test_assessment_graph.py \
+            tests/unit/test_assessment_workflow.py
+      - name: Verify repaired slice
+        env:
+          VULNHUNTER_WEB_SECRET_KEY: chat-taskgraph-check-secret
+        run: |
+          python -m ruff check \
+            vulnhunter/assessment_graph \
+            vulnhunter/web/assessment_workflow.py \
+            vulnhunter/web/conversational_views.py \
+            tests/unit/test_assessment_graph.py \
+            tests/unit/test_assessment_workflow.py
+          python -m ruff format --check \
+            vulnhunter/assessment_graph \
+            vulnhunter/web/assessment_workflow.py \
+            vulnhunter/web/conversational_views.py \
+            tests/unit/test_assessment_graph.py \
+            tests/unit/test_assessment_workflow.py
+          python -m compileall -q vulnhunter/assessment_graph vulnhunter/web
+          python -m pytest -q \
+            tests/unit/test_assessment_graph.py \
+            tests/unit/test_assessment_workflow.py \
+            tests/unit/test_taskgraph.py \
+            tests/unit/test_conversational_workspace.py \
+            tests/unit/test_conversation_experience.py
+          git diff --check
+      - name: Commit verified repairs
+        run: |
+          if git diff --quiet; then
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add \
+            vulnhunter/assessment_graph \
+            vulnhunter/web/assessment_workflow.py \
+            vulnhunter/web/conversational_views.py \
+            tests/unit/test_assessment_graph.py \
+            tests/unit/test_assessment_workflow.py
+          git commit -m 'Repair chat taskgraph implementation [verified-repair]'
+          git push origin HEAD:impl/chat-taskgraph-slice

@@ -45,6 +45,48 @@ jobs:
               line[10:] if line.startswith("          ") else line
               for line in raw_lines
           )
+          ambiguous = r"""views = replace_once(
+    views,
+    '            username=request.user.get_username(),\n        )\n',
+    '            username=request.user.get_username(),\n'
+    '            workspace_id=(\n'
+    '                str(request.vulnhunter_thread.thread_id)\n'
+    '                if getattr(request, "vulnhunter_thread", None) is not None\n'
+    '                else None\n'
+    '            ),\n'
+    '        )\n',
+)
+"""
+          specific = r"""views = replace_once(
+    views,
+    '        result = workflow.create_assessment(\n'
+    '            authorization_id=matched.authorization_id,\n'
+    '            target=canonical,\n'
+    '            protocol=protocol,\n'
+    '            port=port,\n'
+    '            profile=profile,\n'
+    '            identity_id=actor.governance_identity.reviewer_id,\n'
+    '            username=request.user.get_username(),\n'
+    '        )\n',
+    '        result = workflow.create_assessment(\n'
+    '            authorization_id=matched.authorization_id,\n'
+    '            target=canonical,\n'
+    '            protocol=protocol,\n'
+    '            port=port,\n'
+    '            profile=profile,\n'
+    '            identity_id=actor.governance_identity.reviewer_id,\n'
+    '            username=request.user.get_username(),\n'
+    '            workspace_id=(\n'
+    '                str(request.vulnhunter_thread.thread_id)\n'
+    '                if getattr(request, "vulnhunter_thread", None) is not None\n'
+    '                else None\n'
+    '            ),\n'
+    '        )\n',
+)
+"""
+          if ambiguous not in script:
+              raise SystemExit('the expected ambiguous assessment patch was not found')
+          script = script.replace(ambiguous, specific, 1)
           exec(compile(script, 'chat-taskgraph-generated.py', 'exec'))
           PY
       - name: Install development dependencies

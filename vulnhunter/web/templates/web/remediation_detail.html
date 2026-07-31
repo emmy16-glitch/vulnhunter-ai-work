@@ -64,6 +64,7 @@
     <div class="vh-surface-body">
       <form method="post" action="{% url 'web-remediation-cancel' finding.finding_id %}" class="vh-inline-action-form">
         {% csrf_token %}
+        <input type="hidden" name="thread_id" value="{{ request.vulnhunter_thread.thread_id }}">
         <input type="hidden" name="expected_revision" value="{{ finding.revision }}">
         <input type="hidden" name="reason" value="Human owner cancelled the remediation plan before developer implementation.">
         <label class="vh-form-field"><span>Password</span><input type="password" name="password" autocomplete="current-password" required></label>
@@ -72,7 +73,7 @@
     </div>
   </section>
   {% elif remediation.state.value == 'cancelled' %}
-  <section class="vh-surface"><div class="vh-empty-panel"><svg aria-hidden="true"><use href="#vh-i-stop"></use></svg><h3>Plan cancelled</h3><p>{{ remediation.cancellation_reason }}</p></div></section>
+  <section class="vh-surface"><div class="vh-empty-panel"><svg aria-hidden="true"><use href="#vh-i-shield"></use></svg><h3>Plan cancelled</h3><p>{{ remediation.cancellation_reason }}</p></div></section>
   {% endif %}
 </section>
 {% endblock %}

@@ -1,0 +1,78 @@
+{% extends "web/base.html" %}
+{% block content %}
+<section class="vh-page-shell">
+  <header class="vh-page-header">
+    <div>
+      <p class="vh-eyebrow">Finding {{ finding.finding_id }}</p>
+      <h1>Remediation plan</h1>
+      <p>{{ remediation.summary }}</p>
+    </div>
+    <div class="vh-page-actions">
+      {% if workspace_return_url %}<a class="vh-button-secondary" href="{{ workspace_return_url }}">Return to chat</a>{% endif %}
+      <a class="vh-button-secondary" href="{% url 'web-findings-overview' %}">Findings</a>
+    </div>
+  </header>
+
+  <section class="vh-surface">
+    <header class="vh-surface-header"><div><h2>Authoritative state</h2><p>The graph is a view of the atomic finding record; it cannot grant patch, test, merge or release authority.</p></div></header>
+    <div class="vh-surface-body">
+      <dl class="vh-terminal-facts">
+        <div><dt>Remediation ID</dt><dd>{{ remediation.remediation_id }}</dd></div>
+        <div><dt>Plan state</dt><dd>{{ remediation.state.value }}</dd></div>
+        <div><dt>Finding status</dt><dd>{{ finding.status.value }}</dd></div>
+        <div><dt>Finding verification</dt><dd>{{ finding.verification.value }}</dd></div>
+        <div><dt>Source finding revision</dt><dd>{{ remediation.source_finding_revision }}</dd></div>
+        <div><dt>Current finding revision</dt><dd>{{ finding.revision }}</dd></div>
+        <div><dt>Owner</dt><dd>{{ remediation.owner_id }}</dd></div>
+        <div><dt>Plan digest</dt><dd><code>{{ remediation.plan_sha256 }}</code></dd></div>
+        <div><dt>Authoritative stage</dt><dd>{% if assessment_graph %}{{ assessment_graph.chat_stage }}{% else %}Unavailable{% endif %}</dd></div>
+        <div><dt>Expires</dt><dd>{{ remediation.expires_at }}</dd></div>
+      </dl>
+    </div>
+  </section>
+
+  <div class="vh-safety-grid">
+    <section class="vh-safety-card">
+      <h3>Exact targets</h3>
+      <ul class="vh-compact-list">{% for target in remediation.target_references %}<li><span>{{ target }}</span></li>{% endfor %}</ul>
+    </section>
+    <section class="vh-safety-card">
+      <h3>Permanent boundaries</h3>
+      <ul class="vh-fact-list">
+        <li><span>Automatic source edits</span><strong>Not allowed</strong></li>
+        <li><span>Model merge authority</span><strong>Not allowed</strong></li>
+        <li><span>Fix verdict</span><strong>Not recorded</strong></li>
+        <li><span>Finding closure</span><strong>Not allowed here</strong></li>
+      </ul>
+    </section>
+  </div>
+
+  <section class="vh-surface">
+    <header class="vh-surface-header"><div><h2>Verification contract</h2><p>These are human-reviewed instructions, not executable commands.</p></div></header>
+    <div class="vh-surface-body">
+      <h3>RED security test</h3><p>{{ remediation.regression_test }}</p>
+      <h3>Independent read-only verification</h3><p>{{ remediation.verification_recipe }}</p>
+      <h3>Compatibility risks</h3>
+      {% if remediation.compatibility_risks %}<ul class="vh-compact-list">{% for risk in remediation.compatibility_risks %}<li><span>{{ risk }}</span></li>{% endfor %}</ul>{% else %}<p>No compatibility risk was declared.</p>{% endif %}
+      <h3>Evidence lineage</h3><p>{{ remediation.references|join:", " }}</p>
+    </div>
+  </section>
+
+  {% if can_cancel %}
+  <section class="vh-surface">
+    <header class="vh-surface-header"><div><h2>Cancel before implementation</h2><p>Cancellation is terminal for this exact plan. The verified finding returns to triaged state and the plan digest cannot be reused.</p></div></header>
+    <div class="vh-surface-body">
+      <form method="post" action="{% url 'web-remediation-cancel' finding.finding_id %}" class="vh-inline-action-form">
+        {% csrf_token %}
+        <input type="hidden" name="expected_revision" value="{{ finding.revision }}">
+        <input type="hidden" name="reason" value="Human owner cancelled the remediation plan before developer implementation.">
+        <label class="vh-form-field"><span>Password</span><input type="password" name="password" autocomplete="current-password" required></label>
+        <button class="vh-button-secondary" type="submit">Cancel exact plan</button>
+      </form>
+    </div>
+  </section>
+  {% elif remediation.state.value == 'cancelled' %}
+  <section class="vh-surface"><div class="vh-empty-panel"><svg aria-hidden="true"><use href="#vh-i-stop"></use></svg><h3>Plan cancelled</h3><p>{{ remediation.cancellation_reason }}</p></div></section>
+  {% endif %}
+</section>
+{% endblock %}

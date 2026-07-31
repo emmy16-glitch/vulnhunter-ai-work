@@ -76,8 +76,42 @@ def test_approval_and_cancellation_project_into_persisted_chat_stage(tmp_path):
     assert payload is not None
     assert payload["chat_stage"] == "cancelled"
     statuses = {item["stage"]: item["status"] for item in payload["nodes"]}
+    assert statuses["approval"] == "completed"
     assert statuses["execution"] == "cancelled"
     assert statuses["report"] == "cancelled"
+
+
+def test_denied_approval_cancels_every_downstream_stage(tmp_path):
+    service = _service(tmp_path)
+    service.create_website_assessment(
+        run_id="assessment-graph-denied",
+        workspace_id=str(uuid4()),
+        owner_id="operator-a",
+        authorization_id="authorization-one",
+        target="https://private.lab:443/app",
+        expires_at=NOW + timedelta(hours=1),
+        profile="passive",
+        plan_digest="d" * 64,
+        readiness_blocked=False,
+    )
+
+    assert service.project_approval(
+        "assessment-graph-denied",
+        approved=False,
+        execution_intended=False,
+        reason="The exact plan was denied.",
+    )
+    payload = service.status_payload("assessment-graph-denied")
+
+    assert payload is not None
+    assert payload["chat_stage"] == "cancelled"
+    statuses = {item["stage"]: item["status"] for item in payload["nodes"]}
+    assert statuses["authorization"] == "completed"
+    assert statuses["plan"] == "completed"
+    assert all(
+        statuses[stage] == "cancelled"
+        for stage in ("approval", "execution", "evidence", "verification", "review", "report")
+    )
 
 
 def test_readiness_blocked_graph_is_terminal_and_truthful(tmp_path):
@@ -117,10 +151,29 @@ def test_bundle_integrity_tampering_fails_closed(tmp_path):
         plan_digest="c" * 64,
         readiness_blocked=False,
     )
-    path = tmp_path / "graphs" / bundle.graph_id / "assessment-bundle.json"
+    path = tmp_path / "graphs" / f"{bundle.graph_id}.assessment.json"
     envelope = json.loads(path.read_text(encoding="utf-8"))
     envelope["bundle"]["owner_id"] = "attacker"
     path.write_text(json.dumps(envelope), encoding="utf-8")
 
     with pytest.raises(AssessmentGraphError, match="integrity"):
         service.status_payload("assessment-graph-four")
+
+
+def test_invalid_workspace_binding_fails_before_persistence(tmp_path):
+    service = _service(tmp_path)
+
+    with pytest.raises(AssessmentGraphError, match="valid UUID"):
+        service.create_website_assessment(
+            run_id="assessment-graph-invalid",
+            workspace_id="not-a-workspace",
+            owner_id="operator-a",
+            authorization_id="authorization-one",
+            target="https://private.lab:443/app",
+            expires_at=NOW + timedelta(hours=1),
+            profile="passive",
+            plan_digest="e" * 64,
+            readiness_blocked=False,
+        )
+
+    assert service.status_payload("assessment-graph-invalid") is None

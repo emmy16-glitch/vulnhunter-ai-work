@@ -1,0 +1,36 @@
+name: Temporary remediation architecture patch
+
+on:
+  push:
+    branches:
+      - impl/remediation-fixed-revision-verification
+    paths:
+      - scripts/patch_remediation_architecture.py
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.event.head_commit.message == 'Apply canonical architecture patch helper'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out implementation branch
+        uses: actions/checkout@v6
+        with:
+          ref: impl/remediation-fixed-revision-verification
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Patch canonical architecture
+        run: python scripts/patch_remediation_architecture.py
+      - name: Commit canonical architecture update
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/intelligence/VULNHUNTER_MASTER_ARCHITECTURE.md
+          git diff --cached --exit-code && exit 1 || true
+          git commit -m "Document fixed revision verification milestone"
+          git push origin HEAD:impl/remediation-fixed-revision-verification

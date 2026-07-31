@@ -390,7 +390,9 @@ class MobileAssessmentGraphService:
         return {
             AssessmentStage.AUTHORIZATION: "Validate the uploaded APK identity and content hash.",
             AssessmentStage.PLAN: "Create the immutable bounded APK hunt plan.",
-            AssessmentStage.APPROVAL: "Validate the exact local worker policy and artifact binding.",
+            AssessmentStage.APPROVAL: (
+                "Validate the exact local worker policy and artifact binding."
+            ),
             AssessmentStage.EXECUTION: (
                 f"Run the bounded {profile} APK analysis through the isolated static worker."
             ),

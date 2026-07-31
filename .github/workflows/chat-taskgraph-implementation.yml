@@ -1,0 +1,1174 @@
+name: Chat taskgraph implementation
+
+on:
+  push:
+    branches:
+      - impl/chat-taskgraph-slice
+
+permissions:
+  contents: write
+
+jobs:
+  implement:
+    if: ${{ !contains(github.event.head_commit.message, '[chat-taskgraph-generated]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Apply bounded implementation
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          root = Path('.')
+
+          package = root / 'vulnhunter' / 'assessment_graph'
+          package.mkdir(parents=True, exist_ok=True)
+
+          (package / '__init__.py').write_text('''"""Chat-bound authoritative assessment task graphs."""
+
+from vulnhunter.assessment_graph.models import (
+    AssessmentGraphBundle,
+    AssessmentKind,
+    AssessmentStage,
+)
+from vulnhunter.assessment_graph.service import (
+    AssessmentGraphError,
+    AssessmentGraphService,
+)
+
+__all__ = [
+    "AssessmentGraphBundle",
+    "AssessmentGraphError",
+    "AssessmentGraphService",
+    "AssessmentKind",
+    "AssessmentStage",
+]
+''', encoding='utf-8')
+
+          (package / 'models.py').write_text('''"""Immutable bindings between chat workspaces and assessment task graphs."""
+
+from __future__ import annotations
+
+import re
+from datetime import UTC, datetime
+from enum import StrEnum
+from typing import Literal, Self
+from uuid import UUID
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+from vulnhunter.actions.models import ActionManifest, sha256_json
+
+_IDENTIFIER = re.compile(r"^[a-z0-9][a-z0-9._-]{1,127}$")
+_SHA256 = re.compile(r"^[0-9a-f]{64}$")
+
+
+class AssessmentKind(StrEnum):
+    WEBSITE = "website"
+    APK = "apk"
+    SOURCE = "source"
+    ACTIVE_VALIDATION = "active_validation"
+    REMEDIATION = "remediation"
+    RETEST = "retest"
+    REPORT = "report"
+
+
+class AssessmentStage(StrEnum):
+    AUTHORIZATION = "authorization"
+    PLAN = "plan"
+    APPROVAL = "approval"
+    EXECUTION = "execution"
+    EVIDENCE = "evidence"
+    VERIFICATION = "verification"
+    REVIEW = "review"
+    REPORT = "report"
+
+
+class AssessmentGraphBundle(BaseModel):
+    """Immutable manifest registry and chat-workspace binding for one graph."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    schema_version: Literal["1.0"] = "1.0"
+    graph_id: str
+    run_id: str
+    assessment_kind: AssessmentKind
+    workspace_id: UUID | None = None
+    owner_id: str
+    authorization_id: str
+    target_reference: str
+    node_stages: dict[str, AssessmentStage] = Field(min_length=1)
+    manifests: tuple[ActionManifest, ...] = Field(min_length=1)
+    created_at: datetime
+
+    @field_validator("graph_id", "run_id", "owner_id", "authorization_id")
+    @classmethod
+    def validate_identifier(cls, value: str) -> str:
+        if _IDENTIFIER.fullmatch(value) is None:
+            raise ValueError("assessment graph identifiers must be stable lowercase values")
+        return value
+
+    @field_validator("created_at")
+    @classmethod
+    def validate_created_at(cls, value: datetime) -> datetime:
+        if value.tzinfo is None or value.utcoffset() is None:
+            raise ValueError("assessment graph timestamps must be timezone-aware")
+        return value.astimezone(UTC)
+
+    @model_validator(mode="after")
+    def validate_bundle(self) -> Self:
+        if not self.target_reference.strip():
+            raise ValueError("target_reference must not be blank")
+        if len(set(self.node_stages)) != len(self.node_stages):
+            raise ValueError("task graph node identifiers must be unique")
+        fingerprints = [manifest.fingerprint() for manifest in self.manifests]
+        if len(set(fingerprints)) != len(fingerprints):
+            raise ValueError("assessment action manifests must be unique")
+        if len(self.node_stages) != len(self.manifests):
+            raise ValueError("every assessment graph node requires one action manifest")
+        return self
+
+    def manifest_by_sha256(self) -> dict[str, ActionManifest]:
+        return {manifest.fingerprint(): manifest for manifest in self.manifests}
+
+    def fingerprint(self) -> str:
+        return sha256_json(self.model_dump(mode="json"))
+''', encoding='utf-8')
+
+          (package / 'service.py').write_text('''"""Persist and project chat-first assessment task graphs without execution authority."""
+
+from __future__ import annotations
+
+import json
+import os
+import tempfile
+from collections.abc import Callable
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
+from uuid import UUID
+
+from pydantic import ValidationError
+
+from vulnhunter.actions.models import ActionClass, ActionManifest, ExecutionLimits, sha256_json
+from vulnhunter.assessment_graph.models import (
+    AssessmentGraphBundle,
+    AssessmentKind,
+    AssessmentStage,
+)
+from vulnhunter.taskgraph.models import TERMINAL_STATUSES, GraphNode, NodeStatus, TaskGraph
+from vulnhunter.taskgraph.store import TaskGraphStore, TaskGraphStoreError
+
+
+class AssessmentGraphError(RuntimeError):
+    """The authoritative assessment graph could not be created or projected safely."""
+
+
+class AssessmentGraphService:
+    """Own the immutable chat binding and lifecycle projection for an assessment graph."""
+
+    def __init__(
+        self,
+        root: Path,
+        *,
+        clock: Callable[[], datetime] = lambda: datetime.now(UTC),
+    ) -> None:
+        self.root = root.expanduser().resolve()
+        self.root.mkdir(parents=True, exist_ok=True)
+        self.graph_store = TaskGraphStore(self.root)
+        self.clock = clock
+
+    @staticmethod
+    def graph_id_for_run(run_id: str) -> str:
+        return f"{run_id}-graph"
+
+    def create_website_assessment(
+        self,
+        *,
+        run_id: str,
+        workspace_id: str | None,
+        owner_id: str,
+        authorization_id: str,
+        target: str,
+        expires_at: datetime,
+        profile: str,
+        plan_digest: str | None,
+        readiness_blocked: bool,
+    ) -> AssessmentGraphBundle:
+        now = self.clock().astimezone(UTC)
+        if expires_at.tzinfo is None or expires_at.utcoffset() is None:
+            raise AssessmentGraphError("assessment graph expiry must be timezone-aware")
+        expiry = expires_at.astimezone(UTC)
+        if expiry <= now:
+            raise AssessmentGraphError("assessment graph expiry must be in the future")
+        parsed_workspace = UUID(workspace_id) if workspace_id else None
+        graph_id = self.graph_id_for_run(run_id)
+        stage_specs = self._website_stage_specs(
+            plan_digest=plan_digest,
+            readiness_blocked=readiness_blocked,
+        )
+        manifests: list[ActionManifest] = []
+        nodes: list[GraphNode] = []
+        node_stages: dict[str, AssessmentStage] = {}
+        previous_node: str | None = None
+        parent_reference = f"plan-sha256:{plan_digest}" if plan_digest else "plan-unavailable"
+
+        for stage, action, action_class, tool_id, operation, approval_required, status in stage_specs:
+            node_id = f"{run_id}-{stage.value}"
+            target_references = (target, parent_reference)
+            manifest = ActionManifest(
+                manifest_id=f"{run_id}-{stage.value}",
+                campaign_id=run_id,
+                requested_by=owner_id,
+                role_id=self._role_for_stage(stage),
+                skill_id=self._skill_for_stage(stage),
+                action=action,
+                action_class=action_class,
+                tool_id=tool_id,
+                operation=operation,
+                target_references=target_references,
+                authorization_references=(authorization_id,),
+                limits=ExecutionLimits(
+                    timeout_seconds=self._timeout_for_stage(stage),
+                    maximum_requests=100 if stage == AssessmentStage.EXECUTION else 1,
+                    maximum_output_bytes=(
+                        10_000_000 if stage == AssessmentStage.EXECUTION else 2_000_000
+                    ),
+                    maximum_targets=2,
+                    maximum_attempts=2 if stage == AssessmentStage.EXECUTION else 1,
+                ),
+                approval_required=approval_required,
+                created_at=now,
+                expires_at=expiry,
+                parent_manifest_sha256=plan_digest,
+                purpose=self._purpose_for_stage(stage, profile=profile),
+            )
+            manifests.append(manifest)
+            nodes.append(
+                GraphNode(
+                    node_id=node_id,
+                    role_id=manifest.role_id,
+                    skill_id=manifest.skill_id,
+                    action_manifest_sha256=manifest.fingerprint(),
+                    dependencies=(() if previous_node is None else (previous_node,)),
+                    status=status,
+                    maximum_attempts=manifest.limits.maximum_attempts,
+                    updated_at=now,
+                )
+            )
+            node_stages[node_id] = stage
+            previous_node = node_id
+
+        graph = TaskGraph(
+            graph_id=graph_id,
+            campaign_id=run_id,
+            run_id=run_id,
+            nodes=tuple(nodes),
+            created_at=now,
+            updated_at=now,
+        )
+        bundle = AssessmentGraphBundle(
+            graph_id=graph_id,
+            run_id=run_id,
+            assessment_kind=AssessmentKind.WEBSITE,
+            workspace_id=parsed_workspace,
+            owner_id=owner_id,
+            authorization_id=authorization_id,
+            target_reference=target,
+            node_stages=node_stages,
+            manifests=tuple(manifests),
+            created_at=now,
+        )
+        self._validate_graph_binding(graph, bundle)
+        try:
+            self.graph_store.save(graph)
+            self._write_bundle(bundle)
+        except (OSError, TaskGraphStoreError, ValueError) as exc:
+            raise AssessmentGraphError("assessment task graph persistence failed closed") from exc
+        return bundle
+
+    def status_payload(self, run_id: str) -> dict[str, object] | None:
+        graph_id = self.graph_id_for_run(run_id)
+        try:
+            graph = self.graph_store.load(graph_id)
+        except TaskGraphStoreError as exc:
+            if "does not exist" in str(exc):
+                return None
+            raise AssessmentGraphError("assessment task graph could not be loaded") from exc
+        bundle = self._load_bundle(graph_id)
+        self._validate_graph_binding(graph, bundle)
+        by_stage = {
+            bundle.node_stages[node.node_id]: node
+            for node in graph.nodes
+        }
+        return {
+            "graph_id": graph.graph_id,
+            "run_id": graph.run_id,
+            "workspace_id": str(bundle.workspace_id) if bundle.workspace_id else None,
+            "assessment_kind": bundle.assessment_kind.value,
+            "revision": graph.revision,
+            "chat_stage": self._chat_stage(by_stage),
+            "nodes": [
+                {
+                    "node_id": node.node_id,
+                    "stage": bundle.node_stages[node.node_id].value,
+                    "status": node.status.value,
+                    "attempts": node.attempts,
+                    "last_error": node.last_error,
+                }
+                for node in graph.nodes
+            ],
+        }
+
+    def project_approval(
+        self,
+        run_id: str,
+        *,
+        approved: bool,
+        execution_intended: bool,
+        reason: str,
+    ) -> bool:
+        graph = self._load_optional(run_id)
+        if graph is None:
+            return False
+        graph = self._set_stage_status(
+            graph,
+            AssessmentStage.APPROVAL,
+            NodeStatus.COMPLETED if approved else NodeStatus.CANCELLED,
+            reason=None if approved else reason,
+        )
+        if approved:
+            self._set_stage_status(
+                graph,
+                AssessmentStage.EXECUTION,
+                NodeStatus.RUNNING if execution_intended else NodeStatus.BLOCKED,
+                reason=None if execution_intended else reason,
+            )
+            return True
+        self._cancel_downstream(graph, starting_stage=AssessmentStage.EXECUTION, reason=reason)
+        return True
+
+    def mark_execution_blocked(self, run_id: str, *, reason: str) -> bool:
+        graph = self._load_optional(run_id)
+        if graph is None:
+            return False
+        self._set_stage_status(
+            graph,
+            AssessmentStage.EXECUTION,
+            NodeStatus.BLOCKED,
+            reason=reason,
+        )
+        return True
+
+    def project_terminal(self, run_id: str, *, outcome: str, reason: str) -> bool:
+        if outcome != "cancelled":
+            raise AssessmentGraphError("only cancellation projection is supported in this slice")
+        graph = self._load_optional(run_id)
+        if graph is None:
+            return False
+        for node in graph.nodes:
+            if node.status in TERMINAL_STATUSES:
+                continue
+            graph = self._update_node(
+                graph,
+                node_id=node.node_id,
+                status=NodeStatus.CANCELLED,
+                last_error=reason,
+            )
+        return True
+
+    def _load_optional(self, run_id: str) -> TaskGraph | None:
+        try:
+            return self.graph_store.load(self.graph_id_for_run(run_id))
+        except TaskGraphStoreError as exc:
+            if "does not exist" in str(exc):
+                return None
+            raise AssessmentGraphError("assessment task graph could not be loaded") from exc
+
+    def _set_stage_status(
+        self,
+        graph: TaskGraph,
+        stage: AssessmentStage,
+        status: NodeStatus,
+        *,
+        reason: str | None,
+    ) -> TaskGraph:
+        bundle = self._load_bundle(graph.graph_id)
+        node_id = next(
+            (node_id for node_id, item_stage in bundle.node_stages.items() if item_stage == stage),
+            None,
+        )
+        if node_id is None:
+            raise AssessmentGraphError(f"assessment graph stage is missing: {stage.value}")
+        return self._update_node(
+            graph,
+            node_id=node_id,
+            status=status,
+            last_error=reason,
+        )
+
+    def _update_node(
+        self,
+        graph: TaskGraph,
+        *,
+        node_id: str,
+        status: NodeStatus,
+        last_error: str | None,
+    ) -> TaskGraph:
+        current = next((node for node in graph.nodes if node.node_id == node_id), None)
+        if current is None:
+            raise AssessmentGraphError(f"assessment graph node is missing: {node_id}")
+        if current.status == status and current.last_error == last_error:
+            return graph
+        if current.status in TERMINAL_STATUSES:
+            raise AssessmentGraphError(
+                f"terminal assessment stage cannot change: {node_id} ({current.status.value})"
+            )
+        try:
+            return self.graph_store.update_status(
+                graph.graph_id,
+                node_id=node_id,
+                status=status,
+                last_error=last_error,
+                expected_revision=graph.revision,
+                now=self.clock().astimezone(UTC),
+            )
+        except TaskGraphStoreError as exc:
+            raise AssessmentGraphError("assessment task graph transition failed closed") from exc
+
+    def _cancel_downstream(
+        self,
+        graph: TaskGraph,
+        *,
+        starting_stage: AssessmentStage,
+        reason: str,
+    ) -> TaskGraph:
+        bundle = self._load_bundle(graph.graph_id)
+        stages = list(AssessmentStage)
+        start_index = stages.index(starting_stage)
+        current = graph
+        for stage in stages[start_index:]:
+            node_id = next(
+                (key for key, value in bundle.node_stages.items() if value == stage),
+                None,
+            )
+            if node_id is None:
+                continue
+            node = next(item for item in current.nodes if item.node_id == node_id)
+            if node.status in TERMINAL_STATUSES:
+                continue
+            current = self._update_node(
+                current,
+                node_id=node_id,
+                status=NodeStatus.CANCELLED,
+                last_error=reason,
+            )
+        return current
+
+    def _bundle_path(self, graph_id: str) -> Path:
+        return self.root / graph_id / "assessment-bundle.json"
+
+    def _write_bundle(self, bundle: AssessmentGraphBundle) -> None:
+        path = self._bundle_path(bundle.graph_id)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        envelope = {
+            "bundle": bundle.model_dump(mode="json"),
+            "bundle_sha256": bundle.fingerprint(),
+        }
+        if path.exists():
+            existing = self._load_bundle(bundle.graph_id)
+            if existing == bundle:
+                return
+            raise AssessmentGraphError("assessment graph bundle already exists with other content")
+        serialized = json.dumps(
+            envelope,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+        )
+        descriptor, temporary = tempfile.mkstemp(
+            prefix=".assessment-bundle-",
+            suffix=".tmp",
+            dir=path.parent,
+        )
+        try:
+            os.fchmod(descriptor, 0o600)
+            with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+                handle.write(serialized)
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(temporary, path)
+        finally:
+            if os.path.exists(temporary):
+                os.unlink(temporary)
+
+    def _load_bundle(self, graph_id: str) -> AssessmentGraphBundle:
+        path = self._bundle_path(graph_id)
+        try:
+            envelope = json.loads(path.read_text(encoding="utf-8"))
+            payload = envelope["bundle"]
+            expected = envelope["bundle_sha256"]
+        except (OSError, ValueError, KeyError, TypeError) as exc:
+            raise AssessmentGraphError("assessment graph bundle is unavailable or invalid") from exc
+        if sha256_json(payload) != expected:
+            raise AssessmentGraphError("assessment graph bundle failed integrity verification")
+        try:
+            return AssessmentGraphBundle.model_validate(payload)
+        except ValidationError as exc:
+            raise AssessmentGraphError("assessment graph bundle is invalid") from exc
+
+    @staticmethod
+    def _validate_graph_binding(graph: TaskGraph, bundle: AssessmentGraphBundle) -> None:
+        if graph.graph_id != bundle.graph_id or graph.run_id != bundle.run_id:
+            raise AssessmentGraphError("assessment graph and workspace bundle are not bound")
+        manifest_hashes = bundle.manifest_by_sha256()
+        if set(bundle.node_stages) != {node.node_id for node in graph.nodes}:
+            raise AssessmentGraphError("assessment graph nodes do not match the workspace bundle")
+        if any(node.action_manifest_sha256 not in manifest_hashes for node in graph.nodes):
+            raise AssessmentGraphError("assessment graph references an unknown action manifest")
+
+    @staticmethod
+    def _website_stage_specs(
+        *,
+        plan_digest: str | None,
+        readiness_blocked: bool,
+    ) -> tuple[tuple[AssessmentStage, str, ActionClass, str, str, bool, NodeStatus], ...]:
+        if readiness_blocked:
+            statuses = {
+                AssessmentStage.AUTHORIZATION: NodeStatus.COMPLETED,
+                AssessmentStage.PLAN: NodeStatus.BLOCKED,
+                AssessmentStage.APPROVAL: NodeStatus.CANCELLED,
+                AssessmentStage.EXECUTION: NodeStatus.CANCELLED,
+                AssessmentStage.EVIDENCE: NodeStatus.CANCELLED,
+                AssessmentStage.VERIFICATION: NodeStatus.CANCELLED,
+                AssessmentStage.REVIEW: NodeStatus.CANCELLED,
+                AssessmentStage.REPORT: NodeStatus.CANCELLED,
+            }
+        else:
+            if not plan_digest:
+                raise AssessmentGraphError("an executable website graph requires a plan digest")
+            statuses = {
+                AssessmentStage.AUTHORIZATION: NodeStatus.COMPLETED,
+                AssessmentStage.PLAN: NodeStatus.COMPLETED,
+                AssessmentStage.APPROVAL: NodeStatus.WAITING_FOR_HUMAN_APPROVAL,
+                AssessmentStage.EXECUTION: NodeStatus.PENDING,
+                AssessmentStage.EVIDENCE: NodeStatus.PENDING,
+                AssessmentStage.VERIFICATION: NodeStatus.PENDING,
+                AssessmentStage.REVIEW: NodeStatus.PENDING,
+                AssessmentStage.REPORT: NodeStatus.PENDING,
+            }
+        return (
+            (
+                AssessmentStage.AUTHORIZATION,
+                "website.authorization.validate",
+                ActionClass.READ_ONLY,
+                "authorization-store",
+                "validate",
+                False,
+                statuses[AssessmentStage.AUTHORIZATION],
+            ),
+            (
+                AssessmentStage.PLAN,
+                "website.plan.create",
+                ActionClass.READ_ONLY,
+                "nuclei-planner",
+                "create",
+                False,
+                statuses[AssessmentStage.PLAN],
+            ),
+            (
+                AssessmentStage.APPROVAL,
+                "website.approval.consume",
+                ActionClass.CONSEQUENTIAL,
+                "approval-centre",
+                "consume",
+                True,
+                statuses[AssessmentStage.APPROVAL],
+            ),
+            (
+                AssessmentStage.EXECUTION,
+                "website.scan.execute",
+                ActionClass.SENSITIVE,
+                "nuclei",
+                "passive",
+                True,
+                statuses[AssessmentStage.EXECUTION],
+            ),
+            (
+                AssessmentStage.EVIDENCE,
+                "website.evidence.normalize",
+                ActionClass.READ_ONLY,
+                "evidence-normalizer",
+                "normalize",
+                False,
+                statuses[AssessmentStage.EVIDENCE],
+            ),
+            (
+                AssessmentStage.VERIFICATION,
+                "website.finding.verify",
+                ActionClass.READ_ONLY,
+                "machine-oracle",
+                "verify",
+                False,
+                statuses[AssessmentStage.VERIFICATION],
+            ),
+            (
+                AssessmentStage.REVIEW,
+                "website.review.request",
+                ActionClass.REVERSIBLE_LOCAL,
+                "review-service",
+                "request",
+                False,
+                statuses[AssessmentStage.REVIEW],
+            ),
+            (
+                AssessmentStage.REPORT,
+                "website.report.generate",
+                ActionClass.READ_ONLY,
+                "report-service",
+                "generate",
+                False,
+                statuses[AssessmentStage.REPORT],
+            ),
+        )
+
+    @staticmethod
+    def _role_for_stage(stage: AssessmentStage) -> str:
+        mapping = {
+            AssessmentStage.AUTHORIZATION: "scope-guardian",
+            AssessmentStage.PLAN: "orchestrator",
+            AssessmentStage.APPROVAL: "approval-coordinator",
+            AssessmentStage.EXECUTION: "scanner-evidence-collector",
+            AssessmentStage.EVIDENCE: "evidence-curator",
+            AssessmentStage.VERIFICATION: "security-verifier",
+            AssessmentStage.REVIEW: "review-coordinator",
+            AssessmentStage.REPORT: "report-writer",
+        }
+        return mapping[stage]
+
+    @staticmethod
+    def _skill_for_stage(stage: AssessmentStage) -> str:
+        mapping = {
+            AssessmentStage.AUTHORIZATION: "exact-scope-validation",
+            AssessmentStage.PLAN: "bounded-assessment-planning",
+            AssessmentStage.APPROVAL: "authoritative-approval-consumption",
+            AssessmentStage.EXECUTION: "controlled-nuclei-execution",
+            AssessmentStage.EVIDENCE: "evidence-normalization",
+            AssessmentStage.VERIFICATION: "independent-finding-verification",
+            AssessmentStage.REVIEW: "governed-independent-review",
+            AssessmentStage.REPORT: "evidence-backed-reporting",
+        }
+        return mapping[stage]
+
+    @staticmethod
+    def _timeout_for_stage(stage: AssessmentStage) -> int:
+        if stage == AssessmentStage.EXECUTION:
+            return 900
+        if stage in {AssessmentStage.VERIFICATION, AssessmentStage.REVIEW}:
+            return 600
+        return 300
+
+    @staticmethod
+    def _purpose_for_stage(stage: AssessmentStage, *, profile: str) -> str:
+        return {
+            AssessmentStage.AUTHORIZATION: "Validate the exact active target authorization.",
+            AssessmentStage.PLAN: "Create the immutable governed website assessment plan.",
+            AssessmentStage.APPROVAL: "Consume approval for the exact immutable assessment plan.",
+            AssessmentStage.EXECUTION: (
+                f"Run the approved {profile} website assessment through the restricted worker."
+            ),
+            AssessmentStage.EVIDENCE: "Normalize and hash bounded scanner evidence.",
+            AssessmentStage.VERIFICATION: "Verify candidate findings independently from the model.",
+            AssessmentStage.REVIEW: "Request governed independent human review.",
+            AssessmentStage.REPORT: "Generate an evidence-backed assessment report.",
+        }[stage]
+
+    @staticmethod
+    def _chat_stage(by_stage: dict[AssessmentStage, GraphNode]) -> str:
+        if any(node.status == NodeStatus.FAILED for node in by_stage.values()):
+            return "failed_safely"
+        if any(node.status == NodeStatus.BLOCKED for node in by_stage.values()):
+            return "blocked"
+        if by_stage[AssessmentStage.APPROVAL].status == NodeStatus.CANCELLED:
+            return "cancelled"
+        if by_stage[AssessmentStage.APPROVAL].status == NodeStatus.WAITING_FOR_HUMAN_APPROVAL:
+            return "waiting_for_confirmation"
+        if by_stage[AssessmentStage.EXECUTION].status == NodeStatus.RUNNING:
+            return "collecting_evidence"
+        if by_stage[AssessmentStage.EVIDENCE].status == NodeStatus.RUNNING:
+            return "normalizing_evidence"
+        if by_stage[AssessmentStage.VERIFICATION].status == NodeStatus.RUNNING:
+            return "verifying_evidence"
+        if by_stage[AssessmentStage.REVIEW].status in {
+            NodeStatus.RUNNING,
+            NodeStatus.WAITING_FOR_HUMAN_APPROVAL,
+        }:
+            return "waiting_for_independent_review"
+        if by_stage[AssessmentStage.REPORT].status == NodeStatus.COMPLETED:
+            return "report_ready"
+        if all(node.status == NodeStatus.CANCELLED for node in by_stage.values() if node.status != NodeStatus.COMPLETED):
+            return "cancelled"
+        return "queued_for_analysis"
+''', encoding='utf-8')
+
+          workflow_path = root / 'vulnhunter' / 'web' / 'assessment_workflow.py'
+          workflow = workflow_path.read_text(encoding='utf-8')
+
+          def replace_once(text: str, old: str, new: str) -> str:
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'expected one match, found {count}: {old[:100]!r}')
+              return text.replace(old, new, 1)
+
+          workflow = replace_once(
+              workflow,
+              'from pydantic import BaseModel, ConfigDict\n\nfrom vulnhunter.agent.models',
+              'from pydantic import BaseModel, ConfigDict\n\n'
+              'from vulnhunter.assessment_graph import AssessmentGraphError, AssessmentGraphService\n'
+              'from vulnhunter.agent.models',
+          )
+          workflow = replace_once(
+              workflow,
+              '@dataclass(frozen=True)\nclass AssessmentCreationResult:\n    task: AgentTask\n    approval_request: ApprovalRequest | None\n',
+              '@dataclass(frozen=True)\nclass AssessmentCreationResult:\n'
+              '    task: AgentTask\n'
+              '    approval_request: ApprovalRequest | None\n'
+              '    graph_id: str | None = None\n',
+          )
+          workflow = replace_once(
+              workflow,
+              '        readiness_report: Path,\n        clock: Callable[[], datetime] = lambda: datetime.now(UTC),\n',
+              '        readiness_report: Path,\n'
+              '        task_graph_root: Path | None = None,\n'
+              '        clock: Callable[[], datetime] = lambda: datetime.now(UTC),\n',
+          )
+          workflow = replace_once(
+              workflow,
+              '        self.readiness_report = readiness_report\n        self.clock = clock\n',
+              '        self.readiness_report = readiness_report\n'
+              '        self.task_graph_service = AssessmentGraphService(\n'
+              '            task_graph_root or evidence_root.parent / "task-graphs",\n'
+              '            clock=clock,\n'
+              '        )\n'
+              '        self.clock = clock\n',
+          )
+          workflow = replace_once(
+              workflow,
+              '            readiness_report=Path(settings.VULNHUNTER_NUCLEI_READINESS_REPORT),\n        )\n',
+              '            readiness_report=Path(settings.VULNHUNTER_NUCLEI_READINESS_REPORT),\n'
+              '            task_graph_root=Path(settings.VULNHUNTER_TASK_GRAPH_ROOT),\n'
+              '        )\n',
+          )
+          workflow = replace_once(
+              workflow,
+              '        username: str,\n        resolver: Callable[[str], Iterable[str]] | None = None,\n    ) -> AssessmentCreationResult:\n',
+              '        username: str,\n'
+              '        resolver: Callable[[str], Iterable[str]] | None = None,\n'
+              '        workspace_id: str | None = None,\n'
+              '    ) -> AssessmentCreationResult:\n',
+          )
+          workflow = replace_once(
+              workflow,
+              '            return AssessmentCreationResult(task=task, approval_request=None)\n\n        manifest = self._load_template_manifest()\n',
+              '            try:\n'
+              '                graph = self.task_graph_service.create_website_assessment(\n'
+              '                    run_id=run_id,\n'
+              '                    workspace_id=workspace_id,\n'
+              '                    owner_id=identity_id,\n'
+              '                    authorization_id=engagement.authorization_id,\n'
+              '                    target=scoped_target.url,\n'
+              '                    expires_at=engagement.expires_at,\n'
+              '                    profile=profile,\n'
+              '                    plan_digest=None,\n'
+              '                    readiness_blocked=True,\n'
+              '                )\n'
+              '                graph_id = graph.graph_id\n'
+              '            except AssessmentGraphError as exc:\n'
+              '                self.agent_store.append_event(\n'
+              '                    run_id,\n'
+              '                    "taskgraph.binding_failed",\n'
+              '                    {"error_type": type(exc).__name__},\n'
+              '                )\n'
+              '                graph_id = None\n'
+              '            return AssessmentCreationResult(\n'
+              '                task=task,\n'
+              '                approval_request=None,\n'
+              '                graph_id=graph_id,\n'
+              '            )\n\n'
+              '        manifest = self._load_template_manifest()\n',
+          )
+          workflow = replace_once(
+              workflow,
+              '        approval = ApprovalRequest(\n',
+              '        try:\n'
+              '            graph = self.task_graph_service.create_website_assessment(\n'
+              '                run_id=run_id,\n'
+              '                workspace_id=workspace_id,\n'
+              '                owner_id=identity_id,\n'
+              '                authorization_id=engagement.authorization_id,\n'
+              '                target=scoped_target.url,\n'
+              '                expires_at=plan.expires_at,\n'
+              '                profile=profile,\n'
+              '                plan_digest=plan.plan_digest,\n'
+              '                readiness_blocked=False,\n'
+              '            )\n'
+              '            graph_id = graph.graph_id\n'
+              '        except AssessmentGraphError as exc:\n'
+              '            workflow_memory = task.memory["assessment_workflow"]\n'
+              '            blocked = task.evolved(\n'
+              '                status=TaskStatus.BLOCKED,\n'
+              '                paused_reason="Task graph binding failed closed.",\n'
+              '                memory={\n'
+              '                    **task.memory,\n'
+              '                    "assessment_workflow": {\n'
+              '                        **workflow_memory,\n'
+              '                        "workflow_state": "taskgraph_blocked",\n'
+              '                        "blocking_reason": "Task graph binding failed closed.",\n'
+              '                    },\n'
+              '                },\n'
+              '            )\n'
+              '            self.agent_store.save_task(blocked, expected_revision=task.revision)\n'
+              '            self.agent_store.append_event(\n'
+              '                run_id,\n'
+              '                "taskgraph.binding_failed",\n'
+              '                {"error_type": type(exc).__name__},\n'
+              '            )\n'
+              '            self._record_transition(\n'
+              '                blocked,\n'
+              '                previous_state="plan_generated",\n'
+              '                new_state="taskgraph_blocked",\n'
+              '                reason="Task graph binding failed closed.",\n'
+              '                event_type="run_blocked",\n'
+              '                run_state="blocked",\n'
+              '            )\n'
+              '            return AssessmentCreationResult(\n'
+              '                task=blocked,\n'
+              '                approval_request=None,\n'
+              '                graph_id=None,\n'
+              '            )\n\n'
+              '        approval = ApprovalRequest(\n',
+          )
+          workflow = replace_once(
+              workflow,
+              '        return AssessmentCreationResult(task=task, approval_request=approval)\n',
+              '        return AssessmentCreationResult(\n'
+              '            task=task,\n'
+              '            approval_request=approval,\n'
+              '            graph_id=graph_id,\n'
+              '        )\n',
+          )
+          workflow = replace_once(
+              workflow,
+              '        approved = request.decision is not None and request.decision.value.startswith("approve_")\n        queued_job = None\n        queue_error = None\n        if (\n            approved\n            and plan.exact_profile == "passive"\n            and getattr(settings, "VULNHUNTER_NUCLEI_PILOT_ENQUEUE_ENABLED", False)\n        ):\n',
+              '        approved = request.decision is not None and request.decision.value.startswith("approve_")\n'
+              '        execution_intended = bool(\n'
+              '            approved\n'
+              '            and plan.exact_profile == "passive"\n'
+              '            and getattr(settings, "VULNHUNTER_NUCLEI_PILOT_ENQUEUE_ENABLED", False)\n'
+              '        )\n'
+              '        queued_job = None\n'
+              '        queue_error = None\n'
+              '        try:\n'
+              '            self.task_graph_service.project_approval(\n'
+              '                run_id,\n'
+              '                approved=approved,\n'
+              '                execution_intended=execution_intended,\n'
+              '                reason=(\n'
+              '                    "The exact plan was denied."\n'
+              '                    if not approved\n'
+              '                    else "The isolated worker is not available."\n'
+              '                ),\n'
+              '            )\n'
+              '        except AssessmentGraphError as exc:\n'
+              '            execution_intended = False\n'
+              '            queue_error = type(exc).__name__\n'
+              '        if execution_intended and queue_error is None:\n',
+          )
+          workflow = replace_once(
+              workflow,
+              '            except (\n                OSError,\n                ValueError,\n                NucleiPilotServiceError,\n                WorkerSpoolError,\n            ) as exc:\n                queue_error = type(exc).__name__\n',
+              '            except (\n'
+              '                OSError,\n'
+              '                ValueError,\n'
+              '                NucleiPilotServiceError,\n'
+              '                WorkerSpoolError,\n'
+              '            ) as exc:\n'
+              '                queue_error = type(exc).__name__\n'
+              '                try:\n'
+              '                    self.task_graph_service.mark_execution_blocked(\n'
+              '                        run_id,\n'
+              '                        reason="Worker queue activation failed closed.",\n'
+              '                    )\n'
+              '                except AssessmentGraphError:\n'
+              '                    pass\n',
+          )
+          workflow_path.write_text(workflow, encoding='utf-8')
+
+          views_path = root / 'vulnhunter' / 'web' / 'conversational_views.py'
+          views = views_path.read_text(encoding='utf-8')
+          views = replace_once(
+              views,
+              'from vulnhunter.approvals import ApprovalStatus, ApprovalStore\n',
+              'from vulnhunter.approvals import ApprovalStatus, ApprovalStore\n'
+              'from vulnhunter.assessment_graph import AssessmentGraphError, AssessmentGraphService\n',
+          )
+          views = replace_once(
+              views,
+              'def _confirmation_store() -> InlineConfirmationStore:\n',
+              'def _assessment_graph_service() -> AssessmentGraphService:\n'
+              '    return AssessmentGraphService(Path(settings.VULNHUNTER_TASK_GRAPH_ROOT))\n\n\n'
+              'def _confirmation_store() -> InlineConfirmationStore:\n',
+          )
+          views = replace_once(
+              views,
+              '    payload: dict[str, object] = {\n',
+              '    payload: dict[str, object] = {\n',
+          )
+          views = replace_once(
+              views,
+              '    return enrich_run_payload(\n        payload,\n        raw_events=raw_events,\n        template_count=len(template_hashes),\n    )\n',
+              '    graph_payload = _assessment_graph_service().status_payload(run_id)\n'
+              '    if graph_payload is not None:\n'
+              '        payload["task_graph"] = graph_payload\n'
+              '        payload["chat_stage"] = graph_payload["chat_stage"]\n'
+              '    return enrich_run_payload(\n'
+              '        payload,\n'
+              '        raw_events=raw_events,\n'
+              '        template_count=len(template_hashes),\n'
+              '    )\n',
+          )
+          views = replace_once(
+              views,
+              '            username=request.user.get_username(),\n        )\n',
+              '            username=request.user.get_username(),\n'
+              '            workspace_id=(\n'
+              '                str(request.vulnhunter_thread.thread_id)\n'
+              '                if getattr(request, "vulnhunter_thread", None) is not None\n'
+              '                else None\n'
+              '            ),\n'
+              '        )\n',
+          )
+          views = replace_once(
+              views,
+              '        "authorization_id": matched.authorization_id,\n    }\n',
+              '        "authorization_id": matched.authorization_id,\n'
+              '        "graph_id": result.graph_id,\n'
+              '    }\n',
+          )
+          views = replace_once(
+              views,
+              '        refreshed = _visible_run(str(active.run_id), actor)\n',
+              '        try:\n'
+              '            _assessment_graph_service().project_terminal(\n'
+              '                str(active.run_id),\n'
+              '                outcome="cancelled",\n'
+              '                reason="Cancelled from chat workspace",\n'
+              '            )\n'
+              '        except AssessmentGraphError:\n'
+              '            pass\n'
+              '        refreshed = _visible_run(str(active.run_id), actor)\n',
+          )
+          views_path.write_text(views, encoding='utf-8')
+
+          tests = root / 'tests' / 'unit' / 'test_assessment_graph.py'
+          tests.write_text('''from __future__ import annotations
+
+import json
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
+from uuid import uuid4
+
+import pytest
+
+from vulnhunter.assessment_graph import AssessmentGraphError, AssessmentGraphService
+
+NOW = datetime(2026, 7, 31, 16, 0, tzinfo=UTC)
+
+
+def _service(tmp_path: Path) -> AssessmentGraphService:
+    return AssessmentGraphService(tmp_path / "graphs", clock=lambda: NOW)
+
+
+def test_website_graph_is_bound_to_chat_workspace_and_exact_manifests(tmp_path):
+    service = _service(tmp_path)
+    workspace_id = str(uuid4())
+    bundle = service.create_website_assessment(
+        run_id="assessment-graph-one",
+        workspace_id=workspace_id,
+        owner_id="operator-a",
+        authorization_id="authorization-one",
+        target="https://private.lab:443/app",
+        expires_at=NOW + timedelta(hours=1),
+        profile="passive",
+        plan_digest="a" * 64,
+        readiness_blocked=False,
+    )
+
+    payload = service.status_payload("assessment-graph-one")
+
+    assert payload is not None
+    assert payload["workspace_id"] == workspace_id
+    assert payload["chat_stage"] == "waiting_for_confirmation"
+    assert payload["assessment_kind"] == "website"
+    assert len(payload["nodes"]) == 8
+    assert len(bundle.manifests) == 8
+    assert {item["status"] for item in payload["nodes"][:2]} == {"completed"}
+    assert payload["nodes"][2]["status"] == "waiting_for_human_approval"
+
+
+def test_approval_and_cancellation_project_into_persisted_chat_stage(tmp_path):
+    service = _service(tmp_path)
+    service.create_website_assessment(
+        run_id="assessment-graph-two",
+        workspace_id=str(uuid4()),
+        owner_id="operator-a",
+        authorization_id="authorization-one",
+        target="https://private.lab:443/app",
+        expires_at=NOW + timedelta(hours=1),
+        profile="passive",
+        plan_digest="b" * 64,
+        readiness_blocked=False,
+    )
+
+    assert service.project_approval(
+        "assessment-graph-two",
+        approved=True,
+        execution_intended=True,
+        reason="Approved exact plan.",
+    )
+    payload = service.status_payload("assessment-graph-two")
+    assert payload is not None
+    assert payload["chat_stage"] == "collecting_evidence"
+
+    assert service.project_terminal(
+        "assessment-graph-two",
+        outcome="cancelled",
+        reason="Operator cancelled from chat.",
+    )
+    payload = service.status_payload("assessment-graph-two")
+    assert payload is not None
+    assert payload["chat_stage"] == "cancelled"
+    statuses = {item["stage"]: item["status"] for item in payload["nodes"]}
+    assert statuses["execution"] == "cancelled"
+    assert statuses["report"] == "cancelled"
+
+
+def test_readiness_blocked_graph_is_terminal_and_truthful(tmp_path):
+    service = _service(tmp_path)
+    service.create_website_assessment(
+        run_id="assessment-graph-three",
+        workspace_id=None,
+        owner_id="operator-a",
+        authorization_id="authorization-one",
+        target="https://private.lab:443/app",
+        expires_at=NOW + timedelta(hours=1),
+        profile="passive",
+        plan_digest=None,
+        readiness_blocked=True,
+    )
+
+    payload = service.status_payload("assessment-graph-three")
+
+    assert payload is not None
+    assert payload["chat_stage"] == "blocked"
+    statuses = {item["stage"]: item["status"] for item in payload["nodes"]}
+    assert statuses["authorization"] == "completed"
+    assert statuses["plan"] == "blocked"
+    assert statuses["execution"] == "cancelled"
+
+
+def test_bundle_integrity_tampering_fails_closed(tmp_path):
+    service = _service(tmp_path)
+    bundle = service.create_website_assessment(
+        run_id="assessment-graph-four",
+        workspace_id=None,
+        owner_id="operator-a",
+        authorization_id="authorization-one",
+        target="https://private.lab:443/app",
+        expires_at=NOW + timedelta(hours=1),
+        profile="passive",
+        plan_digest="c" * 64,
+        readiness_blocked=False,
+    )
+    path = tmp_path / "graphs" / bundle.graph_id / "assessment-bundle.json"
+    envelope = json.loads(path.read_text(encoding="utf-8"))
+    envelope["bundle"]["owner_id"] = "attacker"
+    path.write_text(json.dumps(envelope), encoding="utf-8")
+
+    with pytest.raises(AssessmentGraphError, match="integrity"):
+        service.status_payload("assessment-graph-four")
+''', encoding='utf-8')
+
+          assessment_tests = root / 'tests' / 'unit' / 'test_assessment_workflow.py'
+          existing_tests = assessment_tests.read_text(encoding='utf-8')
+          addition = '''
+
+
+def test_chat_workspace_assessment_persists_authoritative_task_graph(tmp_path):
+    from uuid import uuid4
+
+    service = _service(tmp_path)
+    record = _record(service.authorization_store)
+    _bind(service, record)
+    workspace_id = str(uuid4())
+
+    result = service.create_assessment(
+        authorization_id=record.authorization_id,
+        target=TARGET,
+        protocol="https",
+        port=443,
+        profile="passive",
+        identity_id="operator-a",
+        username="web-a",
+        workspace_id=workspace_id,
+    )
+
+    assert result.graph_id == f"{result.task.task_id}-graph"
+    graph = service.task_graph_service.status_payload(result.task.task_id)
+    assert graph is not None
+    assert graph["workspace_id"] == workspace_id
+    assert graph["chat_stage"] == "waiting_for_confirmation"
+    assert graph["nodes"][2]["stage"] == "approval"
+'''
+          if 'test_chat_workspace_assessment_persists_authoritative_task_graph' not in existing_tests:
+              assessment_tests.write_text(existing_tests.rstrip() + addition + '\n', encoding='utf-8')
+
+          master = root / 'docs' / 'intelligence' / 'VULNHUNTER_MASTER_ARCHITECTURE.md'
+          master_text = master.read_text(encoding='utf-8')
+          marker = '### Step 18 — Unify all assessment tasks on one authoritative task graph\n'
+          note = (
+              marker
+              + '\n**Implementation status:** `IN_PROGRESS` — the website chat workflow now creates '
+              'an immutable workspace-bound task graph and projects approval, execution blocking, '
+              'cancellation, and user-facing chat stages. APK, Source Hunt, Active Validation, '
+              'remediation, retest, evidence completion, verification, review, and reporting still '
+              'require migration to the shared graph.\n'
+          )
+          if note not in master_text:
+              master_text = master_text.replace(marker, note, 1)
+              master.write_text(master_text, encoding='utf-8')
+          PY
+      - name: Install development dependencies
+        run: python -m pip install --upgrade pip && python -m pip install -e '.[dev]'
+      - name: Format implementation
+        run: python -m ruff format vulnhunter/assessment_graph vulnhunter/web/assessment_workflow.py vulnhunter/web/conversational_views.py tests/unit/test_assessment_graph.py tests/unit/test_assessment_workflow.py
+      - name: Focused verification
+        env:
+          VULNHUNTER_WEB_SECRET_KEY: chat-taskgraph-check-secret
+        run: |
+          python -m ruff check vulnhunter/assessment_graph vulnhunter/web/assessment_workflow.py vulnhunter/web/conversational_views.py tests/unit/test_assessment_graph.py tests/unit/test_assessment_workflow.py
+          python -m ruff format --check vulnhunter/assessment_graph vulnhunter/web/assessment_workflow.py vulnhunter/web/conversational_views.py tests/unit/test_assessment_graph.py tests/unit/test_assessment_workflow.py
+          python -m compileall -q vulnhunter/assessment_graph vulnhunter/web
+          python -m pytest -q tests/unit/test_assessment_graph.py tests/unit/test_assessment_workflow.py tests/unit/test_taskgraph.py tests/unit/test_conversational_workspace.py tests/unit/test_conversation_experience.py
+          git diff --check
+      - name: Commit verified implementation
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add vulnhunter/assessment_graph vulnhunter/web/assessment_workflow.py vulnhunter/web/conversational_views.py tests/unit/test_assessment_graph.py tests/unit/test_assessment_workflow.py docs/intelligence/VULNHUNTER_MASTER_ARCHITECTURE.md
+          git commit -m 'Implement chat-bound website assessment task graph [chat-taskgraph-generated]'
+          git push origin HEAD:impl/chat-taskgraph-slice

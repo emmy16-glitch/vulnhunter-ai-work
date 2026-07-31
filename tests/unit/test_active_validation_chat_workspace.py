@@ -59,21 +59,15 @@ def _active_graph(settings, lab_id: str) -> dict[str, object] | None:
 
 def _lab_service(settings, *, enabled: bool = True) -> AdversaryLabService:
     return AdversaryLabService(
-        store=ProjectingAdversaryLabStore(
-            Path(settings.VULNHUNTER_ADVERSARY_LAB_DATABASE)
-        ),
+        store=ProjectingAdversaryLabStore(Path(settings.VULNHUNTER_ADVERSARY_LAB_DATABASE)),
         activity_service=AgentActivityService(
             AppendOnlyActivityStore(Path(settings.VULNHUNTER_AGENT_ACTIVITY_ROOT))
         ),
         runner=SyntheticScenarioRunner(
             LabWorkerPolicy(
                 enabled=enabled,
-                workspace_root=Path(
-                    settings.VULNHUNTER_ADVERSARY_LAB_WORKSPACE_ROOT
-                ).absolute(),
-                evidence_root=Path(
-                    settings.VULNHUNTER_ADVERSARY_LAB_EVIDENCE_ROOT
-                ).absolute(),
+                workspace_root=Path(settings.VULNHUNTER_ADVERSARY_LAB_WORKSPACE_ROOT).absolute(),
+                evidence_root=Path(settings.VULNHUNTER_ADVERSARY_LAB_EVIDENCE_ROOT).absolute(),
                 maximum_trials=10,
             )
         ),
@@ -296,6 +290,5 @@ def test_disabled_active_validation_worker_projects_failed_closed(tmp_path, sett
     statuses = {item["stage"]: item["status"] for item in graph["nodes"]}
     assert statuses["execution"] == "failed"
     assert all(
-        statuses[stage] == "cancelled"
-        for stage in ("evidence", "verification", "review", "report")
+        statuses[stage] == "cancelled" for stage in ("evidence", "verification", "review", "report")
     )

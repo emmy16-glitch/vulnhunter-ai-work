@@ -23,6 +23,17 @@ from vulnhunter.source_hunt import (
 )
 from vulnhunter.source_hunt.jobs import SourceHuntJob, SourceHuntJobStore
 from vulnhunter.web.services import WebPermissionDenied, authorized_actor
+from vulnhunter.web.source_hunt_assessment_graph import (
+    bind_source_hunt_assessment_graph,
+    project_source_hunt_state,
+)
+from vulnhunter.web.source_hunt_conversation_state import (
+    current_source_hunt_plan,
+    record_source_hunt_event,
+    remember_source_hunt_plan,
+    source_hunt_setup_url,
+    source_hunt_workspace_url,
+)
 
 
 def _approved_roots() -> tuple[Path, ...]:
@@ -91,6 +102,11 @@ def source_hunt_view(request: HttpRequest) -> HttpResponse:
         "visibility": "private",
         "permitted_paths": ".",
     }
+    current_plan = (
+        current_source_hunt_plan(request)
+        if getattr(request, "vulnhunter_thread", None) is not None
+        else None
+    )
 
     report_id = request.GET.get("report", "").strip()
     if report_id:
@@ -154,12 +170,30 @@ def source_hunt_view(request: HttpRequest) -> HttpResponse:
                 model=policy.model,
                 now=now,
             )
-            _job_store().enqueue(queued_job)
-        except (SourceHuntError, ValueError, OSError) as exc:
+            graph = bind_source_hunt_assessment_graph(request, job=queued_job)
+            try:
+                _job_store().enqueue(queued_job)
+            except (OSError, ValueError) as exc:
+                project_source_hunt_state(
+                    queued_job.job_id,
+                    state="failed",
+                    reason="The Source Hunt queue rejected the immutable job.",
+                )
+                raise exc
+            if getattr(request, "vulnhunter_thread", None) is not None:
+                current_plan = remember_source_hunt_plan(
+                    request,
+                    job=queued_job,
+                    graph=graph,
+                )
+                record_source_hunt_event(request, current_plan)
+        except (SourceHuntError, RuntimeError, ValueError, OSError) as exc:
             error = str(exc)
 
     jobs = _job_store().list(limit=20)
     reports = _report_store().list(limit=12)
+    current_thread = getattr(request, "vulnhunter_thread", None)
+    thread_id = str(current_thread.thread_id) if current_thread is not None else ""
     return render(
         request,
         "web/source_hunt.html",
@@ -174,5 +208,9 @@ def source_hunt_view(request: HttpRequest) -> HttpResponse:
             "submitted": submitted,
             "groq_enabled": settings.VULNHUNTER_GROQ_ENABLED,
             "approved_roots": tuple(str(item) for item in _approved_roots()),
+            "current_source_hunt": current_plan,
+            "thread_id": thread_id,
+            "source_hunt_url": source_hunt_setup_url(request),
+            "workspace_return_url": source_hunt_workspace_url(request),
         },
     )

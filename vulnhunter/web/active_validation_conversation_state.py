@@ -28,6 +28,36 @@ def _store() -> ProjectingAdversaryLabStore:
     return store
 
 
+def _thread_plan(request: object) -> dict[str, object] | None:
+    thread = getattr(request, "vulnhunter_thread", None)
+    data = getattr(thread, "data", None)
+    if not isinstance(data, dict):
+        return None
+    raw = data.get(_SESSION_ACTIVE_VALIDATION)
+    return dict(raw) if isinstance(raw, dict) else None
+
+
+def _write_thread_plan(request: object, plan: dict[str, object] | None) -> None:
+    thread = getattr(request, "vulnhunter_thread", None)
+    if not isinstance(thread, ConversationThread):
+        return
+    with transaction.atomic():
+        current = ConversationThread.objects.select_for_update().get(
+            thread_id=thread.thread_id,
+            owner=thread.owner,
+            archived=False,
+        )
+        data = dict(current.data) if isinstance(current.data, dict) else {}
+        if plan is None:
+            data.pop(_SESSION_ACTIVE_VALIDATION, None)
+        else:
+            data[_SESSION_ACTIVE_VALIDATION] = plan
+        current.data = data
+        current.save(update_fields=("data", "updated_at"))
+    thread.data = data
+    thread.updated_at = current.updated_at
+
+
 def active_validation_workspace_url(request: object) -> str:
     thread = getattr(request, "vulnhunter_thread", None)
     thread_id = getattr(thread, "thread_id", None)
@@ -113,8 +143,8 @@ def remember_active_validation_workspace(
 def current_active_validation_plan(request: object) -> dict[str, object] | None:
     """Refresh chat state from the authoritative SQLite record and child graph."""
 
-    raw = request.session.get(_SESSION_ACTIVE_VALIDATION)
-    if not isinstance(raw, dict):
+    raw = _thread_plan(request)
+    if raw is None:
         return None
     lab_id = str(raw.get("lab_id") or "")
     if not lab_id:
@@ -128,8 +158,7 @@ def current_active_validation_plan(request: object) -> dict[str, object] | None:
         execution["state"] = "unavailable"
         execution["active_summary"] = "The persisted Active Validation record is unavailable."
         plan["execution"] = execution
-        request.session[_SESSION_ACTIVE_VALIDATION] = plan
-        request.session.modified = True
+        _write_thread_plan(request, plan)
         return plan
     graph = project_active_validation_record(record)
     plan = _record_payload(
@@ -137,14 +166,12 @@ def current_active_validation_plan(request: object) -> dict[str, object] | None:
         graph=graph,
         workspace_url=active_validation_workspace_url(request),
     )
-    request.session[_SESSION_ACTIVE_VALIDATION] = plan
-    request.session.modified = True
+    _write_thread_plan(request, plan)
     return plan
 
 
 def clear_active_validation_plan(request: object) -> None:
-    request.session.pop(_SESSION_ACTIVE_VALIDATION, None)
-    request.session.modified = True
+    _write_thread_plan(request, None)
 
 
 def _event_message(plan: dict[str, object]) -> dict[str, object]:

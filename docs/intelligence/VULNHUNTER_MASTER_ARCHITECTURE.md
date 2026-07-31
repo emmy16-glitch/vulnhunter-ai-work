@@ -3,7 +3,7 @@
 **Canonical current-to-finished product blueprint**  
 **Owner:** Emmanuel Okunlola  
 **Repository:** `emmy16-glitch/vulnhunter-ai-work`  
-**Baseline reviewed:** `main` at `cc8b33735b74d05b286ebdd2f780176d592e202d`  
+**Baseline reviewed:** `main` at `1919eb4fdf225915626c805e6614b87c88765a77`  
 **Created:** 2026-07-31  
 **Status:** Active master architecture and remaining-work sequence
 
@@ -386,6 +386,18 @@ These foundations do not establish real-world model accuracy.
 
 This is not general exploitation or production-target validation.
 
+## 5.10 Governed remediation planning — `DONE` foundation
+
+- ordinary chat can request remediation only by exact independently verified finding ID;
+- password re-authentication and exact bounded plan confirmation remain on a protected page;
+- the generic finding store atomically binds the remediation owner, exact finding revision and fingerprint, bounded target references, RED security test, independent verification recipe, evidence references, compatibility risks, expiry and immutable plan digest;
+- compare-and-swap revision control rejects stale writers and timestamps cannot move the finding lifecycle backwards;
+- the originating conversation receives a workspace-bound child task graph and deduplicated status events across browser or device reconnects;
+- the graph stops truthfully at `awaiting_developer_implementation` and terminal cancellation returns the verified finding to triaged state while cancelling all future graph claims;
+- no natural-language plan is executed as a command and no password is consumed from ordinary chat.
+
+This foundation does not edit source, run engineering commands, record a changed revision, verify a fix, retest, merge, close a finding or publish a result. Replacement plans after terminal cancellation are also outside this slice.
+
 ---
 
 # 6. Current gaps and unconnected areas
@@ -399,7 +411,7 @@ This is not general exploitation or production-target validation.
 | VulnHunter-owned security model | `LATE_STAGE` | Build reviewed data, evaluation and fine-tuning before considering domain pretraining or a foundation model. |
 | Governed vector RAG | `PARTIAL` | Finalise source registry, chunking, embedding/version contracts, vector storage, retrieval evaluation and citation integrity. |
 | Current Groq activation | `ACTIVATION_REQUIRED` | Owner-private key, model allowlist, privacy/retention acceptance, quota and harmless-response tests. |
-| General agent-to-tool integration | `PARTIAL` | Website, APK, Source Hunt and Active Validation now use workspace-bound authoritative task graphs; remediation, retest, downstream evidence completion, verification, review and reporting still require migration. |
+| General agent-to-tool integration | `PARTIAL` | Website, APK, Source Hunt, Active Validation and verified-finding remediation planning now use workspace-bound authoritative task graphs; developer implementation receipts, fix verification, retest, downstream review and reporting still require migration. |
 | Website private-lab pilot | `DONE` for narrow pilot | Add release-quality repeat acceptance and selected additional passive adapters only if justified. |
 | OpenVAS or additional website scanners | `NOT_IMPLEMENTED` | Select exact versions/feeds/isolation, implement the shared protocol adapter and acceptance suite. |
 | APK medium/large full static acceptance | `PARTIAL` | Run complete configured toolchain against representative authorised artifacts and record resource behaviour. |
@@ -755,7 +767,7 @@ Acceptance:
 
 ### Step 18 — Unify all assessment tasks on one authoritative task graph
 
-**Implementation status:** `IN_PROGRESS` — website, APK, Source Hunt and Active Validation now create workspace-bound authoritative task graphs and project approval, queue, execution, cancellation, failed-closed and user-facing chat stages from durable stores. Remediation, retest, downstream evidence completion, verification, review and reporting still require migration to the shared graph.
+**Implementation status:** `IN_PROGRESS` — website, APK, Source Hunt, Active Validation and verified-finding remediation planning now create workspace-bound authoritative task graphs and project approval, queue, execution readiness, cancellation, failed-closed and user-facing chat stages from durable stores. Developer implementation receipts, fix verification, retest, downstream evidence completion, review and reporting still require migration to the shared graph.
 
 Ensure website, APK, Source Hunt, active validation, remediation and retest share consistent plan, state, approval, worker, cancellation, activity and receipt contracts.
 
@@ -866,6 +878,8 @@ Acceptance:
 - model cannot verify its own claim.
 
 ### Step 27 — Connect remediation to controlled engineering orchestration
+
+**Implementation status:** `IN_PROGRESS` — the verified-finding intake, human-owned bounded plan, exact targets, RED test, independent verification recipe, immutable plan digest, CAS finding transition, chat workspace binding and pre-implementation cancellation are implemented. Developer-led patch execution, changed-revision receipts, GREEN and broader test evidence, read-only fix-verifier execution, independent review and human-controlled merge remain unfinished.
 
 Deliver a consistent flow from finding to RED test, bounded patch, GREEN tests, broader verification and human promotion.
 

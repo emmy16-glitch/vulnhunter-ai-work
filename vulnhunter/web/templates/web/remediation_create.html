@@ -1,0 +1,58 @@
+{% extends "web/base.html" %}
+{% block content %}
+<section class="vh-page-shell">
+  <header class="vh-page-header">
+    <div>
+      <p class="vh-eyebrow">Verified finding {{ finding.finding_id }}</p>
+      <h1>Plan remediation</h1>
+      <p>Create one exact human-owned plan. This page does not modify source code, run commands, verify a fix, merge changes, close the finding, or publish a result.</p>
+    </div>
+    <div class="vh-page-actions">
+      {% if workspace_return_url %}<a class="vh-button-secondary" href="{{ workspace_return_url }}">Return to chat</a>{% endif %}
+      <a class="vh-button-secondary" href="{% url 'web-findings-overview' %}">Findings</a>
+    </div>
+  </header>
+
+  {% if error %}<section class="vh-surface"><div class="vh-surface-body"><p class="vh-form-error">{{ error }}</p></div></section>{% endif %}
+
+  <section class="vh-surface">
+    <header class="vh-surface-header"><div><h2>Authority boundary</h2><p>The plan is bound to the exact verified finding revision and evidence lineage.</p></div></header>
+    <div class="vh-surface-body">
+      <dl class="vh-terminal-facts">
+        <div><dt>Finding</dt><dd>{{ finding.finding_id }} · revision {{ finding.revision }}</dd></div>
+        <div><dt>Verification</dt><dd>{{ finding.verification.value }}</dd></div>
+        <div><dt>Status</dt><dd>{{ finding.status.value }}</dd></div>
+        <div><dt>Severity</dt><dd>{{ finding.severity.value }}</dd></div>
+        <div><dt>Asset</dt><dd>{{ finding.affected_asset }}</dd></div>
+        <div><dt>Component</dt><dd>{{ finding.affected_component|default:"Not specified" }}</dd></div>
+        <div><dt>Evidence references</dt><dd>{{ finding.evidence|length }}</dd></div>
+        <div><dt>Automatic patch or merge</dt><dd>Forbidden</dd></div>
+      </dl>
+    </div>
+  </section>
+
+  {% if eligible %}
+  <form method="post" class="vh-lab-request-form">
+    {% csrf_token %}
+    <input type="hidden" name="expected_revision" value="{{ finding.revision }}">
+    <section class="vh-surface">
+      <header class="vh-surface-header"><div><h2>Exact remediation plan</h2><p>All fields are redacted before persistence and included in the immutable plan digest.</p></div></header>
+      <div class="vh-surface-body vh-form-grid">
+        <label class="vh-form-field vh-form-span-2"><span>Plan summary</span><textarea name="summary" rows="4" maxlength="5000" required>{{ submitted.summary }}</textarea><small>Describe the minimum intended correction without including secrets or executable instructions.</small></label>
+        <label class="vh-form-field vh-form-span-2"><span>Exact targets</span><textarea name="target_references" rows="4" maxlength="10000" required>{{ submitted.target_references }}</textarea><small>One file, component, endpoint, package, symbol, or bounded reference per line.</small></label>
+        <label class="vh-form-field vh-form-span-2"><span>RED security test</span><textarea name="regression_test" rows="5" maxlength="4000" required>{{ submitted.regression_test }}</textarea><small>State the deterministic test that must fail before the fix and pass afterwards. No command is executed from this text.</small></label>
+        <label class="vh-form-field vh-form-span-2"><span>Independent verification recipe</span><textarea name="verification_recipe" rows="5" maxlength="4000" required>{{ submitted.verification_recipe }}</textarea><small>Describe the read-only evidence and verifier receipts required before a fix verdict.</small></label>
+        <label class="vh-form-field vh-form-span-2"><span>Compatibility risks</span><textarea name="compatibility_risks" rows="3" maxlength="4000">{{ submitted.compatibility_risks }}</textarea><small>Optional, one bounded risk per line.</small></label>
+        <label class="vh-form-field"><span>Password re-authentication</span><input type="password" name="password" autocomplete="current-password" required><small>Confirms this exact plan. The password is never persisted.</small></label>
+      </div>
+    </section>
+    <section class="vh-lab-request-footer">
+      <p>After confirmation the graph stops at “awaiting developer implementation.” Engineering tools, changed revisions, fix verification, independent review and merge remain separately governed.</p>
+      <button class="vh-button-primary" type="submit">Confirm exact remediation plan</button>
+    </section>
+  </form>
+  {% else %}
+  <section class="vh-surface"><div class="vh-empty-panel"><svg aria-hidden="true"><use href="#vh-i-shield"></use></svg><h3>Finding is not remediation-ready</h3><p>Only independently verified findings in open or triaged state may receive a governed remediation plan.</p><a class="vh-button-secondary" href="{% url 'web-findings-overview' %}">Return to findings</a></div></section>
+  {% endif %}
+</section>
+{% endblock %}

@@ -473,9 +473,7 @@ class Finding(BaseModel):
             if new_remediation.remediation_id != old_remediation.remediation_id:
                 raise ValueError("governed remediation identifier is immutable")
             if (
-                new_remediation.verification_history[
-                    : len(old_remediation.verification_history)
-                ]
+                new_remediation.verification_history[: len(old_remediation.verification_history)]
                 != old_remediation.verification_history
             ):
                 raise ValueError("remediation verification history is append-only")

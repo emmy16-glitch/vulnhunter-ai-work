@@ -169,8 +169,7 @@ class FindingService:
             evidence_id=verification.receipt_id,
             sha256=verification.sha256,
             provenance=(
-                "immutable read-only fix-verification bundle; "
-                f"verdict={verification.verdict}"
+                f"immutable read-only fix-verification bundle; verdict={verification.verdict}"
             ),
             content_type="application/vnd.vulnhunter.fix-verification+json",
         )

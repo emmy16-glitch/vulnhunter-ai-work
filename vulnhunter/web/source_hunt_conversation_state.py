@@ -184,9 +184,10 @@ def record_source_hunt_event(request: object, plan: dict[str, object]) -> None:
         "role": "assistant",
         "kind": "status",
         "content": (
-            f"Source Hunt {state} for repository {repository.get('repository_id', 'snapshot')} at "
-            f"revision {repository.get('revision', 'unknown')}. The exact snapshot, remote-processing "
-            "approval and worker state are now bound to this workspace."
+            f"Source Hunt {state} for repository "
+            f"{repository.get('repository_id', 'snapshot')} at revision "
+            f"{repository.get('revision', 'unknown')}. The exact snapshot, "
+            "remote-processing approval and worker state are now bound to this workspace."
         ),
         "timestamp": datetime.now(UTC).isoformat(),
         "metadata": {
@@ -235,10 +236,12 @@ def source_hunt_chat_reply(intent: str, plan: dict[str, object]) -> str:
         if not isinstance(report, dict):
             return "Source Hunt has not produced a persisted report yet."
         return (
-            f"The persisted Source Hunt report examined {report.get('surfaces_examined', 0)} attack "
-            f"surface(s) and retained {report.get('candidate_count', 0)} candidate(s), with "
-            f"{report.get('rejected_count', 0)} rejected and {report.get('abstained_count', 0)} "
-            "abstained. Retained candidates still require independent verification and review."
+            "The persisted Source Hunt report examined "
+            f"{report.get('surfaces_examined', 0)} attack surface(s) and retained "
+            f"{report.get('candidate_count', 0)} candidate(s), with "
+            f"{report.get('rejected_count', 0)} rejected and "
+            f"{report.get('abstained_count', 0)} abstained. Retained candidates still require "
+            "independent verification and review."
         )
     if intent == "next_step":
         if state in {"queued", "running"}:
@@ -250,8 +253,8 @@ def source_hunt_chat_reply(intent: str, plan: dict[str, object]) -> str:
             )
         if state == "failed":
             return (
-                "Inspect the bounded safe error, repair the provider, approval or repository issue, "
-                "then create a new exact snapshot rather than reusing stale authority."
+                "Inspect the bounded safe error, repair the provider, approval or repository "
+                "issue, then create a new exact snapshot rather than reusing stale authority."
             )
         return "Open the protected Source Hunt setup to create a new exact approved snapshot."
     return (

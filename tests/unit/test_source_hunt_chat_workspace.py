@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from types import SimpleNamespace
+from unittest.mock import patch
+
 import pytest
 
 
@@ -143,24 +146,19 @@ def test_source_hunt_chat_setup_preserves_protected_reauthentication_boundary(
     )
     thread = ConversationThread.objects.create(owner=operator, title="Start Source Hunt")
     client.force_login(operator)
+    actor = SimpleNamespace(governance_identity=SimpleNamespace(reviewer_id="source-operator"))
 
-    with pytest.MonkeyPatch.context() as patch:
-        from types import SimpleNamespace
-        from unittest.mock import patch as mock_patch
-
-        actor = SimpleNamespace(governance_identity=SimpleNamespace(reviewer_id="source-operator"))
-        with mock_patch("vulnhunter.web.source_hunt_views.authorized_actor", return_value=actor):
-            response = client.post(
-                "/source-hunt/",
-                {
-                    "thread_id": str(thread.thread_id),
-                    "source_chat_bridge": "yes",
-                    "message": "Analyze this repository with Source Hunt",
-                },
-                HTTP_X_VULNHUNTER_THREAD=str(thread.thread_id),
-                HTTP_ACCEPT="application/json",
-            )
-        patch.undo()
+    with patch("vulnhunter.web.source_hunt_views.authorized_actor", return_value=actor):
+        response = client.post(
+            "/source-hunt/",
+            {
+                "thread_id": str(thread.thread_id),
+                "source_chat_bridge": "yes",
+                "message": "Analyze this repository with Source Hunt",
+            },
+            HTTP_X_VULNHUNTER_THREAD=str(thread.thread_id),
+            HTTP_ACCEPT="application/json",
+        )
 
     assert response.status_code == 200
     payload = response.json()

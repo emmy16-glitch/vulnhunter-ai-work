@@ -1,0 +1,70 @@
+name: Chat taskgraph PR runner
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  implement:
+    if: ${{ github.head_ref == 'impl/chat-taskgraph-slice' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: impl/chat-taskgraph-slice
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check whether implementation is needed
+        id: guard
+        shell: bash
+        run: |
+          if [ -f vulnhunter/assessment_graph/service.py ]; then
+            echo 'run=false' >> "$GITHUB_OUTPUT"
+          else
+            echo 'run=true' >> "$GITHUB_OUTPUT"
+          fi
+      - name: Apply bounded implementation
+        if: steps.guard.outputs.run == 'true'
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import textwrap
+
+          source = Path('.github/workflows/chat-taskgraph-implementation.yml').read_text(encoding='utf-8')
+          start_marker = "          python - <<'PY'\n"
+          end_marker = "\n          PY\n      - name: Install development dependencies"
+          start = source.index(start_marker) + len(start_marker)
+          end = source.index(end_marker, start)
+          script = textwrap.dedent(source[start:end])
+          exec(compile(script, 'chat-taskgraph-generated.py', 'exec'))
+          PY
+      - name: Install development dependencies
+        if: steps.guard.outputs.run == 'true'
+        run: python -m pip install --upgrade pip && python -m pip install -e '.[dev]'
+      - name: Format implementation
+        if: steps.guard.outputs.run == 'true'
+        run: python -m ruff format vulnhunter/assessment_graph vulnhunter/web/assessment_workflow.py vulnhunter/web/conversational_views.py tests/unit/test_assessment_graph.py tests/unit/test_assessment_workflow.py
+      - name: Focused verification
+        if: steps.guard.outputs.run == 'true'
+        env:
+          VULNHUNTER_WEB_SECRET_KEY: chat-taskgraph-check-secret
+        run: |
+          python -m ruff check vulnhunter/assessment_graph vulnhunter/web/assessment_workflow.py vulnhunter/web/conversational_views.py tests/unit/test_assessment_graph.py tests/unit/test_assessment_workflow.py
+          python -m ruff format --check vulnhunter/assessment_graph vulnhunter/web/assessment_workflow.py vulnhunter/web/conversational_views.py tests/unit/test_assessment_graph.py tests/unit/test_assessment_workflow.py
+          python -m compileall -q vulnhunter/assessment_graph vulnhunter/web
+          python -m pytest -q tests/unit/test_assessment_graph.py tests/unit/test_assessment_workflow.py tests/unit/test_taskgraph.py tests/unit/test_conversational_workspace.py tests/unit/test_conversation_experience.py
+          git diff --check
+      - name: Commit verified implementation
+        if: steps.guard.outputs.run == 'true'
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add vulnhunter/assessment_graph vulnhunter/web/assessment_workflow.py vulnhunter/web/conversational_views.py tests/unit/test_assessment_graph.py tests/unit/test_assessment_workflow.py docs/intelligence/VULNHUNTER_MASTER_ARCHITECTURE.md
+          git commit -m 'Implement chat-bound website assessment task graph [chat-taskgraph-generated]'
+          git push origin HEAD:impl/chat-taskgraph-slice

@@ -219,21 +219,11 @@ class RemediationAssessmentGraphService:
         nodes = payload.get("nodes")
         if not isinstance(nodes, list):
             return payload
-        by_stage = {
-            str(item.get("stage")): item
-            for item in nodes
-            if isinstance(item, dict)
-        }
+        by_stage = {str(item.get("stage")): item for item in nodes if isinstance(item, dict)}
         execution_node = by_stage.get(AssessmentStage.EXECUTION.value)
-        execution = (
-            str(execution_node.get("status"))
-            if isinstance(execution_node, dict)
-            else None
-        )
+        execution = str(execution_node.get("status")) if isinstance(execution_node, dict) else None
         execution_error = (
-            str(execution_node.get("last_error") or "")
-            if isinstance(execution_node, dict)
-            else ""
+            str(execution_node.get("last_error") or "") if isinstance(execution_node, dict) else ""
         )
         if execution == NodeStatus.READY.value:
             payload["chat_stage"] = "awaiting_developer_implementation"

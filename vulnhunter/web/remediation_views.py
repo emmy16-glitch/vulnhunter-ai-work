@@ -439,9 +439,7 @@ def remediation_verify_view(request: HttpRequest, finding_id: str) -> HttpRespon
         _remediator(request)
         workspace_id = _workspace_id(request)
         if workspace_id is None:
-            raise WebPermissionDenied(
-                "Fix verification must return to a durable chat workspace."
-            )
+            raise WebPermissionDenied("Fix verification must return to a durable chat workspace.")
         finding = remediation_finding_store().get(finding_id)
     except WebPermissionDenied as exc:
         return _denied(request, str(exc), status=409 if "workspace" in str(exc) else 403)
@@ -476,14 +474,10 @@ def remediation_verify_view(request: HttpRequest, finding_id: str) -> HttpRespon
             "builder_id": request.POST.get("builder_id", "").strip(),
             "allowed_paths": request.POST.get("allowed_paths", "").strip(),
             "changed_files": request.POST.get("changed_files", "").strip(),
-            "original_snapshot_json": request.POST.get(
-                "original_snapshot_json", ""
-            ).strip(),
+            "original_snapshot_json": request.POST.get("original_snapshot_json", "").strip(),
             "fixed_snapshot_json": request.POST.get("fixed_snapshot_json", "").strip(),
             "security_test_json": request.POST.get("security_test_json", "").strip(),
-            "regression_tests_json": request.POST.get(
-                "regression_tests_json", "[]"
-            ).strip(),
+            "regression_tests_json": request.POST.get("regression_tests_json", "[]").strip(),
             "fixed_evidence_refs_json": request.POST.get(
                 "fixed_evidence_refs_json", "[]"
             ).strip(),
@@ -542,9 +536,7 @@ def remediation_verify_view(request: HttpRequest, finding_id: str) -> HttpRespon
                 security_test=security_test,
                 regression_tests=regression_tests,
                 fixed_evidence_refs=fixed_evidence_refs,
-                original_attack_blocked=_optional_boolean(
-                    submitted["original_attack_blocked"]
-                ),
+                original_attack_blocked=_optional_boolean(submitted["original_attack_blocked"]),
             )
         except (
             FindingConflict,

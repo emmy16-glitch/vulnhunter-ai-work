@@ -86,24 +86,35 @@ def _restore_latest_non_terminal_run(request) -> None:
         return
 
 
-def _refresh_source_hunt_workspace(request) -> None:
-    """Project worker state before the selected chat workspace is rendered."""
+def _refresh_specialist_workspaces(request) -> None:
+    """Project specialist worker state before the selected chat is rendered."""
 
     if request.method != "GET" or request.path != "/":
         return
     if getattr(request, "vulnhunter_thread", None) is None:
         return
+    from vulnhunter.web.active_validation_conversation_state import (
+        current_active_validation_plan,
+        record_active_validation_event,
+    )
     from vulnhunter.web.source_hunt_conversation_state import (
         current_source_hunt_plan,
         record_source_hunt_event,
     )
 
     try:
-        plan = current_source_hunt_plan(request)
-        if plan is not None:
-            record_source_hunt_event(request, plan)
+        source_plan = current_source_hunt_plan(request)
+        if source_plan is not None:
+            record_source_hunt_event(request, source_plan)
     except (OSError, RuntimeError, ValueError):
         logger.exception("Source Hunt workspace refresh failed safely")
+
+    try:
+        validation_plan = current_active_validation_plan(request)
+        if validation_plan is not None:
+            record_active_validation_event(request, validation_plan)
+    except (OSError, RuntimeError, ValueError):
+        logger.exception("Active Validation workspace refresh failed safely")
 
 
 class ConversationThreadMiddleware:
@@ -143,7 +154,7 @@ class ConversationThreadMiddleware:
                 request.vulnhunter_base_session = base_session
                 request.vulnhunter_thread = thread
                 request.session = ThreadSessionProxy(base_session, thread)
-                _refresh_source_hunt_workspace(request)
+                _refresh_specialist_workspaces(request)
         return self.get_response(request)
 
 

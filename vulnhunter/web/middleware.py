@@ -86,6 +86,26 @@ def _restore_latest_non_terminal_run(request) -> None:
         return
 
 
+def _refresh_source_hunt_workspace(request) -> None:
+    """Project worker state before the selected chat workspace is rendered."""
+
+    if request.method != "GET" or request.path != "/":
+        return
+    if getattr(request, "vulnhunter_thread", None) is None:
+        return
+    from vulnhunter.web.source_hunt_conversation_state import (
+        current_source_hunt_plan,
+        record_source_hunt_event,
+    )
+
+    try:
+        plan = current_source_hunt_plan(request)
+        if plan is not None:
+            record_source_hunt_event(request, plan)
+    except (OSError, RuntimeError, ValueError):
+        logger.exception("Source Hunt workspace refresh failed safely")
+
+
 class ConversationThreadMiddleware:
     """Select a durable workspace and isolate its legacy session-backed state."""
 
@@ -125,6 +145,7 @@ class ConversationThreadMiddleware:
                 request.vulnhunter_base_session = base_session
                 request.vulnhunter_thread = thread
                 request.session = ThreadSessionProxy(base_session, thread)
+                _refresh_source_hunt_workspace(request)
         return self.get_response(request)
 
 

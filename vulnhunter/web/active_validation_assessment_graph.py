@@ -97,9 +97,9 @@ class ProjectingAdversaryLabStore(AdversaryLabStore):
             )
 
     def create(self, record: LabRecord) -> LabRecord:
-        created = super().create(record)
-        self._project_safely(created)
-        return created
+        """Create first; the web transaction binds the graph immediately afterwards."""
+
+        return super().create(record)
 
     def save(self, record: LabRecord, *, expected_revision: int) -> LabRecord:
         saved = super().save(record, expected_revision=expected_revision)

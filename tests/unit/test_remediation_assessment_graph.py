@@ -39,7 +39,7 @@ def test_remediation_graph_binds_exact_finding_plan_and_workspace(tmp_path):
     assert payload is not None
     assert payload["assessment_kind"] == "remediation"
     assert payload["workspace_id"] == str(bundle.workspace_id)
-    assert payload["target_reference"] == "finding:finding-01"
+    assert bundle.target_reference == "finding:finding-01"
     assert payload["chat_stage"] == "awaiting_developer_implementation"
     statuses = {item["stage"]: item["status"] for item in payload["nodes"]}
     assert statuses["authorization"] == "completed"
@@ -82,7 +82,7 @@ def test_remediation_cancellation_preserves_foundations_and_cancels_future_claim
     )
 
 
-def test_remediation_failure_blocks_implementation_and_downstream_claims(tmp_path):
+def test_remediation_failure_cancels_implementation_and_downstream_claims(tmp_path):
     service = _service(tmp_path)
     remediation_id, _bundle = _create(service, suffix="3")
 
@@ -95,9 +95,15 @@ def test_remediation_failure_blocks_implementation_and_downstream_claims(tmp_pat
 
     assert payload is not None
     assert payload["chat_stage"] == "remediation_failed_safe"
-    statuses = {item["stage"]: item["status"] for item in payload["nodes"]}
-    assert statuses["execution"] == "blocked"
+    nodes = {
+        item["stage"]: item
+        for item in payload["nodes"]
+    }
+    assert nodes["execution"]["status"] == "cancelled"
+    assert str(nodes["execution"]["last_error"]).startswith(
+        "Remediation failed safely:"
+    )
     assert all(
-        statuses[stage] == "cancelled"
+        nodes[stage]["status"] == "cancelled"
         for stage in ("evidence", "verification", "review", "report")
     )

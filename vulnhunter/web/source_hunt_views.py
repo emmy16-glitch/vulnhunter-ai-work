@@ -8,7 +8,7 @@ from pathlib import Path
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
-from django.http import HttpRequest, HttpResponse
+from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import render
 from django.views.decorators.cache import cache_control
 from django.views.decorators.http import require_http_methods
@@ -31,6 +31,7 @@ from vulnhunter.web.source_hunt_conversation_state import (
     current_source_hunt_plan,
     record_source_hunt_event,
     remember_source_hunt_plan,
+    source_hunt_chat_reply,
     source_hunt_setup_url,
     source_hunt_workspace_url,
 )
@@ -84,6 +85,96 @@ def _denied(request: HttpRequest, message: str) -> HttpResponse:
     )
 
 
+def _source_chat_intent(text: str) -> str:
+    lowered = " ".join(text.casefold().split())
+    if any(term in lowered for term in ("result", "finding", "evidence", "what did you find")):
+        return "results"
+    if any(term in lowered for term in ("next step", "what next", "next action")):
+        return "next_step"
+    if any(
+        term in lowered
+        for term in (
+            "status",
+            "progress",
+            "is it running",
+            "is it done",
+            "what is happening",
+            "how far",
+        )
+    ):
+        return "status"
+    return "setup"
+
+
+def _source_chat_bridge(request: HttpRequest) -> JsonResponse:
+    """Route explicit repository requests from chat without granting authority."""
+
+    from vulnhunter.web.conversational_views import _append_message
+
+    text = request.POST.get("message", "").strip()
+    if not text or len(text) > 4_000:
+        return JsonResponse(
+            {"detail": "Enter a message between 1 and 4,000 characters."},
+            status=400,
+        )
+    if getattr(request, "vulnhunter_thread", None) is None:
+        return JsonResponse(
+            {"detail": "Select a durable workspace before starting Source Hunt."},
+            status=409,
+        )
+
+    _append_message(request, role="user", content=text)
+    intent = _source_chat_intent(text)
+    plan = current_source_hunt_plan(request)
+    if plan is not None:
+        record_source_hunt_event(request, plan)
+
+    if intent == "setup":
+        copy = (
+            "Source Hunt requires an exact repository snapshot, password re-authentication, "
+            "customer-data confirmation and approval for bounded Groq source processing. "
+            "Opening the protected setup keeps those decisions outside ordinary chat text."
+        )
+        redirect_url = source_hunt_setup_url(request)
+    elif plan is None:
+        copy = (
+            "No Source Hunt is bound to this workspace yet. Start one from the protected Source "
+            "Hunt setup so the exact repository, revision, snapshot hash and approval can be bound."
+        )
+        redirect_url = None
+    else:
+        copy = source_hunt_chat_reply(intent, plan)
+        redirect_url = None
+
+    metadata: dict[str, object] = {}
+    if plan is not None:
+        repository = plan.get("repository")
+        repository = repository if isinstance(repository, dict) else {}
+        execution = plan.get("execution")
+        execution = execution if isinstance(execution, dict) else {}
+        graph = plan.get("assessment_graph")
+        graph = graph if isinstance(graph, dict) else {}
+        metadata["source_hunt"] = {
+            "job_id": plan.get("job_id"),
+            "repository_id": repository.get("repository_id"),
+            "revision": repository.get("revision"),
+            "state": execution.get("state"),
+            "chat_stage": graph.get("chat_stage"),
+            "task_graph_id": plan.get("task_graph_id"),
+        }
+    message = _append_message(
+        request,
+        role="assistant",
+        kind="status" if intent != "results" else "result",
+        content=copy,
+        metadata=metadata,
+    )
+    response: dict[str, object] = {"message": message, "handled": True}
+    if redirect_url:
+        response["redirect_url"] = redirect_url
+    return JsonResponse(response)
+
+
 @cache_control(private=True, no_store=True)
 @login_required
 @require_http_methods(["GET", "POST"])
@@ -92,6 +183,9 @@ def source_hunt_view(request: HttpRequest) -> HttpResponse:
         authorized_actor(request.user, required_actions=("scan.create",))
     except WebPermissionDenied as exc:
         return _denied(request, str(exc))
+
+    if request.method == "POST" and request.POST.get("source_chat_bridge") == "yes":
+        return _source_chat_bridge(request)
 
     report = None
     queued_job = None
@@ -107,6 +201,8 @@ def source_hunt_view(request: HttpRequest) -> HttpResponse:
         if getattr(request, "vulnhunter_thread", None) is not None
         else None
     )
+    if current_plan is not None:
+        record_source_hunt_event(request, current_plan)
 
     report_id = request.GET.get("report", "").strip()
     if report_id:
@@ -173,13 +269,13 @@ def source_hunt_view(request: HttpRequest) -> HttpResponse:
             graph = bind_source_hunt_assessment_graph(request, job=queued_job)
             try:
                 _job_store().enqueue(queued_job)
-            except (OSError, ValueError) as exc:
+            except (OSError, ValueError):
                 project_source_hunt_state(
                     queued_job.job_id,
                     state="failed",
                     reason="The Source Hunt queue rejected the immutable job.",
                 )
-                raise exc
+                raise
             if getattr(request, "vulnhunter_thread", None) is not None:
                 current_plan = remember_source_hunt_plan(
                     request,

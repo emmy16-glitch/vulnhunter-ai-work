@@ -119,9 +119,7 @@ class ConversationThreadMiddleware:
             or request.headers.get("X-VulnHunter-Thread")
         )
         is_workspace_path = (
-            request.path == "/"
-            or request.path.startswith("/workspace/")
-            or source_hunt_selected
+            request.path == "/" or request.path.startswith("/workspace/") or source_hunt_selected
         )
         if is_workspace_path and getattr(request.user, "is_authenticated", False):
             from vulnhunter.web.conversation_threads import (

@@ -333,9 +333,7 @@ class RemediationAssessmentGraphService:
             str(execution_node.get("last_error") or "") if isinstance(execution_node, dict) else ""
         )
         verification = (
-            str(verification_node.get("status"))
-            if isinstance(verification_node, dict)
-            else None
+            str(verification_node.get("status")) if isinstance(verification_node, dict) else None
         )
         verification_error = (
             str(verification_node.get("last_error") or "")
@@ -344,9 +342,8 @@ class RemediationAssessmentGraphService:
         )
         if verification == NodeStatus.COMPLETED.value:
             payload["chat_stage"] = "fix_verified_awaiting_retest"
-        elif (
-            verification == NodeStatus.READY.value
-            and verification_error.startswith(_REWORK_PREFIX)
+        elif verification == NodeStatus.READY.value and verification_error.startswith(
+            _REWORK_PREFIX
         ):
             payload["chat_stage"] = "fix_verification_requires_rework"
         elif execution == NodeStatus.READY.value:

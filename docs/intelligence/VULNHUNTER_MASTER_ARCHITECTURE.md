@@ -380,7 +380,9 @@ These foundations do not establish real-world model accuracy.
 - generated-data-only scenarios;
 - networkless disposable workspace;
 - bounded retries, evidence hashes, cancellation and cleanup verification;
-- persisted truthful activity.
+- persisted truthful activity;
+- workspace-bound child task graph tied to the parent assessment, exact finding, authorisation, reviewed scenario and immutable plan digest;
+- browser-independent projection of approval, queue, worker, evidence evaluation, cancellation and failed-closed states back into the originating chat workspace.
 
 This is not general exploitation or production-target validation.
 
@@ -397,7 +399,7 @@ This is not general exploitation or production-target validation.
 | VulnHunter-owned security model | `LATE_STAGE` | Build reviewed data, evaluation and fine-tuning before considering domain pretraining or a foundation model. |
 | Governed vector RAG | `PARTIAL` | Finalise source registry, chunking, embedding/version contracts, vector storage, retrieval evaluation and citation integrity. |
 | Current Groq activation | `ACTIVATION_REQUIRED` | Owner-private key, model allowlist, privacy/retention acceptance, quota and harmless-response tests. |
-| General agent-to-tool integration | `PARTIAL` | Ensure every workspace task uses one authoritative task graph, plan, approval, worker receipt and stop state. |
+| General agent-to-tool integration | `PARTIAL` | Website, APK, Source Hunt and Active Validation now use workspace-bound authoritative task graphs; remediation, retest, downstream evidence completion, verification, review and reporting still require migration. |
 | Website private-lab pilot | `DONE` for narrow pilot | Add release-quality repeat acceptance and selected additional passive adapters only if justified. |
 | OpenVAS or additional website scanners | `NOT_IMPLEMENTED` | Select exact versions/feeds/isolation, implement the shared protocol adapter and acceptance suite. |
 | APK medium/large full static acceptance | `PARTIAL` | Run complete configured toolchain against representative authorised artifacts and record resource behaviour. |
@@ -753,7 +755,7 @@ Acceptance:
 
 ### Step 18 — Unify all assessment tasks on one authoritative task graph
 
-**Implementation status:** `IN_PROGRESS` — the website chat workflow now creates an immutable workspace-bound task graph and projects approval, execution blocking, cancellation, and user-facing chat stages. APK, Source Hunt, Active Validation, remediation, retest, evidence completion, verification, review, and reporting still require migration to the shared graph.
+**Implementation status:** `IN_PROGRESS` — website, APK, Source Hunt and Active Validation now create workspace-bound authoritative task graphs and project approval, queue, execution, cancellation, failed-closed and user-facing chat stages from durable stores. Remediation, retest, downstream evidence completion, verification, review and reporting still require migration to the shared graph.
 
 Ensure website, APK, Source Hunt, active validation, remediation and retest share consistent plan, state, approval, worker, cancellation, activity and receipt contracts.
 

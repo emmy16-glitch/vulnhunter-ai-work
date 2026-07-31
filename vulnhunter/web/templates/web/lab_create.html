@@ -7,10 +7,18 @@
       <h1>Request active validation</h1>
       <p>Run a reviewed synthetic scenario inside a disposable no-egress workspace. No arbitrary command, public target, customer data, or unrestricted exploitation is accepted.</p>
     </div>
-    <div class="vh-page-actions"><a class="vh-button-secondary" href="{% url 'web-agent-run-detail' run.run_id %}">Back to assessment</a></div>
+    <div class="vh-page-actions">
+      {% if workspace_return_url %}<a class="vh-button-secondary" href="{{ workspace_return_url }}">Return to chat</a>{% endif %}
+      <a class="vh-button-secondary" href="{% url 'web-agent-run-detail' run.run_id %}">Back to assessment</a>
+    </div>
   </header>
 
-  {% if findings %}
+  {% if findings and workspace_bound %}
+    <section class="vh-surface">
+      <div class="vh-surface-body">
+        <p><strong>Bound to the parent chat workspace.</strong> The exact finding, plan digest, approval, worker state, evidence evaluation and human-review handoff will be projected into one authoritative child task graph.</p>
+      </div>
+    </section>
     <form method="post" class="vh-lab-request-form">
       {% csrf_token %}
       <section class="vh-surface">
@@ -40,6 +48,8 @@
 
       <section class="vh-lab-request-footer"><p>After creation, a different governed approver must accept the exact plan digest. Execution requires another password step-up.</p><button class="vh-button-primary" type="submit">Create exact lab plan</button></section>
     </form>
+  {% elif not workspace_bound %}
+    <section class="vh-surface"><div class="vh-empty-panel"><svg aria-hidden="true"><use href="#vh-i-link"></use></svg><h3>No authoritative chat binding</h3><p>Active Validation can start only from an assessment that is bound to a durable chat workspace and shared task graph.</p><a class="vh-button-secondary" href="{% url 'web-agent-run-detail' run.run_id %}">Return to assessment</a></div></section>
   {% else %}
     <section class="vh-surface"><div class="vh-empty-panel"><svg aria-hidden="true"><use href="#vh-i-shield"></use></svg><h3>No persisted finding</h3><p>Active validation becomes available only after the assessment stores a candidate finding.</p><a class="vh-button-secondary" href="{% url 'web-agent-run-detail' run.run_id %}">Return to assessment</a></div></section>
   {% endif %}

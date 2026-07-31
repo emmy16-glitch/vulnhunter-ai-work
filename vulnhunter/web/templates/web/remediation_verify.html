@@ -1,0 +1,121 @@
+{% extends "web/base.html" %}
+{% block content %}
+<section class="vh-page-shell">
+  <header class="vh-page-header">
+    <div>
+      <p class="vh-eyebrow">Finding {{ finding.finding_id }}</p>
+      <h1>Record implementation evidence</h1>
+      <p>Submit exact immutable snapshot metadata and deterministic verifier receipts for read-only fix verification.</p>
+    </div>
+    <div class="vh-page-actions">
+      {% if workspace_return_url %}<a class="vh-button-secondary" href="{{ workspace_return_url }}">Return to chat</a>{% endif %}
+      <a class="vh-button-secondary" href="{% url 'web-remediation-detail' finding.finding_id %}?thread={{ request.vulnhunter_thread.thread_id }}">Remediation plan</a>
+    </div>
+  </header>
+
+  <section class="vh-surface">
+    <header class="vh-surface-header">
+      <div>
+        <h2>Permanent safety boundary</h2>
+        <p>This page parses typed evidence only. It does not run submitted commands, edit source, merge code, retest the finding or close it.</p>
+      </div>
+    </header>
+    <div class="vh-surface-body">
+      <dl class="vh-terminal-facts">
+        <div><dt>Remediation ID</dt><dd>{{ remediation.remediation_id }}</dd></div>
+        <div><dt>Plan state</dt><dd>{{ remediation.state.value }}</dd></div>
+        <div><dt>Finding revision</dt><dd>{{ finding.revision }}</dd></div>
+        <div><dt>Plan digest</dt><dd><code>{{ remediation.plan_sha256 }}</code></dd></div>
+      </dl>
+      <h3>Approved targets</h3>
+      <ul class="vh-compact-list">{% for target in remediation.target_references %}<li><span>{{ target }}</span></li>{% endfor %}</ul>
+    </div>
+  </section>
+
+  <section class="vh-surface">
+    <header class="vh-surface-header">
+      <div>
+        <h2>Fixed-revision handoff</h2>
+        <p>Every JSON value must match VulnHunter's typed snapshot or receipt schema. Raw output, credentials and secret-bearing logs must not be submitted.</p>
+      </div>
+    </header>
+    <div class="vh-surface-body">
+      {% if error %}<div class="vh-alert vh-alert-danger" role="alert">{{ error }}</div>{% endif %}
+      {% if eligible %}
+      <form method="post" class="vh-form-stack">
+        {% csrf_token %}
+        <input type="hidden" name="thread_id" value="{{ request.vulnhunter_thread.thread_id }}">
+        <input type="hidden" name="expected_revision" value="{{ finding.revision }}">
+
+        <label class="vh-form-field">
+          <span>Developer or builder ID</span>
+          <input type="text" name="builder_id" value="{{ submitted.builder_id }}" maxlength="128" autocomplete="off" required>
+          <small>This identity must differ from the independent read-only verifier.</small>
+        </label>
+
+        <label class="vh-form-field">
+          <span>Allowed repository paths</span>
+          <textarea name="allowed_paths" rows="4" required>{{ submitted.allowed_paths }}</textarea>
+          <small>One repository-relative path per line. Every path must be an exact subset of the approved remediation targets.</small>
+        </label>
+
+        <label class="vh-form-field">
+          <span>Changed files</span>
+          <textarea name="changed_files" rows="4" required>{{ submitted.changed_files }}</textarea>
+          <small>One repository-relative file per line. Each file must exist in the fixed snapshot.</small>
+        </label>
+
+        <label class="vh-form-field">
+          <span>Original repository snapshot JSON</span>
+          <textarea name="original_snapshot_json" rows="10" spellcheck="false" required>{{ submitted.original_snapshot_json }}</textarea>
+        </label>
+
+        <label class="vh-form-field">
+          <span>Fixed repository snapshot JSON</span>
+          <textarea name="fixed_snapshot_json" rows="10" spellcheck="false" required>{{ submitted.fixed_snapshot_json }}</textarea>
+        </label>
+
+        <label class="vh-form-field">
+          <span>Security RED-test receipt JSON</span>
+          <textarea name="security_test_json" rows="7" spellcheck="false">{{ submitted.security_test_json }}</textarea>
+          <small>Leaving this empty produces a truthful cannot-verify verdict.</small>
+        </label>
+
+        <label class="vh-form-field">
+          <span>Regression receipt JSON array</span>
+          <textarea name="regression_tests_json" rows="8" spellcheck="false">{{ submitted.regression_tests_json }}</textarea>
+        </label>
+
+        <label class="vh-form-field">
+          <span>Fixed source-reference JSON array</span>
+          <textarea name="fixed_evidence_refs_json" rows="8" spellcheck="false">{{ submitted.fixed_evidence_refs_json }}</textarea>
+          <small>References must match exact file hashes and line ranges in the fixed snapshot.</small>
+        </label>
+
+        <label class="vh-form-field">
+          <span>Was the original attack independently shown blocked?</span>
+          <select name="original_attack_blocked">
+            <option value="unknown" {% if submitted.original_attack_blocked == 'unknown' %}selected{% endif %}>Unknown / cannot prove</option>
+            <option value="true" {% if submitted.original_attack_blocked == 'true' or submitted.original_attack_blocked == 'on' %}selected{% endif %}>Yes</option>
+            <option value="false" {% if submitted.original_attack_blocked == 'false' %}selected{% endif %}>No</option>
+          </select>
+        </label>
+
+        <label class="vh-form-field">
+          <span>Password re-authentication</span>
+          <input type="password" name="password" autocomplete="current-password" required>
+        </label>
+
+        <button class="vh-button-primary" type="submit">Record receipt and verify read-only</button>
+      </form>
+      {% else %}
+      <div class="vh-empty-panel">
+        <svg aria-hidden="true"><use href="#vh-i-shield"></use></svg>
+        <h3>Implementation receipts are not accepted</h3>
+        <p>This exact remediation state is terminal or has already advanced to the separate retest boundary.</p>
+      </div>
+      {% endif %}
+    </div>
+  </section>
+</section>
+{% endblock %}

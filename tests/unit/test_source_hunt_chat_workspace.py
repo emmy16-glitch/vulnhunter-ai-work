@@ -104,8 +104,7 @@ def download(request):
     assert plan["task_graph_id"] == f"{job.job_id}-graph"
     messages = thread.data["vulnhunter_conversation_messages"]
     assert any(
-        item.get("metadata", {}).get("source_hunt_event")
-        == f"source-hunt:{job.job_id}:queued"
+        item.get("metadata", {}).get("source_hunt_event") == f"source-hunt:{job.job_id}:queued"
         for item in messages
     )
 

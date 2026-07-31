@@ -7,7 +7,7 @@
       <h1>Source Hunt</h1>
       <p>Map attacker-accessible Python entry points to dangerous sinks, challenge every candidate through independent falsification, and retain only evidence-bound results with meaningful attacker capability.</p>
     </div>
-    <div class="vh-page-actions"><a class="vh-button-secondary" href="{% url 'web-dashboard' %}">Assessment workspace</a></div>
+    <div class="vh-page-actions"><a class="vh-button-secondary" href="{{ workspace_return_url }}">Return to assessment workspace</a></div>
   </header>
 
   <section class="vh-summary-strip" aria-label="Source hunt trust boundary">
@@ -17,12 +17,28 @@
     <article class="vh-summary-item"><small>Workflow</small><strong>Hunt → Disprove</strong><span>Queued worker then capability filter</span></article>
   </section>
 
+  {% if current_source_hunt %}
+    <section class="vh-surface" aria-label="Workspace-bound Source Hunt">
+      <header class="vh-surface-header">
+        <div><p class="vh-eyebrow">Bound to this chat workspace</p><h2>{{ current_source_hunt.repository.repository_id }}</h2><p>Revision {{ current_source_hunt.repository.revision|truncatechars:32 }} · Snapshot {{ current_source_hunt.repository.snapshot_sha256|truncatechars:28 }}</p></div>
+        <span class="vh-status-chip {% if current_source_hunt.execution.state == 'completed' %}vh-status-safe{% else %}vh-status-warning{% endif %}">{{ current_source_hunt.execution.state }}</span>
+      </header>
+      <div class="vh-summary-strip">
+        <article class="vh-summary-item"><small>Authoritative stage</small><strong>{{ current_source_hunt.assessment_graph.chat_stage }}</strong><span>{{ current_source_hunt.task_graph_id }}</span></article>
+        <article class="vh-summary-item"><small>Files</small><strong>{{ current_source_hunt.repository.file_count }}</strong><span>{{ current_source_hunt.repository.total_bytes }} bounded bytes</span></article>
+        <article class="vh-summary-item"><small>Visibility</small><strong>{{ current_source_hunt.repository.visibility }}</strong><span>Exact permitted paths recorded</span></article>
+        <article class="vh-summary-item"><small>Model</small><strong>{{ current_source_hunt.model }}</strong><span>Advisory only</span></article>
+      </div>
+    </section>
+  {% endif %}
+
   {% if error %}<p class="vh-operational-notice is-danger" role="alert">{{ error }}</p>{% endif %}
-  {% if queued_job %}<p class="vh-operational-notice is-safe" role="status">Queued {{ queued_job.job_id }} for the separate Source Hunt worker. This page can be refreshed safely while processing continues.</p>{% endif %}
+  {% if queued_job %}<p class="vh-operational-notice is-safe" role="status">Queued {{ queued_job.job_id }} for the separate Source Hunt worker. The exact job is bound to this workspace and processing continues after you <a href="{{ workspace_return_url }}">return to chat</a>.</p>{% endif %}
   {% if not groq_enabled %}<p class="vh-operational-notice is-warning">Groq source analysis is currently gated. Configure and verify Groq before submitting a repository.</p>{% endif %}
 
   <form method="post" class="vh-lab-request-form">
     {% csrf_token %}
+    {% if thread_id %}<input type="hidden" name="thread_id" value="{{ thread_id }}">{% endif %}
     <section class="vh-surface">
       <header class="vh-surface-header"><div><h2>Exact repository snapshot</h2><p>The path must remain inside an operator-approved source-hunt root. Symlinks, generated directories, oversized files and unstable reads fail closed.</p></div></header>
       <div class="vh-surface-body vh-form-grid">
@@ -48,7 +64,7 @@
             <div class="vh-component-card-head"><h3>{{ item.job_id }}</h3><span class="vh-status-chip {% if item.status == 'completed' %}vh-status-safe{% else %}vh-status-warning{% endif %}">{{ item.status }}</span></div>
             <p>{{ item.created_at }} · {{ item.snapshot.files|length }} files · {{ item.snapshot.total_bytes }} bounded bytes</p>
             {% if item.safe_error %}<p class="vh-operational-notice is-warning">{{ item.safe_error }}</p>{% endif %}
-            {% if item.report_id %}<a class="vh-button-secondary" href="{% url 'web-source-hunt' %}?report={{ item.report_id|urlencode }}">Open report</a>{% endif %}
+            {% if item.report_id %}<a class="vh-button-secondary" href="{{ source_hunt_url }}{% if thread_id %}&{% else %}?{% endif %}report={{ item.report_id|urlencode }}">Open report</a>{% endif %}
           </article>
         {% endfor %}
       </div>
@@ -92,7 +108,7 @@
 
   <section class="vh-surface">
     <header class="vh-surface-header"><div><h2>Recent source-hunt reports</h2><p>Persisted reports display real recorded state only.</p></div><span class="vh-panel-count">{{ reports|length }}</span></header>
-    {% if reports %}<div class="vh-component-grid">{% for item in reports %}<article class="vh-component-card"><span class="vh-record-kicker">{{ item.snapshot.revision|truncatechars:24 }}</span><div class="vh-component-card-head"><h3>{{ item.report_id }}</h3><span class="vh-status-chip {% if item.stage == 'complete' %}vh-status-safe{% else %}vh-status-warning{% endif %}">{{ item.stage }}</span></div><p>{{ item.created_at }} · {{ item.surfaces_examined }} attack surfaces · {{ item.model_calls }} Groq calls</p><a class="vh-button-secondary" href="{% url 'web-source-hunt' %}?report={{ item.report_id|urlencode }}">Open report</a></article>{% endfor %}</div>{% else %}<div class="vh-empty-panel"><svg aria-hidden="true"><use href="#vh-i-assessment"></use></svg><h3>No completed reports yet</h3><p>The separate Source Hunt worker will persist reports after queued jobs reach a terminal state.</p></div>{% endif %}
+    {% if reports %}<div class="vh-component-grid">{% for item in reports %}<article class="vh-component-card"><span class="vh-record-kicker">{{ item.snapshot.revision|truncatechars:24 }}</span><div class="vh-component-card-head"><h3>{{ item.report_id }}</h3><span class="vh-status-chip {% if item.stage == 'complete' %}vh-status-safe{% else %}vh-status-warning{% endif %}">{{ item.stage }}</span></div><p>{{ item.created_at }} · {{ item.surfaces_examined }} attack surfaces · {{ item.model_calls }} Groq calls</p><a class="vh-button-secondary" href="{{ source_hunt_url }}{% if thread_id %}&{% else %}?{% endif %}report={{ item.report_id|urlencode }}">Open report</a></article>{% endfor %}</div>{% else %}<div class="vh-empty-panel"><svg aria-hidden="true"><use href="#vh-i-assessment"></use></svg><h3>No completed reports yet</h3><p>The separate Source Hunt worker will persist reports after queued jobs reach a terminal state.</p></div>{% endif %}
   </section>
 </section>
 {% endblock %}

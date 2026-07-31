@@ -12,7 +12,10 @@ from vulnhunter.adversary_lab.runner import LabWorkerPolicy, SyntheticScenarioRu
 from vulnhunter.adversary_lab.service import AdversaryLabService
 from vulnhunter.agent_activity.service import AgentActivityService
 from vulnhunter.agent_activity.store import AppendOnlyActivityStore
-from vulnhunter.assessment_graph import AssessmentGraphService
+from vulnhunter.assessment_graph import (
+    ActiveValidationAssessmentGraphService,
+    AssessmentGraphService,
+)
 from vulnhunter.web.active_validation_assessment_graph import (
     ProjectingAdversaryLabStore,
     bind_active_validation_assessment_graph,
@@ -46,6 +49,12 @@ def _parent_graph(settings, *, run_id: str, workspace_id: str) -> None:
         plan_digest="a" * 64,
         readiness_blocked=False,
     )
+
+
+def _active_graph(settings, lab_id: str) -> dict[str, object] | None:
+    return ActiveValidationAssessmentGraphService(
+        Path(settings.VULNHUNTER_TASK_GRAPH_ROOT)
+    ).status_payload(lab_id)
 
 
 def _lab_service(settings, *, enabled: bool = True) -> AdversaryLabService:
@@ -129,9 +138,7 @@ def test_active_validation_submission_binds_child_graph_and_chat_workspace(
     ).list_for_assessment(assessment_id)
     assert len(records) == 1
     record = records[0]
-    graph = AssessmentGraphService(
-        Path(settings.VULNHUNTER_TASK_GRAPH_ROOT)
-    ).status_payload(record.plan.lab_id)
+    graph = _active_graph(settings, record.plan.lab_id)
     assert graph is not None
     assert graph["assessment_kind"] == "active_validation"
     assert graph["workspace_id"] == str(thread.thread_id)
@@ -249,9 +256,7 @@ def test_active_validation_worker_projects_without_browser_state(tmp_path, setti
 
     assert completed is not None
     assert completed.state.value == "completed"
-    graph = AssessmentGraphService(
-        Path(settings.VULNHUNTER_TASK_GRAPH_ROOT)
-    ).status_payload(record.plan.lab_id)
+    graph = _active_graph(settings, record.plan.lab_id)
     assert graph is not None
     assert graph["chat_stage"] == "awaiting_human_review"
     statuses = {item["stage"]: item["status"] for item in graph["nodes"]}
@@ -286,9 +291,7 @@ def test_disabled_active_validation_worker_projects_failed_closed(tmp_path, sett
 
     assert failed is not None
     assert failed.state.value == "failed"
-    graph = AssessmentGraphService(
-        Path(settings.VULNHUNTER_TASK_GRAPH_ROOT)
-    ).status_payload(record.plan.lab_id)
+    graph = _active_graph(settings, record.plan.lab_id)
     assert graph is not None
     statuses = {item["stage"]: item["status"] for item in graph["nodes"]}
     assert statuses["execution"] == "failed"

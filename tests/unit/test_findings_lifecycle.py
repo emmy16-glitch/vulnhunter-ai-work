@@ -44,6 +44,8 @@ def _finding(*, verified: bool = False):
                 content_type="text/plain",
             ),
         ),
+        created_at=NOW,
+        updated_at=NOW,
     )
 
 
@@ -127,6 +129,24 @@ def test_remediation_rejects_unverified_findings_and_stale_writers(tmp_path):
     assert verified.revision == 1
     with pytest.raises(FindingConflict):
         service.start_remediation("finding-01", expected_revision=0, **values)
+
+
+def test_remediation_rejects_a_clock_older_than_the_finding_revision(tmp_path):
+    store = FindingStore(tmp_path / "findings.sqlite3")
+    store.create(_finding(verified=True))
+
+    with pytest.raises(FindingLifecycleError, match="timestamp cannot predate"):
+        FindingService(store).start_remediation(
+            "finding-01",
+            owner_id="developer-01",
+            summary="Enforce ownership before returning the selected record.",
+            target_references=("app/users.py",),
+            regression_test="A cross-user request must be rejected.",
+            verification_recipe="Run the bounded security test and regression suite.",
+            expires_at=NOW + timedelta(days=7),
+            expected_revision=0,
+            now=NOW - timedelta(seconds=1),
+        )
 
 
 def test_cancellation_is_terminal_and_returns_finding_to_triage(tmp_path):

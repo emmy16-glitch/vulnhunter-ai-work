@@ -4,15 +4,35 @@ from __future__ import annotations
 
 from django.http import HttpRequest
 
+from vulnhunter.web.mobile_assessment_graph import (
+    bind_mobile_assessment_graph,
+    refresh_mobile_assessment_graph,
+)
 from vulnhunter.web.mobile_execution import mobile_static_status
 
 _SESSION_MOBILE_PLAN = "vulnhunter_conversation_mobile_plan"
 
 
+def _supports_authoritative_graph(plan: dict[str, object]) -> bool:
+    artifact = plan.get("artifact")
+    if not isinstance(artifact, dict):
+        return False
+    required_plan = ("run_id", "plan_digest", "profile")
+    required_artifact = ("attachment_id", "artifact_id", "artifact_sha256")
+    return all(isinstance(plan.get(key), str) and plan.get(key) for key in required_plan) and all(
+        isinstance(artifact.get(key), str) and artifact.get(key) for key in required_artifact
+    )
+
+
 def remember_mobile_plan(request: HttpRequest, plan: dict[str, object]) -> None:
     """Persist bounded plan metadata, never APK bytes or raw tool output."""
 
-    request.session[_SESSION_MOBILE_PLAN] = plan
+    stored = plan
+    if not isinstance(plan.get("assessment_graph"), dict) and _supports_authoritative_graph(plan):
+        stored = bind_mobile_assessment_graph(request, plan=plan)
+        plan.clear()
+        plan.update(stored)
+    request.session[_SESSION_MOBILE_PLAN] = stored
     request.session.modified = True
 
 
@@ -44,7 +64,9 @@ def current_mobile_plan(
                 if isinstance(status_url, str):
                     status["status_url"] = status_url
                 plan["execution"] = status
-                remember_mobile_plan(request, plan)
+    if isinstance(plan.get("assessment_graph"), dict):
+        plan = refresh_mobile_assessment_graph(plan)
+    remember_mobile_plan(request, plan)
     return plan
 
 
@@ -127,10 +149,13 @@ def mobile_chat_reply(
     lowered = " ".join(text.casefold().split())
     if intent == "status":
         execution = plan.get("execution")
+        graph = plan.get("assessment_graph")
+        graph_stage = str(graph.get("chat_stage") or "") if isinstance(graph, dict) else ""
         if isinstance(execution, dict):
             state = str(execution.get("state") or "prepared")
             reason = str(execution.get("reason") or "")
-            return f"The mobile hunt is {state}. {reason}".strip()
+            stage_copy = f" Authoritative stage: {graph_stage}." if graph_stage else ""
+            return f"The mobile hunt is {state}. {reason}{stage_copy}".strip()
         return "The mobile hunt plan is prepared; no worker state is available yet."
     if intent == "results" or any(term in lowered for term in ("finding", "evidence", "result")):
         return _results_summary(plan)

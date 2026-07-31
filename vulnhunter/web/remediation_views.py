@@ -586,7 +586,8 @@ def remediation_verify_view(request: HttpRequest, finding_id: str) -> HttpRespon
             if verdict == "fixed":
                 messages.success(
                     request,
-                    "Read-only fix verification passed. The finding is ready for a separate retest.",
+                    "Read-only fix verification passed. The finding is ready "
+                    "for a separate retest.",
                 )
             else:
                 messages.warning(

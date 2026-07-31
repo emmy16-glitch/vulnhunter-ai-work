@@ -8,9 +8,10 @@ from django.core.management.base import BaseCommand, CommandError
 
 from vulnhunter.adversary_lab.runner import LabWorkerPolicy, SyntheticScenarioRunner
 from vulnhunter.adversary_lab.service import AdversaryLabService, AdversaryLabServiceError
-from vulnhunter.adversary_lab.store import AdversaryLabStore, AdversaryLabStoreError
+from vulnhunter.adversary_lab.store import AdversaryLabStoreError
 from vulnhunter.agent_activity.service import AgentActivityService
 from vulnhunter.agent_activity.store import AppendOnlyActivityStore
+from vulnhunter.web.active_validation_assessment_graph import ProjectingAdversaryLabStore
 
 
 class Command(BaseCommand):
@@ -33,7 +34,7 @@ class Command(BaseCommand):
                 maximum_trials=settings.VULNHUNTER_ADVERSARY_LAB_MAX_TRIALS,
             )
             service = AdversaryLabService(
-                store=AdversaryLabStore(Path(settings.VULNHUNTER_ADVERSARY_LAB_DATABASE)),
+                store=ProjectingAdversaryLabStore(Path(settings.VULNHUNTER_ADVERSARY_LAB_DATABASE)),
                 activity_service=AgentActivityService(
                     AppendOnlyActivityStore(Path(settings.VULNHUNTER_AGENT_ACTIVITY_ROOT))
                 ),

@@ -23,6 +23,11 @@
     return namesSource && requestsAction;
   };
 
+  const activeValidationMessage = (value) => {
+    const text = String(value || "").toLowerCase().replace(/\s+/g, " ").trim();
+    return /\b(active validation|adversary lab|synthetic lab|validation lab)\b/.test(text);
+  };
+
   const csrfToken = (form) => {
     const field = form.querySelector("input[name='csrfmiddlewaretoken']");
     if (field?.value) return field.value;
@@ -37,12 +42,14 @@
       if (!form?.matches("[data-conversation-form]")) return;
       const input = form.querySelector("[data-conversation-input]");
       const message = input?.value || "";
-      if (!sourceHuntMessage(message)) return;
+      const activeValidation = activeValidationMessage(message);
+      const sourceHunt = sourceHuntMessage(message);
+      if (!activeValidation && !sourceHunt) return;
 
       event.preventDefault();
       event.stopImmediatePropagation();
-      if (form.dataset.sourceHuntBusy === "true") return;
-      form.dataset.sourceHuntBusy = "true";
+      if (form.dataset.specialistBusy === "true") return;
+      form.dataset.specialistBusy = "true";
       const send = form.querySelector("[data-conversation-send]");
       if (send) send.disabled = true;
       if (input) input.disabled = true;
@@ -51,35 +58,37 @@
       const threadId = workspace?.dataset.threadId || form.dataset.threadId || "";
       const payload = new FormData();
       payload.set("message", message);
-      payload.set("source_chat_bridge", "yes");
+      if (sourceHunt && !activeValidation) payload.set("source_chat_bridge", "yes");
       if (threadId) payload.set("thread_id", threadId);
       const csrf = csrfToken(form);
       if (csrf) payload.set("csrfmiddlewaretoken", csrf);
+      const endpoint = activeValidation ? "/workspace/active-validation/" : "/source-hunt/";
+      const label = activeValidation ? "Active Validation" : "Source Hunt";
 
       try {
         const headers = { Accept: "application/json" };
         if (threadId) headers["X-VulnHunter-Thread"] = threadId;
-        const response = await fetch("/source-hunt/", {
+        const response = await fetch(endpoint, {
           method: "POST",
           body: payload,
           credentials: "same-origin",
           headers,
         });
         const body = await response.json();
-        if (!response.ok) throw new Error(body.detail || "Source Hunt request failed.");
+        if (!response.ok) throw new Error(body.detail || `${label} request failed.`);
         if (body.redirect_url) {
           window.location.assign(body.redirect_url);
           return;
         }
         window.location.reload();
       } catch (error) {
-        form.dataset.sourceHuntBusy = "false";
+        form.dataset.specialistBusy = "false";
         if (send) send.disabled = false;
         if (input) {
           input.disabled = false;
           input.focus();
         }
-        window.alert(error instanceof Error ? error.message : "Source Hunt request failed.");
+        window.alert(error instanceof Error ? error.message : `${label} request failed.`);
       }
     },
     true,
@@ -89,7 +98,7 @@
     if (document.querySelector(`script[${marker}]`)) return;
     const url = new URL(current, window.location.href);
     url.pathname = url.pathname.replace(/conversation-runtime-compat\.js$/, filename);
-    url.search = "?v=20260725-consolidate3";
+    url.search = "?v=20260731-active-validation1";
     const script = document.createElement("script");
     script.src = url.toString();
     script.async = false;
@@ -108,7 +117,10 @@
       anchor.href = url.toString();
     });
     const subtitle = workspace?.querySelector(".vh-chat-subtitle");
-    if (subtitle) subtitle.textContent = "Conversational analysis for authorised websites, APKs and source repositories";
+    if (subtitle) {
+      subtitle.textContent =
+        "Conversational analysis for authorised websites, APKs, source repositories and controlled validation";
+    }
   };
 
   const loadWorkspaceBridges = () => {

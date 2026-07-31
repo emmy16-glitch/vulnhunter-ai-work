@@ -4,6 +4,7 @@ from django.urls import path
 from django.views.generic import RedirectView
 
 from vulnhunter.web import (
+    active_validation_conversation_views,
     audit_views,
     conversation_approval_views,
     conversation_mobile_extension_views,
@@ -33,6 +34,11 @@ urlpatterns = [
         "workspace/message/",
         conversational_views.message_view,
         name="web-conversation-message",
+    ),
+    path(
+        "workspace/active-validation/",
+        active_validation_conversation_views.active_validation_chat_view,
+        name="web-conversation-active-validation",
     ),
     path(
         "workspace/threads/",

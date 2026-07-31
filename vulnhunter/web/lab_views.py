@@ -10,8 +10,10 @@ from pathlib import Path
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import ObjectDoesNotExist
 from django.http import Http404, HttpRequest, HttpResponse, JsonResponse, StreamingHttpResponse
 from django.shortcuts import redirect, render
+from django.urls import reverse
 from django.views.decorators.cache import cache_control
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
@@ -19,10 +21,20 @@ from vulnhunter.adversary_lab.models import LabState
 from vulnhunter.adversary_lab.registry import get_scenario, list_scenarios
 from vulnhunter.adversary_lab.runner import LabWorkerPolicy, SyntheticScenarioRunner
 from vulnhunter.adversary_lab.service import AdversaryLabService, AdversaryLabServiceError
-from vulnhunter.adversary_lab.store import AdversaryLabStore, AdversaryLabStoreError
+from vulnhunter.adversary_lab.store import AdversaryLabStoreError
 from vulnhunter.agent_activity.service import AgentActivityService
 from vulnhunter.agent_activity.store import AppendOnlyActivityStore
+from vulnhunter.assessment_graph import AssessmentGraphError
 from vulnhunter.product import ProductServiceError
+from vulnhunter.web.active_validation_assessment_graph import (
+    ProjectingAdversaryLabStore,
+    bind_active_validation_assessment_graph,
+    parent_workspace_id,
+    project_active_validation_record,
+)
+from vulnhunter.web.active_validation_conversation_state import (
+    remember_active_validation_workspace,
+)
 from vulnhunter.web.services import (
     WebPermissionDenied,
     activity_payload,
@@ -57,8 +69,8 @@ def _denied(request: HttpRequest, message: str, *, status: int = 403) -> HttpRes
     )
 
 
-def _store() -> AdversaryLabStore:
-    store = AdversaryLabStore(Path(settings.VULNHUNTER_ADVERSARY_LAB_DATABASE))
+def _store() -> ProjectingAdversaryLabStore:
+    store = ProjectingAdversaryLabStore(Path(settings.VULNHUNTER_ADVERSARY_LAB_DATABASE))
     store.initialize()
     return store
 
@@ -153,15 +165,24 @@ def _event_stream(*, sequence: int, payload: dict[str, object]) -> Iterator[str]
     yield f"data: {encoded}\n\n"
 
 
+def _workspace_return_url(workspace_id: object) -> str | None:
+    if not workspace_id:
+        return None
+    return f"{reverse('web-dashboard')}?thread={workspace_id}"
+
+
 @cache_control(private=True, no_store=True)
 @login_required
 @require_http_methods(["GET", "POST"])
 def lab_create_view(request: HttpRequest, assessment_id: str) -> HttpResponse:
     try:
-        _operator(request, "settings.manage")
+        operator = _operator(request, "settings.manage")
         _actor, run = _assessment_for_actor(request, assessment_id)
+        workspace_id = parent_workspace_id(assessment_id)
     except WebPermissionDenied as exc:
         return _denied(request, str(exc))
+    except AssessmentGraphError as exc:
+        return _denied(request, str(exc), status=409)
 
     findings = tuple(run.findings)
     if request.method == "POST":
@@ -181,6 +202,8 @@ def lab_create_view(request: HttpRequest, assessment_id: str) -> HttpResponse:
             None,
         )
         try:
+            if not workspace_id:
+                raise ValueError("Active Validation requires a workspace-bound parent assessment.")
             if selected_finding is None:
                 raise ValueError("Select a persisted finding from this assessment.")
             if not run.authorization_id:
@@ -198,6 +221,36 @@ def lab_create_view(request: HttpRequest, assessment_id: str) -> HttpResponse:
                 maximum_trials=maximum_trials,
                 requested_by=request.user.get_username(),
             )
+            try:
+                graph = bind_active_validation_assessment_graph(
+                    record,
+                    workspace_id=workspace_id,
+                    owner_id=operator.governance_identity.reviewer_id,
+                )
+                remember_active_validation_workspace(
+                    owner=request.user,
+                    workspace_id=workspace_id,
+                    record=record,
+                    graph=graph,
+                )
+            except (
+                AssessmentGraphError,
+                ObjectDoesNotExist,
+                OSError,
+                RuntimeError,
+                ValueError,
+            ) as exc:
+                try:
+                    _service().request_cancel(
+                        record.plan.lab_id,
+                        actor_id=request.user.get_username(),
+                        reason="Authoritative task graph binding failed.",
+                    )
+                except (AdversaryLabStoreError, AdversaryLabServiceError):
+                    pass
+                raise ValueError(
+                    "The Active Validation plan could not be bound to its chat workspace."
+                ) from exc
             _password_step_up(request, lab_id=record.plan.lab_id, password=password)
         except (ValueError, WebPermissionDenied, AdversaryLabServiceError) as exc:
             messages.error(request, str(exc))
@@ -218,8 +271,10 @@ def lab_create_view(request: HttpRequest, assessment_id: str) -> HttpResponse:
             "findings": findings,
             "scenarios": list_scenarios(),
             "hard_trial_ceiling": 10,
+            "workspace_bound": bool(workspace_id),
+            "workspace_return_url": _workspace_return_url(workspace_id),
         },
-        status=200 if findings else 409,
+        status=200 if findings and workspace_id else 409,
     )
 
 
@@ -231,10 +286,13 @@ def lab_detail_view(request: HttpRequest, lab_id: str) -> HttpResponse:
         authorized_actor(request.user, required_actions=("scan.read", "audit.read"))
         record = _store().get(lab_id)
         _actor, run = _assessment_for_actor(request, record.plan.assessment_id)
+        graph = project_active_validation_record(record)
     except WebPermissionDenied as exc:
         return _denied(request, str(exc))
     except AdversaryLabStoreError as exc:
         raise Http404(str(exc)) from exc
+    except AssessmentGraphError as exc:
+        return _denied(request, str(exc), status=409)
 
     permissions: dict[str, bool] = {}
     for key, action in {
@@ -251,6 +309,7 @@ def lab_detail_view(request: HttpRequest, lab_id: str) -> HttpResponse:
     if record.plan.requested_by == request.user.get_username():
         permissions["approve"] = False
 
+    workspace_id = graph.get("workspace_id") if isinstance(graph, dict) else None
     return _render(
         request,
         "web/lab_detail.html",
@@ -262,6 +321,8 @@ def lab_detail_view(request: HttpRequest, lab_id: str) -> HttpResponse:
             "timeline": activity_payload(lab_id, after_sequence=0),
             "permissions": permissions,
             "step_up_active": _step_up_active(request, lab_id),
+            "assessment_graph": graph,
+            "workspace_return_url": _workspace_return_url(workspace_id),
             "terminal_states": tuple(
                 state.value
                 for state in LabState
@@ -339,10 +400,13 @@ def lab_activity_stream_view(request: HttpRequest, lab_id: str):
         authorized_actor(request.user, required_actions=("scan.read", "audit.read"))
         record = _store().get(lab_id)
         _assessment_for_actor(request, record.plan.assessment_id)
+        graph = project_active_validation_record(record)
     except WebPermissionDenied:
         return JsonResponse({"detail": "forbidden"}, status=403)
     except AdversaryLabStoreError as exc:
         raise Http404(str(exc)) from exc
+    except AssessmentGraphError as exc:
+        return JsonResponse({"detail": str(exc)}, status=409)
     try:
         after_sequence = _after_sequence(request)
     except ValueError as exc:
@@ -366,6 +430,7 @@ def lab_activity_stream_view(request: HttpRequest, lab_id: str):
             "elapsed_seconds": elapsed_seconds,
             "updated_at": record.updated_at.isoformat(),
             "terminal": record.terminal,
+            "task_graph": graph,
         }
     )
     sequence = int(payload.get("last_sequence", after_sequence))

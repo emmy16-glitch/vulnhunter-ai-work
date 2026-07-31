@@ -70,9 +70,7 @@ def _normalize_paths(values: tuple[str, ...], *, label: str) -> tuple[str, ...]:
 def _path_allowed(path: str, allowed: tuple[str, ...]) -> bool:
     candidate = PurePosixPath(path)
     return any(
-        root == "."
-        or candidate == PurePosixPath(root)
-        or PurePosixPath(root) in candidate.parents
+        root == "." or candidate == PurePosixPath(root) or PurePosixPath(root) in candidate.parents
         for root in allowed
     )
 
@@ -205,15 +203,9 @@ class RemediationFixVerificationBundle(BaseModel):
             "changed_files": list(changed_files),
             "original_snapshot": original_snapshot.model_dump(mode="json"),
             "fixed_snapshot": fixed_snapshot.model_dump(mode="json"),
-            "security_test": (
-                security_test.model_dump(mode="json") if security_test else None
-            ),
-            "regression_tests": [
-                item.model_dump(mode="json") for item in regression_tests
-            ],
-            "fixed_evidence_refs": [
-                item.model_dump(mode="json") for item in fixed_evidence_refs
-            ],
+            "security_test": (security_test.model_dump(mode="json") if security_test else None),
+            "regression_tests": [item.model_dump(mode="json") for item in regression_tests],
+            "fixed_evidence_refs": [item.model_dump(mode="json") for item in fixed_evidence_refs],
             "original_attack_blocked": original_attack_blocked,
             "report": report.model_dump(mode="json"),
             "created_at": created_at.astimezone(UTC).isoformat(),
@@ -248,9 +240,7 @@ class RemediationFixVerificationStore:
 
     def _path(self, receipt_id: str) -> Path:
         if _IDENTIFIER.fullmatch(receipt_id) is None:
-            raise RemediationFixVerificationError(
-                "invalid fix-verification receipt identifier"
-            )
+            raise RemediationFixVerificationError("invalid fix-verification receipt identifier")
         return self.root / f"{receipt_id}.json"
 
     def save(self, bundle: RemediationFixVerificationBundle) -> tuple[Path, bool]:
@@ -346,8 +336,7 @@ class RemediationFixVerificationService:
         finding = self.finding_store.get(finding_id)
         if finding.revision != expected_revision:
             raise FindingConflict(
-                f"finding revision conflict: expected {expected_revision}, "
-                f"found {finding.revision}"
+                f"finding revision conflict: expected {expected_revision}, found {finding.revision}"
             )
         remediation = finding.remediation
         if finding.verification != VerificationState.VERIFIED:

@@ -32,7 +32,8 @@
     const text = String(value || "").toLowerCase().replace(/\s+/g, " ").trim();
     const namesRemediation = /\b(remediation|remediate|fix plan|fix finding)\b/.test(text);
     const asksTrackedPlan = /\b(remediation plan|remediation status|remediation progress|remediation result|remediation next step)\b/.test(text);
-    return namesRemediation || asksTrackedPlan;
+    const submitsImplementation = /\b(record implementation|submit implementation|implementation handoff|verify remediation fix|submit fixed revision|record fixed revision)\b/.test(text);
+    return namesRemediation || asksTrackedPlan || submitsImplementation;
   };
 
   const csrfToken = (form) => {
@@ -110,7 +111,7 @@
     if (document.querySelector(`script[${marker}]`)) return;
     const url = new URL(current, window.location.href);
     url.pathname = url.pathname.replace(/conversation-runtime-compat\.js$/, filename);
-    url.search = "?v=20260731-remediation1";
+    url.search = "?v=20260731-remediation2";
     const script = document.createElement("script");
     script.src = url.toString();
     script.async = false;

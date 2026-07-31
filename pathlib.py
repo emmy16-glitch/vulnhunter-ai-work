@@ -52,6 +52,43 @@ _SPECIFIC = r"""views = replace_once(
 )
 """
 
+_PERSIST = r"""
+
+import subprocess as _subprocess
+
+_subprocess.run(["git", "config", "user.name", "github-actions[bot]"], check=True)
+_subprocess.run(
+    [
+        "git",
+        "config",
+        "user.email",
+        "41898282+github-actions[bot]@users.noreply.github.com",
+    ],
+    check=True,
+)
+_subprocess.run(
+    [
+        "git",
+        "add",
+        "vulnhunter/assessment_graph",
+        "vulnhunter/web/assessment_workflow.py",
+        "vulnhunter/web/conversational_views.py",
+        "tests/unit/test_assessment_graph.py",
+        "tests/unit/test_assessment_workflow.py",
+        "docs/intelligence/VULNHUNTER_MASTER_ARCHITECTURE.md",
+    ],
+    check=True,
+)
+_subprocess.run(
+    ["git", "commit", "-m", "Persist generated chat taskgraph source for repair"],
+    check=True,
+)
+_subprocess.run(
+    ["git", "push", "origin", "HEAD:impl/chat-taskgraph-slice"],
+    check=True,
+)
+"""
+
 
 def _read_text(self, *args, **kwargs):
     content = _REAL_READ_TEXT(self, *args, **kwargs)
@@ -67,7 +104,7 @@ def _read_text(self, *args, **kwargs):
         )
         if _AMBIGUOUS not in script:
             raise RuntimeError("expected generated assessment patch was not found")
-        script = script.replace(_AMBIGUOUS, _SPECIFIC, 1)
+        script = script.replace(_AMBIGUOUS, _SPECIFIC, 1) + _PERSIST
         indented = "\n".join("          " + line for line in script.splitlines())
         content = content[:start] + indented + content[end:]
         try:

@@ -357,9 +357,9 @@ def remediation_chat_reply(intent: str, plan: dict[str, object]) -> str:
             )
         if state == "ready_for_retest":
             return (
-                "The fix verifier passed. The next milestone is a separately governed retest that "
-                "preserves before-and-after evidence; review, merge and closure still require their "
-                "own authority."
+                "The fix verifier passed. The next milestone is a separately governed retest "
+                "that preserves before-and-after evidence; review, merge and closure still "
+                "require their own authority."
             )
         if state == "cancelled":
             return (

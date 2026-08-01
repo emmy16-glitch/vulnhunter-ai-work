@@ -3,6 +3,21 @@
 
   if (typeof document === "undefined" || typeof window === "undefined") return;
 
+  const current = document.currentScript?.src;
+  if (current && !document.querySelector("link[data-response-controls-styles]")) {
+    const styleUrl = new URL(current, window.location.href);
+    styleUrl.pathname = styleUrl.pathname.replace(
+      /conversation-response-controls\.js$/,
+      "conversation-response-controls.css",
+    );
+    styleUrl.search = "?v=20260801-chat-controls1";
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = styleUrl.toString();
+    link.dataset.responseControlsStyles = "true";
+    document.head.append(link);
+  }
+
   const workspace = document.querySelector("[data-conversation-workspace]");
   const dataElement = document.getElementById("vh-conversation-data");
   const form = document.querySelector("[data-conversation-form]");

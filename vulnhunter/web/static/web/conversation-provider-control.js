@@ -84,6 +84,17 @@
     document.head.append(style);
   };
 
+  const updatePhoneComposerClearance = () => {
+    const root = document.documentElement;
+    if (!window.matchMedia("(max-width: 640px)").matches) {
+      root.style.removeProperty("--vh-phone-composer-clearance");
+      return;
+    }
+    const rect = form.getBoundingClientRect();
+    const clearance = Math.max(140, Math.ceil(window.innerHeight - rect.top + 12));
+    root.style.setProperty("--vh-phone-composer-clearance", `${clearance}px`);
+  };
+
   const control = document.createElement("label");
   control.className = "vh-provider-control";
   control.setAttribute("title", "Choose which configured advisory provider should answer this workspace");
@@ -304,4 +315,8 @@
 
   injectStyles();
   renderPreference();
+  updatePhoneComposerClearance();
+  window.addEventListener("resize", updatePhoneComposerClearance, { passive: true });
+  window.visualViewport?.addEventListener("resize", updatePhoneComposerClearance, { passive: true });
+  new ResizeObserver(updatePhoneComposerClearance).observe(form);
 })();

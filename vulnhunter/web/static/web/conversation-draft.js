@@ -67,6 +67,22 @@
   status.setAttribute("aria-live", "polite");
   composerMeta.insertBefore(status, composerMeta.firstChild);
 
+  const syncComposerClearance = () => {
+    const height = Math.ceil(form.getBoundingClientRect().height);
+    if (height > 0) {
+      document.documentElement.style.setProperty("--vh-phone-composer-clearance", `${height}px`);
+    }
+  };
+
+  syncComposerClearance();
+  window.requestAnimationFrame(syncComposerClearance);
+  if (typeof ResizeObserver === "function") {
+    const composerObserver = new ResizeObserver(syncComposerClearance);
+    composerObserver.observe(form);
+  }
+  window.addEventListener("resize", syncComposerClearance, { passive: true });
+  window.visualViewport?.addEventListener("resize", syncComposerClearance, { passive: true });
+
   const storage = {
     read() {
       try {
@@ -108,11 +124,13 @@
     status.textContent = copy;
     status.dataset.state = stateName;
     status.hidden = false;
+    syncComposerClearance();
     if (duration > 0) {
       state.statusTimer = window.setTimeout(() => {
         status.hidden = true;
         status.textContent = "";
         delete status.dataset.state;
+        syncComposerClearance();
       }, duration);
     }
   };

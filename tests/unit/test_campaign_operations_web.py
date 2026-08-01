@@ -6,8 +6,8 @@ from types import SimpleNamespace
 
 import pytest
 from django.contrib.auth import get_user_model
-
 from governance_test_support import ADMIN_SECRET, NOW, make_governance_store, prepare_identities
+
 from vulnhunter.authorization import AuthorizationLimits, AuthorizationStore, issue_authorization
 from vulnhunter.governance.models import CampaignLimits
 from vulnhunter.governance.service import create_campaign, register_application

@@ -342,9 +342,7 @@ def _event_message(plan: dict[str, object]) -> dict[str, object]:
             "The publication was superseded by a signed correction; use the replacement record."
         )
     elif publication_state == "integrity_error":
-        boundary = (
-            "Publication-state integrity verification failed, so no release claim is made."
-        )
+        boundary = "Publication-state integrity verification failed, so no release claim is made."
     elif state == "ready_for_retest":
         boundary = "Fix verification passed; retest, review, merge and release remain separate."
     elif state in {"needs_rework", "review_needs_rework"}:

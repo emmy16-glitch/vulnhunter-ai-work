@@ -574,34 +574,80 @@ class RemediationRecord(BaseModel):
         elif self.state == RemediationState.READY_FOR_RETEST:
             if latest_verification is None or latest_verification.verdict != "fixed":
                 raise ValueError("ready-for-retest plans require a fixed verification receipt")
-            if latest_retest is not None and latest_retest.outcome != RetestOutcome.CANCELLED:
-                raise ValueError("ready-for-retest allows only a cancelled prior retest")
+            if (
+                latest_retest is not None
+                and latest_retest.fixed_revision == latest_verification.fixed_revision
+                and latest_retest.outcome != RetestOutcome.CANCELLED
+            ):
+                raise ValueError(
+                    "ready-for-retest requires no completed retest for the latest fixed revision"
+                )
         elif self.state == RemediationState.RETEST_NEEDS_REWORK:
-            if latest_retest is None or latest_retest.outcome not in {
-                RetestOutcome.FAILED,
-                RetestOutcome.PARTIAL,
-                RetestOutcome.CANNOT_VERIFY,
-                RetestOutcome.BLOCKED,
-            }:
-                raise ValueError("retest-needs-rework requires a non-passing retest receipt")
+            if (
+                latest_verification is None
+                or latest_retest is None
+                or latest_retest.fixed_revision != latest_verification.fixed_revision
+                or latest_retest.outcome
+                not in {
+                    RetestOutcome.FAILED,
+                    RetestOutcome.PARTIAL,
+                    RetestOutcome.CANNOT_VERIFY,
+                    RetestOutcome.BLOCKED,
+                }
+            ):
+                raise ValueError(
+                    "retest-needs-rework requires a non-passing retest of the latest fixed revision"
+                )
         elif self.state == RemediationState.AWAITING_REVIEW:
-            if latest_retest is None or latest_retest.outcome != RetestOutcome.PASSED:
-                raise ValueError("awaiting-review remediation requires a passed retest receipt")
+            if (
+                latest_verification is None
+                or latest_verification.verdict != "fixed"
+                or latest_retest is None
+                or latest_retest.outcome != RetestOutcome.PASSED
+                or latest_retest.fixed_revision != latest_verification.fixed_revision
+            ):
+                raise ValueError(
+                    "awaiting-review remediation requires a passed retest of the latest "
+                    "fixed revision"
+                )
             if (
                 latest_review is not None
-                and latest_review.outcome == RemediationReviewOutcome.APPROVED
+                and latest_review.retest_receipt_id == latest_retest.receipt_id
             ):
-                raise ValueError("approved remediation cannot remain awaiting review")
+                raise ValueError("a reviewed retest cannot remain in the awaiting-review state")
         elif self.state == RemediationState.REVIEW_NEEDS_REWORK:
-            if latest_review is None or latest_review.outcome not in {
-                RemediationReviewOutcome.CHANGES_REQUESTED,
-                RemediationReviewOutcome.CANNOT_VERIFY,
-                RemediationReviewOutcome.BLOCKED,
-            }:
-                raise ValueError("review-needs-rework requires a non-approved review receipt")
+            if (
+                latest_verification is None
+                or latest_retest is None
+                or latest_review is None
+                or latest_review.outcome
+                not in {
+                    RemediationReviewOutcome.CHANGES_REQUESTED,
+                    RemediationReviewOutcome.CANNOT_VERIFY,
+                    RemediationReviewOutcome.BLOCKED,
+                }
+                or latest_retest.outcome != RetestOutcome.PASSED
+                or latest_retest.fixed_revision != latest_verification.fixed_revision
+                or latest_review.fixed_revision != latest_verification.fixed_revision
+                or latest_review.retest_receipt_id != latest_retest.receipt_id
+            ):
+                raise ValueError(
+                    "review-needs-rework requires a non-approved review of the latest passed retest"
+                )
         elif self.state == RemediationState.REVIEW_APPROVED:
-            if latest_review is None or latest_review.outcome != RemediationReviewOutcome.APPROVED:
-                raise ValueError("review-approved remediation requires an approved review receipt")
+            if (
+                latest_verification is None
+                or latest_retest is None
+                or latest_review is None
+                or latest_review.outcome != RemediationReviewOutcome.APPROVED
+                or latest_retest.outcome != RetestOutcome.PASSED
+                or latest_retest.fixed_revision != latest_verification.fixed_revision
+                or latest_review.fixed_revision != latest_verification.fixed_revision
+                or latest_review.retest_receipt_id != latest_retest.receipt_id
+            ):
+                raise ValueError(
+                    "review-approved remediation requires approval of the latest passed retest"
+                )
 
         if self.state == RemediationState.CANCELLED:
             if self.cancelled_at is None or self.cancellation_reason is None:
@@ -731,6 +777,8 @@ class RemediationRecord(BaseModel):
             raise ValueError("remediation review requires fixed-verification and retest history")
         if latest_verification.fixed_revision != reference.fixed_revision:
             raise ValueError("remediation review is bound to another fixed revision")
+        if latest_retest.fixed_revision != reference.fixed_revision:
+            raise ValueError("remediation review retest is bound to another fixed revision")
         if latest_retest.receipt_id != reference.retest_receipt_id:
             raise ValueError("remediation review is bound to another retest receipt")
         state = (

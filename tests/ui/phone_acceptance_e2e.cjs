@@ -31,13 +31,17 @@ async function login(page) {
       await page.goto(`${baseUrl}/`, { waitUntil: "domcontentloaded" });
       await page.locator("[data-conversation-form]").waitFor({ state: "visible" });
       await page.locator("select[data-provider-preference]").waitFor({ state: "visible" });
+      await page.locator("[data-stop-response]").waitFor({ state: "attached" });
 
       const layout = await page.evaluate(async () => {
         const composer = document.querySelector("[data-conversation-form]");
         const reasoning = document.querySelector("[data-reasoning-effort]");
         const provider = document.querySelector("[data-provider-runtime]");
         const providerPreference = document.querySelector("select[data-provider-preference]");
-        if (!composer || !reasoning || !provider || !providerPreference) return { missing: true };
+        const stopResponse = document.querySelector("[data-stop-response]");
+        if (!composer || !reasoning || !provider || !providerPreference || !stopResponse) {
+          return { missing: true };
+        }
 
         const dock = document.createElement("div");
         dock.className = "vh-background-upload-dock";
@@ -54,8 +58,8 @@ async function login(page) {
         const reasoningRect = reasoning.getBoundingClientRect();
         const providerRect = provider.getBoundingClientRect();
         const providerPreferenceRect = providerPreference.getBoundingClientRect();
+        const stopResponseStyle = getComputedStyle(stopResponse);
         const dockStyle = getComputedStyle(dock);
-        const rootStyle = getComputedStyle(document.documentElement);
         const options = [...reasoning.options].map((option) => option.textContent.trim());
         const providerOptions = [...providerPreference.options].map((option) =>
           option.textContent.trim(),
@@ -90,12 +94,10 @@ async function login(page) {
             maxHeight: dockStyle.maxHeight,
             zIndex: dockStyle.zIndex,
           },
-          phoneComposerClearance: rootStyle
-            .getPropertyValue("--vh-phone-composer-clearance")
-            .trim(),
-          providerRuntimeStylePresent: Boolean(
-            document.getElementById("vh-provider-control-styles"),
+          responseStylePresent: Boolean(
+            document.querySelector("link[data-response-controls-styles]"),
           ),
+          stopResponseMinimumHeight: Number.parseFloat(stopResponseStyle.minHeight || "0"),
           composerVisible: composerRect.width > 0 && composerRect.height > 0,
           composerInsideViewport:
             composerRect.left >= -1 &&
@@ -145,6 +147,9 @@ async function login(page) {
       if (layout.providerOptions.join(",") !== "Auto,Groq,Hugging Face") {
         throw new Error(`Provider options are incomplete: ${layout.providerOptions.join(",")}`);
       }
+      if (!layout.responseStylePresent || layout.stopResponseMinimumHeight < 32) {
+        throw new Error(`Response controls are not styled safely: ${JSON.stringify(layout)}`);
+      }
       if (!layout.dockVisible || !layout.dockInsideViewport || layout.overlapsComposer) {
         throw new Error(`Upload dock overlaps or leaves the viewport: ${JSON.stringify(layout)}`);
       }
@@ -165,9 +170,24 @@ async function login(page) {
       if (!messageUrl) throw new Error("Conversation message URL is missing");
       const absoluteMessageUrl = new URL(messageUrl, baseUrl).toString();
       let providerPostData = "";
+      let messageAttempts = 0;
       await page.route(absoluteMessageUrl, async (route) => {
+        messageAttempts += 1;
+        if (messageAttempts === 1) {
+          try {
+            await page.waitForTimeout(5000);
+            await route.fulfill({
+              status: 200,
+              contentType: "application/json",
+              body: JSON.stringify({}),
+            });
+          } catch (_error) {
+            // The Stop waiting control intentionally aborts this paused request.
+          }
+          return;
+        }
         providerPostData = route.request().postData() || "";
-        await page.waitForTimeout(1800);
+        await page.waitForTimeout(700);
         await route.fulfill({
           status: 200,
           contentType: "application/json",
@@ -188,28 +208,65 @@ async function login(page) {
         });
       });
 
+      const prompt = "Explain the current workspace provider selection";
       const input = page.locator("[data-conversation-input]");
-      await input.fill("Explain the current workspace provider selection");
+      await input.fill(prompt);
       await page.locator("[data-conversation-send]").click();
       const progress = page.locator("[data-progress-mode='validated-stages']");
+      const stopResponse = page.locator("[data-stop-response]");
       await progress.waitFor({ state: "visible" });
-      await page.waitForTimeout(1200);
+      await stopResponse.waitFor({ state: "visible" });
+      await page.waitForTimeout(1100);
       const progressText = await progress.textContent();
       if (!/Contacting Hugging Face|validated model response/i.test(progressText || "")) {
         throw new Error(`Provider progress did not advance: ${progressText}`);
       }
+      await stopResponse.click();
+      await page
+        .getByText("Stopped waiting for this response. You can retry the last prompt.")
+        .waitFor({ state: "visible" });
+      await progress.waitFor({ state: "hidden" });
+      if (messageAttempts !== 1) {
+        throw new Error(`Expected one stopped request, observed ${messageAttempts}`);
+      }
+
+      const localNotice = page.locator(".vh-chat-message.is-local-notice").last();
+      const retryStopped = localNotice.getByRole("button", { name: /retry the prompt/i });
+      await retryStopped.waitFor({ state: "visible" });
+      await retryStopped.click();
+      await progress.waitFor({ state: "visible" });
       await page.getByText("Provider selection test complete.").waitFor({ state: "visible" });
       await progress.waitFor({ state: "hidden" });
+      if (messageAttempts !== 2) {
+        throw new Error(`Expected the stopped prompt to retry once, observed ${messageAttempts} requests`);
+      }
       if (!providerPostData.includes('name="provider_preference"')) {
-        throw new Error("The provider preference field was missing from the chat request");
+        throw new Error("The provider preference field was missing from the retried chat request");
       }
       if (!providerPostData.includes("huggingface")) {
-        throw new Error("The selected Hugging Face provider was not submitted with the chat request");
+        throw new Error("The selected Hugging Face provider was not submitted with the retried request");
       }
       const runtimeText = await page.locator("[data-provider-runtime]").textContent();
       if (!/Hugging Face answered/i.test(runtimeText || "")) {
         throw new Error(`The actual response provider was not shown: ${runtimeText}`);
       }
+
+      const finalAnswer = page
+        .locator(".vh-chat-message.is-assistant")
+        .filter({ hasText: "Provider selection test complete." })
+        .last();
+      await finalAnswer.getByRole("button", { name: "Copy this answer" }).waitFor({ state: "visible" });
+      await finalAnswer
+        .getByRole("button", { name: /retry the prompt that produced this answer/i })
+        .waitFor({ state: "visible" });
+      const latestUser = page.locator(".vh-chat-message.is-user").last();
+      const edit = latestUser.getByRole("button", { name: /edit this prompt/i });
+      await edit.waitFor({ state: "visible" });
+      await edit.click();
+      if ((await input.inputValue()) !== prompt) {
+        throw new Error("Edit did not restore the user prompt to the composer");
+      }
+      await input.fill("");
       await page.unroute(absoluteMessageUrl);
 
       const startUrl = await page
@@ -283,7 +340,7 @@ async function login(page) {
       await context.close();
     }
     console.log(
-      "Phone conversation, provider selection, validated progress, upload recovery and layout acceptance passed.",
+      "Phone provider selection, stop waiting, retry, copy/edit controls, upload recovery and layout acceptance passed.",
     );
   } finally {
     await browser.close();

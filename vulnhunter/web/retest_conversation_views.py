@@ -73,7 +73,24 @@ def retest_chat_view(request: HttpRequest) -> JsonResponse:
 
     redirect_url = None
     if intent == "start":
-        if retest_state is not None:
+        result = retest_state.get("result") if retest_state is not None else None
+        result = result if isinstance(result, dict) else {}
+        terminal_cancelled = result.get("outcome") == "cancelled"
+        plan = remediation_state.get("plan") if remediation_state is not None else None
+        plan = plan if isinstance(plan, dict) else {}
+        remediation_ready = plan.get("state") == "ready_for_retest"
+        finding_id = (
+            str(remediation_state.get("finding_id") or "")
+            if remediation_state is not None
+            else ""
+        )
+        if terminal_cancelled and remediation_ready and finding_id:
+            redirect_url = retest_create_url(finding_id, workspace_id)
+            copy = (
+                "The prior retest was cancelled and remains append-only evidence. Opening a new "
+                "protected retest plan for the same fixed finding."
+            )
+        elif retest_state is not None:
             redirect_url = str(retest_state.get("detail_url") or "") or None
             copy = (
                 "Opening the exact governed retest already bound to this workspace. Ordinary chat "
@@ -85,10 +102,7 @@ def retest_chat_view(request: HttpRequest) -> JsonResponse:
                 "after an independently verified fix reaches ready-for-retest."
             )
         else:
-            plan = remediation_state.get("plan")
-            plan = plan if isinstance(plan, dict) else {}
             state = str(plan.get("state") or "unknown")
-            finding_id = str(remediation_state.get("finding_id") or "")
             if state == "ready_for_retest" and finding_id:
                 redirect_url = retest_create_url(finding_id, workspace_id)
                 copy = (

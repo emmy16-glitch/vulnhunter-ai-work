@@ -161,9 +161,7 @@ class PublicationStore:
     def list_approvals_for_request(self, request_id: str) -> tuple[ReleaseApproval, ...]:
         """Return verified approvals for one request in deterministic time order."""
 
-        records = [
-            self.load_approval(identifier) for identifier in self._identifiers("approvals")
-        ]
+        records = [self.load_approval(identifier) for identifier in self._identifiers("approvals")]
         matched = [record for record in records if record.request_id == request_id]
         matched.sort(key=lambda item: (item.approved_at, item.approval_id))
         return tuple(matched)
@@ -199,11 +197,7 @@ class PublicationStore:
         return records[-1] if records else None
 
     def publication_for_request(self, request_id: str) -> PublicationManifest | None:
-        records = [
-            record
-            for record in self._all_publications()
-            if record.request_id == request_id
-        ]
+        records = [record for record in self._all_publications() if record.request_id == request_id]
         if len(records) > 1:
             raise PublicationStoreError("release request has multiple publication records")
         return records[0] if records else None

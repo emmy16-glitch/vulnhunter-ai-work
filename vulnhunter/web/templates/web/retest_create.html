@@ -1,0 +1,55 @@
+{% extends "web/base.html" %}
+{% block content %}
+<section class="vh-page-shell">
+  <header class="vh-page-header">
+    <div>
+      <p class="vh-eyebrow">Finding {{ finding.finding_id }}</p>
+      <h1>Plan governed retest</h1>
+      <p>Bind claim-specific checks to the exact fixed revision and original evidence lineage.</p>
+    </div>
+    <div class="vh-page-actions">
+      <a class="vh-button-secondary" href="{{ workspace_return_url }}">Return to chat</a>
+      <a class="vh-button-secondary" href="{{ remediation_url }}">Remediation plan</a>
+    </div>
+  </header>
+
+  <section class="vh-surface">
+    <header class="vh-surface-header"><div><h2>Exact prerequisite</h2><p>A read-only fixed verdict is necessary, but it does not prove the original finding is remediated.</p></div></header>
+    <div class="vh-surface-body">
+      <dl class="vh-terminal-facts">
+        <div><dt>Finding status</dt><dd>{{ finding.status.value }}</dd></div>
+        <div><dt>Finding revision</dt><dd>{{ finding.revision }}</dd></div>
+        <div><dt>Remediation ID</dt><dd>{{ remediation.remediation_id|default:"Unavailable" }}</dd></div>
+        <div><dt>Fix receipt</dt><dd>{% if latest_verification %}{{ latest_verification.receipt_id }}{% else %}Unavailable{% endif %}</dd></div>
+        <div><dt>Fixed revision</dt><dd><code>{% if latest_verification %}{{ latest_verification.fixed_revision }}{% else %}Unavailable{% endif %}</code></dd></div>
+      </dl>
+    </div>
+  </section>
+
+  <section class="vh-surface">
+    <header class="vh-surface-header"><div><h2>Bounded retest plan</h2><p>Describe exact checks only. This page does not execute commands, merge code, close the finding or publish a report.</p></div></header>
+    <div class="vh-surface-body">
+      {% if error %}<div class="vh-alert vh-alert-danger" role="alert">{{ error }}</div>{% endif %}
+      {% if eligible %}
+      <form method="post" class="vh-form-stack">
+        {% csrf_token %}
+        <input type="hidden" name="thread_id" value="{{ request.vulnhunter_thread.thread_id }}">
+        <input type="hidden" name="expected_revision" value="{{ finding.revision }}">
+        <label class="vh-form-field">
+          <span>Exact bounded checks</span>
+          <textarea name="check_references" rows="8" required>{{ submitted.check_references }}</textarea>
+          <small>One check per line. These are reviewed instructions, not executable command strings.</small>
+        </label>
+        <label class="vh-form-field">
+          <span>Password re-authentication</span>
+          <input type="password" name="password" autocomplete="current-password" required>
+        </label>
+        <button class="vh-button-primary" type="submit">Create exact retest plan</button>
+      </form>
+      {% else %}
+      <div class="vh-empty-panel"><h3>Retest is not available</h3><p>The finding must have the latest independently verified fixed receipt and no active retest.</p></div>
+      {% endif %}
+    </div>
+  </section>
+</section>
+{% endblock %}

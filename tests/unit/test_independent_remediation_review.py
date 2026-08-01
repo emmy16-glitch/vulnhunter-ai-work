@@ -11,6 +11,7 @@ from vulnhunter.findings import (
     EvidenceReference,
     Finding,
     FindingConflict,
+    FindingService,
     FindingSeverity,
     FindingStatus,
     FindingStore,
@@ -222,6 +223,40 @@ def test_negative_checklist_returns_to_bounded_rework(tmp_path):
     assert updated.status == FindingStatus.IN_REMEDIATION
     assert updated.remediation is not None
     assert updated.remediation.state == RemediationState.REVIEW_NEEDS_REWORK
+
+
+def test_review_rework_accepts_a_later_fixed_revision(tmp_path):
+    store, finding, service = _world(tmp_path)
+    checklist = _approved_checklist().model_copy(update={"approved_scope_respected": False})
+    reviewed, _bundle = service.record(
+        finding_id=finding.finding_id,
+        expected_revision=finding.revision,
+        reviewer_id="reviewer-a",
+        reviewer_secret=REVIEWER_ONE_SECRET,
+        checklist=checklist,
+        rationale="The first fixed revision exceeded the approved remediation scope.",
+    )
+    verified_at = NOW + timedelta(minutes=1)
+
+    updated = FindingService(store).record_fix_verification(
+        finding.finding_id,
+        verification=RemediationVerificationReference(
+            receipt_id="fix-verification-" + "4" * 24,
+            sha256="5" * 64,
+            verdict="fixed",
+            original_revision="2" * 40,
+            fixed_revision="6" * 40,
+            created_at=verified_at,
+        ),
+        expected_revision=reviewed.revision,
+        now=verified_at,
+    )
+
+    assert updated.status == FindingStatus.READY_FOR_RETEST
+    assert updated.remediation is not None
+    assert updated.remediation.state == RemediationState.READY_FOR_RETEST
+    assert len(updated.remediation.review_history) == 1
+    assert updated.remediation.verification_history[-1].fixed_revision == "6" * 40
 
 
 def test_unknown_checklist_abstains_and_blocks_report(tmp_path):

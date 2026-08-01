@@ -19,6 +19,8 @@ from vulnhunter.web import (
     operations_views,
     remediation_views,
     report_views,
+    retest_conversation_views,
+    retest_views,
     source_hunt_views,
     stream_views,
     unified_assessment_views,
@@ -45,6 +47,11 @@ urlpatterns = [
         "workspace/remediation/",
         remediation_views.remediation_chat_view,
         name="web-conversation-remediation",
+    ),
+    path(
+        "workspace/retest/",
+        retest_conversation_views.retest_chat_view,
+        name="web-conversation-retest",
     ),
     path(
         "workspace/threads/",
@@ -261,6 +268,21 @@ urlpatterns = [
         "findings/<str:finding_id>/remediation/cancel/",
         remediation_views.remediation_cancel_view,
         name="web-remediation-cancel",
+    ),
+    path(
+        "findings/<str:finding_id>/retest/new/",
+        retest_views.retest_create_view,
+        name="web-retest-create",
+    ),
+    path(
+        "findings/<str:finding_id>/retest/",
+        retest_views.retest_detail_view,
+        name="web-retest-detail",
+    ),
+    path(
+        "findings/<str:finding_id>/retest/cancel/",
+        retest_views.retest_cancel_view,
+        name="web-retest-cancel",
     ),
     path(
         "findings/<str:finding_id>/",

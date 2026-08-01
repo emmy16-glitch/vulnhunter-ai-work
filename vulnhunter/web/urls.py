@@ -17,6 +17,7 @@ from vulnhunter.web import (
     intelligence_views,
     lab_views,
     operations_views,
+    readiness,
     remediation_final_report_conversation_views,
     remediation_final_report_views,
     remediation_publication_views,
@@ -34,7 +35,7 @@ from vulnhunter.web import (
 
 urlpatterns = [
     path("health/", views.health_view, name="web-health"),
-    path("ready/", views.deployment_readiness_view, name="web-deployment-readiness"),
+    path("ready/", readiness.deployment_readiness_view, name="web-deployment-readiness"),
     path("login/", unified_assessment_views.UnifiedLoginView.as_view(), name="web-login"),
     path("logout/", views.logout_view, name="web-logout"),
     path("", dashboard_dispatch_views.dashboard_view, name="web-dashboard"),

@@ -6,6 +6,8 @@ import sqlite3
 from django.conf import settings
 from django.http import JsonResponse
 
+from vulnhunter.web.observability import RequestCorrelationMiddleware, safe_route_name
+
 logger = logging.getLogger(__name__)
 
 _SESSION_STATE = "vulnhunter_conversation_state"
@@ -189,10 +191,10 @@ class ConversationThreadMiddleware:
 
 
 class ContentSecurityPolicyMiddleware:
-    """Attach CSP headers, restore live context, and keep API failures JSON."""
+    """Attach CSP headers, correlate requests, restore live context, and keep API failures JSON."""
 
     def __init__(self, get_response):
-        self.get_response = get_response
+        self.get_response = RequestCorrelationMiddleware(get_response)
 
     def __call__(self, request):
         _restore_latest_non_terminal_run(request)
@@ -205,9 +207,10 @@ class ContentSecurityPolicyMiddleware:
         if not accepts_json or not request.path.startswith("/workspace/"):
             return None
         logger.exception(
-            "Workspace request failed: %s %s",
+            "Workspace request failed request_id=%s method=%s route=%s",
+            getattr(request, "vulnhunter_request_id", "unavailable"),
             request.method,
-            request.path,
+            safe_route_name(request),
             exc_info=exception,
         )
         response = JsonResponse(

@@ -171,11 +171,10 @@
     setInputValue(input.value.trim() ? `${input.value.trim()}\n\n${prompt}` : prompt);
     closeMenu();
   });
-  menu.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") {
-      event.preventDefault();
-      closeMenu({ focusTrigger: true });
-    }
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape" || menu.hidden) return;
+    event.preventDefault();
+    closeMenu({ focusTrigger: true });
   });
   document.addEventListener("pointerdown", (event) => {
     if (menu.hidden || menu.contains(event.target) || trigger.contains(event.target)) return;

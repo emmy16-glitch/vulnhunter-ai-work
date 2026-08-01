@@ -28,6 +28,11 @@
     return /\b(active validation|adversary lab|synthetic lab|validation lab)\b/.test(text);
   };
 
+  const retestMessage = (value) => {
+    const text = String(value || "").toLowerCase().replace(/\s+/g, " ").trim();
+    return /\b(retest|re-test|verify after fix|test the fix again)\b/.test(text);
+  };
+
   const remediationMessage = (value) => {
     const text = String(value || "").toLowerCase().replace(/\s+/g, " ").trim();
     const namesRemediation = /\b(remediation|remediate|fix plan|fix finding)\b/.test(text);
@@ -51,9 +56,10 @@
       const input = form.querySelector("[data-conversation-input]");
       const message = input?.value || "";
       const activeValidation = activeValidationMessage(message);
-      const remediation = remediationMessage(message);
+      const retest = retestMessage(message);
+      const remediation = !retest && remediationMessage(message);
       const sourceHunt = sourceHuntMessage(message);
-      if (!activeValidation && !remediation && !sourceHunt) return;
+      if (!activeValidation && !retest && !remediation && !sourceHunt) return;
 
       event.preventDefault();
       event.stopImmediatePropagation();
@@ -67,16 +73,26 @@
       const threadId = workspace?.dataset.threadId || form.dataset.threadId || "";
       const payload = new FormData();
       payload.set("message", message);
-      if (sourceHunt && !activeValidation && !remediation) payload.set("source_chat_bridge", "yes");
+      if (sourceHunt && !activeValidation && !retest && !remediation) {
+        payload.set("source_chat_bridge", "yes");
+      }
       if (threadId) payload.set("thread_id", threadId);
       const csrf = csrfToken(form);
       if (csrf) payload.set("csrfmiddlewaretoken", csrf);
       const endpoint = activeValidation
         ? "/workspace/active-validation/"
-        : remediation
-          ? "/workspace/remediation/"
-          : "/source-hunt/";
-      const label = activeValidation ? "Active Validation" : remediation ? "Remediation" : "Source Hunt";
+        : retest
+          ? "/workspace/retest/"
+          : remediation
+            ? "/workspace/remediation/"
+            : "/source-hunt/";
+      const label = activeValidation
+        ? "Active Validation"
+        : retest
+          ? "Governed Retest"
+          : remediation
+            ? "Remediation"
+            : "Source Hunt";
 
       try {
         const headers = { Accept: "application/json" };
@@ -111,7 +127,7 @@
     if (document.querySelector(`script[${marker}]`)) return;
     const url = new URL(current, window.location.href);
     url.pathname = url.pathname.replace(/conversation-runtime-compat\.js$/, filename);
-    url.search = "?v=20260731-remediation2";
+    url.search = "?v=20260801-retest1";
     const script = document.createElement("script");
     script.src = url.toString();
     script.async = false;
@@ -132,7 +148,7 @@
     const subtitle = workspace?.querySelector(".vh-chat-subtitle");
     if (subtitle) {
       subtitle.textContent =
-        "Conversational analysis for authorised websites, APKs, source repositories, controlled validation and governed remediation";
+        "Conversational analysis for authorised websites, APKs, source repositories, controlled validation, remediation and retesting";
     }
   };
 

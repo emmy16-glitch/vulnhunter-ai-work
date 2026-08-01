@@ -66,14 +66,10 @@ def publication_signing_key_file() -> Path | None:
 def publication_signing_key() -> bytes:
     path = publication_signing_key_file()
     if path is None:
-        raise PublicationServiceError(
-            "publication requires an owner-private signing-key file"
-        )
+        raise PublicationServiceError("publication requires an owner-private signing-key file")
     key = _owner_private_file(path, label="publication signing key").strip()
     if len(key) < 32:
-        raise PublicationServiceError(
-            "publication signing key must contain at least 32 bytes"
-        )
+        raise PublicationServiceError("publication signing key must contain at least 32 bytes")
     return key
 
 
@@ -88,9 +84,7 @@ def publication_config_file() -> Path | None:
 def publication_runtime_config() -> PublicationRuntimeConfig:
     path = publication_config_file()
     if path is None:
-        raise PublicationServiceError(
-            "publication requires a deployment-owned configuration file"
-        )
+        raise PublicationServiceError("publication requires a deployment-owned configuration file")
     raw = _owner_private_file(path, label="publication configuration")
     try:
         data = json.loads(raw.decode("utf-8"))
@@ -114,9 +108,7 @@ def publication_runtime_config() -> PublicationRuntimeConfig:
 
     raw_destinations = data.get("destinations")
     if not isinstance(raw_destinations, list) or not raw_destinations:
-        raise PublicationServiceError(
-            "publication configuration requires at least one destination"
-        )
+        raise PublicationServiceError("publication configuration requires at least one destination")
     destinations: list[PublicationDestinationConfig] = []
     for item in raw_destinations:
         if not isinstance(item, dict):

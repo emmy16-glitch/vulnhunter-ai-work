@@ -17,6 +17,19 @@
     link.dataset.responseControlsStyles = "true";
     document.head.append(link);
   }
+  if (current && !document.querySelector("script[data-rich-content-loader]")) {
+    const richUrl = new URL(current, window.location.href);
+    richUrl.pathname = richUrl.pathname.replace(
+      /conversation-response-controls\.js$/,
+      "conversation-rich-content.js",
+    );
+    richUrl.search = "?v=20260801-rich-content1";
+    const script = document.createElement("script");
+    script.src = richUrl.toString();
+    script.async = false;
+    script.dataset.richContentLoader = "true";
+    document.head.append(script);
+  }
 
   const workspace = document.querySelector("[data-conversation-workspace]");
   const dataElement = document.getElementById("vh-conversation-data");
@@ -209,7 +222,7 @@
     } else {
       const copy = utilityButton("Copy", async () => {
         try {
-          await copyText(messageCopy.textContent || "");
+          await copyText(messageCopy.dataset.rawMessage || messageCopy.textContent || "");
           feedback(copy, "Copied");
         } catch (_error) {
           feedback(copy, "Copy failed");

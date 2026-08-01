@@ -57,9 +57,9 @@ def configuration_is_ready() -> bool:
 
 def agent_store_is_ready() -> bool:
     try:
-        return AgentStore.open_existing(
-            Path(settings.VULNHUNTER_AGENT_DATABASE)
-        ).schema_version() == 1
+        return (
+            AgentStore.open_existing(Path(settings.VULNHUNTER_AGENT_DATABASE)).schema_version() == 1
+        )
     except AgentStoreError:
         return False
 

@@ -44,7 +44,8 @@ def test_jump_latest_waits_for_a_stable_physical_bottom() -> None:
     assert "const maximumSettleFrames = 90" in script
     assert "const requiredStableFrames = 8" in script
     assert "const smoothScrollGraceFrames = 12" in script
-    assert "settleProgrammaticScroll = (frame = 0, stableFrames = 0)" in script
+    assert "stableFrames = 0" in script
+    assert "generation !== scrollGeneration" in script
     assert "feed.scrollTop = feed.scrollHeight" in script
     assert "nextStableFrames >= requiredStableFrames" in script
     assert "const finalArrival = distanceFromBottom() <= bottomThreshold" in script
@@ -52,6 +53,20 @@ def test_jump_latest_waits_for_a_stable_physical_bottom() -> None:
     resume = script[script.index("const resume"): script.index("jump.addEventListener")]
     assert "followingLatest = true" not in resume
     assert 'scrollToLatest({ behavior, force: true })' in resume
+
+
+def test_user_gestures_cancel_any_in_flight_auto_follow() -> None:
+    script = SCRIPT.read_text(encoding="utf-8")
+
+    assert "const cancelProgrammaticScroll" in script
+    assert "scrollGeneration += 1" in script
+    assert "scheduled = false" in script
+    assert "programmatic = false" in script
+    pause = script[script.index("const pauseFollowing"): script.index("const resume")]
+    assert "cancelProgrammaticScroll()" in pause
+    assert 'feed.addEventListener("wheel", pauseFollowing' in script
+    assert 'feed.addEventListener("touchstart", pauseFollowing' in script
+    assert 'feed.addEventListener("pointerdown", pauseFollowing' in script
 
 
 def test_jump_latest_uses_self_hosted_composer_anchored_styles() -> None:

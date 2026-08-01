@@ -20,5 +20,6 @@ FILES = (
     "vulnhunter/web/retest_views.py",
 )
 
-subprocess.run(("python", "-m", "ruff", "check", "--fix", *FILES), check=True)
 subprocess.run(("python", "-m", "ruff", "format", *FILES), check=True)
+subprocess.run(("python", "-m", "ruff", "check", "--fix", *FILES), check=True)
+subprocess.run(("python", "-m", "ruff", "check", *FILES), check=True)

@@ -466,6 +466,11 @@ def remediation_chat_reply(intent: str, plan: dict[str, object]) -> str:
         or latest_report.get("release_state")
         or "unreleased"
     )
+    publication_destination = str(
+        latest_publication.get("destination_label")
+        or latest_publication.get("destination_id")
+        or "the authorised destination"
+    )
 
     if intent == "status":
         if latest_report:
@@ -474,8 +479,8 @@ def remediation_chat_reply(intent: str, plan: dict[str, object]) -> str:
                     f"Remediation for {finding_id} is {state}. Final report "
                     f"{latest_report.get('report_id', 'unknown')} was separately published as "
                     f"{latest_publication.get('publication_id', 'unknown')} to "
-                    f"{latest_publication.get('destination_label') or latest_publication.get('destination_id') or 'the authorised destination'}. "
-                    "Finding closure, merge and deployment are not implied."
+                    f"{publication_destination}. Finding closure, merge and deployment are not "
+                    "implied."
                 )
             if publication_state == "revoked":
                 return (
@@ -603,8 +608,9 @@ def remediation_chat_reply(intent: str, plan: dict[str, object]) -> str:
         if state == "report_generated":
             if publication_state == "published":
                 return (
-                    "The report has been separately authorised and published. Any finding closure, "
-                    "merge or deployment now requires its own governed evidence and human authority."
+                    "The report has been separately authorised and published. Any finding "
+                    "closure, merge or deployment now requires its own governed evidence and "
+                    "human authority."
                 )
             if publication_state == "revoked":
                 return (

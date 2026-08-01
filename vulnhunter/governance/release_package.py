@@ -208,9 +208,7 @@ def _review_provenance(
         primary_attestation_hashes.append(attestation.record_sha256)
         primary_decision_hashes.append(decision_sha256)
 
-    adjudication_attestations = tuple(
-        item for item in attestations if item.role == "adjudicator"
-    )
+    adjudication_attestations = tuple(item for item in attestations if item.role == "adjudicator")
     adjudication_attestation_id = None
     adjudication_attestation_hash = None
     adjudication_decision_hash = None
@@ -333,9 +331,7 @@ def build_campaign_release_package(
                 expected_label=release.effective_labels[reference],
             )
         )
-    ordered_reviews = tuple(
-        sorted(review_provenance, key=lambda item: item.observation_reference)
-    )
+    ordered_reviews = tuple(sorted(review_provenance, key=lambda item: item.observation_reference))
 
     base: dict[str, object] = {
         "schema_version": "1.0",
@@ -441,9 +437,7 @@ class CampaignReleasePackageStore:
                 "campaign release package is unavailable or invalid"
             ) from exc
         if package.campaign_id != campaign_id or package.release_id != release_id:
-            raise CampaignReleasePackageError(
-                "campaign release package storage key does not match"
-            )
+            raise CampaignReleasePackageError("campaign release package storage key does not match")
         if campaign_release_package_sha256(package) != package.package_sha256:
             raise CampaignReleasePackageError(
                 "campaign release package failed integrity verification"

@@ -127,7 +127,7 @@ class ReleaseRequest(_FingerprintModel):
         return self
 
     @classmethod
-    def create(cls, **values) -> "ReleaseRequest":
+    def create(cls, **values) -> ReleaseRequest:
         canonical = {
             **values,
             "destination": values["destination"].model_dump(mode="json"),
@@ -179,7 +179,7 @@ class ReleaseApproval(_FingerprintModel):
         approver_id: str,
         approver_identity_sha256: str,
         approved_at: datetime,
-    ) -> "ReleaseApproval":
+    ) -> ReleaseApproval:
         values = {
             "request_id": request.request_id,
             "request_sha256": request.fingerprint(),
@@ -289,7 +289,7 @@ class PublicationManifest(_FingerprintModel):
         publisher_id: str,
         publisher_identity_sha256: str,
         published_at: datetime,
-    ) -> "PublicationManifest":
+    ) -> PublicationManifest:
         values = {
             "request_id": request.request_id,
             "request_sha256": request.fingerprint(),
@@ -364,7 +364,7 @@ class PublicationCorrection(_FingerprintModel):
         authority_id: str,
         authority_identity_sha256: str,
         created_at: datetime,
-    ) -> "PublicationCorrection":
+    ) -> PublicationCorrection:
         values = {
             "superseded_publication_id": superseded_publication_id,
             "replacement_publication_id": replacement.publication_id,
@@ -419,7 +419,7 @@ class PublicationRevocation(_FingerprintModel):
         authority_identity_sha256: str,
         reason: str,
         revoked_at: datetime,
-    ) -> "PublicationRevocation":
+    ) -> PublicationRevocation:
         values = {
             "publication_id": publication.publication_id,
             "publication_sha256": publication.fingerprint(),

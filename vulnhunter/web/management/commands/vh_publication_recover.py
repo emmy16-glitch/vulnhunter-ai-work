@@ -38,9 +38,7 @@ class Command(BaseCommand):
             for issue in report.issues:
                 style = self.style.ERROR if issue.severity == "blocker" else self.style.WARNING
                 location = "/".join(
-                    item
-                    for item in (issue.destination_id, issue.relative_path)
-                    if item is not None
+                    item for item in (issue.destination_id, issue.relative_path) if item is not None
                 )
                 suffix = f" [{location}]" if location else ""
                 self.stdout.write(style(f"{issue.code}{suffix}: {issue.detail}"))

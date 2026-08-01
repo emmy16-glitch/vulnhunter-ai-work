@@ -70,7 +70,8 @@ new = '''        elif self.state == RemediationState.READY_FOR_RETEST:
                 or latest_retest.fixed_revision != latest_verification.fixed_revision
             ):
                 raise ValueError(
-                    "awaiting-review remediation requires a passed retest of the latest fixed revision"
+                    "awaiting-review remediation requires a passed retest of the latest "
+                    "fixed revision"
                 )
             if (
                 latest_review is not None

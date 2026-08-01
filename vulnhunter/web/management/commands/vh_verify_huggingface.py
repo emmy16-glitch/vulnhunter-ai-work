@@ -17,9 +17,7 @@ from vulnhunter.providers import (
 
 
 class Command(BaseCommand):
-    help = (
-        "Run bounded Hugging Face provider and exact web-conversation readiness checks."
-    )
+    help = "Run bounded Hugging Face provider and exact web-conversation readiness checks."
 
     def add_arguments(self, parser) -> None:
         parser.add_argument("--model", default=settings.VULNHUNTER_HUGGINGFACE_MODEL)

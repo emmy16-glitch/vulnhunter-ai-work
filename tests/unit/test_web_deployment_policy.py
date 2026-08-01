@@ -154,9 +154,7 @@ def test_policy_payload_never_exposes_configuration_values() -> None:
         csrf_trusted_origins=("https://sensitive.example.com",),
         database_engine=database_value,
     )
-    encoded = json.dumps(
-        deployment_policy(public=True, configuration=configuration).as_payload()
-    )
+    encoded = json.dumps(deployment_policy(public=True, configuration=configuration).as_payload())
 
     assert configuration.secret_key not in encoded
     assert configuration.allowed_hosts[0] not in encoded

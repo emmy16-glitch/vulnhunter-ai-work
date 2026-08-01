@@ -97,6 +97,7 @@ async function login(page) {
           responseStylePresent: Boolean(
             document.querySelector("link[data-response-controls-styles]"),
           ),
+          richStylePresent: Boolean(document.querySelector("link[data-rich-content-styles]")),
           stopResponseMinimumHeight: Number.parseFloat(stopResponseStyle.minHeight || "0"),
           composerVisible: composerRect.width > 0 && composerRect.height > 0,
           composerInsideViewport:
@@ -147,8 +148,8 @@ async function login(page) {
       if (layout.providerOptions.join(",") !== "Auto,Groq,Hugging Face") {
         throw new Error(`Provider options are incomplete: ${layout.providerOptions.join(",")}`);
       }
-      if (!layout.responseStylePresent || layout.stopResponseMinimumHeight < 32) {
-        throw new Error(`Response controls are not styled safely: ${JSON.stringify(layout)}`);
+      if (!layout.responseStylePresent || !layout.richStylePresent || layout.stopResponseMinimumHeight < 32) {
+        throw new Error(`Conversation controls are not styled safely: ${JSON.stringify(layout)}`);
       }
       if (!layout.dockVisible || !layout.dockInsideViewport || layout.overlapsComposer) {
         throw new Error(`Upload dock overlaps or leaves the viewport: ${JSON.stringify(layout)}`);
@@ -195,7 +196,16 @@ async function login(page) {
             message: {
               role: "assistant",
               kind: "text",
-              content: "Provider selection test complete.",
+              content: [
+                "## Provider selection test complete.",
+                "",
+                "- **Provider:** Hugging Face",
+                "- Model: `test/huggingface-model`",
+                "",
+                "```bash",
+                "python manage.py vh_verify_llm --provider huggingface",
+                "```",
+              ].join("\n"),
               timestamp: new Date().toISOString(),
               metadata: {
                 provider: "huggingface",
@@ -255,6 +265,21 @@ async function login(page) {
         .locator(".vh-chat-message.is-assistant")
         .filter({ hasText: "Provider selection test complete." })
         .last();
+      await finalAnswer.locator(".vh-rich-heading").waitFor({ state: "visible" });
+      await finalAnswer.locator(".vh-rich-list li").first().waitFor({ state: "visible" });
+      const codeBlock = finalAnswer.locator(".vh-rich-code");
+      await codeBlock.waitFor({ state: "visible" });
+      const renderedCode = await codeBlock.locator("pre code").textContent();
+      if (renderedCode !== "python manage.py vh_verify_llm --provider huggingface") {
+        throw new Error(`The fenced command was not preserved safely: ${renderedCode}`);
+      }
+      await codeBlock
+        .getByRole("button", { name: /copy bash block/i })
+        .waitFor({ state: "visible" });
+      const rawAnswer = await finalAnswer.locator(".vh-message-copy").getAttribute("data-raw-message");
+      if (!rawAnswer?.includes("```bash") || !rawAnswer.includes("**Provider:**")) {
+        throw new Error("The original assistant answer was not preserved for whole-message copying");
+      }
       await finalAnswer.getByRole("button", { name: "Copy this answer" }).waitFor({ state: "visible" });
       await finalAnswer
         .getByRole("button", { name: /retry the prompt that produced this answer/i })
@@ -340,7 +365,7 @@ async function login(page) {
       await context.close();
     }
     console.log(
-      "Phone provider selection, stop waiting, retry, copy/edit controls, upload recovery and layout acceptance passed.",
+      "Phone provider selection, stop waiting, retry, safe rich answers, copy/edit controls, upload recovery and layout acceptance passed.",
     );
   } finally {
     await browser.close();

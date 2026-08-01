@@ -1,26 +1,17 @@
 from __future__ import annotations
 
 import getpass
-import hashlib
 import os
 from pathlib import Path
 from uuid import uuid4
 
 from django.conf import settings
+from django.core.management import call_command
 from django.core.management.base import BaseCommand, CommandError
-
-from vulnhunter.providers import (
-    GroqProvider,
-    GroqProviderError,
-    ProviderCapability,
-    ProviderInvocation,
-    ProviderKind,
-    ProviderOutputKind,
-)
 
 
 class Command(BaseCommand):
-    help = "Store an owner-only Groq API key and verify bounded advisory inference."
+    help = "Store an owner-only Groq API key and verify the exact web conversation path."
 
     def add_arguments(self, parser) -> None:
         parser.add_argument(
@@ -31,19 +22,20 @@ class Command(BaseCommand):
         parser.add_argument(
             "--no-verify",
             action="store_true",
-            help="Store the key without performing the harmless readiness request.",
+            help="Store the key without performing the harmless conversation readiness request.",
         )
 
     def handle(self, *args, **options) -> None:
-        path = Path(str(options["key_file"])).expanduser().resolve()
-        if path.is_symlink():
+        expanded = Path(str(options["key_file"])).expanduser()
+        if expanded.is_symlink():
             raise CommandError("The Groq key path must not be a symbolic link.")
+        path = expanded.resolve()
 
         key = getpass.getpass("Groq API key (input is hidden): ").strip()
         confirmation = getpass.getpass("Enter the Groq API key again: ").strip()
         if not key or key != confirmation:
             raise CommandError("The Groq API keys were empty or did not match.")
-        if len(key) < 20 or any(character.isspace() for character in key):
+        if len(key) < 20 or len(key) > 512 or any(character.isspace() for character in key):
             raise CommandError("The Groq API key format is invalid.")
 
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -76,49 +68,15 @@ class Command(BaseCommand):
             )
             return
 
-        content = (
-            "Return a candidate analysis whose content is exactly VULNHUNTER_GROQ_READY. "
-            "Do not request tools, credentials, private data, approval, or execution."
-        )
-        raw = content.encode("utf-8")
-        invocation = ProviderInvocation(
-            invocation_id="groq-workspace-readiness",
-            request_id="groq-workspace-readiness",
-            provider=ProviderKind.GROQ_ADVISORY,
-            model=settings.VULNHUNTER_GROQ_MODEL,
-            capability=ProviderCapability.CLASSIFICATION,
-            input_sha256=hashlib.sha256(raw).hexdigest(),
-            maximum_input_characters=2_000,
-            maximum_output_characters=1_000,
-            maximum_input_bytes=4_000,
-            maximum_output_bytes=4_000,
-            maximum_input_tokens=1_000,
-            maximum_output_tokens=800,
-            timeout_seconds=min(settings.VULNHUNTER_GROQ_TIMEOUT_SECONDS, 60),
-        )
-        try:
-            provider = GroqProvider.from_key_file(
-                path,
-                approved_models=(
-                    settings.VULNHUNTER_GROQ_MODEL,
-                    settings.VULNHUNTER_GROQ_FALLBACK_MODEL,
-                ),
-                api_base=settings.VULNHUNTER_GROQ_API_BASE,
+        configured_path = Path(settings.VULNHUNTER_GROQ_API_KEY_FILE).expanduser().resolve()
+        if path != configured_path:
+            raise CommandError(
+                "Verification requires --key-file to match VULNHUNTER_GROQ_API_KEY_FILE so the "
+                "web chat reads the same credential."
             )
-            health = provider.health()
-            if not health.reachable or not health.model:
-                raise CommandError(health.reason)
-            if health.model != invocation.model:
-                invocation = invocation.model_copy(update={"model": health.model})
-            response = provider.invoke(invocation, content)
-        except GroqProviderError as exc:
-            raise CommandError(f"Groq configuration was rejected safely: {exc}") from exc
-        if response.output_kind == ProviderOutputKind.ABSTAIN:
-            raise CommandError(response.safe_error or "Groq abstained during verification.")
-        if "VULNHUNTER_GROQ_READY" not in response.content:
-            raise CommandError("Groq returned valid data but missed the readiness marker.")
-        self.stdout.write(
-            self.style.SUCCESS(
-                f"Groq advisory verified with model {response.model}; output remains untrusted."
-            )
+        call_command(
+            "vh_verify_llm",
+            provider="groq",
+            reasoning="low",
+            stdout=self.stdout,
         )

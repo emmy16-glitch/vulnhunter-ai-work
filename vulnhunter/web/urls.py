@@ -19,6 +19,7 @@ from vulnhunter.web import (
     operations_views,
     remediation_final_report_conversation_views,
     remediation_final_report_views,
+    remediation_publication_views,
     remediation_review_conversation_views,
     remediation_review_views,
     remediation_views,
@@ -287,6 +288,11 @@ urlpatterns = [
         "findings/<str:finding_id>/remediation/report/",
         remediation_final_report_views.remediation_final_report_view,
         name="web-remediation-final-report",
+    ),
+    path(
+        "findings/<str:finding_id>/remediation/report/publication/",
+        remediation_publication_views.remediation_publication_view,
+        name="web-remediation-publication",
     ),
     path(
         "findings/<str:finding_id>/remediation/report/download/<slug:artifact_format>/",

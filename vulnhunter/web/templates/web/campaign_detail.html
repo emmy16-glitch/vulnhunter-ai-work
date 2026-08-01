@@ -1,4 +1,5 @@
 {% extends "web/base.html" %}
+{% load campaign_operations %}
 {% block content %}
 <section class="vh-page-shell">
   <header class="vh-page-header">
@@ -17,6 +18,8 @@
     <section class="vh-surface vh-surface-span-5"><header class="vh-surface-header"><div><h2>Review assignments</h2><p>Current review and adjudication state.</p></div><span class="vh-panel-count">{{ campaign.assignments|length }}</span></header>{% if campaign.assignments %}<ul class="vh-compact-list">{% for assignment in campaign.assignments %}<li><span>Observation #{{ assignment.observation_id }}<small>{{ assignment.effective_label }}</small></span><strong>{{ assignment.state }}</strong></li>{% endfor %}</ul>{% else %}<div class="vh-empty-panel"><h3>No assignments</h3><p>No reviewer assignment is available.</p></div>{% endif %}</section>
 
     <section class="vh-surface vh-surface-span-12"><header class="vh-surface-header"><div><h2>Readiness</h2><p>Current campaign readiness result.</p></div><a href="{% url 'web-readiness-detail' campaign.campaign_id %}">Open report →</a></header>{% if campaign.readiness %}<ul class="vh-compact-list"><li><span>Pilot ready</span><strong>{{ campaign.readiness.pilot_ready }}</strong></li><li><span>Model training ready</span><strong>{{ campaign.readiness.model_training_ready }}</strong></li>{% for item in campaign.readiness.hard_release_blockers %}<li><span>{{ item }}</span><strong class="vh-state-warning">Blocker</strong></li>{% empty %}<li><span>Hard release blockers</span><strong class="vh-state-safe">None</strong></li>{% endfor %}</ul>{% else %}<div class="vh-empty-panel"><h3>Readiness unavailable</h3><p>No readiness report is stored for this campaign.</p></div>{% endif %}</section>
+
+    {% campaign_operations_panel campaign.campaign_id %}
   </div>
 </section>
 {% endblock %}

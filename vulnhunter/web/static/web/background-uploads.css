@@ -13,6 +13,7 @@
   box-shadow: 0 1.2rem 3rem rgba(0, 0, 0, .45);
   backdrop-filter: blur(18px);
 }
+.vh-background-upload-dock[hidden] { display: none; }
 .vh-background-upload { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .65rem; align-items: center; padding: .65rem; border-radius: .75rem; background: rgba(255,255,255,.045); }
 .vh-background-upload > div:first-child { min-width: 0; display: grid; gap: .2rem; }
 .vh-background-upload strong, .vh-background-upload small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -25,9 +26,12 @@
 @media (max-width: 700px) {
   .vh-background-upload-dock {
     right: .65rem;
-    bottom: 8.25rem;
+    bottom: calc(var(--vh-phone-composer-clearance, 14rem) + max(.75rem, env(safe-area-inset-bottom)));
     width: calc(100vw - 1.3rem);
-    max-height: min(38dvh, 22rem);
+    max-height: min(
+      calc(100dvh - var(--vh-phone-composer-clearance, 14rem) - 1.5rem),
+      22rem
+    );
     overflow-y: auto;
   }
   .vh-background-upload { grid-template-columns: minmax(0, 1fr); }

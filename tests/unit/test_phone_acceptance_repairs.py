@@ -100,6 +100,7 @@ def test_phone_runtime_contracts_are_wired():
     conversation = (root / "vulnhunter/web/static/web/conversation.js").read_text()
     template = (root / "vulnhunter/web/templates/web/conversation.html").read_text()
     upload_css = (root / "vulnhunter/web/static/web/background-uploads.css").read_text()
+    draft = (root / "vulnhunter/web/static/web/conversation-draft.js").read_text()
 
     assert "vh_verify_groq --conversation-smoke" in start
     assert "VULNHUNTER_GROQ_RUNTIME_VERIFIED=true" in start
@@ -110,4 +111,6 @@ def test_phone_runtime_contracts_are_wired():
     assert "VulnHunterUploads = { enqueue, retry, cancel" in upload
     assert "Groq unavailable · deterministic fallback" in conversation
     assert "data-provider-runtime" in template
-    assert "bottom: 8.25rem" in upload_css
+    assert "var(--vh-phone-composer-clearance" in upload_css
+    assert "env(safe-area-inset-bottom)" in upload_css
+    assert "ResizeObserver(syncComposerClearance)" in draft

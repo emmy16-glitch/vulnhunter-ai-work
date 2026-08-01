@@ -135,6 +135,23 @@ def _report_payload(reference) -> dict[str, object]:
     }
 
 
+def _publication_projection(
+    graph: dict[str, object] | None,
+) -> tuple[str, list[dict[str, object]], dict[str, object] | None]:
+    if not isinstance(graph, dict):
+        return "unreleased", [], None
+    raw_history = graph.get("publication_history")
+    history = (
+        [dict(item) for item in raw_history if isinstance(item, dict)]
+        if isinstance(raw_history, list)
+        else []
+    )
+    raw_latest = graph.get("latest_publication")
+    latest = dict(raw_latest) if isinstance(raw_latest, dict) else None
+    state = str(graph.get("publication_state") or "unreleased")
+    return state, history, latest
+
+
 def _finding_payload(
     finding: Finding,
     *,
@@ -151,9 +168,25 @@ def _finding_payload(
     review_history = [_review_payload(item) for item in remediation.review_history]
     latest_review = review_history[-1] if review_history else None
     report_history = [_report_payload(item) for item in remediation.report_history]
+    publication_state, publication_history, latest_publication = _publication_projection(graph)
+    publications_by_report: dict[str, list[dict[str, object]]] = {}
+    for publication in publication_history:
+        source_report_id = str(publication.get("source_report_id") or "")
+        if source_report_id:
+            publications_by_report.setdefault(source_report_id, []).append(publication)
+    for report in report_history:
+        matches = publications_by_report.get(str(report.get("report_id") or ""), [])
+        if matches:
+            selected = matches[-1]
+            report["release_state"] = selected.get("release_state")
+            report["publication_id"] = selected.get("publication_id")
+            report["publication_sha256"] = selected.get("publication_sha256")
+            report["publication_destination_id"] = selected.get("destination_id")
     latest_report = report_history[-1] if report_history else None
+    if latest_report is not None and publication_state == "integrity_error":
+        latest_report["release_state"] = "integrity_error"
     return {
-        "schema_version": "1.3",
+        "schema_version": "1.4",
         "finding_id": finding.finding_id,
         "run_id": remediation.remediation_id,
         "remediation_id": remediation.remediation_id,
@@ -188,6 +221,9 @@ def _finding_payload(
             "latest_review": latest_review,
             "report_history": report_history,
             "latest_report": latest_report,
+            "publication_state": publication_state,
+            "publication_history": publication_history,
+            "latest_publication": latest_publication,
             "created_at": remediation.created_at.isoformat() if remediation.created_at else None,
             "expires_at": remediation.expires_at.isoformat() if remediation.expires_at else None,
             "due_at": remediation.due_at.isoformat() if remediation.due_at else None,
@@ -279,8 +315,35 @@ def _event_message(plan: dict[str, object]) -> dict[str, object]:
     latest_review = latest_review if isinstance(latest_review, dict) else {}
     latest_report = remediation.get("latest_report")
     latest_report = latest_report if isinstance(latest_report, dict) else {}
+    latest_publication = remediation.get("latest_publication")
+    latest_publication = latest_publication if isinstance(latest_publication, dict) else {}
+    publication_state = str(
+        remediation.get("publication_state")
+        or graph.get("publication_state")
+        or latest_report.get("release_state")
+        or "unreleased"
+    )
+    publication_id = str(latest_publication.get("publication_id") or "")
     event_key = f"remediation:{remediation_id}:{state}:{revision}"
-    if state == "ready_for_retest":
+    if publication_id or publication_state not in {"unreleased", "unconfigured"}:
+        event_key = f"{event_key}:{publication_state}:{publication_id or 'none'}"
+    if publication_state == "published":
+        boundary = (
+            "The final report was separately authorised and published; finding closure, merge and "
+            "deployment remain separate."
+        )
+    elif publication_state == "revoked":
+        boundary = (
+            "The publication was revoked by signed notice; retained artifacts remain audit "
+            "evidence and no active release claim is made."
+        )
+    elif publication_state == "superseded":
+        boundary = (
+            "The publication was superseded by a signed correction; use the replacement record."
+        )
+    elif publication_state == "integrity_error":
+        boundary = "Publication-state integrity verification failed, so no release claim is made."
+    elif state == "ready_for_retest":
         boundary = "Fix verification passed; retest, review, merge and release remain separate."
     elif state in {"needs_rework", "review_needs_rework"}:
         boundary = "Bounded rework is required; report, merge and closure remain blocked."
@@ -320,7 +383,9 @@ def _event_message(plan: dict[str, object]) -> dict[str, object]:
                 "review_outcome": latest_review.get("outcome"),
                 "final_report_id": latest_report.get("report_id"),
                 "final_report_manifest_id": latest_report.get("manifest_id"),
-                "release_state": latest_report.get("release_state"),
+                "release_state": publication_state,
+                "publication_id": latest_publication.get("publication_id"),
+                "publication_destination_id": latest_publication.get("destination_id"),
                 "report_state": graph.get("report_state"),
             },
         },
@@ -391,9 +456,52 @@ def remediation_chat_reply(intent: str, plan: dict[str, object]) -> str:
     latest_review = latest_review if isinstance(latest_review, dict) else {}
     latest_report = remediation.get("latest_report")
     latest_report = latest_report if isinstance(latest_report, dict) else {}
+    latest_publication = remediation.get("latest_publication")
+    latest_publication = latest_publication if isinstance(latest_publication, dict) else {}
+    publication_state = str(
+        remediation.get("publication_state")
+        or graph.get("publication_state")
+        or latest_report.get("release_state")
+        or "unreleased"
+    )
+    publication_destination = str(
+        latest_publication.get("destination_label")
+        or latest_publication.get("destination_id")
+        or "the authorised destination"
+    )
 
     if intent == "status":
         if latest_report:
+            if publication_state == "published":
+                return (
+                    f"Remediation for {finding_id} is {state}. Final report "
+                    f"{latest_report.get('report_id', 'unknown')} was separately published as "
+                    f"{latest_publication.get('publication_id', 'unknown')} to "
+                    f"{publication_destination}. Finding closure, merge and deployment are not "
+                    "implied."
+                )
+            if publication_state == "revoked":
+                return (
+                    f"Remediation for {finding_id} is {state}. Publication "
+                    f"{latest_publication.get('publication_id', 'unknown')} is revoked by signed "
+                    "notice. Its retained artifacts remain audit evidence, but there is no active "
+                    "release claim and the finding is not closed."
+                )
+            if publication_state == "superseded":
+                correction = latest_publication.get("correction")
+                correction = correction if isinstance(correction, dict) else {}
+                return (
+                    f"Remediation for {finding_id} is {state}. Publication "
+                    f"{latest_publication.get('publication_id', 'unknown')} is superseded by "
+                    f"{correction.get('replacement_publication_id', 'a signed replacement')}. "
+                    "Finding closure, merge and deployment remain separate."
+                )
+            if publication_state == "integrity_error":
+                return (
+                    f"Remediation for {finding_id} is {state}. Final report "
+                    f"{latest_report.get('report_id', 'unknown')} exists, but signed publication "
+                    "state failed integrity verification. No publication claim is made."
+                )
             return (
                 f"Remediation for {finding_id} is {state}. Final report "
                 f"{latest_report.get('report_id', 'unknown')} is generated with signed manifest "
@@ -422,11 +530,24 @@ def remediation_chat_reply(intent: str, plan: dict[str, object]) -> str:
         )
     if intent == "results":
         if latest_report:
+            if publication_state == "integrity_error":
+                return (
+                    f"The immutable final report is {latest_report.get('report_id', 'unknown')}, "
+                    "but publication-state integrity verification failed. Its release state is "
+                    "blocked and no destination claim is trusted."
+                )
+            publication_suffix = ""
+            if latest_publication:
+                publication_suffix = (
+                    f" Publication {latest_publication.get('publication_id', 'unknown')} is "
+                    f"{publication_state} for destination "
+                    f"{latest_publication.get('destination_id', 'unknown')}."
+                )
             return (
                 f"The immutable final report is {latest_report.get('report_id', 'unknown')} with "
                 f"manifest {latest_report.get('manifest_id', 'unknown')}. Available formats: "
                 f"{', '.join(latest_report.get('formats') or []) or 'unknown'}. The release state "
-                "is unreleased."
+                f"is {publication_state}.{publication_suffix}"
             )
         if latest_review:
             return (
@@ -483,6 +604,28 @@ def remediation_chat_reply(intent: str, plan: dict[str, object]) -> str:
                 "report generation; merge, closure, release and publication remain separate."
             )
         if state == "report_generated":
+            if publication_state == "published":
+                return (
+                    "The report has been separately authorised and published. Any finding "
+                    "closure, merge or deployment now requires its own governed evidence and "
+                    "human authority."
+                )
+            if publication_state == "revoked":
+                return (
+                    "The signed publication is revoked. Prepare a corrected report and new "
+                    "three-person release flow if another publication is required; retained "
+                    "history must not be deleted."
+                )
+            if publication_state == "integrity_error":
+                return (
+                    "The owner must restore and verify the signed publication state before any "
+                    "release, correction or revocation claim can continue."
+                )
+            if publication_state == "superseded":
+                return (
+                    "Use the signed replacement publication and preserve the superseded record. "
+                    "Finding closure, merge and deployment remain separate."
+                )
             return (
                 "The signed report and artifact manifest are complete but unreleased. The next "
                 "milestone is a dedicated human-authorised release/publication service; this "

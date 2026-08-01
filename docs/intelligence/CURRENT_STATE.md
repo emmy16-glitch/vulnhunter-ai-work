@@ -24,16 +24,36 @@ VulnHunter currently includes:
 - completed-scan correlation with authorization validation/start/completion evidence;
 - explicit reviewer assignments, identity-bound review attestations, conflict checks, and creator/owner separation;
 - fail-closed campaign completion and immutable dataset-release manifests;
+- deterministic append-only campaign release provenance packages that retain exact
+  application-family, environment, authorization, primary-review and adjudication
+  hashes after a governed dataset release;
+- a protected read-only campaign operations workspace that separates pre-activation
+  owned-target prerequisites from post-collection review and release readiness,
+  reports application-family coverage and adjudication workload, and withholds
+  ownership evidence references and local repository paths from the browser;
 - read-only governed pilot readiness reporting over release manifests,
   authorization provenance, exact scan links, review attestations, duplicate
   evidence indicators, class balance, and dataset fingerprints;
+- an identity-separated signed final-remediation report and export-manifest path
+  that cannot publish by itself;
+- a dedicated separately authorised publication service with exact destination
+  policy, digest-verified artifact copying, signed append-only manifests,
+  correction, independent revocation and protected browser controls;
+- publication deployment preflight, signed-state and copied-artifact integrity
+  checks, and inspect-first recovery that never overwrites report artifacts;
 - a framework-independent operational product application layer with typed
   read models for dashboard, campaigns, readiness, role/skill registry, and
   bounded agent runtime inspection;
 - a local product CLI surface backed by the real stores and services:
   `python -m vulnhunter.product`;
 - an authenticated Django operational surface connected to governed assessment,
-  approval, activity, evidence, and candidate-finding state;
+  approval, activity, evidence, candidate-finding and release state;
+- optional Groq and Hugging Face advisory providers wired into the persistent
+  conversational workspace with deterministic high-impact action routing,
+  redacted context, bounded reasoning budgets and provider/model provenance;
+- secure provider setup and a provider-neutral `vh_verify_llm` command that proves
+  one harmless answer passes through the exact browser conversation path rather
+  than accepting credential presence or low-level API reachability as readiness;
 - a versioned scanner-manager protocol shared by a controlled Nuclei worker and
   planned mobile adapters;
 - a file-backed Nuclei execution lifecycle with hash-linked audit transitions,
@@ -44,15 +64,23 @@ VulnHunter currently includes:
 
 ## Current interpretation
 
-The platform is a secure research pipeline and decision-support prototype with a narrowly controlled passive private-lab scanner path. It is not an autonomous public-Internet scanner, exploit framework, or production-grade vulnerability classifier.
+The platform is a secure research pipeline and decision-support prototype with a narrowly controlled passive private-lab scanner path. It is not an autonomous public-Internet scanner, exploit framework, automatic vulnerability publisher, or production-grade vulnerability classifier.
 
-The governed collection and authenticated-review control plane is implemented. That implementation proves workflow enforcement; it does not mean a diverse real dataset has already been collected.
+The governed collection and authenticated-review control plane is implemented. The release provenance package now preserves exact application-family and review/adjudication lineage after a governed dataset release. The protected campaign operations workspace truthfully reports whether an approved or active campaign still satisfies private-target authorization, ownership-evidence declaration, family-diversity and review-separation prerequisites. These implementations prove workflow enforcement; they do not mean a diverse real dataset has already been collected, and an ownership declaration is not treated as proof without independent human verification.
+
+The dedicated publication foundation is implemented and operationally hardened, but remains separately activation-gated by deployment-owned keys, authority identities and destination configuration. It does not publish reports merely because they were generated or approved, and it does not merge code, deploy software or close findings.
 
 The product includes an authenticated Django browser surface with session, CSRF,
 route authorization, exact approval, operational read models and a separate signed
 Nuclei worker. The reviewed passive pilot can run one pinned template against one
 exact authorized RFC1918 target. Public scanning, intrusive execution and dynamic
 mobile analysis remain unavailable.
+
+Remote LLM answers remain optional advisory output. A deployment can now verify the
+same prompt construction, provider wrapper, structured decoding and user-facing
+answer path used by the browser. Passing that readiness check proves connectivity
+and integration only; deterministic services still own authorization, approvals,
+scanner execution, finding verification, severity and publication.
 
 ## Current model status
 
@@ -87,6 +115,12 @@ vulnhunter loop --help
 vulnhunter research --help
 vulnhunter unattended --help
 python -m vulnhunter.product --help
+python manage.py vh_configure_groq --help
+python manage.py vh_configure_huggingface --help
+python manage.py vh_verify_llm --help
+python manage.py vh_publication_preflight --help
+python manage.py vh_publication_recover --help
+python manage.py vh_campaign_release_package --help
 ```
 
 ## Repository health

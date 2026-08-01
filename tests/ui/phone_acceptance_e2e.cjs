@@ -30,12 +30,45 @@ async function login(page) {
       await login(page);
       await page.goto(`${baseUrl}/`, { waitUntil: "domcontentloaded" });
       await page.locator("[data-conversation-form]").waitFor({ state: "visible" });
+      await page.locator("select[data-provider-preference]").waitFor({ state: "visible" });
+      await page.locator("[data-stop-response]").waitFor({ state: "attached" });
+      await page.locator("[data-draft-status]").waitFor({ state: "attached" });
+      await page.locator("[data-conversation-search-trigger]").waitFor({ state: "visible" });
 
-      const layout = await page.evaluate(() => {
+      const draftProbe = `Recovered phone draft ${viewport.width}`;
+      let input = page.locator("[data-conversation-input]");
+      await input.fill(draftProbe);
+      await page.waitForTimeout(500);
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await page.locator("[data-conversation-form]").waitFor({ state: "visible" });
+      await page.locator("select[data-provider-preference]").waitFor({ state: "visible" });
+      await page.locator("[data-stop-response]").waitFor({ state: "attached" });
+      await page.locator("[data-draft-status]").waitFor({ state: "attached" });
+      await page.locator("[data-conversation-search-trigger]").waitFor({ state: "visible" });
+      input = page.locator("[data-conversation-input]");
+      if ((await input.inputValue()) !== draftProbe) {
+        throw new Error(`The phone draft was not restored after reload at ${viewport.width}px`);
+      }
+
+      const layout = await page.evaluate(async () => {
         const composer = document.querySelector("[data-conversation-form]");
         const reasoning = document.querySelector("[data-reasoning-effort]");
         const provider = document.querySelector("[data-provider-runtime]");
-        if (!composer || !reasoning || !provider) return { missing: true };
+        const providerPreference = document.querySelector("select[data-provider-preference]");
+        const stopResponse = document.querySelector("[data-stop-response]");
+        const draftStatus = document.querySelector("[data-draft-status]");
+        const searchTrigger = document.querySelector("[data-conversation-search-trigger]");
+        if (
+          !composer ||
+          !reasoning ||
+          !provider ||
+          !providerPreference ||
+          !stopResponse ||
+          !draftStatus ||
+          !searchTrigger
+        ) {
+          return { missing: true };
+        }
 
         const dock = document.createElement("div");
         dock.className = "vh-background-upload-dock";
@@ -45,12 +78,21 @@ async function login(page) {
             <div><button type="button">Retry</button><button type="button">Cancel</button></div>
           </article>`;
         document.body.append(dock);
+        await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 
         const composerRect = composer.getBoundingClientRect();
         const dockRect = dock.getBoundingClientRect();
         const reasoningRect = reasoning.getBoundingClientRect();
         const providerRect = provider.getBoundingClientRect();
+        const providerPreferenceRect = providerPreference.getBoundingClientRect();
+        const searchTriggerRect = searchTrigger.getBoundingClientRect();
+        const stopResponseStyle = getComputedStyle(stopResponse);
+        const draftStatusStyle = getComputedStyle(draftStatus);
+        const dockStyle = getComputedStyle(dock);
         const options = [...reasoning.options].map((option) => option.textContent.trim());
+        const providerOptions = [...providerPreference.options].map((option) =>
+          option.textContent.trim(),
+        );
         const overlapsComposer = !(
           dockRect.bottom <= composerRect.top + 1 ||
           dockRect.top >= composerRect.bottom - 1
@@ -58,6 +100,42 @@ async function login(page) {
         const result = {
           missing: false,
           innerWidth: window.innerWidth,
+          innerHeight: window.innerHeight,
+          composerRect: {
+            top: composerRect.top,
+            right: composerRect.right,
+            bottom: composerRect.bottom,
+            left: composerRect.left,
+            width: composerRect.width,
+            height: composerRect.height,
+          },
+          dockRect: {
+            top: dockRect.top,
+            right: dockRect.right,
+            bottom: dockRect.bottom,
+            left: dockRect.left,
+            width: dockRect.width,
+            height: dockRect.height,
+          },
+          dockComputed: {
+            position: dockStyle.position,
+            bottom: dockStyle.bottom,
+            maxHeight: dockStyle.maxHeight,
+            zIndex: dockStyle.zIndex,
+          },
+          responseStylePresent: Boolean(
+            document.querySelector("link[data-response-controls-styles]"),
+          ),
+          richStylePresent: Boolean(document.querySelector("link[data-rich-content-styles]")),
+          draftStylePresent: Boolean(
+            document.querySelector("link[data-conversation-draft-styles]"),
+          ),
+          searchStylePresent: Boolean(
+            document.querySelector("link[data-conversation-search-styles]"),
+          ),
+          stopResponseMinimumHeight: Number.parseFloat(stopResponseStyle.minHeight || "0"),
+          draftStatusFontSize: Number.parseFloat(draftStatusStyle.fontSize || "0"),
+          searchTriggerVisible: searchTriggerRect.width > 0 && searchTriggerRect.height > 0,
           composerVisible: composerRect.width > 0 && composerRect.height > 0,
           composerInsideViewport:
             composerRect.left >= -1 &&
@@ -66,6 +144,9 @@ async function login(page) {
           reasoningVisible: reasoningRect.width >= 80 && reasoningRect.height >= 38,
           reasoningOptions: options,
           providerVisible: providerRect.width > 0 && providerRect.height > 0,
+          providerPreferenceVisible:
+            providerPreferenceRect.width >= 110 && providerPreferenceRect.height >= 32,
+          providerOptions,
           dockVisible: dockRect.width > 0 && dockRect.height > 0,
           dockInsideViewport:
             dockRect.left >= -1 &&
@@ -94,11 +175,231 @@ async function login(page) {
         throw new Error(`Reasoning options are incomplete: ${layout.reasoningOptions.join(",")}`);
       }
       if (!layout.providerVisible) {
-        throw new Error(`Groq runtime status is hidden at ${viewport.width}px`);
+        throw new Error(`AI runtime status is hidden at ${viewport.width}px`);
+      }
+      if (!layout.providerPreferenceVisible) {
+        throw new Error(
+          `Provider selector is not usable at ${viewport.width}px: ${JSON.stringify(layout)}`,
+        );
+      }
+      if (layout.providerOptions.join(",") !== "Auto,Groq,Hugging Face") {
+        throw new Error(`Provider options are incomplete: ${layout.providerOptions.join(",")}`);
+      }
+      if (
+        !layout.responseStylePresent ||
+        !layout.richStylePresent ||
+        !layout.draftStylePresent ||
+        !layout.searchStylePresent ||
+        !layout.searchTriggerVisible ||
+        layout.stopResponseMinimumHeight < 32 ||
+        layout.draftStatusFontSize <= 0
+      ) {
+        throw new Error(`Conversation controls are not styled safely: ${JSON.stringify(layout)}`);
       }
       if (!layout.dockVisible || !layout.dockInsideViewport || layout.overlapsComposer) {
         throw new Error(`Upload dock overlaps or leaves the viewport: ${JSON.stringify(layout)}`);
       }
+
+      const providerSelect = page.locator("select[data-provider-preference]");
+      await providerSelect.selectOption("huggingface");
+      for (let attempt = 0; attempt < 80; attempt += 1) {
+        if ((await providerSelect.inputValue()) === "huggingface" && (await providerSelect.isEnabled())) {
+          break;
+        }
+        await page.waitForTimeout(50);
+      }
+      if ((await providerSelect.inputValue()) !== "huggingface") {
+        throw new Error("The Hugging Face preference did not persist in the active workspace");
+      }
+
+      const messageUrl = await page.locator("[data-conversation-form]").getAttribute("action");
+      if (!messageUrl) throw new Error("Conversation message URL is missing");
+      const absoluteMessageUrl = new URL(messageUrl, baseUrl).toString();
+      let providerPostData = "";
+      let messageAttempts = 0;
+      await page.route(absoluteMessageUrl, async (route) => {
+        messageAttempts += 1;
+        if (messageAttempts === 1) {
+          try {
+            await page.waitForTimeout(5000);
+            await route.fulfill({
+              status: 200,
+              contentType: "application/json",
+              body: JSON.stringify({}),
+            });
+          } catch (_error) {
+            // The Stop waiting control intentionally aborts this paused request.
+          }
+          return;
+        }
+        providerPostData = route.request().postData() || "";
+        await page.waitForTimeout(700);
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            message: {
+              role: "assistant",
+              kind: "text",
+              content: [
+                "## Provider selection test complete.",
+                "",
+                "- **Provider:** Hugging Face",
+                "- Model: `test/huggingface-model`",
+                "",
+                "```bash",
+                "python manage.py vh_verify_llm --provider huggingface",
+                "```",
+              ].join("\n"),
+              timestamp: new Date().toISOString(),
+              metadata: {
+                provider: "huggingface",
+                model: "test/huggingface-model",
+                reasoning_effort: "medium",
+                provider_detail: "Hugging Face model: test/huggingface-model",
+              },
+            },
+          }),
+        });
+      });
+
+      const prompt = "Explain the current workspace provider selection";
+      await input.fill(prompt);
+      await page.locator("[data-conversation-send]").click();
+      const progress = page.locator("[data-progress-mode='validated-stages']");
+      const stopResponse = page.locator("[data-stop-response]");
+      await progress.waitFor({ state: "visible" });
+      await stopResponse.waitFor({ state: "visible" });
+      await page.waitForTimeout(1100);
+      const progressText = await progress.textContent();
+      if (!/Contacting Hugging Face|validated model response/i.test(progressText || "")) {
+        throw new Error(`Provider progress did not advance: ${progressText}`);
+      }
+      await stopResponse.click();
+      await page
+        .getByText("Stopped waiting for this response. You can retry the last prompt.")
+        .waitFor({ state: "visible" });
+      await progress.waitFor({ state: "hidden" });
+      for (let attempt = 0; attempt < 40 && (await input.inputValue()) !== prompt; attempt += 1) {
+        await page.waitForTimeout(50);
+      }
+      if ((await input.inputValue()) !== prompt) {
+        throw new Error("The stopped prompt was not restored to the phone composer");
+      }
+      if (messageAttempts !== 1) {
+        throw new Error(`Expected one stopped request, observed ${messageAttempts}`);
+      }
+
+      const localNotice = page.locator(".vh-chat-message.is-local-notice").last();
+      const retryStopped = localNotice.getByRole("button", { name: /retry the prompt/i });
+      await retryStopped.waitFor({ state: "visible" });
+      await retryStopped.click();
+      await progress.waitFor({ state: "visible" });
+      await page.getByText("Provider selection test complete.").waitFor({ state: "visible" });
+      await progress.waitFor({ state: "hidden" });
+      if (messageAttempts !== 2) {
+        throw new Error(`Expected the stopped prompt to retry once, observed ${messageAttempts} requests`);
+      }
+      if (!providerPostData.includes('name="provider_preference"')) {
+        throw new Error("The provider preference field was missing from the retried chat request");
+      }
+      if (!providerPostData.includes("huggingface")) {
+        throw new Error("The selected Hugging Face provider was not submitted with the retried request");
+      }
+      const draftState = await page.evaluate(() => {
+        const api = window.VulnHunterConversationDraft;
+        const key = api?.storageKey || "";
+        return { key, value: key ? window.sessionStorage.getItem(key) : "missing-api" };
+      });
+      if (!draftState.key || draftState.value !== null) {
+        throw new Error(`The successful response did not clear its session draft: ${JSON.stringify(draftState)}`);
+      }
+      const runtimeText = await page.locator("[data-provider-runtime]").textContent();
+      if (!/Hugging Face answered/i.test(runtimeText || "")) {
+        throw new Error(`The actual response provider was not shown: ${runtimeText}`);
+      }
+
+      const finalAnswer = page
+        .locator(".vh-chat-message.is-assistant")
+        .filter({ hasText: "Provider selection test complete." })
+        .last();
+      await finalAnswer.locator(".vh-rich-heading").waitFor({ state: "visible" });
+      await finalAnswer.locator(".vh-rich-list li").first().waitFor({ state: "visible" });
+      const codeBlock = finalAnswer.locator(".vh-rich-code");
+      await codeBlock.waitFor({ state: "visible" });
+      const renderedCode = await codeBlock.locator("pre code").textContent();
+      if (renderedCode !== "python manage.py vh_verify_llm --provider huggingface") {
+        throw new Error(`The fenced command was not preserved safely: ${renderedCode}`);
+      }
+      await codeBlock
+        .getByRole("button", { name: /copy bash block/i })
+        .waitFor({ state: "visible" });
+      const rawAnswer = await finalAnswer.locator(".vh-message-copy").getAttribute("data-raw-message");
+      if (!rawAnswer?.includes("```bash") || !rawAnswer.includes("**Provider:**")) {
+        throw new Error("The original assistant answer was not preserved for whole-message copying");
+      }
+
+      await page.keyboard.press("Control+f");
+      const searchPanel = page.locator("[data-conversation-search]");
+      await searchPanel.waitFor({ state: "visible" });
+      const searchInput = searchPanel.locator("[data-conversation-search-input]");
+      await searchInput.fill("vh_verify_llm");
+      for (let attempt = 0; attempt < 40; attempt += 1) {
+        if ((await searchPanel.locator("[data-conversation-search-count]").textContent()) === "1 of 1") {
+          break;
+        }
+        await page.waitForTimeout(50);
+      }
+      const searchCount = await searchPanel.locator("[data-conversation-search-count]").textContent();
+      if (searchCount !== "1 of 1") {
+        throw new Error(`Conversation search did not find the fenced command: ${searchCount}`);
+      }
+      if (!(await finalAnswer.evaluate((element) => element.classList.contains("is-search-active")))) {
+        throw new Error("Conversation search did not activate the matching assistant answer");
+      }
+      const searchGeometry = await searchPanel.evaluate((element) => {
+        const rect = element.getBoundingClientRect();
+        return {
+          left: rect.left,
+          right: rect.right,
+          top: rect.top,
+          bottom: rect.bottom,
+          width: rect.width,
+          height: rect.height,
+          innerWidth: window.innerWidth,
+          innerHeight: window.innerHeight,
+        };
+      });
+      if (
+        searchGeometry.width <= 0 ||
+        searchGeometry.height <= 0 ||
+        searchGeometry.left < -1 ||
+        searchGeometry.right > searchGeometry.innerWidth + 1 ||
+        searchGeometry.top < -1 ||
+        searchGeometry.bottom > searchGeometry.innerHeight + 1
+      ) {
+        throw new Error(`Conversation search is outside the phone viewport: ${JSON.stringify(searchGeometry)}`);
+      }
+      await page.keyboard.press("Escape");
+      await searchPanel.waitFor({ state: "hidden" });
+      if (await finalAnswer.evaluate((element) => element.classList.contains("is-search-active"))) {
+        throw new Error("Closing conversation search left the answer highlighted");
+      }
+
+      await finalAnswer.getByRole("button", { name: "Copy this answer" }).waitFor({ state: "visible" });
+      await finalAnswer
+        .getByRole("button", { name: /retry the prompt that produced this answer/i })
+        .waitFor({ state: "visible" });
+      const latestUser = page.locator(".vh-chat-message.is-user").last();
+      const edit = latestUser.getByRole("button", { name: /edit this prompt/i });
+      await edit.waitFor({ state: "visible" });
+      await edit.click();
+      if ((await input.inputValue()) !== prompt) {
+        throw new Error("Edit did not restore the user prompt to the composer");
+      }
+      await input.fill("");
+      await page.waitForTimeout(400);
+      await page.unroute(absoluteMessageUrl);
 
       const startUrl = await page
         .locator("[data-conversation-form]")
@@ -170,7 +471,9 @@ async function login(page) {
       await page.getByRole("button", { name: "Cancel" }).last().click();
       await context.close();
     }
-    console.log("Phone conversation, reasoning, upload recovery and layout acceptance passed.");
+    console.log(
+      "Phone provider selection, session drafts, stop waiting, retry, rich answers, in-thread search, copy/edit controls, upload recovery and layout acceptance passed.",
+    );
   } finally {
     await browser.close();
   }

@@ -8,6 +8,7 @@ from django.conf import settings
 
 from vulnhunter.assessment_graph import RemediationAssessmentGraphService
 from vulnhunter.findings import Finding, RemediationState
+from vulnhunter.web.remediation_publication_projection import project_publication_graph
 
 
 def _service() -> RemediationAssessmentGraphService:
@@ -49,6 +50,7 @@ def bind_remediation_assessment_graph(
     )
     project_remediation_finding(finding)
     graph = _service().status_payload(remediation.remediation_id)
+    graph = project_publication_graph(graph, finding_id=finding.finding_id)
     if graph is None:
         raise RuntimeError("the remediation assessment graph was not persisted")
     return graph
@@ -99,7 +101,8 @@ def project_remediation_finding(finding: Finding) -> dict[str, object] | None:
             report_id=latest_report.report_id,
             manifest_id=latest_report.manifest_id,
         )
-    return service.status_payload(remediation.remediation_id)
+    graph = service.status_payload(remediation.remediation_id)
+    return project_publication_graph(graph, finding_id=finding.finding_id)
 
 
 def fail_remediation_graph(remediation_id: str, *, reason: str) -> dict[str, object] | None:

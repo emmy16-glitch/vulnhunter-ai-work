@@ -147,7 +147,7 @@
     if (document.querySelector(`script[${marker}]`)) return;
     const url = new URL(current, window.location.href);
     url.pathname = url.pathname.replace(/conversation-runtime-compat\.js$/, filename);
-    url.search = "?v=20260801-report1";
+    url.search = "?v=20260801-chat-controls1";
     const script = document.createElement("script");
     script.src = url.toString();
     script.async = false;
@@ -172,8 +172,77 @@
     }
   };
 
+  const providerName = (runtime) => {
+    const detail = String(runtime?.getAttribute("title") || "");
+    const hasGroq = /\bGroq\b/i.test(detail);
+    const hasHuggingFace = /Hugging\s*Face/i.test(detail);
+    if (hasHuggingFace && !hasGroq) return "Hugging Face";
+    if (hasGroq && !hasHuggingFace) return "Groq";
+    return "the AI provider";
+  };
+
+  const bindProviderRuntime = () => {
+    const runtime = document.querySelector("[data-provider-runtime]");
+    const detail = String(runtime?.getAttribute("title") || "");
+    if (runtime) {
+      const hasGroq = /\bGroq\b/i.test(detail);
+      const hasHuggingFace = /Hugging\s*Face/i.test(detail);
+      if (hasGroq && hasHuggingFace) runtime.textContent = "AI providers configured";
+      else if (hasHuggingFace) runtime.textContent = "Hugging Face configured";
+      else if (/Groq live conversation ready/i.test(detail)) runtime.textContent = "Groq live";
+      else if (hasGroq) runtime.textContent = "Groq configured";
+      else runtime.textContent = "AI unavailable";
+    }
+
+    const thinkingCopy = document.querySelector("[data-thinking-copy]");
+    if (thinkingCopy) {
+      const rewriteThinkingCopy = () => {
+        const value = thinkingCopy.textContent || "";
+        if (!value.startsWith("Asking Groq")) return;
+        const name = providerName(runtime);
+        thinkingCopy.textContent = value.replace("Asking Groq", `Asking ${name}`);
+      };
+      rewriteThinkingCopy();
+      new MutationObserver(rewriteThinkingCopy).observe(thinkingCopy, {
+        childList: true,
+        characterData: true,
+        subtree: true,
+      });
+    }
+
+    const feed = document.querySelector("[data-conversation-feed]");
+    if (feed) {
+      const rewriteProviderBadges = () => {
+        feed.querySelectorAll(".vh-message-reasoning").forEach((badge) => {
+          const copy = badge.textContent || "";
+          if (/\bHuggingface\b/i.test(copy)) {
+            badge.textContent = copy.replace(/\bHuggingface\b/gi, "Hugging Face");
+          }
+          if (badge.dataset.providerFallbackRewritten === "true") return;
+          const detailText = String(badge.getAttribute("title") || "");
+          if (!/Groq|Hugging\s*Face/i.test(detailText)) return;
+          if (!/Deterministic/i.test(badge.textContent || "")) return;
+          badge.dataset.providerFallbackRewritten = "true";
+          badge.classList.add("is-degraded");
+          badge.textContent = (badge.textContent || "").replace(
+            /Deterministic(?: fallback)?/i,
+            "AI provider unavailable · deterministic fallback",
+          );
+        });
+      };
+      rewriteProviderBadges();
+      new MutationObserver(rewriteProviderBadges).observe(feed, {
+        childList: true,
+        subtree: true,
+      });
+    }
+  };
+
   const loadWorkspaceBridges = () => {
     bindSourceHuntLinks();
+    bindProviderRuntime();
+    loadScript("conversation-provider-control.js", "data-provider-control-loader");
+    loadScript("conversation-response-controls.js", "data-response-controls-loader");
     loadScript("workspace-state.js", "data-workspace-state-loader");
     loadScript("workspace-safety-polish.js", "data-workspace-safety-loader");
   };

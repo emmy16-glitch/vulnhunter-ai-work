@@ -1,25 +1,112 @@
 (() => {
   "use strict";
 
+  const current = document.currentScript?.src;
+  if (current && !document.querySelector("link[data-jump-latest-styles]")) {
+    const styleUrl = new URL(current, window.location.href);
+    styleUrl.pathname = styleUrl.pathname.replace(
+      /conversation-autoscroll\.js$/,
+      "conversation-jump-latest.css",
+    );
+    styleUrl.search = "?v=20260801-jump-latest1";
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = styleUrl.toString();
+    link.dataset.jumpLatestStyles = "true";
+    document.head.append(link);
+  }
+
   const feed = document.querySelector("[data-conversation-feed]");
-  if (!feed) return;
+  const composer = document.querySelector("[data-conversation-form]");
+  if (!feed || !composer) return;
 
   const bottomThreshold = 96;
+  const maximumSettleFrames = 90;
+  const requiredStableFrames = 8;
+  const smoothScrollGraceFrames = 12;
   let followingLatest = true;
   let scheduled = false;
   let programmatic = false;
+  let scrollGeneration = 0;
+  let unreadMessages = 0;
+  let knownMessageCount = feed.querySelectorAll(".vh-chat-message").length;
+
+  const jump = document.createElement("button");
+  jump.type = "button";
+  jump.className = "vh-jump-latest";
+  jump.dataset.jumpLatest = "true";
+  jump.hidden = true;
+  jump.setAttribute("aria-live", "polite");
+  jump.setAttribute("aria-label", "Jump to the latest conversation message");
+  composer.append(jump);
 
   const distanceFromBottom = () =>
     Math.max(0, feed.scrollHeight - feed.scrollTop - feed.clientHeight);
 
+  const renderJump = () => {
+    const show = !followingLatest && distanceFromBottom() > bottomThreshold;
+    jump.hidden = !show;
+    jump.dataset.unread = unreadMessages > 0 ? "true" : "false";
+    jump.textContent = unreadMessages > 0 ? `↓ ${unreadMessages} new` : "↓ Latest";
+    jump.title = unreadMessages > 0
+      ? `${unreadMessages} new conversation message${unreadMessages === 1 ? "" : "s"}`
+      : "Jump to the latest conversation message";
+  };
+
   const publishState = () => {
     feed.dataset.followLatest = followingLatest ? "true" : "false";
+    renderJump();
+  };
+
+  const cancelProgrammaticScroll = () => {
+    scrollGeneration += 1;
+    scheduled = false;
+    programmatic = false;
   };
 
   const syncFromPosition = () => {
     if (programmatic) return;
     followingLatest = distanceFromBottom() <= bottomThreshold;
+    if (followingLatest) unreadMessages = 0;
     publishState();
+  };
+
+  const settleProgrammaticScroll = (
+    generation,
+    frame = 0,
+    stableFrames = 0,
+  ) => {
+    if (generation !== scrollGeneration) return;
+
+    let arrived = distanceFromBottom() <= bottomThreshold;
+    let nextStableFrames = arrived ? stableFrames + 1 : 0;
+
+    if (!arrived && frame >= smoothScrollGraceFrames) {
+      feed.scrollTop = feed.scrollHeight;
+      arrived = distanceFromBottom() <= bottomThreshold;
+      nextStableFrames = arrived ? 1 : 0;
+    } else if (arrived) {
+      feed.scrollTop = feed.scrollHeight;
+    }
+
+    if (nextStableFrames >= requiredStableFrames || frame >= maximumSettleFrames) {
+      feed.scrollTop = feed.scrollHeight;
+      window.requestAnimationFrame(() => {
+        if (generation !== scrollGeneration) return;
+        const finalArrival = distanceFromBottom() <= bottomThreshold;
+        scheduled = false;
+        programmatic = false;
+        followingLatest = finalArrival;
+        if (followingLatest) unreadMessages = 0;
+        publishState();
+        if (!finalArrival) scrollToLatest({ behavior: "auto", force: true });
+      });
+      return;
+    }
+
+    window.requestAnimationFrame(() =>
+      settleProgrammaticScroll(generation, frame + 1, nextStableFrames),
+    );
   };
 
   const scrollToLatest = ({ behavior = "smooth", force = false } = {}) => {
@@ -27,32 +114,42 @@
     if (scheduled) return true;
     scheduled = true;
     programmatic = true;
+    const generation = ++scrollGeneration;
     window.requestAnimationFrame(() => {
+      if (generation !== scrollGeneration) return;
       feed.scrollTo({ top: feed.scrollHeight, behavior });
-      scheduled = false;
-      window.setTimeout(() => {
-        programmatic = false;
-        followingLatest = distanceFromBottom() <= bottomThreshold;
-        publishState();
-      }, behavior === "smooth" ? 280 : 0);
+      window.requestAnimationFrame(() => settleProgrammaticScroll(generation));
     });
     return true;
   };
 
   const pauseFollowing = () => {
+    cancelProgrammaticScroll();
     if (distanceFromBottom() > bottomThreshold) {
       followingLatest = false;
       publishState();
     }
   };
 
+  const resume = (behavior = "smooth") => {
+    unreadMessages = 0;
+    publishState();
+    scrollToLatest({ behavior, force: true });
+  };
+
+  jump.addEventListener("click", () => resume("smooth"));
   feed.addEventListener("scroll", syncFromPosition, { passive: true });
   feed.addEventListener("wheel", pauseFollowing, { passive: true });
   feed.addEventListener("touchstart", pauseFollowing, { passive: true });
   feed.addEventListener("pointerdown", pauseFollowing, { passive: true });
 
   const observer = new MutationObserver(() => {
+    const nextMessageCount = feed.querySelectorAll(".vh-chat-message").length;
+    const addedMessages = Math.max(0, nextMessageCount - knownMessageCount);
+    knownMessageCount = nextMessageCount;
+    if (!followingLatest && addedMessages > 0) unreadMessages += addedMessages;
     scrollToLatest({ behavior: "auto" });
+    publishState();
   });
   observer.observe(feed, {
     childList: true,
@@ -62,11 +159,8 @@
 
   window.VulnHunterConversationScroll = {
     isFollowingLatest: () => followingLatest,
-    resume: (behavior = "smooth") => {
-      followingLatest = true;
-      publishState();
-      scrollToLatest({ behavior, force: true });
-    },
+    unreadCount: () => unreadMessages,
+    resume,
     scrollToLatest,
   };
 

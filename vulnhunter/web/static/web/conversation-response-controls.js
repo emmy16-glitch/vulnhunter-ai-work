@@ -30,6 +30,19 @@
     script.dataset.richContentLoader = "true";
     document.head.append(script);
   }
+  if (current && !document.querySelector("script[data-conversation-draft-loader]")) {
+    const draftUrl = new URL(current, window.location.href);
+    draftUrl.pathname = draftUrl.pathname.replace(
+      /conversation-response-controls\.js$/,
+      "conversation-draft.js",
+    );
+    draftUrl.search = "?v=20260801-draft1";
+    const script = document.createElement("script");
+    script.src = draftUrl.toString();
+    script.async = false;
+    script.dataset.conversationDraftLoader = "true";
+    document.head.append(script);
+  }
 
   const workspace = document.querySelector("[data-conversation-workspace]");
   const dataElement = document.getElementById("vh-conversation-data");

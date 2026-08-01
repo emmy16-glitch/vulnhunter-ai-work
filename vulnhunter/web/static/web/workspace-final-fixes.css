@@ -168,7 +168,7 @@
   }
 
   .vh-background-upload-dock {
-    bottom: calc(10.5rem + env(safe-area-inset-bottom, 0px));
+    bottom: calc(14rem + env(safe-area-inset-bottom, 0px));
   }
 }
 

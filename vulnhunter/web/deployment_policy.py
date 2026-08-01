@@ -41,9 +41,7 @@ class DeploymentConfiguration:
             debug=bool(settings.DEBUG),
             secret_key=str(settings.SECRET_KEY),
             allowed_hosts=tuple(str(item).strip() for item in settings.ALLOWED_HOSTS),
-            csrf_trusted_origins=tuple(
-                str(item).strip() for item in settings.CSRF_TRUSTED_ORIGINS
-            ),
+            csrf_trusted_origins=tuple(str(item).strip() for item in settings.CSRF_TRUSTED_ORIGINS),
             use_https=bool(settings.USE_HTTPS),
             session_cookie_secure=bool(settings.SESSION_COOKIE_SECURE),
             session_cookie_httponly=bool(settings.SESSION_COOKIE_HTTPONLY),
@@ -69,9 +67,7 @@ class DeploymentPolicyReport:
         return {
             "mode": self.mode,
             "status": "ready" if self.ready else "unready",
-            "checks": {
-                name: "ok" if passed else "failed" for name, passed in self.checks
-            },
+            "checks": {name: "ok" if passed else "failed" for name, passed in self.checks},
         }
 
 
@@ -79,9 +75,7 @@ def _secret_is_strong(value: str) -> bool:
     normalized = value.strip().lower()
     if len(value.strip()) < 32 or len(set(value)) < 8:
         return False
-    return normalized not in _WEAK_SECRET_VALUES and not normalized.startswith(
-        "django-insecure-"
-    )
+    return normalized not in _WEAK_SECRET_VALUES and not normalized.startswith("django-insecure-")
 
 
 def _hosts_are_explicit(hosts: tuple[str, ...]) -> bool:
@@ -95,9 +89,7 @@ def _host_is_public(host: str) -> bool:
     if normalized.endswith(_LOCAL_HOST_SUFFIXES):
         return False
     candidate = (
-        normalized[1:-1]
-        if normalized.startswith("[") and normalized.endswith("]")
-        else normalized
+        normalized[1:-1] if normalized.startswith("[") and normalized.endswith("]") else normalized
     )
     try:
         address = ipaddress.ip_address(candidate)

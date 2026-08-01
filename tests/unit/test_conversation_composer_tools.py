@@ -62,6 +62,19 @@ def test_composer_prompt_menu_closes_with_escape_from_any_focus_target() -> None
     assert 'trigger.setAttribute("aria-expanded", "false")' in script
 
 
+def test_prompt_menu_waits_for_its_responsive_styles() -> None:
+    script = SCRIPT.read_text(encoding="utf-8")
+
+    assert "let composerStylesLoaded = false" in script
+    assert "let composerStylesPromise = Promise.resolve(true)" in script
+    assert 'styleLink.addEventListener("load"' in script
+    assert 'styleLink.addEventListener("error"' in script
+    assert "trigger.disabled = !composerStylesLoaded" in script
+    assert "if (!composerStylesLoaded) return false" in script
+    assert "composerStylesPromise.then((loaded)" in script
+    assert "stylesReady: () => composerStylesLoaded" in script
+
+
 def test_composer_tools_use_self_hosted_responsive_styles() -> None:
     script = SCRIPT.read_text(encoding="utf-8")
     styles = STYLES.read_text(encoding="utf-8")
@@ -74,3 +87,6 @@ def test_composer_tools_use_self_hosted_responsive_styles() -> None:
     assert ".vh-composer-counter" in styles
     assert ".vh-composer-prompt-empty" in styles
     assert "@media (max-width: 640px)" in styles
+    assert "var(--vh-phone-composer-clearance" in styles
+    assert "env(safe-area-inset-bottom)" in styles
+    assert "100dvh" in styles

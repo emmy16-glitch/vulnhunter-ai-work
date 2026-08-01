@@ -26,6 +26,14 @@ def test_recent_prompts_use_only_current_thread_user_messages() -> None:
     assert "maximumValueLength = 4000" in script
 
 
+def test_recent_prompts_appear_before_starter_prompts_on_phone() -> None:
+    script = SCRIPT.read_text(encoding="utf-8")
+
+    assert "list.prepend(section)" in script
+    assert 'title.textContent = "Recent prompts"' in script
+    assert 'meta.textContent = index === 0 ? "Most recent"' in script
+
+
 def test_recent_prompts_only_insert_text_and_never_persist_or_submit() -> None:
     script = SCRIPT.read_text(encoding="utf-8")
 

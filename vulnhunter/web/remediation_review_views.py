@@ -26,10 +26,10 @@ from vulnhunter.findings import (
 from vulnhunter.security import redact_text
 from vulnhunter.web.remediation_assessment_graph import project_remediation_finding
 from vulnhunter.web.remediation_conversation_state import (
-    remember_remediation_workspace,
     remediation_detail_url,
     remediation_finding_store,
     remediation_workspace_url,
+    remember_remediation_workspace,
 )
 from vulnhunter.web.remediation_review_service import (
     remediation_review_receipt_store,
@@ -99,9 +99,7 @@ def _optional_boolean(value: str) -> bool | None:
 def _limitations(value: str) -> tuple[str, ...]:
     pieces = re.split(r"[\n,]+", value)
     cleaned = tuple(
-        redact_text(" ".join(piece.split()))[:1_000]
-        for piece in pieces
-        if piece.strip()
+        redact_text(" ".join(piece.split()))[:1_000] for piece in pieces if piece.strip()
     )
     if len(cleaned) > 100:
         raise ValueError("No more than 100 bounded limitations are allowed.")
@@ -155,21 +153,11 @@ def remediation_review_view(request: HttpRequest, finding_id: str) -> HttpRespon
 
     if request.method == "POST":
         submitted = {
-            "evidence_lineage_complete": request.POST.get(
-                "evidence_lineage_complete", "unknown"
-            ),
-            "fixed_revision_matches": request.POST.get(
-                "fixed_revision_matches", "unknown"
-            ),
-            "approved_scope_respected": request.POST.get(
-                "approved_scope_respected", "unknown"
-            ),
-            "security_claim_supported": request.POST.get(
-                "security_claim_supported", "unknown"
-            ),
-            "regressions_acceptable": request.POST.get(
-                "regressions_acceptable", "unknown"
-            ),
+            "evidence_lineage_complete": request.POST.get("evidence_lineage_complete", "unknown"),
+            "fixed_revision_matches": request.POST.get("fixed_revision_matches", "unknown"),
+            "approved_scope_respected": request.POST.get("approved_scope_respected", "unknown"),
+            "security_claim_supported": request.POST.get("security_claim_supported", "unknown"),
+            "regressions_acceptable": request.POST.get("regressions_acceptable", "unknown"),
             "rationale": request.POST.get("rationale", "").strip(),
             "limitations": request.POST.get("limitations", "").strip(),
             "blocked_reason": request.POST.get("blocked_reason", "").strip(),
@@ -181,21 +169,11 @@ def remediation_review_view(request: HttpRequest, finding_id: str) -> HttpRespon
                 )
             expected_revision = int(request.POST.get("expected_revision", "-1"))
             checklist = RemediationReviewChecklist(
-                evidence_lineage_complete=_optional_boolean(
-                    submitted["evidence_lineage_complete"]
-                ),
-                fixed_revision_matches=_optional_boolean(
-                    submitted["fixed_revision_matches"]
-                ),
-                approved_scope_respected=_optional_boolean(
-                    submitted["approved_scope_respected"]
-                ),
-                security_claim_supported=_optional_boolean(
-                    submitted["security_claim_supported"]
-                ),
-                regressions_acceptable=_optional_boolean(
-                    submitted["regressions_acceptable"]
-                ),
+                evidence_lineage_complete=_optional_boolean(submitted["evidence_lineage_complete"]),
+                fixed_revision_matches=_optional_boolean(submitted["fixed_revision_matches"]),
+                approved_scope_respected=_optional_boolean(submitted["approved_scope_respected"]),
+                security_claim_supported=_optional_boolean(submitted["security_claim_supported"]),
+                regressions_acceptable=_optional_boolean(submitted["regressions_acceptable"]),
             )
             updated, bundle = remediation_review_service().record(
                 finding_id=finding_id,
@@ -255,7 +233,8 @@ def remediation_review_view(request: HttpRequest, finding_id: str) -> HttpRespon
             else:
                 messages.warning(
                     request,
-                    f"Independent review returned {bundle.outcome.value}; report generation remains "
+                    f"Independent review returned {bundle.outcome.value}; report generation "
+                    "remains "
                     "blocked and bounded remediation rework is required.",
                 )
             return redirect(remediation_review_url(finding_id, workspace_id))

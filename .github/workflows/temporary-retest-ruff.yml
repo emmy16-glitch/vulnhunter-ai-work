@@ -1,0 +1,33 @@
+name: Temporary retest Ruff formatting
+
+on:
+  push:
+    branches:
+      - impl/governed-retest-review-readiness
+    paths:
+      - scripts/run_retest_ruff.py
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    if: github.event.head_commit.message == 'Run temporary retest Ruff helper'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: impl/governed-retest-review-readiness
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - run: python -m pip install ruff
+      - run: python scripts/run_retest_ruff.py
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tests/unit/test_governed_retest.py tests/unit/test_governed_retest_web.py tests/unit/test_remediation_fix_graph_projection.py tests/unit/test_retest_assessment_graph.py vulnhunter/assessment_graph/retest.py vulnhunter/assessment_graph/remediation.py vulnhunter/findings/models.py vulnhunter/findings/retest.py vulnhunter/findings/service.py vulnhunter/web/retest_assessment_graph.py vulnhunter/web/retest_conversation_state.py vulnhunter/web/retest_conversation_views.py vulnhunter/web/retest_service.py vulnhunter/web/retest_views.py
+          git diff --cached --exit-code && exit 1 || true
+          git commit -m "Apply Ruff to governed retest batch"
+          git push origin HEAD:impl/governed-retest-review-readiness

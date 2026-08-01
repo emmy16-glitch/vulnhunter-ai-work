@@ -341,13 +341,8 @@ def test_browser_service_release_correction_and_revocation_are_append_only(
             },
         )
         assert response.status_code == 302
-        correction_request = world.publication_store.list_requests_for_finding(
-            "finding-01"
-        )[-1]
-        assert (
-            correction_request.correction_of_publication_id
-            == first_publication.publication_id
-        )
+        correction_request = world.publication_store.list_requests_for_finding("finding-01")[-1]
+        assert correction_request.correction_of_publication_id == first_publication.publication_id
 
         _login(client, users, "release-approver")
         response = client.post(
@@ -375,9 +370,7 @@ def test_browser_service_release_correction_and_revocation_are_append_only(
             },
         )
         assert response.status_code == 302
-        replacement = world.publication_store.publication_for_request(
-            correction_request.request_id
-        )
+        replacement = world.publication_store.publication_for_request(correction_request.request_id)
         assert replacement is not None
         assert world.publication_store.status(first_publication.publication_id) == "superseded"
         correction = world.publication_store.correction_for_publication(
@@ -402,9 +395,7 @@ def test_browser_service_release_correction_and_revocation_are_append_only(
         )
         assert response.status_code == 302
         assert world.publication_store.status(replacement.publication_id) == "revoked"
-        revocation = world.publication_store.revocation_for_publication(
-            replacement.publication_id
-        )
+        revocation = world.publication_store.revocation_for_publication(replacement.publication_id)
         assert revocation is not None
         assert revocation.authority_id == "release-revoker"
         replacement_directory = world.destination_root / replacement.publication_id

@@ -32,6 +32,21 @@ async function login(page) {
       await page.locator("[data-conversation-form]").waitFor({ state: "visible" });
       await page.locator("select[data-provider-preference]").waitFor({ state: "visible" });
       await page.locator("[data-stop-response]").waitFor({ state: "attached" });
+      await page.locator("[data-draft-status]").waitFor({ state: "attached" });
+
+      const draftProbe = `Recovered phone draft ${viewport.width}`;
+      let input = page.locator("[data-conversation-input]");
+      await input.fill(draftProbe);
+      await page.waitForTimeout(500);
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await page.locator("[data-conversation-form]").waitFor({ state: "visible" });
+      await page.locator("select[data-provider-preference]").waitFor({ state: "visible" });
+      await page.locator("[data-stop-response]").waitFor({ state: "attached" });
+      await page.locator("[data-draft-status]").waitFor({ state: "attached" });
+      input = page.locator("[data-conversation-input]");
+      if ((await input.inputValue()) !== draftProbe) {
+        throw new Error(`The phone draft was not restored after reload at ${viewport.width}px`);
+      }
 
       const layout = await page.evaluate(async () => {
         const composer = document.querySelector("[data-conversation-form]");
@@ -39,7 +54,8 @@ async function login(page) {
         const provider = document.querySelector("[data-provider-runtime]");
         const providerPreference = document.querySelector("select[data-provider-preference]");
         const stopResponse = document.querySelector("[data-stop-response]");
-        if (!composer || !reasoning || !provider || !providerPreference || !stopResponse) {
+        const draftStatus = document.querySelector("[data-draft-status]");
+        if (!composer || !reasoning || !provider || !providerPreference || !stopResponse || !draftStatus) {
           return { missing: true };
         }
 
@@ -59,6 +75,7 @@ async function login(page) {
         const providerRect = provider.getBoundingClientRect();
         const providerPreferenceRect = providerPreference.getBoundingClientRect();
         const stopResponseStyle = getComputedStyle(stopResponse);
+        const draftStatusStyle = getComputedStyle(draftStatus);
         const dockStyle = getComputedStyle(dock);
         const options = [...reasoning.options].map((option) => option.textContent.trim());
         const providerOptions = [...providerPreference.options].map((option) =>
@@ -98,7 +115,11 @@ async function login(page) {
             document.querySelector("link[data-response-controls-styles]"),
           ),
           richStylePresent: Boolean(document.querySelector("link[data-rich-content-styles]")),
+          draftStylePresent: Boolean(
+            document.querySelector("link[data-conversation-draft-styles]"),
+          ),
           stopResponseMinimumHeight: Number.parseFloat(stopResponseStyle.minHeight || "0"),
+          draftStatusFontSize: Number.parseFloat(draftStatusStyle.fontSize || "0"),
           composerVisible: composerRect.width > 0 && composerRect.height > 0,
           composerInsideViewport:
             composerRect.left >= -1 &&
@@ -148,7 +169,13 @@ async function login(page) {
       if (layout.providerOptions.join(",") !== "Auto,Groq,Hugging Face") {
         throw new Error(`Provider options are incomplete: ${layout.providerOptions.join(",")}`);
       }
-      if (!layout.responseStylePresent || !layout.richStylePresent || layout.stopResponseMinimumHeight < 32) {
+      if (
+        !layout.responseStylePresent ||
+        !layout.richStylePresent ||
+        !layout.draftStylePresent ||
+        layout.stopResponseMinimumHeight < 32 ||
+        layout.draftStatusFontSize <= 0
+      ) {
         throw new Error(`Conversation controls are not styled safely: ${JSON.stringify(layout)}`);
       }
       if (!layout.dockVisible || !layout.dockInsideViewport || layout.overlapsComposer) {
@@ -219,7 +246,6 @@ async function login(page) {
       });
 
       const prompt = "Explain the current workspace provider selection";
-      const input = page.locator("[data-conversation-input]");
       await input.fill(prompt);
       await page.locator("[data-conversation-send]").click();
       const progress = page.locator("[data-progress-mode='validated-stages']");
@@ -236,6 +262,12 @@ async function login(page) {
         .getByText("Stopped waiting for this response. You can retry the last prompt.")
         .waitFor({ state: "visible" });
       await progress.waitFor({ state: "hidden" });
+      for (let attempt = 0; attempt < 40 && (await input.inputValue()) !== prompt; attempt += 1) {
+        await page.waitForTimeout(50);
+      }
+      if ((await input.inputValue()) !== prompt) {
+        throw new Error("The stopped prompt was not restored to the phone composer");
+      }
       if (messageAttempts !== 1) {
         throw new Error(`Expected one stopped request, observed ${messageAttempts}`);
       }
@@ -255,6 +287,14 @@ async function login(page) {
       }
       if (!providerPostData.includes("huggingface")) {
         throw new Error("The selected Hugging Face provider was not submitted with the retried request");
+      }
+      const draftState = await page.evaluate(() => {
+        const api = window.VulnHunterConversationDraft;
+        const key = api?.storageKey || "";
+        return { key, value: key ? window.sessionStorage.getItem(key) : "missing-api" };
+      });
+      if (!draftState.key || draftState.value !== null) {
+        throw new Error(`The successful response did not clear its session draft: ${JSON.stringify(draftState)}`);
       }
       const runtimeText = await page.locator("[data-provider-runtime]").textContent();
       if (!/Hugging Face answered/i.test(runtimeText || "")) {
@@ -292,6 +332,7 @@ async function login(page) {
         throw new Error("Edit did not restore the user prompt to the composer");
       }
       await input.fill("");
+      await page.waitForTimeout(400);
       await page.unroute(absoluteMessageUrl);
 
       const startUrl = await page
@@ -365,7 +406,7 @@ async function login(page) {
       await context.close();
     }
     console.log(
-      "Phone provider selection, stop waiting, retry, safe rich answers, copy/edit controls, upload recovery and layout acceptance passed.",
+      "Phone provider selection, session drafts, stop waiting, retry, safe rich answers, copy/edit controls, upload recovery and layout acceptance passed.",
     );
   } finally {
     await browser.close();

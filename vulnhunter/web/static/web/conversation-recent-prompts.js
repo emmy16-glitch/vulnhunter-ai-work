@@ -56,7 +56,7 @@
   const options = document.createElement("div");
   options.className = "vh-composer-recent-options";
   section.append(heading, options);
-  list.insertBefore(section, empty);
+  list.prepend(section);
 
   const promptValues = () => {
     const seen = new Set();

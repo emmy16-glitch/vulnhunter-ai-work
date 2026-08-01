@@ -163,8 +163,7 @@ class PublicationStore:
         """Return verified publications for one finding in deterministic time order."""
 
         records = [
-            self.load_publication(identifier)
-            for identifier in self._identifiers("publications")
+            self.load_publication(identifier) for identifier in self._identifiers("publications")
         ]
         matched = [record for record in records if record.source_finding_id == finding_id]
         matched.sort(key=lambda item: (item.published_at, item.publication_id))

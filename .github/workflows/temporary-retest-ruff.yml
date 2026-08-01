@@ -1,18 +1,33 @@
 name: Temporary retest Ruff formatting
 
 on:
-  push:
+  pull_request:
     branches:
-      - impl/governed-retest-review-readiness
+      - main
     paths:
+      - .github/workflows/temporary-retest-ruff.yml
       - scripts/run_retest_ruff.py
+      - tests/unit/test_governed_retest.py
+      - tests/unit/test_governed_retest_web.py
+      - tests/unit/test_remediation_fix_graph_projection.py
+      - tests/unit/test_retest_assessment_graph.py
+      - vulnhunter/assessment_graph/retest.py
+      - vulnhunter/assessment_graph/remediation.py
+      - vulnhunter/findings/models.py
+      - vulnhunter/findings/retest.py
+      - vulnhunter/findings/service.py
+      - vulnhunter/web/retest_assessment_graph.py
+      - vulnhunter/web/retest_conversation_state.py
+      - vulnhunter/web/retest_conversation_views.py
+      - vulnhunter/web/retest_service.py
+      - vulnhunter/web/retest_views.py
 
 permissions:
   contents: write
 
 jobs:
   format:
-    if: github.event.head_commit.message == 'Run temporary retest Ruff helper'
+    if: github.head_ref == 'impl/governed-retest-review-readiness' && github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6

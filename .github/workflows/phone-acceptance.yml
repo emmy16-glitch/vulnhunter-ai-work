@@ -54,6 +54,7 @@ jobs:
           node --check tests/ui/phone_acceptance_e2e.cjs
           node --check tests/ui/phone_composer_tools_e2e.cjs
           node --check tests/ui/phone_jump_latest_e2e.cjs
+          node --check tests/ui/phone_recent_prompts_e2e.cjs
 
       - name: Install application and Chromium
         run: |
@@ -98,6 +99,12 @@ jobs:
           set -o pipefail
           node tests/ui/phone_composer_tools_e2e.cjs 2>&1 | tee /tmp/vh-phone/composer-tools.log
 
+      - name: Verify phone recent prompt reuse
+        shell: bash
+        run: |
+          set -o pipefail
+          node tests/ui/phone_recent_prompts_e2e.cjs 2>&1 | tee /tmp/vh-phone/recent-prompts.log
+
       - name: Verify phone jump to latest
         shell: bash
         run: |
@@ -114,6 +121,7 @@ jobs:
             /tmp/vh-phone/prepare.log
             /tmp/vh-phone/acceptance.log
             /tmp/vh-phone/composer-tools.log
+            /tmp/vh-phone/recent-prompts.log
             /tmp/vh-phone/jump-latest.log
             /tmp/vh-phone/server.log
           if-no-files-found: warn

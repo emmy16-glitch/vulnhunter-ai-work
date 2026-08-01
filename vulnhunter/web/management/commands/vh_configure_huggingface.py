@@ -11,9 +11,7 @@ from django.core.management.base import BaseCommand, CommandError
 
 
 class Command(BaseCommand):
-    help = (
-        "Store an owner-only Hugging Face token and verify the exact web conversation path."
-    )
+    help = "Store an owner-only Hugging Face token and verify the exact web conversation path."
 
     def add_arguments(self, parser) -> None:
         parser.add_argument(

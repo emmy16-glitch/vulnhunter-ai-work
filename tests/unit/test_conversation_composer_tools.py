@@ -40,6 +40,15 @@ def test_composer_tools_expose_clear_and_character_count() -> None:
     assert "input.maxLength" in script
 
 
+def test_composer_prompt_menu_closes_with_escape_from_any_focus_target() -> None:
+    script = SCRIPT.read_text(encoding="utf-8")
+
+    assert 'document.addEventListener("keydown"' in script
+    assert 'event.key !== "Escape" || menu.hidden' in script
+    assert 'closeMenu({ focusTrigger: true })' in script
+    assert 'trigger.setAttribute("aria-expanded", "false")' in script
+
+
 def test_composer_tools_use_self_hosted_responsive_styles() -> None:
     script = SCRIPT.read_text(encoding="utf-8")
     styles = STYLES.read_text(encoding="utf-8")

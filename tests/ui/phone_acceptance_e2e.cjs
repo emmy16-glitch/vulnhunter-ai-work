@@ -33,6 +33,7 @@ async function login(page) {
       await page.locator("select[data-provider-preference]").waitFor({ state: "visible" });
       await page.locator("[data-stop-response]").waitFor({ state: "attached" });
       await page.locator("[data-draft-status]").waitFor({ state: "attached" });
+      await page.locator("[data-conversation-search-trigger]").waitFor({ state: "visible" });
 
       const draftProbe = `Recovered phone draft ${viewport.width}`;
       let input = page.locator("[data-conversation-input]");
@@ -43,6 +44,7 @@ async function login(page) {
       await page.locator("select[data-provider-preference]").waitFor({ state: "visible" });
       await page.locator("[data-stop-response]").waitFor({ state: "attached" });
       await page.locator("[data-draft-status]").waitFor({ state: "attached" });
+      await page.locator("[data-conversation-search-trigger]").waitFor({ state: "visible" });
       input = page.locator("[data-conversation-input]");
       if ((await input.inputValue()) !== draftProbe) {
         throw new Error(`The phone draft was not restored after reload at ${viewport.width}px`);
@@ -55,7 +57,16 @@ async function login(page) {
         const providerPreference = document.querySelector("select[data-provider-preference]");
         const stopResponse = document.querySelector("[data-stop-response]");
         const draftStatus = document.querySelector("[data-draft-status]");
-        if (!composer || !reasoning || !provider || !providerPreference || !stopResponse || !draftStatus) {
+        const searchTrigger = document.querySelector("[data-conversation-search-trigger]");
+        if (
+          !composer ||
+          !reasoning ||
+          !provider ||
+          !providerPreference ||
+          !stopResponse ||
+          !draftStatus ||
+          !searchTrigger
+        ) {
           return { missing: true };
         }
 
@@ -74,6 +85,7 @@ async function login(page) {
         const reasoningRect = reasoning.getBoundingClientRect();
         const providerRect = provider.getBoundingClientRect();
         const providerPreferenceRect = providerPreference.getBoundingClientRect();
+        const searchTriggerRect = searchTrigger.getBoundingClientRect();
         const stopResponseStyle = getComputedStyle(stopResponse);
         const draftStatusStyle = getComputedStyle(draftStatus);
         const dockStyle = getComputedStyle(dock);
@@ -118,8 +130,12 @@ async function login(page) {
           draftStylePresent: Boolean(
             document.querySelector("link[data-conversation-draft-styles]"),
           ),
+          searchStylePresent: Boolean(
+            document.querySelector("link[data-conversation-search-styles]"),
+          ),
           stopResponseMinimumHeight: Number.parseFloat(stopResponseStyle.minHeight || "0"),
           draftStatusFontSize: Number.parseFloat(draftStatusStyle.fontSize || "0"),
+          searchTriggerVisible: searchTriggerRect.width > 0 && searchTriggerRect.height > 0,
           composerVisible: composerRect.width > 0 && composerRect.height > 0,
           composerInsideViewport:
             composerRect.left >= -1 &&
@@ -173,6 +189,8 @@ async function login(page) {
         !layout.responseStylePresent ||
         !layout.richStylePresent ||
         !layout.draftStylePresent ||
+        !layout.searchStylePresent ||
+        !layout.searchTriggerVisible ||
         layout.stopResponseMinimumHeight < 32 ||
         layout.draftStatusFontSize <= 0
       ) {
@@ -320,6 +338,54 @@ async function login(page) {
       if (!rawAnswer?.includes("```bash") || !rawAnswer.includes("**Provider:**")) {
         throw new Error("The original assistant answer was not preserved for whole-message copying");
       }
+
+      await page.keyboard.press("Control+f");
+      const searchPanel = page.locator("[data-conversation-search]");
+      await searchPanel.waitFor({ state: "visible" });
+      const searchInput = searchPanel.locator("[data-conversation-search-input]");
+      await searchInput.fill("vh_verify_llm");
+      for (let attempt = 0; attempt < 40; attempt += 1) {
+        if ((await searchPanel.locator("[data-conversation-search-count]").textContent()) === "1 of 1") {
+          break;
+        }
+        await page.waitForTimeout(50);
+      }
+      const searchCount = await searchPanel.locator("[data-conversation-search-count]").textContent();
+      if (searchCount !== "1 of 1") {
+        throw new Error(`Conversation search did not find the fenced command: ${searchCount}`);
+      }
+      if (!(await finalAnswer.evaluate((element) => element.classList.contains("is-search-active")))) {
+        throw new Error("Conversation search did not activate the matching assistant answer");
+      }
+      const searchGeometry = await searchPanel.evaluate((element) => {
+        const rect = element.getBoundingClientRect();
+        return {
+          left: rect.left,
+          right: rect.right,
+          top: rect.top,
+          bottom: rect.bottom,
+          width: rect.width,
+          height: rect.height,
+          innerWidth: window.innerWidth,
+          innerHeight: window.innerHeight,
+        };
+      });
+      if (
+        searchGeometry.width <= 0 ||
+        searchGeometry.height <= 0 ||
+        searchGeometry.left < -1 ||
+        searchGeometry.right > searchGeometry.innerWidth + 1 ||
+        searchGeometry.top < -1 ||
+        searchGeometry.bottom > searchGeometry.innerHeight + 1
+      ) {
+        throw new Error(`Conversation search is outside the phone viewport: ${JSON.stringify(searchGeometry)}`);
+      }
+      await page.keyboard.press("Escape");
+      await searchPanel.waitFor({ state: "hidden" });
+      if (await finalAnswer.evaluate((element) => element.classList.contains("is-search-active"))) {
+        throw new Error("Closing conversation search left the answer highlighted");
+      }
+
       await finalAnswer.getByRole("button", { name: "Copy this answer" }).waitFor({ state: "visible" });
       await finalAnswer
         .getByRole("button", { name: /retry the prompt that produced this answer/i })
@@ -406,7 +472,7 @@ async function login(page) {
       await context.close();
     }
     console.log(
-      "Phone provider selection, session drafts, stop waiting, retry, safe rich answers, copy/edit controls, upload recovery and layout acceptance passed.",
+      "Phone provider selection, session drafts, stop waiting, retry, rich answers, in-thread search, copy/edit controls, upload recovery and layout acceptance passed.",
     );
   } finally {
     await browser.close();

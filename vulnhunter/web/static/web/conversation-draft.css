@@ -39,9 +39,22 @@
 }
 
 @media (max-width: 640px) {
+  .vh-chat-composer-meta {
+    position: relative;
+  }
+
   .vh-draft-status {
-    grid-column: 1 / -1;
-    order: -1;
-    width: 100%;
+    position: absolute;
+    z-index: 4;
+    left: .2rem;
+    bottom: calc(100% + .35rem);
+    max-width: calc(100vw - 2rem);
+    overflow: hidden;
+    padding: .25rem .5rem;
+    border: 1px solid var(--border, #2c302d);
+    border-radius: 999px;
+    background: var(--card-bg, #181a19);
+    box-shadow: 0 .45rem 1.2rem rgba(0, 0, 0, .28);
+    text-overflow: ellipsis;
   }
 }

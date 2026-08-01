@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-from dataclasses import asdict
 
 from django.core.management.base import BaseCommand, CommandError
 

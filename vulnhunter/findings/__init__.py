@@ -8,6 +8,7 @@ from vulnhunter.findings.fix_verification import (
 )
 from vulnhunter.findings.models import (
     EvidenceReference,
+    FinalReportReference,
     Finding,
     FindingSeverity,
     FindingStatus,
@@ -41,6 +42,7 @@ from vulnhunter.findings.store import FindingConflict, FindingStore, FindingStor
 
 __all__ = [
     "EvidenceReference",
+    "FinalReportReference",
     "Finding",
     "FindingConflict",
     "FindingLifecycleError",

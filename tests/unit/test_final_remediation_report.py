@@ -232,7 +232,9 @@ def test_generate_final_report_signs_unreleased_manifest_and_does_not_close(tmp_
     assert report_store.load(bundle.report.report_id) == bundle
     assert finding_store.get(finding.finding_id) == updated
 
-    exported_json = json.loads(report_store.artifact_path(bundle.report.report_id, "json").read_text())
+    exported_json = json.loads(
+        report_store.artifact_path(bundle.report.report_id, "json").read_text()
+    )
     serialized = json.dumps(exported_json)
     assert "test-token" not in serialized
     assert bundle.report.review.outcome == RemediationReviewOutcome.APPROVED

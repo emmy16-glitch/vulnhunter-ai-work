@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import hashlib
 import hmac
-import html
 import json
 import os
 import re
@@ -470,8 +469,7 @@ class BuiltInPdfRenderer:
             output.extend(f"{offset:010d} 00000 n \n".encode())
         output.extend(
             (
-                f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\n"
-                f"startxref\n{xref}\n%%EOF\n"
+                f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF\n"
             ).encode()
         )
         return bytes(output)
@@ -517,7 +515,9 @@ class FinalReportStore:
             )
         expected = {item.format for item in bundle.manifest.artifacts}
         if set(artifacts) != expected:
-            raise FinalRemediationReportError("final report artifact set does not match its manifest")
+            raise FinalRemediationReportError(
+                "final report artifact set does not match its manifest"
+            )
         staging = Path(tempfile.mkdtemp(prefix=".final-report-", dir=self.root))
         os.chmod(staging, 0o700)
         signed_payload = {
@@ -605,7 +605,9 @@ class FinalReportStore:
             path = directory / artifact.filename
             try:
                 if path.is_symlink():
-                    raise FinalRemediationReportError("final report artifact contains an unsafe symlink")
+                    raise FinalRemediationReportError(
+                        "final report artifact contains an unsafe symlink"
+                    )
                 raw = path.read_bytes()
             except FinalRemediationReportError:
                 raise
@@ -614,7 +616,9 @@ class FinalReportStore:
             if len(raw) != artifact.size_bytes:
                 raise FinalRemediationReportError("final report artifact size failed verification")
             if hashlib.sha256(raw).hexdigest() != artifact.sha256:
-                raise FinalRemediationReportError("final report artifact integrity verification failed")
+                raise FinalRemediationReportError(
+                    "final report artifact integrity verification failed"
+                )
         return bundle
 
     def artifact_path(self, report_id: str, format: str | FinalReportFormat) -> Path:
@@ -706,9 +710,7 @@ class FinalRemediationReportService:
             str(remediation.owner_id or ""): "remediation owner",
             str(getattr(fix_bundle, "builder_id", "")): "implementation builder",
             str(getattr(fix_bundle, "verifier_id", "")): "fix verifier",
-            str(getattr(getattr(retest_bundle, "plan", None), "owner_id", "")): (
-                "retest operator"
-            ),
+            str(getattr(getattr(retest_bundle, "plan", None), "owner_id", "")): ("retest operator"),
             str(getattr(getattr(review_bundle, "plan", None), "reviewer_id", "")): (
                 "independent reviewer"
             ),
@@ -762,7 +764,9 @@ class FinalRemediationReportService:
                     remediation_id=remediation.remediation_id,
                     summary=redact_text(remediation.summary),
                     owner_id=remediation.owner_id or "unknown-owner",
-                    target_references=tuple(redact_text(item) for item in remediation.target_references),
+                    target_references=tuple(
+                        redact_text(item) for item in remediation.target_references
+                    ),
                     regression_test=redact_text(remediation.regression_test or "Unavailable"),
                     verification_recipe=redact_text(
                         remediation.verification_recipe or "Unavailable"
@@ -786,7 +790,9 @@ class FinalRemediationReportService:
                     outcome=latest_retest.outcome,
                     retest_id=latest_retest.retest_id,
                     operator_id=str(
-                        getattr(getattr(retest_bundle, "plan", None), "owner_id", "unknown-operator")
+                        getattr(
+                            getattr(retest_bundle, "plan", None), "owner_id", "unknown-operator"
+                        )
                     ),
                     fixed_revision=latest_retest.fixed_revision,
                 ),
@@ -893,7 +899,9 @@ class FinalRemediationReportService:
         review_bundle,
     ) -> None:
         if str(fix_bundle.fingerprint()) != latest_verification.sha256:
-            raise FinalRemediationReportError("fix-verification receipt failed integrity verification")
+            raise FinalRemediationReportError(
+                "fix-verification receipt failed integrity verification"
+            )
         if str(retest_bundle.fingerprint()) != latest_retest.sha256:
             raise FinalRemediationReportError("retest receipt failed integrity verification")
         if str(review_bundle.fingerprint()) != latest_review.sha256:

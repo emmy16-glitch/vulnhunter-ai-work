@@ -89,9 +89,7 @@ class Command(BaseCommand):
             self.stdout.write(json.dumps(result, sort_keys=True))
             return
         self.stdout.write(
-            self.style.SUCCESS(
-                f"Campaign release package {result['status']}: {package.package_id}"
-            )
+            self.style.SUCCESS(f"Campaign release package {result['status']}: {package.package_id}")
         )
         self.stdout.write(f"Package SHA-256: {package.package_sha256}")
         self.stdout.write(

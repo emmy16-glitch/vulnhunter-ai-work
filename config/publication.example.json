@@ -1,0 +1,20 @@
+{
+  "release_authority_ids": [
+    "release-requester",
+    "release-approver",
+    "release-publisher",
+    "release-revoker"
+  ],
+  "destinations": [
+    {
+      "destination_id": "owner-release-vault",
+      "label": "Owner-controlled local release vault",
+      "kind": "local_directory",
+      "root": "/srv/vulnhunter/releases/owner-release-vault",
+      "allowed_formats": [
+        "json",
+        "html"
+      ]
+    }
+  ]
+}

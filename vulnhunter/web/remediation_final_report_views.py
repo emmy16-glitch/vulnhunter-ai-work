@@ -94,6 +94,13 @@ def remediation_final_report_url(finding_id: str, workspace_id: str | None) -> s
     return base
 
 
+def remediation_publication_url(finding_id: str, workspace_id: str | None) -> str:
+    base = reverse("web-remediation-publication", kwargs={"finding_id": finding_id})
+    if workspace_id:
+        return f"{base}?thread={workspace_id}"
+    return base
+
+
 def remediation_final_report_download_url(
     finding_id: str,
     artifact_format: str,
@@ -261,6 +268,7 @@ def remediation_final_report_view(request: HttpRequest, finding_id: str) -> Http
             "artifact_downloads": artifact_downloads,
             "workspace_return_url": remediation_workspace_url(workspace_id),
             "remediation_url": remediation_detail_url(finding_id, workspace_id),
+            "publication_url": remediation_publication_url(finding_id, workspace_id),
         },
         status=200 if eligible or latest_report is not None else 409,
     )
@@ -311,4 +319,5 @@ __all__ = [
     "remediation_final_report_download_view",
     "remediation_final_report_url",
     "remediation_final_report_view",
+    "remediation_publication_url",
 ]

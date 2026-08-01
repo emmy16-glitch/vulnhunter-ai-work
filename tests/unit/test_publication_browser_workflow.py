@@ -125,9 +125,7 @@ def _patch_world(*, tmp_path, actor_id: str, store, service):
         ),
         publication_runtime_config=Mock(return_value=_runtime(tmp_path)),
         publication_store=Mock(return_value=store),
-        final_report_store=Mock(
-            return_value=SimpleNamespace(load=Mock(return_value=bundle))
-        ),
+        final_report_store=Mock(return_value=SimpleNamespace(load=Mock(return_value=bundle))),
         publication_service=Mock(return_value=service),
     )
 
@@ -208,9 +206,7 @@ def test_approval_action_uses_second_mapped_identity(client, tmp_path):
     release_request = _request()
     store.save_request(release_request)
     service = Mock()
-    service.approve_release.return_value = SimpleNamespace(
-        approval_id="release-approval-01"
-    )
+    service.approve_release.return_value = SimpleNamespace(approval_id="release-approval-01")
 
     with _patch_world(
         tmp_path=tmp_path,

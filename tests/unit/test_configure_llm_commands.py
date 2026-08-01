@@ -21,9 +21,7 @@ def _hidden_values(monkeypatch, module, *values: str) -> None:
     VULNHUNTER_GROQ_ENABLED=True,
     VULNHUNTER_GROQ_API_KEY_FILE="/tmp/overridden-in-test",
 )
-def test_configure_groq_stores_owner_only_key_and_verifies_web_chat(
-    monkeypatch, tmp_path
-) -> None:
+def test_configure_groq_stores_owner_only_key_and_verifies_web_chat(monkeypatch, tmp_path) -> None:
     key_path = tmp_path / "groq.key"
     key = "gsk_test_key_abcdefghijklmnopqrstuvwxyz"
     _hidden_values(monkeypatch, vh_configure_groq, key, key)

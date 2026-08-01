@@ -9,6 +9,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
+from django.urls import reverse
 from django.views.decorators.cache import cache_control
 from django.views.decorators.http import require_http_methods
 
@@ -29,7 +30,6 @@ from vulnhunter.web.remediation_conversation_state import (
     remediation_detail_url,
     remediation_final_report_url,
     remediation_finding_store,
-    remediation_publication_url,
     remediation_workspace_url,
     remember_remediation_workspace,
 )
@@ -86,6 +86,11 @@ def _workspace_id(request: HttpRequest) -> str | None:
     thread = getattr(request, "vulnhunter_thread", None)
     thread_id = getattr(thread, "thread_id", None)
     return str(thread_id) if thread_id is not None else None
+
+
+def remediation_publication_url(finding_id: str, workspace_id: str | None) -> str:
+    base = reverse("web-remediation-publication", kwargs={"finding_id": finding_id})
+    return f"{base}?thread={workspace_id}" if workspace_id else base
 
 
 def _expiry_hours(value: str) -> int:
@@ -379,4 +384,4 @@ def remediation_publication_view(request: HttpRequest, finding_id: str) -> HttpR
     )
 
 
-__all__ = ["remediation_publication_view"]
+__all__ = ["remediation_publication_url", "remediation_publication_view"]

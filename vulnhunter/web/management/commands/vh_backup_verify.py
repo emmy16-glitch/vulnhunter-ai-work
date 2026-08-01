@@ -19,8 +19,6 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         del args
         report = verify_backup_bundle(Path(options["bundle"]))
-        self.stdout.write(
-            json.dumps(report.as_payload(), separators=(",", ":"), sort_keys=True)
-        )
+        self.stdout.write(json.dumps(report.as_payload(), separators=(",", ":"), sort_keys=True))
         if not report.valid:
             raise CommandError("VulnHunter backup verification failed.")

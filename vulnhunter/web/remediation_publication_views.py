@@ -211,9 +211,7 @@ def remediation_publication_view(request: HttpRequest, finding_id: str) -> HttpR
                         "A verified signed final report is required before release "
                         "can be requested."
                     )
-                correction_id = (
-                    request.POST.get("correction_of_publication_id", "").strip() or None
-                )
+                correction_id = request.POST.get("correction_of_publication_id", "").strip() or None
                 release_request = service.request_release(
                     report_id=latest_report.report_id,
                     destination_id=request.POST.get("destination_id", ""),
@@ -233,9 +231,7 @@ def remediation_publication_view(request: HttpRequest, finding_id: str) -> HttpR
                 request_id = request.POST.get("request_id", "").strip()
                 release_request = store.load_request(request_id)
                 if release_request.source_finding_id != finding_id:
-                    raise PublicationServiceError(
-                        "release request does not belong to this finding"
-                    )
+                    raise PublicationServiceError("release request does not belong to this finding")
                 approval = service.approve_release(
                     request_id=request_id,
                     approver_id=actor_id,
@@ -251,9 +247,7 @@ def remediation_publication_view(request: HttpRequest, finding_id: str) -> HttpR
                 release_request = store.load_request(request_id)
                 approval = store.load_approval(approval_id)
                 if release_request.source_finding_id != finding_id:
-                    raise PublicationServiceError(
-                        "release request does not belong to this finding"
-                    )
+                    raise PublicationServiceError("release request does not belong to this finding")
                 if approval.request_id != release_request.request_id:
                     raise PublicationServiceError(
                         "release approval does not belong to the selected request"

@@ -94,7 +94,11 @@ def _host_is_public(host: str) -> bool:
         return False
     if normalized.endswith(_LOCAL_HOST_SUFFIXES):
         return False
-    candidate = normalized[1:-1] if normalized.startswith("[") and normalized.endswith("]") else normalized
+    candidate = (
+        normalized[1:-1]
+        if normalized.startswith("[") and normalized.endswith("]")
+        else normalized
+    )
     try:
         address = ipaddress.ip_address(candidate)
     except ValueError:

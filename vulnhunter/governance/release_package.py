@@ -320,7 +320,8 @@ def build_campaign_release_package(
         repository = repositories.get(assignment.scan_database)
         if repository is None:
             raise CampaignReleasePackageError(
-                f"scan repository is unavailable for released observation {assignment.observation_id}"
+                "scan repository is unavailable for released observation "
+                f"{assignment.observation_id}"
             )
         reference = f"{assignment.scan_database}#{assignment.observation_id}"
         review_provenance.append(
@@ -390,7 +391,9 @@ class CampaignReleasePackageStore:
 
     def save(self, package: CampaignReleasePackage) -> bool:
         if campaign_release_package_sha256(package) != package.package_sha256:
-            raise CampaignReleasePackageError("campaign release package failed integrity verification")
+            raise CampaignReleasePackageError(
+                "campaign release package failed integrity verification"
+            )
         destination = self.path_for(package)
         raw = self._encoded(package)
         if destination.exists():
@@ -438,9 +441,13 @@ class CampaignReleasePackageStore:
                 "campaign release package is unavailable or invalid"
             ) from exc
         if package.campaign_id != campaign_id or package.release_id != release_id:
-            raise CampaignReleasePackageError("campaign release package storage key does not match")
+            raise CampaignReleasePackageError(
+                "campaign release package storage key does not match"
+            )
         if campaign_release_package_sha256(package) != package.package_sha256:
-            raise CampaignReleasePackageError("campaign release package failed integrity verification")
+            raise CampaignReleasePackageError(
+                "campaign release package failed integrity verification"
+            )
         return package
 
 

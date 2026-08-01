@@ -30,13 +30,13 @@ async function login(page) {
       await login(page);
       await page.goto(`${baseUrl}/`, { waitUntil: "domcontentloaded" });
       await page.locator("[data-conversation-form]").waitFor({ state: "visible" });
-      await page.locator("[data-provider-preference]").waitFor({ state: "visible" });
+      await page.locator("select[data-provider-preference]").waitFor({ state: "visible" });
 
       const layout = await page.evaluate(() => {
         const composer = document.querySelector("[data-conversation-form]");
         const reasoning = document.querySelector("[data-reasoning-effort]");
         const provider = document.querySelector("[data-provider-runtime]");
-        const providerPreference = document.querySelector("[data-provider-preference]");
+        const providerPreference = document.querySelector("select[data-provider-preference]");
         if (!composer || !reasoning || !provider || !providerPreference) return { missing: true };
 
         const dock = document.createElement("div");
@@ -117,7 +117,7 @@ async function login(page) {
         throw new Error(`Upload dock overlaps or leaves the viewport: ${JSON.stringify(layout)}`);
       }
 
-      const providerSelect = page.locator("[data-provider-preference]");
+      const providerSelect = page.locator("select[data-provider-preference]");
       await providerSelect.selectOption("huggingface");
       for (let attempt = 0; attempt < 80; attempt += 1) {
         if ((await providerSelect.inputValue()) === "huggingface" && (await providerSelect.isEnabled())) {

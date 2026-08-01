@@ -19,6 +19,7 @@ from vulnhunter.taskgraph.store import TaskGraphStoreError
 _FAILED_SAFE_PREFIX = "Remediation failed safely: "
 _REWORK_PREFIX = "Fix verification requires rework: "
 _RETEST_PREFIX = "Governed retest result: "
+_REVIEW_PREFIX = "Independent remediation review: "
 
 
 class RemediationAssessmentGraphService:
@@ -95,6 +96,7 @@ class RemediationAssessmentGraphService:
                     AssessmentStage.EXECUTION,
                     AssessmentStage.EVIDENCE,
                     AssessmentStage.VERIFICATION,
+                    AssessmentStage.REVIEW,
                 }
                 else 1
             )
@@ -204,6 +206,8 @@ class RemediationAssessmentGraphService:
             "ready_for_retest",
             "retest_needs_rework",
             "awaiting_review",
+            "review_needs_rework",
+            "review_approved",
         }:
             return True
         if normalized == "cancelled":
@@ -307,6 +311,20 @@ class RemediationAssessmentGraphService:
             return True
         if normalized == "passed":
             if review.status == NodeStatus.READY:
+                if str(review.last_error or "").startswith(_REVIEW_PREFIX):
+                    graph = self.core._transition(
+                        graph,
+                        node_id=review.node_id,
+                        status=NodeStatus.RUNNING,
+                        last_error=None,
+                    )
+                    review = self.core._stage_node(graph, AssessmentStage.REVIEW)
+                    self.core._transition(
+                        graph,
+                        node_id=review.node_id,
+                        status=NodeStatus.READY,
+                        last_error=None,
+                    )
                 return True
             if review.status != NodeStatus.PENDING:
                 raise AssessmentGraphError("terminal remediation review cannot be reopened")
@@ -328,6 +346,71 @@ class RemediationAssessmentGraphService:
             starting_stage=AssessmentStage.REVIEW,
             reason=marker if reason is None else f"{marker}; reason={reason[:1_000]}",
         )
+        return True
+
+    def project_review_decision(
+        self,
+        remediation_id: str,
+        *,
+        receipt_id: str,
+        outcome: str,
+        reason: str | None = None,
+    ) -> bool:
+        """Project one signed human review while keeping report generation separate."""
+
+        graph = self.core._load_optional(remediation_id)
+        if graph is None:
+            return False
+        normalized = outcome.strip().casefold()
+        review = self.core._stage_node(graph, AssessmentStage.REVIEW)
+        report = self.core._stage_node(graph, AssessmentStage.REPORT)
+        marker = f"{_REVIEW_PREFIX}{normalized}; receipt={receipt_id}"
+        if normalized == "approved":
+            if review.status == NodeStatus.COMPLETED and review.last_error == marker:
+                return True
+            if review.status != NodeStatus.READY:
+                raise AssessmentGraphError("remediation review is not ready for approval")
+            graph = self.core._transition(
+                graph,
+                node_id=review.node_id,
+                status=NodeStatus.RUNNING,
+                last_error=None,
+            )
+            review = self.core._stage_node(graph, AssessmentStage.REVIEW)
+            graph = self.core._transition(
+                graph,
+                node_id=review.node_id,
+                status=NodeStatus.COMPLETED,
+                last_error=marker,
+            )
+            report = self.core._stage_node(graph, AssessmentStage.REPORT)
+            if report.status == NodeStatus.PENDING:
+                self.core._transition(
+                    graph,
+                    node_id=report.node_id,
+                    status=NodeStatus.READY,
+                    last_error=None,
+                )
+            return True
+        if review.status == NodeStatus.READY and review.last_error == marker:
+            return True
+        if review.status != NodeStatus.READY:
+            raise AssessmentGraphError("remediation review is not accepting another decision")
+        graph = self.core._transition(
+            graph,
+            node_id=review.node_id,
+            status=NodeStatus.RUNNING,
+            last_error=None,
+        )
+        review = self.core._stage_node(graph, AssessmentStage.REVIEW)
+        self.core._transition(
+            graph,
+            node_id=review.node_id,
+            status=NodeStatus.READY,
+            last_error=marker if reason is None else f"{marker}; reason={reason[:1_000]}",
+        )
+        if report.status != NodeStatus.PENDING:
+            raise AssessmentGraphError("report stage changed before review approval")
         return True
 
     def _complete_attempt_stage(
@@ -383,10 +466,25 @@ class RemediationAssessmentGraphService:
             else ""
         )
         review = str(review_node.get("status")) if isinstance(review_node, dict) else None
+        report_node = by_stage.get(AssessmentStage.REPORT.value)
+        report = str(report_node.get("status")) if isinstance(report_node, dict) else None
         review_error = (
             str(review_node.get("last_error") or "") if isinstance(review_node, dict) else ""
         )
-        if review == NodeStatus.READY.value:
+        if review == NodeStatus.COMPLETED.value and report == NodeStatus.READY.value:
+            payload["chat_stage"] = "remediation_review_approved_ready_for_report"
+            payload["report_state"] = "ready_for_generation"
+        elif review == NodeStatus.READY.value and review_error.startswith(_REVIEW_PREFIX):
+            if "changes_requested" in review_error:
+                payload["chat_stage"] = "remediation_review_requires_rework"
+                payload["report_state"] = "blocked_review_rework"
+            elif "cannot_verify" in review_error:
+                payload["chat_stage"] = "remediation_review_cannot_verify"
+                payload["report_state"] = "blocked_review_uncertain"
+            else:
+                payload["chat_stage"] = "remediation_review_blocked"
+                payload["report_state"] = "blocked_review_unavailable"
+        elif review == NodeStatus.READY.value:
             payload["chat_stage"] = "retest_passed_awaiting_independent_review"
             payload["report_state"] = "blocked_pending_independent_review"
         elif review == NodeStatus.CANCELLED.value and review_error.startswith(_RETEST_PREFIX):
@@ -461,6 +559,23 @@ class RemediationAssessmentGraphService:
             ):
                 statuses[stage] = NodeStatus.COMPLETED
             statuses[AssessmentStage.REVIEW] = NodeStatus.READY
+        elif normalized == "review_needs_rework":
+            for stage in (
+                AssessmentStage.EXECUTION,
+                AssessmentStage.EVIDENCE,
+                AssessmentStage.VERIFICATION,
+                AssessmentStage.REVIEW,
+            ):
+                statuses[stage] = NodeStatus.READY
+        elif normalized == "review_approved":
+            for stage in (
+                AssessmentStage.EXECUTION,
+                AssessmentStage.EVIDENCE,
+                AssessmentStage.VERIFICATION,
+                AssessmentStage.REVIEW,
+            ):
+                statuses[stage] = NodeStatus.COMPLETED
+            statuses[AssessmentStage.REPORT] = NodeStatus.READY
         elif normalized == "cancelled":
             for stage in (
                 AssessmentStage.EXECUTION,

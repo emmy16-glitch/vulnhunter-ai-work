@@ -138,9 +138,7 @@ class RemediationReviewBundle(BaseModel):
         created_at: datetime,
     ) -> RemediationReviewBundle:
         normalized_rationale = " ".join(rationale.split())[:5_000]
-        normalized_blocked = (
-            " ".join(blocked_reason.split())[:1_000] if blocked_reason else None
-        )
+        normalized_blocked = " ".join(blocked_reason.split())[:1_000] if blocked_reason else None
         outcome = cls.compute_outcome(checklist, blocked_reason=normalized_blocked)
         canonical = {
             "schema_version": "1.0",
@@ -252,15 +250,11 @@ class RemediationReviewReceiptStore:
             ) from exc
         expected_signature = self._signature(signed_payload)
         if not hmac.compare_digest(signature, expected_signature):
-            raise RemediationReviewError(
-                "remediation review receipt signature verification failed"
-            )
+            raise RemediationReviewError("remediation review receipt signature verification failed")
         payload = signed_payload["bundle"]
         expected_digest = str(signed_payload["bundle_sha256"])
         if sha256_json(payload) != expected_digest:
-            raise RemediationReviewError(
-                "remediation review receipt failed integrity verification"
-            )
+            raise RemediationReviewError("remediation review receipt failed integrity verification")
         try:
             bundle = RemediationReviewBundle.model_validate(payload)
         except ValidationError as exc:
@@ -345,15 +339,11 @@ class RemediationReviewService:
             remediation.owner_id: "remediation owner",
             str(getattr(fix_bundle, "builder_id", "")): "implementation builder",
             str(getattr(fix_bundle, "verifier_id", "")): "fix verifier",
-            str(getattr(getattr(retest_bundle, "plan", None), "owner_id", "")): (
-                "retest operator"
-            ),
+            str(getattr(getattr(retest_bundle, "plan", None), "owner_id", "")): ("retest operator"),
         }
         conflict_role = conflicts.get(normalized_reviewer)
         if conflict_role:
-            raise RemediationReviewError(
-                f"the independent reviewer cannot be the {conflict_role}"
-            )
+            raise RemediationReviewError(f"the independent reviewer cannot be the {conflict_role}")
         try:
             identity = authenticate_identity(
                 self.governance_store,
@@ -371,16 +361,17 @@ class RemediationReviewService:
                 "the fixed-revision receipt failed finding integrity verification"
             )
         if retest_digest != latest_retest.sha256:
-            raise RemediationReviewError(
-                "the retest receipt failed finding integrity verification"
-            )
+            raise RemediationReviewError("the retest receipt failed finding integrity verification")
         fixed_revision = str(getattr(getattr(fix_bundle, "fixed_snapshot", None), "revision", ""))
         retest_fixed_revision = str(
             getattr(getattr(retest_bundle, "plan", None), "fixed_revision", "")
         )
         if not fixed_revision or fixed_revision != latest_verification.fixed_revision:
             raise RemediationReviewError("fix receipt is bound to another fixed revision")
-        if retest_fixed_revision != fixed_revision or latest_retest.fixed_revision != fixed_revision:
+        if (
+            retest_fixed_revision != fixed_revision
+            or latest_retest.fixed_revision != fixed_revision
+        ):
             raise RemediationReviewError("retest receipt is bound to another fixed revision")
 
         now = self.clock().astimezone(UTC)

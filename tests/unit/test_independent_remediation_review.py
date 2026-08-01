@@ -207,9 +207,7 @@ def test_approved_review_is_signed_and_advances_only_to_report_readiness(tmp_pat
 
 def test_negative_checklist_returns_to_bounded_rework(tmp_path):
     _store, finding, service = _world(tmp_path)
-    checklist = _approved_checklist().model_copy(
-        update={"approved_scope_respected": False}
-    )
+    checklist = _approved_checklist().model_copy(update={"approved_scope_respected": False})
 
     updated, bundle = service.record(
         finding_id=finding.finding_id,
@@ -228,9 +226,7 @@ def test_negative_checklist_returns_to_bounded_rework(tmp_path):
 
 def test_unknown_checklist_abstains_and_blocks_report(tmp_path):
     _store, finding, service = _world(tmp_path)
-    checklist = _approved_checklist().model_copy(
-        update={"regressions_acceptable": None}
-    )
+    checklist = _approved_checklist().model_copy(update={"regressions_acceptable": None})
 
     updated, bundle = service.record(
         finding_id=finding.finding_id,

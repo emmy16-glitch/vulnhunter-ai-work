@@ -110,4 +110,4 @@ def test_phone_runtime_contracts_are_wired():
     assert "VulnHunterUploads = { enqueue, retry, cancel" in upload
     assert "Groq unavailable · deterministic fallback" in conversation
     assert "data-provider-runtime" in template
-    assert "bottom: 8.25rem" in upload_css
+    assert "bottom: 10.5rem" in upload_css

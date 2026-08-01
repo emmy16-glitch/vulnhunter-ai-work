@@ -21,6 +21,7 @@
   if (!feed || !composer) return;
 
   const bottomThreshold = 96;
+  const maximumSettleFrames = 90;
   let followingLatest = true;
   let scheduled = false;
   let programmatic = false;
@@ -61,6 +62,19 @@
     publishState();
   };
 
+  const settleProgrammaticScroll = (frame = 0) => {
+    const arrived = distanceFromBottom() <= bottomThreshold;
+    if (arrived || frame >= maximumSettleFrames) {
+      scheduled = false;
+      programmatic = false;
+      followingLatest = arrived;
+      if (followingLatest) unreadMessages = 0;
+      publishState();
+      return;
+    }
+    window.requestAnimationFrame(() => settleProgrammaticScroll(frame + 1));
+  };
+
   const scrollToLatest = ({ behavior = "smooth", force = false } = {}) => {
     if (!force && !followingLatest) return false;
     if (scheduled) return true;
@@ -68,13 +82,7 @@
     programmatic = true;
     window.requestAnimationFrame(() => {
       feed.scrollTo({ top: feed.scrollHeight, behavior });
-      scheduled = false;
-      window.setTimeout(() => {
-        programmatic = false;
-        followingLatest = distanceFromBottom() <= bottomThreshold;
-        if (followingLatest) unreadMessages = 0;
-        publishState();
-      }, behavior === "smooth" ? 280 : 0);
+      window.requestAnimationFrame(() => settleProgrammaticScroll());
     });
     return true;
   };
@@ -87,7 +95,6 @@
   };
 
   const resume = (behavior = "smooth") => {
-    followingLatest = true;
     unreadMessages = 0;
     publishState();
     scrollToLatest({ behavior, force: true });

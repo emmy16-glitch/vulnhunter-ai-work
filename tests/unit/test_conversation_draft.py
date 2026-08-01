@@ -3,6 +3,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "vulnhunter/web/static/web/conversation-draft.js"
 STYLES = ROOT / "vulnhunter/web/static/web/conversation-draft.css"
+BACKGROUND_UPLOAD_STYLES = ROOT / "vulnhunter/web/static/web/background-uploads.css"
 RESPONSE_CONTROLS = ROOT / "vulnhunter/web/static/web/conversation-response-controls.js"
 
 
@@ -58,3 +59,15 @@ def test_draft_status_uses_self_hosted_responsive_styles() -> None:
     assert ".vh-draft-status" in styles
     assert '[data-state="restored"]' in styles
     assert "@media (max-width: 640px)" in styles
+
+
+def test_phone_upload_clearance_tracks_the_real_composer_height() -> None:
+    script = SCRIPT.read_text(encoding="utf-8")
+    upload_styles = BACKGROUND_UPLOAD_STYLES.read_text(encoding="utf-8")
+
+    assert "new ResizeObserver(syncComposerClearance)" in script
+    assert 'style.setProperty("--vh-phone-composer-clearance"' in script
+    assert "window.visualViewport?.addEventListener" in script
+    assert "var(--vh-phone-composer-clearance" in upload_styles
+    assert "env(safe-area-inset-bottom)" in upload_styles
+    assert "100dvh" in upload_styles

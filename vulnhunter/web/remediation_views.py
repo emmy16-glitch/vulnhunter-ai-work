@@ -22,6 +22,7 @@ from vulnhunter.findings import (
     FindingStatus,
     FindingStoreError,
     RemediationFixVerificationError,
+    RemediationReviewError,
     RemediationState,
     VerificationState,
 )
@@ -47,6 +48,8 @@ from vulnhunter.web.remediation_fix_verification import (
     remediation_fix_verification_service,
     remediation_fix_verification_store,
 )
+from vulnhunter.web.remediation_review_service import remediation_review_receipt_store
+from vulnhunter.web.remediation_review_views import remediation_review_url
 from vulnhunter.web.services import WebPermissionDenied, authorized_actor
 
 _FINDING_ID = re.compile(r"\bfinding-[a-z0-9][a-z0-9._-]{0,116}\b")
@@ -627,9 +630,17 @@ def remediation_detail_view(request: HttpRequest, finding_id: str) -> HttpRespon
             )
         except RemediationFixVerificationError:
             verification_bundle = None
+    latest_review = remediation.review_history[-1] if remediation.review_history else None
+    review_bundle = None
+    if latest_review is not None:
+        try:
+            review_bundle = remediation_review_receipt_store().load(latest_review.receipt_id)
+        except RemediationReviewError:
+            review_bundle = None
     active_states = {
         RemediationState.READY_FOR_IMPLEMENTATION,
         RemediationState.NEEDS_REWORK,
+        RemediationState.REVIEW_NEEDS_REWORK,
     }
     return _render(
         request,
@@ -641,12 +652,16 @@ def remediation_detail_view(request: HttpRequest, finding_id: str) -> HttpRespon
             "assessment_graph": graph,
             "latest_verification": latest_verification,
             "verification_bundle": verification_bundle,
+            "latest_review": latest_review,
+            "review_bundle": review_bundle,
             "verification_url": remediation_verify_url(finding_id, workspace_id),
+            "review_url": remediation_review_url(finding_id, workspace_id),
             "workspace_return_url": remediation_workspace_url(workspace_id),
             "can_verify": (
                 remediation.state in active_states
                 and (request.user.is_staff or request.user.is_superuser)
             ),
+            "can_review": remediation.state == RemediationState.AWAITING_REVIEW,
             "can_cancel": (
                 remediation.state in active_states
                 and (request.user.is_staff or request.user.is_superuser)

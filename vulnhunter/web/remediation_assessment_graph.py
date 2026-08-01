@@ -79,6 +79,13 @@ def project_remediation_finding(finding: Finding) -> dict[str, object] | None:
             receipt_id=latest_retest.receipt_id,
             outcome=latest_retest.outcome.value,
         )
+    if remediation.review_history:
+        latest_review = remediation.review_history[-1]
+        service.project_review_decision(
+            remediation.remediation_id,
+            receipt_id=latest_review.receipt_id,
+            outcome=latest_review.outcome.value,
+        )
     return service.status_payload(remediation.remediation_id)
 
 

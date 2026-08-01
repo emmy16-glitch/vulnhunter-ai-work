@@ -12,6 +12,10 @@ from vulnhunter.findings.models import (
     FindingSeverity,
     FindingStatus,
     RemediationRecord,
+    RemediationReviewChecklist,
+    RemediationReviewOutcome,
+    RemediationReviewPlanRecord,
+    RemediationReviewReference,
     RemediationState,
     RemediationVerificationReference,
     RetestOutcome,
@@ -19,6 +23,12 @@ from vulnhunter.findings.models import (
     RetestReceiptReference,
     RetestRecord,
     VerificationState,
+)
+from vulnhunter.findings.remediation_review import (
+    RemediationReviewBundle,
+    RemediationReviewError,
+    RemediationReviewReceiptStore,
+    RemediationReviewService,
 )
 from vulnhunter.findings.retest import (
     GovernedRetestBundle,
@@ -47,6 +57,14 @@ __all__ = [
     "RemediationFixVerificationService",
     "RemediationFixVerificationStore",
     "RemediationRecord",
+    "RemediationReviewBundle",
+    "RemediationReviewChecklist",
+    "RemediationReviewError",
+    "RemediationReviewOutcome",
+    "RemediationReviewPlanRecord",
+    "RemediationReviewReceiptStore",
+    "RemediationReviewReference",
+    "RemediationReviewService",
     "RemediationState",
     "RemediationVerificationReference",
     "RetestOutcome",

@@ -8,6 +8,7 @@
       <p>{{ remediation.summary }}</p>
     </div>
     <div class="vh-page-actions">
+      {% if can_review %}<a class="vh-button-primary" href="{{ review_url }}">Open independent review</a>{% endif %}
       {% if can_verify %}<a class="vh-button-primary" href="{{ verification_url }}">Record implementation and verify</a>{% endif %}
       {% if workspace_return_url %}<a class="vh-button-secondary" href="{{ workspace_return_url }}">Return to chat</a>{% endif %}
       <a class="vh-button-secondary" href="{% url 'web-findings-overview' %}">Findings</a>
@@ -102,6 +103,27 @@
       <p>The independent receipt passed for the exact fixed revision. A separate governed retest must compare before-and-after evidence before review, merge, closure or release.</p>
     </div>
   </section>
+  {% endif %}
+
+
+  {% if latest_review %}
+  <section class="vh-surface">
+    <header class="vh-surface-header"><div><h2>Latest signed independent review</h2><p>This receipt controls report readiness only; it does not merge, close, release or publish.</p></div></header>
+    <div class="vh-surface-body">
+      <dl class="vh-terminal-facts">
+        <div><dt>Receipt ID</dt><dd>{{ latest_review.receipt_id }}</dd></div>
+        <div><dt>Outcome</dt><dd>{{ latest_review.outcome.value }}</dd></div>
+        <div><dt>Reviewer</dt><dd>{{ latest_review.reviewer_id }}</dd></div>
+        <div><dt>Fixed revision</dt><dd><code>{{ latest_review.fixed_revision }}</code></dd></div>
+        <div><dt>Retest receipt</dt><dd>{{ latest_review.retest_receipt_id }}</dd></div>
+        <div><dt>Receipt SHA-256</dt><dd><code>{{ latest_review.sha256 }}</code></dd></div>
+      </dl>
+      {% if review_bundle %}<h3>Review rationale</h3><p>{{ review_bundle.rationale }}</p>{% else %}<div class="vh-alert vh-alert-danger" role="alert">The signed receipt pointer exists, but its immutable bundle could not be verified.</div>{% endif %}
+      <a class="vh-button-secondary" href="{{ review_url }}">Inspect signed review</a>
+    </div>
+  </section>
+  {% elif remediation.state.value == 'awaiting_review' %}
+  <section class="vh-surface"><div class="vh-empty-panel"><h3>Independent review required</h3><p>The governed retest passed. An identity-separated reviewer must evaluate the exact evidence before report generation can become ready.</p><a class="vh-button-primary" href="{{ review_url }}">Open protected review</a></div></section>
   {% endif %}
 
   {% if can_cancel %}

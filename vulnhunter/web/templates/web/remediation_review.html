@@ -1,0 +1,78 @@
+{% extends "web/base.html" %}
+{% block content %}
+<section class="vh-page-shell">
+  <header class="vh-page-header">
+    <div>
+      <p class="vh-eyebrow">Finding {{ finding.finding_id }}</p>
+      <h1>Independent remediation review</h1>
+      <p>Review the exact fixed revision, passed retest and evidence lineage without granting merge, closure, release or publication authority.</p>
+    </div>
+    <div class="vh-page-actions">
+      <a class="vh-button-secondary" href="{{ remediation_url }}">Remediation plan</a>
+      <a class="vh-button-secondary" href="{{ workspace_return_url }}">Return to chat</a>
+    </div>
+  </header>
+
+  <section class="vh-surface">
+    <header class="vh-surface-header"><div><h2>Exact review binding</h2><p>The reviewer identity and every evidence pointer are integrity-bound to one passed retest.</p></div></header>
+    <div class="vh-surface-body">
+      <dl class="vh-terminal-facts">
+        <div><dt>Reviewer</dt><dd>{{ actor_id }}</dd></div>
+        <div><dt>Finding status</dt><dd>{{ finding.status.value }}</dd></div>
+        <div><dt>Finding revision</dt><dd>{{ finding.revision }}</dd></div>
+        <div><dt>Remediation ID</dt><dd>{{ remediation.remediation_id }}</dd></div>
+        <div><dt>Fixed revision</dt><dd><code>{% if latest_retest %}{{ latest_retest.fixed_revision }}{% else %}Unavailable{% endif %}</code></dd></div>
+        <div><dt>Passed retest receipt</dt><dd>{% if latest_retest %}{{ latest_retest.receipt_id }}{% else %}Unavailable{% endif %}</dd></div>
+        <div><dt>Authoritative stage</dt><dd>{% if assessment_graph %}{{ assessment_graph.chat_stage }}{% else %}Unavailable{% endif %}</dd></div>
+        <div><dt>Report state</dt><dd>{% if assessment_graph %}{{ assessment_graph.report_state }}{% else %}Unavailable{% endif %}</dd></div>
+      </dl>
+    </div>
+  </section>
+
+  {% if eligible %}
+  <section class="vh-surface">
+    <header class="vh-surface-header"><div><h2>Evidence-based checklist</h2><p>VulnHunter computes the decision. A false answer requests changes; an unknown answer abstains.</p></div></header>
+    <div class="vh-surface-body">
+      {% if error %}<div class="vh-alert vh-alert-danger" role="alert">{{ error }}</div>{% endif %}
+      <form method="post" class="vh-form-stack">
+        {% csrf_token %}
+        <input type="hidden" name="thread_id" value="{{ request.vulnhunter_thread.thread_id }}">
+        <input type="hidden" name="expected_revision" value="{{ finding.revision }}">
+        <label class="vh-form-field"><span>Is the original-to-retest evidence lineage complete?</span><select name="evidence_lineage_complete"><option value="unknown" {% if submitted.evidence_lineage_complete == 'unknown' %}selected{% endif %}>Unknown — cannot verify</option><option value="true" {% if submitted.evidence_lineage_complete == 'true' %}selected{% endif %}>Yes</option><option value="false" {% if submitted.evidence_lineage_complete == 'false' %}selected{% endif %}>No — changes required</option></select></label>
+        <label class="vh-form-field"><span>Does every receipt bind to the exact fixed revision?</span><select name="fixed_revision_matches"><option value="unknown" {% if submitted.fixed_revision_matches == 'unknown' %}selected{% endif %}>Unknown — cannot verify</option><option value="true" {% if submitted.fixed_revision_matches == 'true' %}selected{% endif %}>Yes</option><option value="false" {% if submitted.fixed_revision_matches == 'false' %}selected{% endif %}>No — changes required</option></select></label>
+        <label class="vh-form-field"><span>Were all source changes inside the approved remediation scope?</span><select name="approved_scope_respected"><option value="unknown" {% if submitted.approved_scope_respected == 'unknown' %}selected{% endif %}>Unknown — cannot verify</option><option value="true" {% if submitted.approved_scope_respected == 'true' %}selected{% endif %}>Yes</option><option value="false" {% if submitted.approved_scope_respected == 'false' %}selected{% endif %}>No — changes required</option></select></label>
+        <label class="vh-form-field"><span>Does the evidence support the claimed security fix?</span><select name="security_claim_supported"><option value="unknown" {% if submitted.security_claim_supported == 'unknown' %}selected{% endif %}>Unknown — cannot verify</option><option value="true" {% if submitted.security_claim_supported == 'true' %}selected{% endif %}>Yes</option><option value="false" {% if submitted.security_claim_supported == 'false' %}selected{% endif %}>No — changes required</option></select></label>
+        <label class="vh-form-field"><span>Are the supplied regression results acceptable?</span><select name="regressions_acceptable"><option value="unknown" {% if submitted.regressions_acceptable == 'unknown' %}selected{% endif %}>Unknown — cannot verify</option><option value="true" {% if submitted.regressions_acceptable == 'true' %}selected{% endif %}>Yes</option><option value="false" {% if submitted.regressions_acceptable == 'false' %}selected{% endif %}>No — changes required</option></select></label>
+        <label class="vh-form-field"><span>Review rationale</span><textarea name="rationale" rows="6" required>{{ submitted.rationale }}</textarea><small>Explain how the exact evidence supports the checklist decision.</small></label>
+        <label class="vh-form-field"><span>Known limitations</span><textarea name="limitations" rows="4">{{ submitted.limitations }}</textarea><small>One bounded limitation per line.</small></label>
+        <label class="vh-form-field"><span>Blocked reason</span><textarea name="blocked_reason" rows="3">{{ submitted.blocked_reason }}</textarea><small>Use only when the review cannot proceed for an external reason.</small></label>
+        <label class="vh-form-field"><span>Governance secret</span><input type="password" name="governance_secret" autocomplete="current-password" required><small>This authenticates the mapped governed reviewer identity and is never accepted from ordinary chat.</small></label>
+        <button class="vh-button-primary" type="submit">Record signed review decision</button>
+      </form>
+    </div>
+  </section>
+  {% endif %}
+
+  {% if latest_review %}
+  <section class="vh-surface">
+    <header class="vh-surface-header"><div><h2>Signed immutable review receipt</h2><p>This decision controls report readiness only. It does not merge code, close the finding, release or publish.</p></div></header>
+    <div class="vh-surface-body">
+      <dl class="vh-terminal-facts">
+        <div><dt>Receipt ID</dt><dd>{{ latest_review.receipt_id }}</dd></div>
+        <div><dt>Outcome</dt><dd>{{ latest_review.outcome.value }}</dd></div>
+        <div><dt>Reviewer</dt><dd>{{ latest_review.reviewer_id }}</dd></div>
+        <div><dt>Reviewer identity digest</dt><dd><code>{{ latest_review.reviewer_identity_sha256 }}</code></dd></div>
+        <div><dt>Fixed revision</dt><dd><code>{{ latest_review.fixed_revision }}</code></dd></div>
+        <div><dt>Retest receipt</dt><dd>{{ latest_review.retest_receipt_id }}</dd></div>
+        <div><dt>Receipt SHA-256</dt><dd><code>{{ latest_review.sha256 }}</code></dd></div>
+      </dl>
+      {% if review_bundle %}
+      <h3>Rationale</h3><p>{{ review_bundle.rationale }}</p>
+      <h3>Limitations</h3>{% if review_bundle.limitations %}<ul class="vh-compact-list">{% for item in review_bundle.limitations %}<li><span>{{ item }}</span></li>{% endfor %}</ul>{% else %}<p>No limitation was recorded.</p>{% endif %}
+      {% else %}<div class="vh-alert vh-alert-danger" role="alert">The review pointer exists, but the signed immutable bundle could not be verified.</div>{% endif %}
+      <div class="vh-empty-panel"><h3>{% if latest_review.outcome.value == 'approved' %}Report generation ready{% else %}Report generation blocked{% endif %}</h3><p>Final report generation, merge, finding closure, release and publication remain separate governed milestones.</p></div>
+    </div>
+  </section>
+  {% endif %}
+</section>
+{% endblock %}

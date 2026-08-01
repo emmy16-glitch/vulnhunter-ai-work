@@ -10,6 +10,8 @@ from vulnhunter.findings.models import (
     Finding,
     FindingStatus,
     RemediationRecord,
+    RemediationReviewOutcome,
+    RemediationReviewReference,
     RemediationState,
     RemediationVerificationReference,
     RetestOutcome,
@@ -144,7 +146,11 @@ class FindingService:
             or remediation is None
             or remediation.remediation_id is None
             or remediation.state
-            not in {RemediationState.READY_FOR_IMPLEMENTATION, RemediationState.NEEDS_REWORK}
+            not in {
+                RemediationState.READY_FOR_IMPLEMENTATION,
+                RemediationState.NEEDS_REWORK,
+                RemediationState.REVIEW_NEEDS_REWORK,
+            }
         ):
             raise FindingLifecycleError(
                 "fix verification requires an active independently verified remediation"
@@ -338,6 +344,66 @@ class FindingService:
         self.store.save(updated, expected_revision=expected_revision)
         return updated
 
+    def record_remediation_review(
+        self,
+        finding_id: str,
+        *,
+        review: RemediationReviewReference,
+        evidence: EvidenceReference,
+        expected_revision: int,
+        now: datetime | None = None,
+    ) -> Finding:
+        """Atomically append one signed independent review without closing the finding."""
+
+        finding = self.store.get(finding_id)
+        if finding.revision != expected_revision:
+            raise FindingConflict(
+                f"finding revision conflict: expected {expected_revision}, found {finding.revision}"
+            )
+        remediation = finding.remediation
+        if (
+            finding.status != FindingStatus.AWAITING_REMEDIATION_REVIEW
+            or remediation is None
+            or remediation.remediation_id is None
+            or remediation.state != RemediationState.AWAITING_REVIEW
+        ):
+            raise FindingLifecycleError(
+                "independent remediation review requires a passed governed retest"
+            )
+        if any(item.evidence_id == review.receipt_id for item in finding.evidence):
+            raise FindingLifecycleError("the remediation review receipt is already linked")
+        if evidence.evidence_id != review.receipt_id or evidence.sha256 != review.sha256:
+            raise FindingLifecycleError("review evidence must match the immutable signed receipt")
+
+        recorded_at = (now or datetime.now(UTC)).astimezone(UTC)
+        if recorded_at < finding.updated_at.astimezone(UTC):
+            raise FindingLifecycleError(
+                "review timestamp cannot predate the current finding revision"
+            )
+        if review.created_at.astimezone(UTC) != recorded_at:
+            raise FindingLifecycleError(
+                "review reference and finding transition must share one timestamp"
+            )
+        updated_remediation = remediation.record_review(review)
+        status = (
+            FindingStatus.READY_FOR_REPORT
+            if review.outcome == RemediationReviewOutcome.APPROVED
+            else FindingStatus.IN_REMEDIATION
+        )
+        updated = Finding.model_validate(
+            finding.model_copy(
+                update={
+                    "status": status,
+                    "remediation": updated_remediation,
+                    "evidence": finding.evidence + (evidence,),
+                    "revision": finding.revision + 1,
+                    "updated_at": recorded_at,
+                }
+            ).model_dump()
+        )
+        self.store.save(updated, expected_revision=expected_revision)
+        return updated
+
     def cancel_remediation(
         self,
         finding_id: str,
@@ -359,7 +425,11 @@ class FindingService:
             or remediation is None
             or remediation.remediation_id is None
             or remediation.state
-            not in {RemediationState.READY_FOR_IMPLEMENTATION, RemediationState.NEEDS_REWORK}
+            not in {
+                RemediationState.READY_FOR_IMPLEMENTATION,
+                RemediationState.NEEDS_REWORK,
+                RemediationState.REVIEW_NEEDS_REWORK,
+            }
         ):
             raise FindingLifecycleError("no active governed remediation plan can be cancelled")
         cancelled_at = (now or datetime.now(UTC)).astimezone(UTC)

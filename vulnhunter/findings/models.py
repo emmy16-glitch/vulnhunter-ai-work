@@ -46,6 +46,7 @@ class FindingStatus(StrEnum):
     READY_FOR_RETEST = "ready_for_retest"
     RETESTING = "retesting"
     AWAITING_REMEDIATION_REVIEW = "awaiting_remediation_review"
+    READY_FOR_REPORT = "ready_for_report"
     REMEDIATED = "remediated"
     ACCEPTED_RISK = "accepted_risk"
     CLOSED = "closed"
@@ -57,6 +58,8 @@ class RemediationState(StrEnum):
     READY_FOR_RETEST = "ready_for_retest"
     RETEST_NEEDS_REWORK = "retest_needs_rework"
     AWAITING_REVIEW = "awaiting_review"
+    REVIEW_NEEDS_REWORK = "review_needs_rework"
+    REVIEW_APPROVED = "review_approved"
     CANCELLED = "cancelled"
     FAILED = "failed"
 
@@ -68,6 +71,25 @@ class RetestOutcome(StrEnum):
     CANNOT_VERIFY = "cannot_verify"
     BLOCKED = "blocked"
     CANCELLED = "cancelled"
+
+
+class RemediationReviewOutcome(StrEnum):
+    APPROVED = "approved"
+    CHANGES_REQUESTED = "changes_requested"
+    CANNOT_VERIFY = "cannot_verify"
+    BLOCKED = "blocked"
+
+
+class RemediationReviewChecklist(BaseModel):
+    """Evidence-based review checklist; unknown values force abstention."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    evidence_lineage_complete: bool | None
+    fixed_revision_matches: bool | None
+    approved_scope_respected: bool | None
+    security_claim_supported: bool | None
+    regressions_acceptable: bool | None
 
 
 class EvidenceReference(BaseModel):
@@ -282,6 +304,153 @@ class RetestReceiptReference(BaseModel):
         return self
 
 
+class RemediationReviewPlanRecord(BaseModel):
+    """Immutable identity-bound review plan for one exact passed retest."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    schema_version: str = "1.0"
+    review_id: str
+    reviewer_id: str
+    reviewer_identity_sha256: str
+    source_finding_revision: int = Field(ge=0)
+    source_finding_fingerprint: str
+    remediation_id: str
+    fix_verification_receipt_id: str
+    retest_receipt_id: str
+    fixed_revision: str = Field(min_length=1, max_length=256)
+    evidence_references: tuple[str, ...] = Field(min_length=1, max_length=500)
+    plan_sha256: str
+    created_at: datetime
+    expires_at: datetime
+
+    @field_validator(
+        "review_id",
+        "reviewer_id",
+        "remediation_id",
+        "fix_verification_receipt_id",
+        "retest_receipt_id",
+    )
+    @classmethod
+    def validate_identifier(cls, value: str) -> str:
+        if _IDENTIFIER.fullmatch(value) is None:
+            raise ValueError("remediation review identifiers must be stable lowercase values")
+        return value
+
+    @field_validator(
+        "reviewer_identity_sha256",
+        "source_finding_fingerprint",
+        "plan_sha256",
+    )
+    @classmethod
+    def validate_sha256(cls, value: str) -> str:
+        if _SHA256.fullmatch(value) is None:
+            raise ValueError("remediation review digest fields must be SHA-256 values")
+        return value
+
+    @field_validator("evidence_references")
+    @classmethod
+    def validate_evidence_references(cls, values: tuple[str, ...]) -> tuple[str, ...]:
+        if len(set(values)) != len(values):
+            raise ValueError("remediation review evidence references must be unique")
+        if any(_IDENTIFIER.fullmatch(value) is None for value in values):
+            raise ValueError("remediation review evidence references must be stable")
+        return values
+
+    @model_validator(mode="after")
+    def validate_times(self) -> Self:
+        for value in (self.created_at, self.expires_at):
+            if value.tzinfo is None or value.utcoffset() is None:
+                raise ValueError("remediation review timestamps must be timezone-aware")
+        if self.expires_at <= self.created_at:
+            raise ValueError("remediation review expiry must follow creation")
+        return self
+
+    @classmethod
+    def create(
+        cls,
+        *,
+        finding_id: str,
+        finding_revision: int,
+        finding_fingerprint: str,
+        remediation_id: str,
+        reviewer_id: str,
+        reviewer_identity_sha256: str,
+        fix_verification_receipt_id: str,
+        retest_receipt_id: str,
+        fixed_revision: str,
+        evidence_references: tuple[str, ...],
+        created_at: datetime,
+        expires_at: datetime,
+    ) -> RemediationReviewPlanRecord:
+        canonical = {
+            "finding_id": finding_id,
+            "finding_revision": finding_revision,
+            "finding_fingerprint": finding_fingerprint,
+            "remediation_id": remediation_id,
+            "reviewer_id": reviewer_id,
+            "reviewer_identity_sha256": reviewer_identity_sha256,
+            "fix_verification_receipt_id": fix_verification_receipt_id,
+            "retest_receipt_id": retest_receipt_id,
+            "fixed_revision": fixed_revision,
+            "evidence_references": list(evidence_references),
+            "created_at": created_at.astimezone(UTC).isoformat(),
+            "expires_at": expires_at.astimezone(UTC).isoformat(),
+        }
+        digest = sha256_json(canonical)
+        return cls(
+            review_id=f"review-{digest[:32]}",
+            reviewer_id=reviewer_id,
+            reviewer_identity_sha256=reviewer_identity_sha256,
+            source_finding_revision=finding_revision,
+            source_finding_fingerprint=finding_fingerprint,
+            remediation_id=remediation_id,
+            fix_verification_receipt_id=fix_verification_receipt_id,
+            retest_receipt_id=retest_receipt_id,
+            fixed_revision=fixed_revision,
+            evidence_references=evidence_references,
+            plan_sha256=digest,
+            created_at=created_at,
+            expires_at=expires_at,
+        )
+
+
+class RemediationReviewReference(BaseModel):
+    """Integrity pointer to one signed independent remediation review."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    receipt_id: str
+    review_id: str
+    sha256: str
+    outcome: RemediationReviewOutcome
+    reviewer_id: str
+    reviewer_identity_sha256: str
+    fixed_revision: str = Field(min_length=1, max_length=256)
+    retest_receipt_id: str
+    created_at: datetime
+
+    @field_validator("receipt_id", "review_id", "reviewer_id", "retest_receipt_id")
+    @classmethod
+    def validate_identifier(cls, value: str) -> str:
+        if _IDENTIFIER.fullmatch(value) is None:
+            raise ValueError("remediation review references require stable identifiers")
+        return value
+
+    @field_validator("sha256", "reviewer_identity_sha256")
+    @classmethod
+    def validate_sha256(cls, value: str) -> str:
+        if _SHA256.fullmatch(value) is None:
+            raise ValueError("remediation review reference requires SHA-256 values")
+        return value
+
+    @model_validator(mode="after")
+    def validate_reference(self) -> Self:
+        if self.created_at.tzinfo is None or self.created_at.utcoffset() is None:
+            raise ValueError("remediation review receipt time must be timezone-aware")
+        return self
+
+
 class RemediationRecord(BaseModel):
     """A legacy note or an exact human-owned remediation plan.
 
@@ -307,6 +476,7 @@ class RemediationRecord(BaseModel):
     compatibility_risks: tuple[str, ...] = ()
     verification_history: tuple[RemediationVerificationReference, ...] = ()
     retest_history: tuple[RetestReceiptReference, ...] = ()
+    review_history: tuple[RemediationReviewReference, ...] = ()
     created_at: datetime | None = None
     expires_at: datetime | None = None
     cancelled_at: datetime | None = None
@@ -348,6 +518,7 @@ class RemediationRecord(BaseModel):
                 self.compatibility_risks,
                 self.verification_history,
                 self.retest_history,
+                self.review_history,
                 self.created_at,
                 self.expires_at,
                 self.cancelled_at,
@@ -393,6 +564,7 @@ class RemediationRecord(BaseModel):
 
         latest_verification = self.verification_history[-1] if self.verification_history else None
         latest_retest = self.retest_history[-1] if self.retest_history else None
+        latest_review = self.review_history[-1] if self.review_history else None
         if self.state == RemediationState.READY_FOR_IMPLEMENTATION:
             if latest_verification is not None or latest_retest is not None:
                 raise ValueError("ready-for-implementation plans cannot have later receipts")
@@ -402,19 +574,80 @@ class RemediationRecord(BaseModel):
         elif self.state == RemediationState.READY_FOR_RETEST:
             if latest_verification is None or latest_verification.verdict != "fixed":
                 raise ValueError("ready-for-retest plans require a fixed verification receipt")
-            if latest_retest is not None and latest_retest.outcome != RetestOutcome.CANCELLED:
-                raise ValueError("ready-for-retest allows only a cancelled prior retest")
+            if (
+                latest_retest is not None
+                and latest_retest.fixed_revision == latest_verification.fixed_revision
+                and latest_retest.outcome != RetestOutcome.CANCELLED
+            ):
+                raise ValueError(
+                    "ready-for-retest requires no completed retest for the latest fixed revision"
+                )
         elif self.state == RemediationState.RETEST_NEEDS_REWORK:
-            if latest_retest is None or latest_retest.outcome not in {
-                RetestOutcome.FAILED,
-                RetestOutcome.PARTIAL,
-                RetestOutcome.CANNOT_VERIFY,
-                RetestOutcome.BLOCKED,
-            }:
-                raise ValueError("retest-needs-rework requires a non-passing retest receipt")
+            if (
+                latest_verification is None
+                or latest_retest is None
+                or latest_retest.fixed_revision != latest_verification.fixed_revision
+                or latest_retest.outcome
+                not in {
+                    RetestOutcome.FAILED,
+                    RetestOutcome.PARTIAL,
+                    RetestOutcome.CANNOT_VERIFY,
+                    RetestOutcome.BLOCKED,
+                }
+            ):
+                raise ValueError(
+                    "retest-needs-rework requires a non-passing retest of the latest fixed revision"
+                )
         elif self.state == RemediationState.AWAITING_REVIEW:
-            if latest_retest is None or latest_retest.outcome != RetestOutcome.PASSED:
-                raise ValueError("awaiting-review remediation requires a passed retest receipt")
+            if (
+                latest_verification is None
+                or latest_verification.verdict != "fixed"
+                or latest_retest is None
+                or latest_retest.outcome != RetestOutcome.PASSED
+                or latest_retest.fixed_revision != latest_verification.fixed_revision
+            ):
+                raise ValueError(
+                    "awaiting-review remediation requires a passed retest of the latest "
+                    "fixed revision"
+                )
+            if (
+                latest_review is not None
+                and latest_review.retest_receipt_id == latest_retest.receipt_id
+            ):
+                raise ValueError("a reviewed retest cannot remain in the awaiting-review state")
+        elif self.state == RemediationState.REVIEW_NEEDS_REWORK:
+            if (
+                latest_verification is None
+                or latest_retest is None
+                or latest_review is None
+                or latest_review.outcome
+                not in {
+                    RemediationReviewOutcome.CHANGES_REQUESTED,
+                    RemediationReviewOutcome.CANNOT_VERIFY,
+                    RemediationReviewOutcome.BLOCKED,
+                }
+                or latest_retest.outcome != RetestOutcome.PASSED
+                or latest_retest.fixed_revision != latest_verification.fixed_revision
+                or latest_review.fixed_revision != latest_verification.fixed_revision
+                or latest_review.retest_receipt_id != latest_retest.receipt_id
+            ):
+                raise ValueError(
+                    "review-needs-rework requires a non-approved review of the latest passed retest"
+                )
+        elif self.state == RemediationState.REVIEW_APPROVED:
+            if (
+                latest_verification is None
+                or latest_retest is None
+                or latest_review is None
+                or latest_review.outcome != RemediationReviewOutcome.APPROVED
+                or latest_retest.outcome != RetestOutcome.PASSED
+                or latest_retest.fixed_revision != latest_verification.fixed_revision
+                or latest_review.fixed_revision != latest_verification.fixed_revision
+                or latest_review.retest_receipt_id != latest_retest.receipt_id
+            ):
+                raise ValueError(
+                    "review-approved remediation requires approval of the latest passed retest"
+                )
 
         if self.state == RemediationState.CANCELLED:
             if self.cancelled_at is None or self.cancellation_reason is None:
@@ -484,6 +717,7 @@ class RemediationRecord(BaseModel):
         if self.state not in {
             RemediationState.READY_FOR_IMPLEMENTATION,
             RemediationState.NEEDS_REWORK,
+            RemediationState.REVIEW_NEEDS_REWORK,
         }:
             raise ValueError("the remediation plan is not accepting implementation receipts")
         if any(item.receipt_id == reference.receipt_id for item in self.verification_history):
@@ -530,6 +764,37 @@ class RemediationRecord(BaseModel):
             ).model_dump()
         )
 
+    def record_review(self, reference: RemediationReviewReference) -> RemediationRecord:
+        if self.remediation_id is None or self.state is None:
+            raise ValueError("legacy remediation notes cannot record governed review")
+        if self.state != RemediationState.AWAITING_REVIEW:
+            raise ValueError("the remediation plan is not accepting an independent review")
+        if any(item.receipt_id == reference.receipt_id for item in self.review_history):
+            raise ValueError("the remediation review receipt is already recorded")
+        latest_verification = self.verification_history[-1] if self.verification_history else None
+        latest_retest = self.retest_history[-1] if self.retest_history else None
+        if latest_verification is None or latest_retest is None:
+            raise ValueError("remediation review requires fixed-verification and retest history")
+        if latest_verification.fixed_revision != reference.fixed_revision:
+            raise ValueError("remediation review is bound to another fixed revision")
+        if latest_retest.fixed_revision != reference.fixed_revision:
+            raise ValueError("remediation review retest is bound to another fixed revision")
+        if latest_retest.receipt_id != reference.retest_receipt_id:
+            raise ValueError("remediation review is bound to another retest receipt")
+        state = (
+            RemediationState.REVIEW_APPROVED
+            if reference.outcome == RemediationReviewOutcome.APPROVED
+            else RemediationState.REVIEW_NEEDS_REWORK
+        )
+        return RemediationRecord.model_validate(
+            self.model_copy(
+                update={
+                    "state": state,
+                    "review_history": self.review_history + (reference,),
+                }
+            ).model_dump()
+        )
+
     def cancel(self, *, cancelled_at: datetime, reason: str) -> RemediationRecord:
         if self.remediation_id is None or self.state is None:
             raise ValueError("legacy remediation notes cannot be cancelled as governed plans")
@@ -539,6 +804,8 @@ class RemediationRecord(BaseModel):
             RemediationState.READY_FOR_RETEST,
             RemediationState.RETEST_NEEDS_REWORK,
             RemediationState.AWAITING_REVIEW,
+            RemediationState.REVIEW_NEEDS_REWORK,
+            RemediationState.REVIEW_APPROVED,
         }:
             raise ValueError("terminal or verified remediation plans cannot be cancelled")
         return RemediationRecord.model_validate(
@@ -647,6 +914,7 @@ class Finding(BaseModel):
                     RemediationState.READY_FOR_IMPLEMENTATION,
                     RemediationState.NEEDS_REWORK,
                     RemediationState.RETEST_NEEDS_REWORK,
+                    RemediationState.REVIEW_NEEDS_REWORK,
                 }
             ):
                 raise ValueError("in-remediation findings require an active governed plan")
@@ -676,6 +944,13 @@ class Finding(BaseModel):
                 or active_plans
             ):
                 raise ValueError("review-ready findings require a passed governed retest")
+        if self.status == FindingStatus.READY_FOR_REPORT:
+            if (
+                self.remediation is None
+                or self.remediation.remediation_id is None
+                or self.remediation.state != RemediationState.REVIEW_APPROVED
+            ):
+                raise ValueError("report-ready findings require approved remediation review")
         if self.status == FindingStatus.REMEDIATED:
             if not self.retests or self.retests[-1].outcome != "passed":
                 raise ValueError("remediated findings require a passed legacy retest")
@@ -737,6 +1012,11 @@ class Finding(BaseModel):
                 != old_remediation.retest_history
             ):
                 raise ValueError("remediation retest history is append-only")
+            if (
+                new_remediation.review_history[: len(old_remediation.review_history)]
+                != old_remediation.review_history
+            ):
+                raise ValueError("remediation review history is append-only")
             if (
                 old_remediation.state
                 in {

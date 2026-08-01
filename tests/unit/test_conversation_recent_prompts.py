@@ -29,7 +29,7 @@ def test_recent_prompts_use_only_current_thread_user_messages() -> None:
 def test_recent_prompts_only_insert_text_and_never_persist_or_submit() -> None:
     script = SCRIPT.read_text(encoding="utf-8")
 
-    assert 'button.dataset.promptValue = value' in script
+    assert "button.dataset.promptValue = value" in script
     assert 'button.dataset.promptSearch = "recent previous history"' in script
     assert "requestSubmit" not in script
     assert ".submit(" not in script

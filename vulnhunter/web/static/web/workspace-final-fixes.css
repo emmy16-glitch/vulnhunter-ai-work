@@ -168,7 +168,9 @@
   }
 
   .vh-background-upload-dock {
-    bottom: calc(14rem + env(safe-area-inset-bottom, 0px));
+    bottom: calc(
+      var(--vh-phone-composer-clearance, 14rem) + env(safe-area-inset-bottom, 0px)
+    );
   }
 }
 

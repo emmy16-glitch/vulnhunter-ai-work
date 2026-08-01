@@ -120,12 +120,14 @@ def test_projection_tracks_published_correction_and_revocation(tmp_path):
 
     history = publication_projection_for_finding("finding-01", store=store)
     assert history["publication_state"] == "published"
-    assert [
-        item["release_state"] for item in history["publication_history"]
-    ] == ["superseded", "published"]
-    assert history["publication_history"][0]["correction"][
-        "replacement_publication_id"
-    ] == second.publication_id
+    assert [item["release_state"] for item in history["publication_history"]] == [
+        "superseded",
+        "published",
+    ]
+    assert (
+        history["publication_history"][0]["correction"]["replacement_publication_id"]
+        == second.publication_id
+    )
 
     revocation = PublicationRevocation.create(
         publication=second,

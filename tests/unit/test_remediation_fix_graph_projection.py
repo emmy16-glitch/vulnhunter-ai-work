@@ -76,7 +76,7 @@ def test_same_receipt_projection_is_idempotent(tmp_path):
     assert first == second
 
 
-def test_later_fixed_receipt_completes_verification_and_opens_retest_boundary(tmp_path):
+def test_later_fixed_receipt_completes_verification_but_not_review(tmp_path):
     service = _service(tmp_path)
     remediation_id = _create(service)
 
@@ -94,9 +94,34 @@ def test_later_fixed_receipt_completes_verification_and_opens_retest_boundary(tm
 
     assert payload is not None
     assert payload["chat_stage"] == "fix_verified_awaiting_retest"
+    assert payload["report_state"] == "blocked_pending_retest"
     nodes = _nodes(payload)
     for stage in ("execution", "evidence", "verification"):
         assert nodes[stage]["status"] == "completed"
         assert nodes[stage]["attempts"] == 2
+    assert nodes["review"]["status"] == "pending"
+    assert nodes["report"]["status"] == "pending"
+
+
+def test_passed_governed_retest_opens_review_and_keeps_report_pending(tmp_path):
+    service = _service(tmp_path)
+    remediation_id = _create(service)
+    service.project_fix_verification(
+        remediation_id,
+        receipt_id="fix-verification-" + "1" * 24,
+        verdict="fixed",
+    )
+
+    assert service.project_retest_outcome(
+        remediation_id,
+        receipt_id="retest-receipt-" + "2" * 24,
+        outcome="passed",
+    )
+    payload = service.status_payload(remediation_id)
+
+    assert payload is not None
+    assert payload["chat_stage"] == "retest_passed_awaiting_independent_review"
+    assert payload["report_state"] == "blocked_pending_independent_review"
+    nodes = _nodes(payload)
     assert nodes["review"]["status"] == "ready"
     assert nodes["report"]["status"] == "pending"

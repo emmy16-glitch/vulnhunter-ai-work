@@ -1,0 +1,81 @@
+{% extends "web/base.html" %}
+{% block content %}
+<section class="vh-page-shell">
+  <header class="vh-page-header">
+    <div>
+      <p class="vh-eyebrow">Finding {{ finding.finding_id }}</p>
+      <h1>Governed retest</h1>
+      <p>Compare original and after-fix evidence for the exact fixed revision without implying review, merge, closure or publication.</p>
+    </div>
+    <div class="vh-page-actions">
+      <a class="vh-button-secondary" href="{{ workspace_return_url }}">Return to chat</a>
+      <a class="vh-button-secondary" href="{{ remediation_url }}">Remediation plan</a>
+    </div>
+  </header>
+
+  <section class="vh-surface">
+    <header class="vh-surface-header"><div><h2>Authoritative state</h2><p>The finding store and child graph are authoritative; the browser cannot select an outcome.</p></div></header>
+    <div class="vh-surface-body">
+      <dl class="vh-terminal-facts">
+        <div><dt>Retest ID</dt><dd>{{ plan.retest_id }}</dd></div>
+        <div><dt>Finding status</dt><dd>{{ finding.status.value }}</dd></div>
+        <div><dt>Finding revision</dt><dd>{{ finding.revision }}</dd></div>
+        <div><dt>Fixed revision</dt><dd><code>{{ plan.fixed_revision }}</code></dd></div>
+        <div><dt>Fix receipt</dt><dd>{{ plan.fix_verification_receipt_id }}</dd></div>
+        <div><dt>Retest stage</dt><dd>{% if assessment_graph %}{{ assessment_graph.chat_stage }}{% else %}Unavailable{% endif %}</dd></div>
+        <div><dt>Report state</dt><dd>{% if assessment_graph %}{{ assessment_graph.report_state }}{% else %}Unavailable{% endif %}</dd></div>
+        <div><dt>Expires</dt><dd>{{ plan.expires_at }}</dd></div>
+      </dl>
+      <h3>Exact checks</h3>
+      <ul class="vh-compact-list">{% for check in plan.check_references %}<li><span>{{ check }}</span></li>{% endfor %}</ul>
+      <h3>Original evidence lineage</h3>
+      <p>{{ plan.before_evidence_ids|join:", " }}</p>
+    </div>
+  </section>
+
+  {% if active %}
+  <section class="vh-surface">
+    <header class="vh-surface-header"><div><h2>Typed before/after evidence</h2><p>JSON is parsed against fixed schemas and never executed. VulnHunter computes the outcome from the supplied evidence and deterministic receipts.</p></div></header>
+    <div class="vh-surface-body">
+      {% if error %}<div class="vh-alert vh-alert-danger" role="alert">{{ error }}</div>{% endif %}
+      <form method="post" class="vh-form-stack">
+        {% csrf_token %}
+        <input type="hidden" name="thread_id" value="{{ request.vulnhunter_thread.thread_id }}">
+        <input type="hidden" name="expected_revision" value="{{ finding.revision }}">
+        <label class="vh-form-field"><span>Original evidence JSON array</span><textarea name="before_evidence_json" rows="10" spellcheck="false" required>{{ submitted.before_evidence_json }}</textarea><small>Must match the immutable original evidence IDs and hashes exactly.</small></label>
+        <label class="vh-form-field"><span>After-fix evidence JSON array</span><textarea name="after_evidence_json" rows="10" spellcheck="false">{{ submitted.after_evidence_json }}</textarea></label>
+        <label class="vh-form-field"><span>Deterministic retest receipt JSON array</span><textarea name="check_receipts_json" rows="10" spellcheck="false">{{ submitted.check_receipts_json }}</textarea></label>
+        <label class="vh-form-field"><span>Was the original issue shown blocked?</span><select name="original_issue_blocked"><option value="unknown" {% if submitted.original_issue_blocked == 'unknown' %}selected{% endif %}>Unknown</option><option value="true" {% if submitted.original_issue_blocked == 'true' %}selected{% endif %}>Yes</option><option value="false" {% if submitted.original_issue_blocked == 'false' %}selected{% endif %}>No</option></select></label>
+        <label class="vh-form-field"><span>Did the supplied regression checks remain green?</span><select name="regression_free"><option value="unknown" {% if submitted.regression_free == 'unknown' %}selected{% endif %}>Unknown</option><option value="true" {% if submitted.regression_free == 'true' %}selected{% endif %}>Yes</option><option value="false" {% if submitted.regression_free == 'false' %}selected{% endif %}>No</option></select></label>
+        <label class="vh-form-field"><span>Blocked reason, when the retest could not run</span><textarea name="blocked_reason" rows="3">{{ submitted.blocked_reason }}</textarea></label>
+        <label class="vh-form-field"><span>Password re-authentication</span><input type="password" name="password" autocomplete="current-password" required></label>
+        <button class="vh-button-primary" type="submit">Record immutable retest receipt</button>
+      </form>
+    </div>
+  </section>
+
+  <section class="vh-surface">
+    <header class="vh-surface-header"><div><h2>Cancel exact retest</h2><p>Cancellation is append-only and returns the fixed finding to ready-for-retest.</p></div></header>
+    <div class="vh-surface-body"><form method="post" action="{% url 'web-retest-cancel' finding.finding_id %}" class="vh-inline-action-form">{% csrf_token %}<input type="hidden" name="thread_id" value="{{ request.vulnhunter_thread.thread_id }}"><input type="hidden" name="expected_revision" value="{{ finding.revision }}"><input type="hidden" name="reason" value="The human operator cancelled before retest evidence collection."><label class="vh-form-field"><span>Password</span><input type="password" name="password" autocomplete="current-password" required></label><button class="vh-button-secondary" type="submit">Cancel retest</button></form></div>
+  </section>
+  {% endif %}
+
+  {% if result %}
+  <section class="vh-surface">
+    <header class="vh-surface-header"><div><h2>Immutable retest result</h2><p>This result controls review readiness only. It does not merge code, close the finding, generate a final report or publish anything.</p></div></header>
+    <div class="vh-surface-body">
+      <dl class="vh-terminal-facts">
+        <div><dt>Receipt ID</dt><dd>{{ result.receipt_id }}</dd></div>
+        <div><dt>Outcome</dt><dd>{{ result.outcome.value }}</dd></div>
+        <div><dt>Receipt SHA-256</dt><dd><code>{{ result.sha256 }}</code></dd></div>
+        <div><dt>Fixed revision</dt><dd><code>{{ result.fixed_revision }}</code></dd></div>
+        <div><dt>Independent review</dt><dd>{% if result.outcome.value == 'passed' %}Ready{% else %}Blocked{% endif %}</dd></div>
+        <div><dt>Final report</dt><dd>Blocked pending independent review</dd></div>
+      </dl>
+      {% if bundle %}<h3>Computed summary</h3><p>{{ bundle.summary }}</p><ul class="vh-fact-list"><li><span>Before evidence</span><strong>{{ bundle.before_evidence|length }}</strong></li><li><span>After evidence</span><strong>{{ bundle.after_evidence|length }}</strong></li><li><span>Deterministic receipts</span><strong>{{ bundle.check_receipts|length }}</strong></li></ul>{% else %}<div class="vh-alert vh-alert-danger" role="alert">The receipt pointer exists, but the immutable bundle could not be loaded or verified.</div>{% endif %}
+      {% if result.outcome.value == 'cancelled' %}<a class="vh-button-primary" href="{{ restart_url }}">Create a new retest plan</a>{% endif %}
+    </div>
+  </section>
+  {% endif %}
+</section>
+{% endblock %}

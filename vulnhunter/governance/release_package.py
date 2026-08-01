@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import tempfile
 from datetime import UTC, datetime
 from pathlib import Path
@@ -12,18 +13,22 @@ from typing import Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
-from vulnhunter.governance.models import (
-    ReviewOutcome,
-    canonical_sha256,
-)
+from vulnhunter.governance.models import ReviewOutcome, canonical_sha256
 from vulnhunter.governance.store import GovernanceStore
 from vulnhunter.observations.storage import ScanRepository
 
 ReviewResolutionState = Literal["consensus", "adjudicated"]
+_IDENTIFIER = re.compile(r"^[a-z0-9][a-z0-9._-]{1,127}$")
 
 
 class CampaignReleasePackageError(RuntimeError):
     """A campaign release package failed an integrity or provenance boundary."""
+
+
+def _safe_component(value: str, field_name: str) -> str:
+    if _IDENTIFIER.fullmatch(value) is None:
+        raise CampaignReleasePackageError(f"{field_name} is not a safe stable identifier")
+    return value
 
 
 class CampaignApplicationProvenance(BaseModel):
@@ -103,6 +108,13 @@ class CampaignReleasePackage(BaseModel):
     released_by: str = Field(min_length=2, max_length=64)
     released_at: datetime
     package_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+
+    @field_validator("package_id", "release_id", "campaign_id")
+    @classmethod
+    def require_safe_identifier(cls, value: str) -> str:
+        if _IDENTIFIER.fullmatch(value) is None:
+            raise ValueError("campaign release package identifiers must be stable and path-safe")
+        return value
 
     @field_validator("released_at")
     @classmethod
@@ -355,7 +367,8 @@ class CampaignReleasePackageStore:
         os.chmod(self.root, 0o700)
 
     def _campaign_directory(self, campaign_id: str) -> Path:
-        directory = self.root / campaign_id
+        safe_campaign_id = _safe_component(campaign_id, "campaign ID")
+        directory = self.root / safe_campaign_id
         if directory.exists() and directory.is_symlink():
             raise CampaignReleasePackageError("campaign release package path is an unsafe symlink")
         directory.mkdir(parents=True, exist_ok=True)
@@ -363,7 +376,8 @@ class CampaignReleasePackageStore:
         return directory
 
     def path_for(self, package: CampaignReleasePackage) -> Path:
-        return self._campaign_directory(package.campaign_id) / f"{package.release_id}.json"
+        safe_release_id = _safe_component(package.release_id, "release ID")
+        return self._campaign_directory(package.campaign_id) / f"{safe_release_id}.json"
 
     @staticmethod
     def _encoded(package: CampaignReleasePackage) -> bytes:
@@ -409,7 +423,8 @@ class CampaignReleasePackageStore:
         return True
 
     def load(self, campaign_id: str, release_id: str) -> CampaignReleasePackage:
-        path = self._campaign_directory(campaign_id) / f"{release_id}.json"
+        safe_release_id = _safe_component(release_id, "release ID")
+        path = self._campaign_directory(campaign_id) / f"{safe_release_id}.json"
         try:
             if path.is_symlink():
                 raise CampaignReleasePackageError(

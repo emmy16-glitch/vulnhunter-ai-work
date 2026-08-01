@@ -1,4 +1,4 @@
-"""Protected request, approval, and publication workflow for final reports."""
+"""Protected request, approval, publication, correction, and revocation workflow."""
 
 from __future__ import annotations
 
@@ -93,6 +93,10 @@ def remediation_publication_url(finding_id: str, workspace_id: str | None) -> st
     return f"{base}?thread={workspace_id}" if workspace_id else base
 
 
+def _confirmed(value: str) -> bool:
+    return value.strip().casefold() in {"1", "true", "yes", "on"}
+
+
 def _expiry_hours(value: str) -> int:
     try:
         hours = int(value)
@@ -139,6 +143,47 @@ def _configured_destinations(runtime: PublicationRuntimeConfig) -> list[dict[str
         }
         for item in runtime.destinations
     ]
+
+
+def _current_publication(store, finding_id: str):
+    current = [
+        item
+        for item in store.list_publications_for_finding(finding_id)
+        if store.status(item.publication_id) == "published"
+    ]
+    if len(current) > 1:
+        raise PublicationStoreError(
+            "multiple current publications make correction authority ambiguous"
+        )
+    return current[0] if current else None
+
+
+def _publication_rows(
+    store,
+    *,
+    finding_id: str,
+    actor_id: str,
+    actor_can_act: bool,
+) -> tuple[list[dict[str, object]], tuple[object, ...]]:
+    publications = store.list_publications_for_finding(finding_id)
+    rows: list[dict[str, object]] = []
+    for item in reversed(publications):
+        state = store.status(item.publication_id)
+        release_actors = {item.requester_id, item.approver_id, item.publisher_id}
+        rows.append(
+            {
+                "publication": item,
+                "state": state,
+                "fingerprint": item.fingerprint(),
+                "correction": store.correction_for_publication(item.publication_id),
+                "revocation": store.revocation_for_publication(item.publication_id),
+                "actor_can_revoke": (
+                    actor_can_act and state == "published" and actor_id not in release_actors
+                ),
+                "actor_participated": actor_id in release_actors,
+            }
+        )
+    return rows, publications
 
 
 def _project_workspace(
@@ -211,7 +256,32 @@ def remediation_publication_view(request: HttpRequest, finding_id: str) -> HttpR
                         "A verified signed final report is required before release "
                         "can be requested."
                     )
-                correction_id = request.POST.get("correction_of_publication_id", "").strip() or None
+                publication_history = store.list_publications_for_finding(finding_id)
+                if any(
+                    item.source_report_id == latest_report.report_id
+                    for item in publication_history
+                ):
+                    raise PublicationServiceError(
+                        "This exact report already has publication history. Generate a new "
+                        "signed report before requesting another release."
+                    )
+                current_publication = _current_publication(store, finding_id)
+                correction_id = request.POST.get(
+                    "correction_of_publication_id", ""
+                ).strip() or None
+                if current_publication is not None:
+                    if correction_id != current_publication.publication_id:
+                        raise PublicationServiceError(
+                            "A new report must explicitly correct the current publication."
+                        )
+                    if not _confirmed(request.POST.get("confirm_correction", "")):
+                        raise PublicationServiceError(
+                            "Confirm that the correction preserves the superseded publication."
+                        )
+                elif correction_id is not None:
+                    raise PublicationServiceError(
+                        "A correction target is not currently published for this finding."
+                    )
                 release_request = service.request_release(
                     report_id=latest_report.report_id,
                     destination_id=request.POST.get("destination_id", ""),
@@ -262,6 +332,27 @@ def remediation_publication_view(request: HttpRequest, finding_id: str) -> HttpR
                     f"Publication {publication.publication_id} completed with a signed manifest. "
                     "Finding closure, merge and deployment remain separate."
                 )
+            elif action == "revoke":
+                publication_id = request.POST.get("publication_id", "").strip()
+                publication = store.load_publication(publication_id)
+                if publication.source_finding_id != finding_id:
+                    raise PublicationServiceError(
+                        "publication does not belong to this finding"
+                    )
+                if not _confirmed(request.POST.get("confirm_revocation", "")):
+                    raise PublicationServiceError(
+                        "Confirm the non-destructive publication revocation."
+                    )
+                revocation = service.revoke(
+                    publication_id=publication_id,
+                    authority_id=actor_id,
+                    authority_secret=actor_secret,
+                    reason=redact_text(request.POST.get("reason", "")),
+                )
+                success = (
+                    f"Revocation {revocation.revocation_id} was signed for publication "
+                    f"{publication_id}. Existing artifacts remain preserved with a notice."
+                )
             else:
                 raise PublicationServiceError("unsupported publication workflow action")
         except WebPermissionDenied as exc:
@@ -297,13 +388,20 @@ def remediation_publication_view(request: HttpRequest, finding_id: str) -> HttpR
             messages.success(request, success)
             return redirect(remediation_publication_url(finding_id, workspace_id))
 
+    actor_id = reader.governance_identity.reviewer_id
+    actor_can_act = (
+        "campaign_admin" in reader.governance_identity.roles
+        and actor_id in runtime.release_authority_ids
+    )
     try:
         workflow_rows = _workflow_rows(store, finding_id, datetime.now(UTC))
-        publications = store.list_publications_for_finding(finding_id)
-        publication_rows = [
-            {"publication": item, "state": store.status(item.publication_id)}
-            for item in reversed(publications)
-        ]
+        publication_rows, publications = _publication_rows(
+            store,
+            finding_id=finding_id,
+            actor_id=actor_id,
+            actor_can_act=actor_can_act,
+        )
+        current_publication = _current_publication(store, finding_id)
     except PublicationStoreError:
         return _denied(
             request,
@@ -321,21 +419,14 @@ def remediation_publication_view(request: HttpRequest, finding_id: str) -> HttpR
         ),
         None,
     )
-    latest_publication = publications[-1] if publications else None
     correction_target = None
     if (
-        latest_publication is not None
+        current_publication is not None
         and latest_report is not None
-        and latest_publication.source_report_id != latest_report.report_id
-        and store.status(latest_publication.publication_id) == "published"
+        and current_publication.source_report_id != latest_report.report_id
     ):
-        correction_target = latest_publication
+        correction_target = current_publication
 
-    actor_id = reader.governance_identity.reviewer_id
-    actor_can_act = (
-        "campaign_admin" in reader.governance_identity.roles
-        and actor_id in runtime.release_authority_ids
-    )
     available_formats = (
         [item.format.value for item in report_bundle.manifest.artifacts]
         if report_bundle is not None

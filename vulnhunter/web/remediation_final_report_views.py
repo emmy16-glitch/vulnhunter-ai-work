@@ -228,16 +228,19 @@ def remediation_final_report_view(request: HttpRequest, finding_id: str) -> Http
         except FinalRemediationReportError:
             bundle = None
     graph = project_remediation_finding(finding)
-    downloads: dict[str, str] = {}
+    artifact_downloads: list[dict[str, object]] = []
     if bundle is not None:
-        downloads = {
-            item.format.value: remediation_final_report_download_url(
-                finding_id,
-                item.format.value,
-                workspace_id,
-            )
+        artifact_downloads = [
+            {
+                "artifact": item,
+                "url": remediation_final_report_download_url(
+                    finding_id,
+                    item.format.value,
+                    workspace_id,
+                ),
+            }
             for item in bundle.manifest.artifacts
-        }
+        ]
     readiness = final_report_pdf_readiness()
     return _render(
         request,
@@ -255,7 +258,7 @@ def remediation_final_report_view(request: HttpRequest, finding_id: str) -> Http
             "error": error,
             "actor_id": actor.governance_identity.reviewer_id,
             "pdf_readiness": readiness,
-            "download_urls": downloads,
+            "artifact_downloads": artifact_downloads,
             "workspace_return_url": remediation_workspace_url(workspace_id),
             "remediation_url": remediation_detail_url(finding_id, workspace_id),
         },

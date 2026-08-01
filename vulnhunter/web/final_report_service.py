@@ -52,22 +52,16 @@ def final_report_signing_key() -> bytes:
     try:
         metadata = path.stat()
         if not stat.S_ISREG(metadata.st_mode):
-            raise FinalRemediationReportError(
-                "final report signing key must be a regular file"
-            )
+            raise FinalRemediationReportError("final report signing key must be a regular file")
         if metadata.st_mode & 0o077:
-            raise FinalRemediationReportError(
-                "final report signing key must be owner-private"
-            )
+            raise FinalRemediationReportError("final report signing key must be owner-private")
         key = path.read_bytes().strip()
     except FinalRemediationReportError:
         raise
     except OSError as exc:
         raise FinalRemediationReportError("final report signing key is unavailable") from exc
     if len(key) < 32:
-        raise FinalRemediationReportError(
-            "final report signing key must contain at least 32 bytes"
-        )
+        raise FinalRemediationReportError("final report signing key must contain at least 32 bytes")
     return key
 
 

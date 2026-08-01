@@ -758,7 +758,7 @@ class FinalRemediationReportService:
                     verification=finding.verification,
                     status_at_generation=finding.status,
                     affected_asset=redact_text(finding.affected_asset),
-                    affected_component=redact_text(finding.affected_component),
+                    affected_component=redact_text(finding.affected_component or "Not specified"),
                 ),
                 remediation=FinalReportRemediationSummary(
                     remediation_id=remediation.remediation_id,

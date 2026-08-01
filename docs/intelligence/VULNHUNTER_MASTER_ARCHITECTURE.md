@@ -451,7 +451,7 @@ This foundation does not generate the final report, merge code, mark the finding
 | Repository coverage/impact analysis | `PARTIAL` | Incremental changed-region coverage, impact paths, staleness and optional Graphify comparison remain. |
 | Machine-oracle operational connectors | `PARTIAL` / `ACTIVATION_REQUIRED` | Add real read-only or safely reversible oracle connectors, authenticated replay protection and acceptance evidence. |
 | Finding detail/read models | `PARTIAL` | Expose additional redacted evidence through reviewed browser contracts without leaking raw data. |
-| Reporting and PDF | `PARTIAL` / `ACTIVATION_REQUIRED` | Final report schemas, PDF renderer activation, signed export manifests and release workflow. |
+| Reporting and PDF | `DONE` foundation / `ACTIVATION_REQUIRED` | Stable final-remediation JSON/HTML, signed unreleased manifests and disabled-by-default deterministic PDF readiness are implemented; production PDF activation and the separate release/publication workflow remain. |
 | Publication service | `NOT_IMPLEMENTED` | Add a dedicated human-authorised release contract; never expose a decorative publish button. |
 | Real diverse dataset | `NOT_IMPLEMENTED` operationally | Collect governed data across multiple authorised application families and independently review every retained record. |
 | Real-world model evaluation | `NOT_IMPLEMENTED` | Freeze external holdout, calibration, category/family analysis and repeated-run error analysis. |
@@ -797,7 +797,7 @@ Acceptance:
 
 ### Step 18 — Unify all assessment tasks on one authoritative task graph
 
-**Implementation status:** `IN_PROGRESS` — website, APK, Source Hunt, Active Validation, verified-finding remediation planning, immutable fixed-revision verification, governed retest and signed independent remediation review now create or update workspace-bound authoritative task graphs and project approval, queue, execution readiness, bounded rework, fixed-verdict progression, before/after retest outcomes, reviewer decisions, report readiness, cancellation, failed-closed and user-facing chat stages from durable stores. Controlled patch-execution integration and final report generation still require migration to the shared graph.
+**Implementation status:** `IN_PROGRESS` — website, APK, Source Hunt, Active Validation, verified-finding remediation planning, immutable fixed-revision verification, governed retest, signed independent remediation review and governed final report generation now create or update workspace-bound authoritative task graphs and project approval, queue, execution readiness, bounded rework, fixed-verdict progression, before/after retest outcomes, reviewer decisions, report readiness, generated-unreleased state, cancellation, failed-closed and user-facing chat stages from durable stores. Controlled patch-execution integration and the dedicated publication service still require migration to the shared graph.
 
 Ensure website, APK, Source Hunt, active validation, remediation and retest share consistent plan, state, approval, worker, cancellation, activity and receipt contracts.
 
@@ -932,7 +932,7 @@ Acceptance:
 
 ### Step 29 — Complete report and export contracts
 
-**Implementation status:** `IN_PROGRESS` — signed independent remediation review can now open an authoritative `ready_for_report` gate only after an exact passed retest. Stable final report schemas, evidence rendering, export manifests, integrity hashes, PDF activation and separate release authorisation remain unfinished.
+**Implementation status:** `DONE` foundation — an identity-separated governed report writer can now generate a stable final-remediation JSON schema, human-readable HTML, redacted evidence citations, explicit limitations, an HMAC-SHA256 signed unreleased export manifest and optional deterministic PDF only when the renderer readiness gate is enabled. The exact report and manifest are append-only, integrity-checked, projected into the authoritative graph and durable chat workspace, and advance only to `report_generated`. Dedicated release/publication authorisation, correction/revocation, deployment and finding closure remain unfinished Step 30 work.
 
 Deliver:
 

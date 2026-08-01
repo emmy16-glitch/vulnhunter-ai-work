@@ -68,8 +68,8 @@
       {% if report_bundle %}
       <h3>Artifacts</h3>
       <ul class="vh-compact-list">
-        {% for artifact in report_bundle.manifest.artifacts %}
-        <li><span><strong>{{ artifact.format.value|upper }}</strong> — {{ artifact.size_bytes }} bytes — <code>{{ artifact.sha256 }}</code></span>{% if artifact.format.value in download_urls %}<a class="vh-button-secondary" href="{{ download_urls|get_item:artifact.format.value }}">Download</a>{% endif %}</li>
+        {% for download in artifact_downloads %}
+        <li><span><strong>{{ download.artifact.format.value|upper }}</strong> — {{ download.artifact.size_bytes }} bytes — <code>{{ download.artifact.sha256 }}</code></span><a class="vh-button-secondary" href="{{ download.url }}">Download</a></li>
         {% endfor %}
       </ul>
       <h3>Evidence citations</h3><p>{{ report_bundle.report.evidence_citations|length }} integrity references are included as redacted metadata. Raw evidence bytes are not embedded.</p>

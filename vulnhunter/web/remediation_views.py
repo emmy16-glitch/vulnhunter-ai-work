@@ -22,6 +22,7 @@ from vulnhunter.findings import (
     FindingStatus,
     FindingStoreError,
     RemediationFixVerificationError,
+    RemediationReviewError,
     RemediationState,
     VerificationState,
 )
@@ -634,7 +635,7 @@ def remediation_detail_view(request: HttpRequest, finding_id: str) -> HttpRespon
     if latest_review is not None:
         try:
             review_bundle = remediation_review_receipt_store().load(latest_review.receipt_id)
-        except Exception:
+        except RemediationReviewError:
             review_bundle = None
     active_states = {
         RemediationState.READY_FOR_IMPLEMENTATION,

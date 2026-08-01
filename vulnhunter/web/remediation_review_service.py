@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import stat
 from pathlib import Path
 
 from django.conf import settings
@@ -45,7 +46,18 @@ def remediation_review_signing_key() -> bytes:
         )
     path = Path(configured).expanduser().resolve()
     try:
+        metadata = path.stat()
+        if not stat.S_ISREG(metadata.st_mode):
+            raise RemediationReviewError(
+                "independent remediation review signing key must be a regular file"
+            )
+        if metadata.st_mode & 0o077:
+            raise RemediationReviewError(
+                "independent remediation review signing key must be owner-private"
+            )
         key = path.read_bytes().strip()
+    except RemediationReviewError:
+        raise
     except OSError as exc:
         raise RemediationReviewError(
             "independent remediation review signing key is unavailable"

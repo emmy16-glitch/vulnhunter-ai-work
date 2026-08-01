@@ -22,9 +22,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         del args
-        postgresql_dump = (
-            Path(options["postgres_dump"]) if options.get("postgres_dump") else None
-        )
+        postgresql_dump = Path(options["postgres_dump"]) if options.get("postgres_dump") else None
         try:
             payload = create_backup_bundle(
                 Path(options["destination"]),

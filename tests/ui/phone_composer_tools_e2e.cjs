@@ -36,6 +36,7 @@ async function login(page) {
       const clear = page.locator("[data-composer-clear]");
       const counter = page.locator("[data-composer-counter]");
       const menu = page.locator("[data-composer-prompt-menu]");
+      const empty = page.locator("[data-composer-prompt-empty]");
       await form.waitFor({ state: "visible" });
       await trigger.waitFor({ state: "visible" });
       await counter.waitFor({ state: "visible" });
@@ -143,6 +144,52 @@ async function login(page) {
         throw new Error(`Composer counter did not reset: ${clearedCounter}`);
       }
 
+      await input.fill("/status");
+      await menu.waitFor({ state: "visible" });
+      if ((await menu.getAttribute("data-opened-by-slash")) !== "true") {
+        throw new Error("Typing a slash command did not mark the filtered prompt menu");
+      }
+      const visibleSlashOptions = menu.locator("[data-prompt-value]:visible");
+      if ((await visibleSlashOptions.count()) !== 1) {
+        throw new Error(`Expected one /status match, found ${await visibleSlashOptions.count()}`);
+      }
+      if (!((await visibleSlashOptions.first().textContent()) || "").includes("Status and next step")) {
+        throw new Error("The /status filter did not select the status starter prompt");
+      }
+      if (!(await empty.isHidden())) {
+        throw new Error("The no-results state appeared while /status had a match");
+      }
+      await page.keyboard.press("Enter");
+      await menu.waitFor({ state: "hidden" });
+      const slashInserted = await input.inputValue();
+      if (!slashInserted.includes("Summarise the current workspace status")) {
+        throw new Error(`Enter did not insert the /status prompt: ${slashInserted}`);
+      }
+      if (slashInserted.startsWith("/status")) {
+        throw new Error("The slash command text was not replaced by the starter prompt");
+      }
+      if (messagePosts !== 0 || (await page.locator(".vh-chat-message.is-user").count()) !== userMessageCount) {
+        throw new Error("Selecting /status submitted the prompt instead of inserting it");
+      }
+      await clear.click();
+      await clear.waitFor({ state: "hidden" });
+
+      await input.fill("/does-not-exist");
+      await menu.waitFor({ state: "visible" });
+      if ((await menu.locator("[data-prompt-value]:visible").count()) !== 0) {
+        throw new Error("An unmatched slash command left prompt options visible");
+      }
+      await empty.waitFor({ state: "visible" });
+      await page.keyboard.press("Escape");
+      await menu.waitFor({ state: "hidden" });
+      if ((await trigger.getAttribute("aria-expanded")) !== "false") {
+        throw new Error("Escape did not close the slash-filtered prompt menu accessibly");
+      }
+      if ((await input.inputValue()) !== "/does-not-exist") {
+        throw new Error("Closing an unmatched slash command unexpectedly rewrote the composer");
+      }
+      await clear.click();
+
       await trigger.click();
       await menu.waitFor({ state: "visible" });
       await page.keyboard.press("Escape");
@@ -151,10 +198,13 @@ async function login(page) {
         throw new Error("Escape did not close the prompt menu accessibly");
       }
 
+      if (messagePosts !== 0) {
+        throw new Error(`Composer tools made ${messagePosts} unexpected POST request(s)`);
+      }
       await context.close();
     }
     console.log(
-      "Phone prompt menu, safe insertion, character counter and clear prompt acceptance passed.",
+      "Phone prompt menu, slash filtering, safe insertion, character counter and clear prompt acceptance passed.",
     );
   } finally {
     await browser.close();

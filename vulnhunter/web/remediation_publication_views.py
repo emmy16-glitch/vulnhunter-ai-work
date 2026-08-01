@@ -208,7 +208,8 @@ def remediation_publication_view(request: HttpRequest, finding_id: str) -> HttpR
             if action == "request":
                 if latest_report is None or report_bundle is None:
                     raise PublicationServiceError(
-                        "A verified signed final report is required before release can be requested."
+                        "A verified signed final report is required before release "
+                        "can be requested."
                     )
                 correction_id = (
                     request.POST.get("correction_of_publication_id", "").strip() or None

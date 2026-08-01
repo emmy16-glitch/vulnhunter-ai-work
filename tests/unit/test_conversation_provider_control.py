@@ -1,6 +1,5 @@
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "vulnhunter/web/static/web/conversation-provider-control.js"
 RUNTIME = ROOT / "vulnhunter/web/static/web/conversation-runtime-compat.js"

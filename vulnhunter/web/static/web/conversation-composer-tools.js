@@ -17,6 +17,19 @@
     link.dataset.composerToolsStyles = "true";
     document.head.append(link);
   }
+  if (current && !document.querySelector("script[data-recent-prompts-loader]")) {
+    const recentUrl = new URL(current, window.location.href);
+    recentUrl.pathname = recentUrl.pathname.replace(
+      /conversation-composer-tools\.js$/,
+      "conversation-recent-prompts.js",
+    );
+    recentUrl.search = "?v=20260801-recent-prompts1";
+    const script = document.createElement("script");
+    script.src = recentUrl.toString();
+    script.async = false;
+    script.dataset.recentPromptsLoader = "true";
+    document.head.append(script);
+  }
 
   const workspace = document.querySelector("[data-conversation-workspace]");
   const form = document.querySelector("[data-conversation-form]");
@@ -222,7 +235,7 @@
     insertPrompt(button);
   });
   list.addEventListener("keydown", (event) => {
-    if (!['ArrowDown', 'ArrowUp'].includes(event.key)) return;
+    if (!["ArrowDown", "ArrowUp"].includes(event.key)) return;
     const options = visibleOptions();
     const currentIndex = options.indexOf(document.activeElement);
     if (currentIndex < 0 || !options.length) return;

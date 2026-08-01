@@ -219,11 +219,29 @@ class PublicationStore:
     def load_correction(self, publication_id: str) -> PublicationCorrection:
         return self._load("corrections", publication_id, PublicationCorrection)
 
+    def correction_for_publication(
+        self,
+        publication_id: str,
+    ) -> PublicationCorrection | None:
+        path = self._directory("corrections") / f"{publication_id}.json"
+        if not path.exists():
+            return None
+        return self.load_correction(publication_id)
+
     def save_revocation(self, record: PublicationRevocation) -> bool:
         return self._save("revocations", record.publication_id, record)
 
     def load_revocation(self, publication_id: str) -> PublicationRevocation:
         return self._load("revocations", publication_id, PublicationRevocation)
+
+    def revocation_for_publication(
+        self,
+        publication_id: str,
+    ) -> PublicationRevocation | None:
+        path = self._directory("revocations") / f"{publication_id}.json"
+        if not path.exists():
+            return None
+        return self.load_revocation(publication_id)
 
     def _rollback_exact(self, category: str, identifier: str, record: BaseModel) -> None:
         path = self._directory(category) / f"{identifier}.json"
@@ -249,13 +267,9 @@ class PublicationStore:
 
     def status(self, publication_id: str) -> str:
         self.load_publication(publication_id)
-        revocation_path = self._directory("revocations") / f"{publication_id}.json"
-        if revocation_path.exists():
-            self.load_revocation(publication_id)
+        if self.revocation_for_publication(publication_id) is not None:
             return "revoked"
-        correction_path = self._directory("corrections") / f"{publication_id}.json"
-        if correction_path.exists():
-            self.load_correction(publication_id)
+        if self.correction_for_publication(publication_id) is not None:
             return "superseded"
         return "published"
 

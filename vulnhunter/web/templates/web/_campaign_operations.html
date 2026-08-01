@@ -1,0 +1,78 @@
+{% if operations_error %}
+<section class="vh-surface vh-surface-span-12">
+  <div class="vh-operational-notice is-danger"><strong>Campaign operations unavailable</strong><p>{{ operations_error }}</p></div>
+</section>
+{% elif operations %}
+<section class="vh-surface vh-surface-span-12">
+  <header class="vh-surface-header"><div><h2>Governed campaign operations</h2><p>Read-only activation, owned-target, review and release planning.</p></div><span class="vh-panel-count">{{ operations.campaign_status }}</span></header>
+  <div class="vh-operational-notice"><strong>Planning only</strong><p>This surface does not approve, activate, scan, assign, adjudicate, complete, release or create packages. Ownership fields remain declarations that must be verified against each exact target.</p></div>
+  <section class="vh-summary-strip">
+    <article class="vh-summary-item"><small>Activation gate</small><strong>{% if operations.operator_activation_ready %}Ready{% else %}Blocked{% endif %}</strong><span>Approved campaign only</span></article>
+    <article class="vh-summary-item"><small>Genuine collection</small><strong>{% if operations.genuine_collection_ready %}Ready{% else %}Blocked{% endif %}</strong><span>Exact owned targets only</span></article>
+    <article class="vh-summary-item"><small>Release readiness</small><strong>{% if operations.release_ready %}Ready{% else %}Blocked{% endif %}</strong><span>All governed reviews final</span></article>
+    <article class="vh-summary-item"><small>Release package</small><strong>{{ operations.release_package.state }}</strong><span>{{ operations.release_manifest_state }} manifest</span></article>
+  </section>
+</section>
+
+<section class="vh-surface vh-surface-span-7">
+  <header class="vh-surface-header"><div><h2>Owned-target prerequisites</h2><p>Every blocking condition must be resolved before a genuine campaign run.</p></div><span class="vh-panel-count">{{ operations.prerequisites|length }}</span></header>
+  <ul class="vh-compact-list">
+    {% for item in operations.prerequisites %}
+    <li><span>{{ item.title }}<small>{{ item.detail }}</small></span>{% if item.state == "met" %}<strong class="vh-state-safe">Met</strong>{% elif item.state == "warning" %}<strong class="vh-state-warning">Warning</strong>{% elif item.state == "not_applicable" %}<strong>Not applicable</strong>{% else %}<strong class="vh-state-danger">Blocked</strong>{% endif %}</li>
+    {% endfor %}
+  </ul>
+</section>
+
+<section class="vh-surface vh-surface-span-5">
+  <header class="vh-surface-header"><div><h2>Coverage totals</h2><p>Required diversity and exact authorization coverage.</p></div></header>
+  <ul class="vh-compact-list">
+    <li><span>Applications</span><strong>{{ operations.application_count }} / {{ operations.minimum_applications }}</strong></li>
+    <li><span>Application families</span><strong>{{ operations.application_family_count }} / {{ operations.minimum_application_families }}</strong></li>
+    <li><span>Authorization records</span><strong>{{ operations.authorization_count }} / {{ operations.application_count }}</strong></li>
+    <li><span>Current exact authorizations</span><strong>{{ operations.current_authorization_count }} / {{ operations.application_count }}</strong></li>
+    <li><span>Ownership evidence references</span><strong>{{ operations.ownership_evidence_count }} / {{ operations.application_count }}</strong></li>
+  </ul>
+</section>
+
+<section class="vh-surface vh-surface-span-12">
+  <header class="vh-surface-header"><div><h2>Application-family coverage</h2><p>Family and environment diversity without exposing local repository paths.</p></div><span class="vh-panel-count">{{ operations.families|length }}</span></header>
+  {% if operations.families %}<div class="vh-table-wrap"><table class="vh-table"><thead><tr><th>Family</th><th>Applications</th><th>Environments</th><th>Authorizations</th><th>Current</th><th>Ownership evidence</th><th>Scans</th><th>Observations</th></tr></thead><tbody>{% for family in operations.families %}<tr><td><strong>{{ family.application_family }}</strong></td><td>{{ family.application_count }}</td><td>{% for environment in family.environments %}<code>{{ environment }}</code>{% empty %}<small>None</small>{% endfor %}</td><td>{{ family.authorization_count }}</td><td>{{ family.current_authorization_count }}</td><td>{{ family.ownership_evidence_count }}</td><td>{{ family.linked_scan_count }}</td><td>{{ family.observation_count }}</td></tr>{% endfor %}</tbody></table></div>{% else %}<div class="vh-empty-panel"><h3>No application families</h3><p>Register explicitly authorized applications before planning collection.</p></div>{% endif %}
+</section>
+
+<section class="vh-surface vh-surface-span-6">
+  <header class="vh-surface-header"><div><h2>Review workload</h2><p>Every retained observation requires two independent primary reviews.</p></div></header>
+  <ul class="vh-compact-list">
+    <li><span>Collected observations</span><strong>{{ operations.review_workload.total_observations }}</strong></li>
+    <li><span>Governed assignments</span><strong>{{ operations.review_workload.assigned_observations }}</strong></li>
+    <li><span>Unassigned</span><strong>{{ operations.review_workload.unassigned_observations }}</strong></li>
+    <li><span>Awaiting primary review</span><strong>{{ operations.review_workload.awaiting_primary_review }}</strong></li>
+    <li><span>Disputed</span><strong>{{ operations.review_workload.disputed }}</strong></li>
+    <li><span>Consensus</span><strong>{{ operations.review_workload.consensus }}</strong></li>
+    <li><span>Adjudicated</span><strong>{{ operations.review_workload.adjudicated }}</strong></li>
+    <li><span>Unavailable or invalid</span><strong>{{ operations.review_workload.unavailable_or_invalid }}</strong></li>
+  </ul>
+</section>
+
+<section class="vh-surface vh-surface-span-6">
+  <header class="vh-surface-header"><div><h2>Release provenance</h2><p>Immutable dataset release and append-only package status.</p></div></header>
+  <ul class="vh-compact-list">
+    <li><span>Release manifest</span><strong>{{ operations.release_manifest_state }}</strong></li>
+    <li><span>Manifest hash</span><code>{{ operations.release_manifest_sha256|default:"Not available" }}</code></li>
+    <li><span>Package state</span><strong>{{ operations.release_package.state }}</strong></li>
+    <li><span>Package detail</span><strong>{{ operations.release_package.detail }}</strong></li>
+    <li><span>Package ID</span><code>{{ operations.release_package.package_id|default:"Not available" }}</code></li>
+    <li><span>Package hash</span><code>{{ operations.release_package.package_sha256|default:"Not available" }}</code></li>
+  </ul>
+</section>
+
+<section class="vh-surface vh-surface-span-6">
+  <header class="vh-surface-header"><div><h2>Current blockers</h2><p>Fail-closed conditions for the next governed transition.</p></div><span class="vh-panel-count">{{ operations.blockers|length }}</span></header>
+  {% if operations.blockers %}<ul class="vh-rows">{% for item in operations.blockers %}<li><strong class="vh-state-danger">Blocked</strong><span>{{ item }}</span></li>{% endfor %}</ul>{% else %}<div class="vh-empty-panel"><h3>No current blockers</h3><p>The current phase has no detected blocking condition.</p></div>{% endif %}
+  {% if operations.warnings %}<h3>Warnings</h3><ul class="vh-rows">{% for item in operations.warnings %}<li><strong class="vh-state-warning">Warning</strong><span>{{ item }}</span></li>{% endfor %}</ul>{% endif %}
+</section>
+
+<section class="vh-surface vh-surface-span-6">
+  <header class="vh-surface-header"><div><h2>Next governed actions</h2><p>Ordered by current phase and evidence state.</p></div><span class="vh-panel-count">{{ operations.next_actions|length }}</span></header>
+  <ol class="vh-rows">{% for item in operations.next_actions %}<li><span>{{ item }}</span></li>{% endfor %}</ol>
+</section>
+{% endif %}

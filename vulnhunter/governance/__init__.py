@@ -11,12 +11,27 @@ from vulnhunter.governance.models import (
     ReviewAttestation,
     ReviewerIdentity,
 )
+from vulnhunter.governance.release_package import (
+    CampaignApplicationProvenance,
+    CampaignReleasePackage,
+    CampaignReleasePackageError,
+    CampaignReleasePackageStore,
+    CampaignReviewProvenance,
+    build_campaign_release_package,
+    campaign_release_package_sha256,
+    create_campaign_release_package,
+)
 from vulnhunter.governance.store import GovernanceStore
 
 __all__ = [
     "CampaignApplication",
+    "CampaignApplicationProvenance",
     "CampaignLimits",
     "CampaignRecord",
+    "CampaignReleasePackage",
+    "CampaignReleasePackageError",
+    "CampaignReleasePackageStore",
+    "CampaignReviewProvenance",
     "CampaignScan",
     "DatasetReleaseManifest",
     "GovernanceStore",
@@ -24,4 +39,7 @@ __all__ = [
     "ReviewAssignment",
     "ReviewAttestation",
     "ReviewerIdentity",
+    "build_campaign_release_package",
+    "campaign_release_package_sha256",
+    "create_campaign_release_package",
 ]

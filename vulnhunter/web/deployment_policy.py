@@ -1,16 +1,18 @@
 from __future__ import annotations
 
+import ipaddress
 from dataclasses import dataclass
 from typing import Any
+from urllib.parse import urlsplit
 
 from django.conf import settings
 
 _LOCAL_HOSTS = {"127.0.0.1", "::1", "[::1]", "localhost", "testserver"}
-_WEAK_SECRET_MARKERS = {
+_LOCAL_HOST_SUFFIXES = (".internal", ".local", ".localhost")
+_WEAK_SECRET_VALUES = {
     "change-me",
     "changeme",
     "development",
-    "django-insecure",
     "insecure",
     "password",
     "secret",
@@ -75,26 +77,57 @@ class DeploymentPolicyReport:
 
 def _secret_is_strong(value: str) -> bool:
     normalized = value.strip().lower()
-    if len(value.strip()) < 32:
+    if len(value.strip()) < 32 or len(set(value)) < 8:
         return False
-    return not any(marker in normalized for marker in _WEAK_SECRET_MARKERS)
+    return normalized not in _WEAK_SECRET_VALUES and not normalized.startswith(
+        "django-insecure-"
+    )
 
 
 def _hosts_are_explicit(hosts: tuple[str, ...]) -> bool:
     return bool(hosts) and all(host and host != "*" for host in hosts)
 
 
+def _host_is_public(host: str) -> bool:
+    normalized = host.strip().lower().lstrip(".")
+    if not normalized or normalized in _LOCAL_HOSTS:
+        return False
+    if normalized.endswith(_LOCAL_HOST_SUFFIXES):
+        return False
+    candidate = normalized[1:-1] if normalized.startswith("[") and normalized.endswith("]") else normalized
+    try:
+        address = ipaddress.ip_address(candidate)
+    except ValueError:
+        return "." in normalized
+    return not (
+        address.is_private
+        or address.is_loopback
+        or address.is_link_local
+        or address.is_reserved
+        or address.is_unspecified
+    )
+
+
 def _has_public_host(hosts: tuple[str, ...]) -> bool:
-    for host in hosts:
-        normalized = host.strip().lower().lstrip(".")
-        host_without_port = normalized.rsplit(":", 1)[0] if normalized.count(":") == 1 else normalized
-        if host_without_port and host_without_port not in _LOCAL_HOSTS:
-            return True
-    return False
+    return any(_host_is_public(host) for host in hosts)
 
 
 def _origins_are_public_https(origins: tuple[str, ...]) -> bool:
-    return bool(origins) and all(origin.lower().startswith("https://") for origin in origins)
+    if not origins:
+        return False
+    for origin in origins:
+        parsed = urlsplit(origin)
+        if (
+            parsed.scheme.lower() != "https"
+            or not parsed.hostname
+            or parsed.username
+            or parsed.password
+            or parsed.query
+            or parsed.fragment
+            or not _host_is_public(parsed.hostname)
+        ):
+            return False
+    return True
 
 
 def deployment_policy(

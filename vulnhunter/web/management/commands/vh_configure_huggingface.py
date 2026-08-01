@@ -11,7 +11,9 @@ from django.core.management.base import BaseCommand, CommandError
 
 
 class Command(BaseCommand):
-    help = "Store an owner-only Hugging Face token and verify bounded advisory inference."
+    help = (
+        "Store an owner-only Hugging Face token and verify the exact web conversation path."
+    )
 
     def add_arguments(self, parser) -> None:
         parser.add_argument(
@@ -19,18 +21,25 @@ class Command(BaseCommand):
             default=settings.VULNHUNTER_HUGGINGFACE_TOKEN_FILE,
             help="Owner-only destination for the Hugging Face token.",
         )
-        parser.add_argument("--no-verify", action="store_true")
+        parser.add_argument(
+            "--no-verify",
+            action="store_true",
+            help="Store the token without performing the harmless conversation readiness request.",
+        )
 
     def handle(self, *args, **options) -> None:
-        path = Path(str(options["token_file"])).expanduser().resolve()
-        if path.is_symlink():
+        expanded = Path(str(options["token_file"])).expanduser()
+        if expanded.is_symlink():
             raise CommandError("The Hugging Face token path must not be a symbolic link.")
+        path = expanded.resolve()
+
         token = getpass.getpass("Hugging Face token (input is hidden): ").strip()
         confirmation = getpass.getpass("Enter the Hugging Face token again: ").strip()
         if not token or token != confirmation:
             raise CommandError("The Hugging Face tokens were empty or did not match.")
-        if len(token) < 20 or any(character.isspace() for character in token):
+        if len(token) < 20 or len(token) > 512 or any(character.isspace() for character in token):
             raise CommandError("The Hugging Face token format is invalid.")
+
         path.parent.mkdir(parents=True, exist_ok=True)
         temporary = path.with_name(f".{path.name}.{uuid4().hex}.tmp")
         descriptor = os.open(
@@ -49,14 +58,27 @@ class Command(BaseCommand):
         except BaseException:
             temporary.unlink(missing_ok=True)
             raise
+
         self.stdout.write(self.style.SUCCESS(f"Hugging Face token stored securely at {path}."))
         if bool(options["no_verify"]):
             return
         if not settings.VULNHUNTER_HUGGINGFACE_ENABLED:
             self.stdout.write(
                 self.style.WARNING(
-                    "The token was stored, but VULNHUNTER_HUGGINGFACE_ENABLED is false."
+                    "The token was stored, but VULNHUNTER_HUGGINGFACE_ENABLED is currently false."
                 )
             )
             return
-        call_command("vh_verify_huggingface")
+
+        configured_path = Path(settings.VULNHUNTER_HUGGINGFACE_TOKEN_FILE).expanduser().resolve()
+        if path != configured_path:
+            raise CommandError(
+                "Verification requires --token-file to match "
+                "VULNHUNTER_HUGGINGFACE_TOKEN_FILE so the web chat reads the same credential."
+            )
+        call_command(
+            "vh_verify_llm",
+            provider="huggingface",
+            reasoning="low",
+            stdout=self.stdout,
+        )

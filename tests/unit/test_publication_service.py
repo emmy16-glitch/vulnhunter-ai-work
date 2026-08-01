@@ -235,7 +235,7 @@ def test_separate_release_authority_publishes_exact_signed_artifacts(tmp_path):
 def test_prior_actor_self_approval_and_dual_role_publication_are_blocked(tmp_path):
     service, _store, _report_store, _destination, bundle = _world(tmp_path)
 
-    with pytest.raises(PublicationServiceError, match="not configured"):
+    with pytest.raises(PublicationServiceError, match="not a configured publication authority"):
         service.request_release(
             report_id=bundle.report.report_id,
             destination_id="owner-release-vault",

@@ -17,6 +17,19 @@
     link.dataset.conversationDraftStyles = "true";
     document.head.append(link);
   }
+  if (current && !document.querySelector("script[data-conversation-search-loader]")) {
+    const searchUrl = new URL(current, window.location.href);
+    searchUrl.pathname = searchUrl.pathname.replace(
+      /conversation-draft\.js$/,
+      "conversation-search.js",
+    );
+    searchUrl.search = "?v=20260801-search1";
+    const script = document.createElement("script");
+    script.src = searchUrl.toString();
+    script.async = false;
+    script.dataset.conversationSearchLoader = "true";
+    document.head.append(script);
+  }
 
   const workspace = document.querySelector("[data-conversation-workspace]");
   const dataElement = document.getElementById("vh-conversation-data");

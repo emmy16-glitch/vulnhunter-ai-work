@@ -58,43 +58,6 @@
     return cookie ? decodeURIComponent(cookie[1]) : "";
   };
 
-  const injectStyles = () => {
-    if (document.getElementById("vh-provider-control-styles")) return;
-    const style = document.createElement("style");
-    style.id = "vh-provider-control-styles";
-    style.textContent = `
-      .vh-provider-control{display:inline-flex;align-items:center;gap:.45rem;min-width:0;color:var(--text-secondary,#a7aca9)}
-      .vh-provider-control>span{font-size:.72rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;white-space:nowrap}
-      .vh-provider-control select{min-height:34px;max-width:190px;border:1px solid var(--border,#2c302d);border-radius:10px;background:var(--card-bg,#181a19);color:var(--text-primary,#fff);padding:.35rem 1.8rem .35rem .6rem;font:inherit;font-size:.78rem}
-      .vh-provider-control select:focus-visible{outline:2px solid var(--primary,#16b878);outline-offset:2px}
-      .vh-provider-control small{font-size:.7rem;white-space:nowrap;color:var(--text-muted,#747a76)}
-      .vh-llm-progress{display:grid;gap:.55rem;margin:.45rem 0 .65rem;padding:.7rem .85rem;border:1px solid var(--border,#2c302d);border-radius:14px;background:var(--card-bg,#181a19)}
-      .vh-llm-progress[hidden]{display:none}
-      .vh-llm-progress-head{display:flex;align-items:center;justify-content:space-between;gap:.75rem;font-size:.78rem;color:var(--text-secondary,#a7aca9)}
-      .vh-llm-progress-head strong{color:var(--text-primary,#fff);font-weight:650}
-      .vh-llm-progress-track{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.35rem}
-      .vh-llm-progress-step{height:3px;border-radius:999px;background:var(--border,#2c302d);overflow:hidden}
-      .vh-llm-progress-step::after{content:"";display:block;width:100%;height:100%;background:var(--primary,#16b878);transform:scaleX(0);transform-origin:left;transition:transform .22s ease}
-      .vh-llm-progress-step.is-complete::after,.vh-llm-progress-step.is-active::after{transform:scaleX(1)}
-      .vh-llm-progress-step.is-active::after{animation:vh-provider-pulse 1.1s ease-in-out infinite alternate}
-      @keyframes vh-provider-pulse{from{opacity:.45}to{opacity:1}}
-      @media(max-width:640px){.vh-chat-composer-meta{align-items:flex-start;gap:.45rem;flex-wrap:wrap}.vh-provider-control{order:2;width:100%;justify-content:space-between}.vh-provider-control select{max-width:none;flex:1}.vh-provider-control small{display:none}.vh-provider-runtime{order:3}.vh-llm-progress{margin-inline:.15rem}.vh-background-upload-dock{bottom:calc(var(--vh-phone-composer-clearance,14rem) + env(safe-area-inset-bottom,0px))}}
-      @media(prefers-reduced-motion:reduce){.vh-llm-progress-step.is-active::after{animation:none}}
-    `;
-    document.head.append(style);
-  };
-
-  const updatePhoneComposerClearance = () => {
-    const root = document.documentElement;
-    if (!window.matchMedia("(max-width: 640px)").matches) {
-      root.style.removeProperty("--vh-phone-composer-clearance");
-      return;
-    }
-    const rect = form.getBoundingClientRect();
-    const clearance = Math.max(140, Math.ceil(window.innerHeight - rect.top + 12));
-    root.style.setProperty("--vh-phone-composer-clearance", `${clearance}px`);
-  };
-
   const control = document.createElement("label");
   control.className = "vh-provider-control";
   control.setAttribute("title", "Choose which configured advisory provider should answer this workspace");
@@ -313,10 +276,5 @@
     new MutationObserver(updateActualProvider).observe(feed, { childList: true, subtree: true });
   }
 
-  injectStyles();
   renderPreference();
-  updatePhoneComposerClearance();
-  window.addEventListener("resize", updatePhoneComposerClearance, { passive: true });
-  window.visualViewport?.addEventListener("resize", updatePhoneComposerClearance, { passive: true });
-  new ResizeObserver(updatePhoneComposerClearance).observe(form);
 })();

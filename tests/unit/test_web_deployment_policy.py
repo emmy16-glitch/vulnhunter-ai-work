@@ -146,11 +146,13 @@ def test_public_policy_rejects_origins_with_credentials_query_or_fragment() -> N
 
 
 def test_policy_payload_never_exposes_configuration_values() -> None:
+    database_value = "postgresql://policy-user:policy-password@database.example.com/vulnhunter"
     configuration = replace(
         safe_public_configuration(),
         secret_key="Never-log-this-production-secret-1234567890!",
         allowed_hosts=("sensitive.example.com",),
         csrf_trusted_origins=("https://sensitive.example.com",),
+        database_engine=database_value,
     )
     encoded = json.dumps(
         deployment_policy(public=True, configuration=configuration).as_payload()
@@ -159,4 +161,4 @@ def test_policy_payload_never_exposes_configuration_values() -> None:
     assert configuration.secret_key not in encoded
     assert configuration.allowed_hosts[0] not in encoded
     assert configuration.csrf_trusted_origins[0] not in encoded
-    assert configuration.database_engine not in encoded
+    assert database_value not in encoded

@@ -32,7 +32,7 @@ def test_export_copies_or_downloads_markdown_without_network_or_storage() -> Non
     assert "navigator.clipboard?.writeText" in script
     assert 'new Blob([buildMarkdown()], { type: "text/markdown;charset=utf-8" })' in script
     assert "URL.createObjectURL(blob)" in script
-    assert 'anchor.download = `${slug(threadTitle())}.md`' in script
+    assert "anchor.download = `${slug(threadTitle())}.md`" in script
     assert "URL.revokeObjectURL(url)" in script
     assert "fetch(" not in script
     assert "sessionStorage" not in script

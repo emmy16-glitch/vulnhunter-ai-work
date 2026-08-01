@@ -9,6 +9,7 @@ from django.conf import settings
 
 from vulnhunter.findings import (
     FindingStore,
+    RemediationReviewError,
     RemediationReviewReceiptStore,
     RemediationReviewService,
 )
@@ -33,10 +34,33 @@ def remediation_review_root() -> Path:
     return Path(configured)
 
 
+def remediation_review_signing_key() -> bytes:
+    configured = os.environ.get(
+        "VULNHUNTER_REMEDIATION_REVIEW_SIGNING_KEY_FILE",
+        str(getattr(settings, "VULNHUNTER_REMEDIATION_REVIEW_SIGNING_KEY_FILE", "")),
+    ).strip()
+    if not configured:
+        raise RemediationReviewError(
+            "independent remediation review requires an owner-private signing-key file"
+        )
+    path = Path(configured).expanduser().resolve()
+    try:
+        key = path.read_bytes().strip()
+    except OSError as exc:
+        raise RemediationReviewError(
+            "independent remediation review signing key is unavailable"
+        ) from exc
+    if len(key) < 32:
+        raise RemediationReviewError(
+            "independent remediation review signing key must contain at least 32 bytes"
+        )
+    return key
+
+
 def remediation_review_receipt_store() -> RemediationReviewReceiptStore:
     return RemediationReviewReceiptStore(
         remediation_review_root(),
-        signing_key=str(settings.SECRET_KEY).encode("utf-8"),
+        signing_key=remediation_review_signing_key(),
     )
 
 
@@ -64,4 +88,5 @@ __all__ = [
     "remediation_review_receipt_store",
     "remediation_review_root",
     "remediation_review_service",
+    "remediation_review_signing_key",
 ]

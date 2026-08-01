@@ -12,7 +12,9 @@ class Command(BaseCommand):
     help = "Create an atomic, checksummed VulnHunter recovery bundle."
 
     def add_arguments(self, parser):
-        parser.add_argument("destination", help="New directory to create for the backup bundle.")
+        parser.add_argument(
+            "destination", help="New directory to create for the backup bundle."
+        )
         parser.add_argument(
             "--postgres-dump",
             help="Externally created pg_dump artifact required for PostgreSQL deployments.",

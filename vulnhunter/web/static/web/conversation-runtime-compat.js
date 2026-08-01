@@ -147,7 +147,7 @@
     if (document.querySelector(`script[${marker}]`)) return;
     const url = new URL(current, window.location.href);
     url.pathname = url.pathname.replace(/conversation-runtime-compat\.js$/, filename);
-    url.search = "?v=20260801-report1";
+    url.search = "?v=20260801-llm-control1";
     const script = document.createElement("script");
     script.src = url.toString();
     script.async = false;
@@ -237,6 +237,7 @@
   const loadWorkspaceBridges = () => {
     bindSourceHuntLinks();
     bindProviderRuntime();
+    loadScript("conversation-provider-control.js", "data-provider-control-loader");
     loadScript("workspace-state.js", "data-workspace-state-loader");
     loadScript("workspace-safety-polish.js", "data-workspace-safety-loader");
   };

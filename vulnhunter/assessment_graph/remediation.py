@@ -312,6 +312,8 @@ class RemediationAssessmentGraphService:
         if normalized == "cancelled":
             return True
         if normalized == "passed":
+            if review.status == NodeStatus.COMPLETED:
+                return True
             if review.status == NodeStatus.READY:
                 if str(review.last_error or "").startswith(_REVIEW_PREFIX):
                     graph = self.core._transition(

@@ -258,17 +258,14 @@ def remediation_publication_view(request: HttpRequest, finding_id: str) -> HttpR
                     )
                 publication_history = store.list_publications_for_finding(finding_id)
                 if any(
-                    item.source_report_id == latest_report.report_id
-                    for item in publication_history
+                    item.source_report_id == latest_report.report_id for item in publication_history
                 ):
                     raise PublicationServiceError(
                         "This exact report already has publication history. Generate a new "
                         "signed report before requesting another release."
                     )
                 current_publication = _current_publication(store, finding_id)
-                correction_id = request.POST.get(
-                    "correction_of_publication_id", ""
-                ).strip() or None
+                correction_id = request.POST.get("correction_of_publication_id", "").strip() or None
                 if current_publication is not None:
                     if correction_id != current_publication.publication_id:
                         raise PublicationServiceError(
@@ -336,9 +333,7 @@ def remediation_publication_view(request: HttpRequest, finding_id: str) -> HttpR
                 publication_id = request.POST.get("publication_id", "").strip()
                 publication = store.load_publication(publication_id)
                 if publication.source_finding_id != finding_id:
-                    raise PublicationServiceError(
-                        "publication does not belong to this finding"
-                    )
+                    raise PublicationServiceError("publication does not belong to this finding")
                 if not _confirmed(request.POST.get("confirm_revocation", "")):
                     raise PublicationServiceError(
                         "Confirm the non-destructive publication revocation."

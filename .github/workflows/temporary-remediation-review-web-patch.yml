@@ -6,6 +6,7 @@ on:
     paths:
       - .github/workflows/temporary-remediation-review-web-patch.yml
       - scripts/patch_remediation_review_web.py
+      - scripts/wrap_remediation_review_web.py
 
 permissions:
   contents: write
@@ -24,6 +25,7 @@ jobs:
           python-version: '3.12'
       - run: python -m pip install ruff
       - run: python scripts/patch_remediation_review_web.py
+      - run: python scripts/wrap_remediation_review_web.py
       - run: python -m ruff format vulnhunter/web/remediation_conversation_state.py vulnhunter/web/remediation_views.py vulnhunter/web/remediation_review_views.py vulnhunter/web/remediation_review_conversation_views.py vulnhunter/web/remediation_review_service.py vulnhunter/web/urls.py tests/unit/test_independent_remediation_review_web.py
       - run: python -m ruff check --fix vulnhunter/web/remediation_conversation_state.py vulnhunter/web/remediation_views.py vulnhunter/web/remediation_review_views.py vulnhunter/web/remediation_review_conversation_views.py vulnhunter/web/remediation_review_service.py vulnhunter/web/urls.py tests/unit/test_independent_remediation_review_web.py
       - run: node --check vulnhunter/web/static/web/conversation-runtime-compat.js

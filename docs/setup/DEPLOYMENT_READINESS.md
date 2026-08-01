@@ -71,6 +71,20 @@ database, versioned agent store, and security-tool runtime configuration without
 starting a tool, connector, model, scan, or external request. A failed required
 dependency returns HTTP 503.
 
+Publication remains a separate activation gate. When publication is enabled, run:
+
+```bash
+python manage.py vh_publication_preflight --probe-writes
+python manage.py vh_publication_recover
+```
+
+The preflight validates complete owner-private activation, governance authority
+health, destination ownership/permissions/free space, signed-state integrity,
+artifact digests, and interrupted-operation state without publishing anything.
+Recovery defaults to inspection; `--apply-safe` is limited to stale staging
+cleanup and exact signed metadata restoration. The full boundary and escalation
+procedure are documented in `docs/setup/PUBLICATION_OPERATIONS.md`.
+
 ## Storage ownership and logging
 
 - `/srv/vulnhunter/state`: mode `0750` or narrower; databases and graph state.
@@ -88,8 +102,9 @@ logs.
 
 Before a release, stop application writers and take consistent backups of every
 configured SQLite database, task graph, activity ledger, evidence root, mobile
-artifact root, and deployment configuration. Verify restoration into an isolated
-directory and run integrity/readiness checks there.
+artifact root, publication state root, publication destination root, and deployment
+configuration. Verify restoration into an isolated directory and run
+integrity/readiness checks there.
 
 Application rollback means selecting the previously reviewed source release and
 its matching dependency set, then restoring data only when its schema contract
@@ -110,8 +125,9 @@ pg_restore --clean --if-exists --no-owner --dbname=vulnhunter_restore_check \
 
 Rollback order is: stop writers, preserve current logs/evidence, restore the last
 reviewed application/dependency release, run schema compatibility checks, restore
-data only when the reviewed rollback plan requires it, then re-run `/ready/` and
-governance integrity tests. Never reset source as a substitute for data rollback.
+data only when the reviewed rollback plan requires it, then re-run `/ready/`,
+publication preflight/recovery inspection when enabled, and governance integrity
+tests. Never reset source as a substitute for data rollback.
 
 ## Separate activation gates
 

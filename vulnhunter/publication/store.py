@@ -116,9 +116,7 @@ class PublicationStore:
         except PublicationStoreError:
             raise
         except (OSError, ValueError, KeyError, TypeError) as exc:
-            raise PublicationStoreError(
-                f"{category} record is unavailable or invalid"
-            ) from exc
+            raise PublicationStoreError(f"{category} record is unavailable or invalid") from exc
         if not hmac.compare_digest(signature, self._signature(category, payload)):
             raise PublicationStoreError("publication record signature verification failed")
         try:

@@ -36,6 +36,20 @@ def _nodes(payload):
     return {item["stage"]: item for item in payload["nodes"]}
 
 
+def test_passed_retest_replay_is_idempotent_after_review_completion(tmp_path):
+    service = _service(tmp_path)
+    remediation_id = _ready_for_report(service)
+    before = service.status_payload(remediation_id)
+
+    assert service.project_retest_outcome(
+        remediation_id,
+        receipt_id="retest-receipt-" + "9" * 24,
+        outcome="passed",
+    )
+
+    assert service.status_payload(remediation_id) == before
+
+
 def test_report_generation_completes_only_report_stage(tmp_path):
     service = _service(tmp_path)
     remediation_id = _ready_for_report(service)

@@ -1,0 +1,67 @@
+.vh-composer-recent-prompts {
+  display: grid;
+  gap: .35rem;
+  margin-bottom: .35rem;
+  padding-bottom: .45rem;
+  border-bottom: 1px solid var(--border, #2c302d);
+}
+
+.vh-composer-recent-prompts[hidden] {
+  display: none;
+}
+
+.vh-composer-recent-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: .65rem;
+  padding: .35rem .75rem .15rem;
+}
+
+.vh-composer-recent-heading strong {
+  color: var(--text-primary, #fff);
+  font-size: .72rem;
+}
+
+.vh-composer-recent-heading small {
+  overflow: hidden;
+  color: var(--text-muted, #747a76);
+  font-size: .64rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vh-composer-recent-options {
+  display: grid;
+}
+
+.vh-composer-recent-option {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.vh-composer-recent-option strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vh-composer-recent-option small {
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .vh-composer-recent-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: .1rem;
+  }
+
+  .vh-composer-recent-option {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .vh-composer-recent-option strong {
+    white-space: normal;
+  }
+}

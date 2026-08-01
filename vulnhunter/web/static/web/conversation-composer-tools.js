@@ -4,19 +4,41 @@
   if (typeof document === "undefined" || typeof window === "undefined") return;
 
   const current = document.currentScript?.src;
-  if (current && !document.querySelector("link[data-composer-tools-styles]")) {
-    const styleUrl = new URL(current, window.location.href);
-    styleUrl.pathname = styleUrl.pathname.replace(
-      /conversation-composer-tools\.js$/,
-      "conversation-composer-tools.css",
-    );
-    styleUrl.search = "?v=20260801-composer-tools2";
-    const link = document.createElement("link");
-    link.rel = "stylesheet";
-    link.href = styleUrl.toString();
-    link.dataset.composerToolsStyles = "true";
-    document.head.append(link);
+  let composerStylesLoaded = false;
+  let composerStylesPromise = Promise.resolve(true);
+  if (current) {
+    let styleLink = document.querySelector("link[data-composer-tools-styles]");
+    if (!styleLink) {
+      const styleUrl = new URL(current, window.location.href);
+      styleUrl.pathname = styleUrl.pathname.replace(
+        /conversation-composer-tools\.js$/,
+        "conversation-composer-tools.css",
+      );
+      styleUrl.search = "?v=20260801-composer-tools3";
+      styleLink = document.createElement("link");
+      styleLink.rel = "stylesheet";
+      styleLink.href = styleUrl.toString();
+      styleLink.dataset.composerToolsStyles = "true";
+      document.head.append(styleLink);
+    }
+    composerStylesLoaded = Boolean(styleLink.sheet);
+    if (!composerStylesLoaded) {
+      composerStylesPromise = new Promise((resolve) => {
+        let settled = false;
+        const finish = (loaded) => {
+          if (settled) return;
+          settled = true;
+          resolve(Boolean(loaded));
+        };
+        styleLink.addEventListener("load", () => finish(true), { once: true });
+        styleLink.addEventListener("error", () => finish(false), { once: true });
+        window.setTimeout(() => finish(Boolean(styleLink.sheet)), 5000);
+      });
+    }
+  } else {
+    composerStylesLoaded = true;
   }
+
   if (current && !document.querySelector("script[data-recent-prompts-loader]")) {
     const recentUrl = new URL(current, window.location.href);
     recentUrl.pathname = recentUrl.pathname.replace(
@@ -84,6 +106,7 @@
   trigger.title = "Insert a safe starter prompt, or type / in the composer";
   trigger.setAttribute("aria-expanded", "false");
   trigger.setAttribute("aria-controls", "vh-composer-prompt-menu");
+  trigger.disabled = !composerStylesLoaded;
 
   const clear = document.createElement("button");
   clear.type = "button";
@@ -181,12 +204,14 @@
   };
 
   const openMenu = ({ focusOption = true, openedBySlash = false } = {}) => {
+    if (!composerStylesLoaded) return false;
     menu.hidden = false;
     menu.dataset.openedBySlash = openedBySlash ? "true" : "false";
     trigger.setAttribute("aria-expanded", "true");
     if (focusOption) {
       window.requestAnimationFrame(() => visibleOptions()[0]?.focus());
     }
+    return true;
   };
 
   const update = () => {
@@ -276,15 +301,25 @@
   input.addEventListener("input", update);
   new MutationObserver(update).observe(input, { attributes: true, attributeFilter: ["disabled"] });
 
+  composerStylesPromise.then((loaded) => {
+    composerStylesLoaded = loaded;
+    trigger.disabled = !loaded;
+    trigger.title = loaded
+      ? "Insert a safe starter prompt, or type / in the composer"
+      : "Starter prompt styles could not be loaded";
+    update();
+  });
+
   filterPrompts();
   update();
   window.VulnHunterComposerTools = Object.freeze({
     open: () => {
       filterPrompts();
-      openMenu();
+      return openMenu();
     },
     close: closeMenu,
     clear: () => setInputValue(""),
     insert: setInputValue,
+    stylesReady: () => composerStylesLoaded,
   });
 })();

@@ -6,6 +6,8 @@ from pathlib import Path
 
 from django.conf import settings
 from django.db import DatabaseError, connection
+from django.http import HttpRequest, JsonResponse
+from django.views.decorators.http import require_GET
 
 from vulnhunter.agent import AgentStore, AgentStoreError
 
@@ -70,3 +72,10 @@ def deployment_readiness() -> ReadinessReport:
         database=database_is_ready(),
         agent_store=agent_store_is_ready(),
     )
+
+
+@require_GET
+def deployment_readiness_view(request: HttpRequest) -> JsonResponse:
+    del request
+    report = deployment_readiness()
+    return JsonResponse(report.as_payload(), status=200 if report.ready else 503)

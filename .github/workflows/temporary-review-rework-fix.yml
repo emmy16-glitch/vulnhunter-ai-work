@@ -1,0 +1,35 @@
+name: Temporary review rework lifecycle patch
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/temporary-review-rework-fix.yml
+      - scripts/patch_review_rework_lifecycle.py
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.head_ref == 'impl/independent-remediation-review' && github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: impl/independent-remediation-review
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - run: python -m pip install ruff
+      - run: python scripts/patch_review_rework_lifecycle.py
+      - run: python -m ruff format vulnhunter/findings/models.py tests/unit/test_independent_remediation_review.py
+      - run: python -m ruff check vulnhunter/findings/models.py tests/unit/test_independent_remediation_review.py
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add vulnhunter/findings/models.py tests/unit/test_independent_remediation_review.py
+          git diff --cached --exit-code && exit 1 || true
+          git commit -m "Allow review rework on a later fixed revision"
+          git push origin HEAD:impl/independent-remediation-review

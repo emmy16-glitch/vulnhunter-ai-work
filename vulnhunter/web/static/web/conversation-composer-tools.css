@@ -123,6 +123,10 @@
   cursor: pointer;
 }
 
+.vh-composer-prompt-option[hidden] {
+  display: none;
+}
+
 .vh-composer-prompt-option:hover,
 .vh-composer-prompt-option:focus-visible {
   background: rgba(108, 124, 255, .09);
@@ -137,6 +141,19 @@
   color: var(--text-secondary, #a7aca9);
   font-size: .7rem;
   line-height: 1.45;
+}
+
+.vh-composer-prompt-empty {
+  margin: 0;
+  padding: 1rem .8rem;
+  color: var(--text-secondary, #a7aca9);
+  font-size: .76rem;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.vh-composer-prompt-empty[hidden] {
+  display: none;
 }
 
 @media (max-width: 640px) {

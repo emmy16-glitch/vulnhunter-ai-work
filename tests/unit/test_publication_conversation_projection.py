@@ -137,9 +137,7 @@ def test_chat_status_and_event_metadata_truthfully_expose_publication():
     assert "finding closure, merge or deployment" in next_step.lower()
     assert event["metadata"]["remediation"]["release_state"] == "published"
     assert event["metadata"]["remediation"]["publication_id"] == "publication-01"
-    assert event["metadata"]["remediation_event"].endswith(
-        ":published:publication-01"
-    )
+    assert event["metadata"]["remediation_event"].endswith(":published:publication-01")
 
 
 def test_chat_fails_closed_for_publication_integrity_error():

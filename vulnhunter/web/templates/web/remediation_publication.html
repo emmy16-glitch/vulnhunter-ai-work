@@ -1,0 +1,123 @@
+{% extends "web/base.html" %}
+{% block content %}
+<section class="vh-page-shell">
+  <header class="vh-page-header">
+    <div>
+      <p class="vh-eyebrow">Finding {{ finding.finding_id }}</p>
+      <h1>Governed final-report publication</h1>
+      <p>Request, approve and publish one exact signed report through three distinct configured authorities. This workflow cannot merge code, deploy a fix or close the finding.</p>
+    </div>
+    <div class="vh-page-actions">
+      <a class="vh-button-secondary" href="{{ report_url }}">Final report</a>
+      <a class="vh-button-secondary" href="{{ remediation_url }}">Remediation plan</a>
+      <a class="vh-button-secondary" href="{{ workspace_return_url }}">Return to chat</a>
+    </div>
+  </header>
+
+  {% if error %}<div class="vh-alert vh-alert-danger" role="alert">{{ error }}</div>{% endif %}
+
+  <section class="vh-surface">
+    <header class="vh-surface-header"><div><h2>Identity and report boundary</h2><p>The signed-in web user is mapped to one governed identity. Typed actor IDs are ignored.</p></div></header>
+    <div class="vh-surface-body">
+      <dl class="vh-terminal-facts">
+        <div><dt>Current governed identity</dt><dd>{{ actor_id }}</dd></div>
+        <div><dt>Configured publication authority</dt><dd>{% if actor_can_act %}Yes{% else %}No — read-only access{% endif %}</dd></div>
+        <div><dt>Finding status</dt><dd>{{ finding.status.value }}</dd></div>
+        <div><dt>Finding revision</dt><dd>{{ finding.revision }}</dd></div>
+        <div><dt>Report ID</dt><dd>{% if latest_report %}{{ latest_report.report_id }}{% else %}Unavailable{% endif %}</dd></div>
+        <div><dt>Report manifest</dt><dd>{% if latest_report %}{{ latest_report.manifest_id }}{% else %}Unavailable{% endif %}</dd></div>
+        <div><dt>Report SHA-256</dt><dd><code>{% if latest_report %}{{ latest_report.report_sha256 }}{% else %}Unavailable{% endif %}</code></dd></div>
+        <div><dt>Manifest SHA-256</dt><dd><code>{% if latest_report %}{{ latest_report.manifest_sha256 }}{% else %}Unavailable{% endif %}</code></dd></div>
+      </dl>
+      {% if not report_bundle %}<div class="vh-alert vh-alert-danger" role="alert">The signed report bundle could not be verified. No release action is allowed.</div>{% endif %}
+      {% if not actor_can_act %}<div class="vh-empty-panel"><h3>Read-only publication view</h3><p>Your mapped identity is not one of the deployment-configured release authorities. You can inspect signed state but cannot request, approve or publish.</p></div>{% endif %}
+    </div>
+  </section>
+
+  {% if request_eligible and actor_can_act %}
+  <section class="vh-surface">
+    <header class="vh-surface-header"><div><h2>1. Request exact release</h2><p>This creates an expiring signed request. It does not approve or publish anything.</p></div></header>
+    <div class="vh-surface-body">
+      <form method="post" class="vh-form-stack">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="request">
+        {% if correction_target %}<input type="hidden" name="correction_of_publication_id" value="{{ correction_target.publication_id }}">{% endif %}
+        <label class="vh-form-field"><span>Authorised destination</span><select name="destination_id" required>{% for destination in destinations %}<option value="{{ destination.destination_id }}">{{ destination.label }} — {{ destination.allowed_formats|join:", " }}</option>{% endfor %}</select><small>The filesystem path is deployment-owned and is never accepted from this form.</small></label>
+        <fieldset class="vh-form-field"><legend>Exact report formats</legend>{% for format in available_formats %}<label class="vh-check-row"><input type="checkbox" name="formats" value="{{ format }}" checked><span>{{ format|upper }}</span></label>{% endfor %}</fieldset>
+        <label class="vh-form-field"><span>Release reason</span><textarea name="reason" rows="4" required>Release the exact independently reviewed remediation report.</textarea><small>The reason is redacted and bounded before it enters the signed request.</small></label>
+        <label class="vh-form-field"><span>Request expiry</span><select name="expires_in_hours"><option value="1">1 hour</option><option value="8">8 hours</option><option value="24" selected>24 hours</option><option value="72">3 days</option><option value="168">7 days</option></select></label>
+        {% if correction_target %}<div class="vh-alert" role="status">This request will correct current publication <strong>{{ correction_target.publication_id }}</strong> using the new report. The old release remains preserved.</div>{% endif %}
+        <label class="vh-form-field"><span>Governance secret for {{ actor_id }}</span><input type="password" name="governance_secret" autocomplete="current-password" required><small>The secret authenticates the mapped requester identity and is never accepted through chat.</small></label>
+        <button class="vh-button-primary" type="submit">Create signed release request</button>
+      </form>
+    </div>
+  </section>
+  {% endif %}
+
+  {% if current_row %}
+  <section class="vh-surface">
+    <header class="vh-surface-header"><div><h2>Current release authority chain</h2><p>Each completed stage is immutable. The next actor must use a different mapped identity.</p></div></header>
+    <div class="vh-surface-body">
+      <dl class="vh-terminal-facts">
+        <div><dt>Workflow state</dt><dd>{{ current_row.state }}</dd></div>
+        <div><dt>Request ID</dt><dd>{{ current_row.request.request_id }}</dd></div>
+        <div><dt>Requester</dt><dd>{{ current_row.request.requester_id }}</dd></div>
+        <div><dt>Destination</dt><dd>{{ current_row.request.destination.label }}</dd></div>
+        <div><dt>Formats</dt><dd>{{ current_row.request.formats|join:", " }}</dd></div>
+        <div><dt>Expires</dt><dd>{{ current_row.request.expires_at }}</dd></div>
+        <div><dt>Approval ID</dt><dd>{% if current_row.approval %}{{ current_row.approval.approval_id }}{% else %}Awaiting a different authority{% endif %}</dd></div>
+        <div><dt>Approver</dt><dd>{% if current_row.approval %}{{ current_row.approval.approver_id }}{% else %}Awaiting a different authority{% endif %}</dd></div>
+      </dl>
+
+      {% if current_row.state == "requested" and actor_can_act %}
+      <form method="post" class="vh-form-stack">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="approve">
+        <input type="hidden" name="request_id" value="{{ current_row.request.request_id }}">
+        <div class="vh-empty-panel"><h3>2. Independently approve</h3><p>The requester cannot approve this request. Sign in as a different configured publication authority.</p></div>
+        <label class="vh-form-field"><span>Governance secret for {{ actor_id }}</span><input type="password" name="governance_secret" autocomplete="current-password" required></label>
+        <button class="vh-button-primary" type="submit">Approve exact release request</button>
+      </form>
+      {% elif current_row.state == "approved" and actor_can_act %}
+      <form method="post" class="vh-form-stack">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="publish">
+        <input type="hidden" name="request_id" value="{{ current_row.request.request_id }}">
+        <input type="hidden" name="approval_id" value="{{ current_row.approval.approval_id }}">
+        <div class="vh-empty-panel"><h3>3. Publish approved artifacts</h3><p>The publisher must differ from both {{ current_row.request.requester_id }} and {{ current_row.approval.approver_id }}. Publication verifies every source artifact digest before copying it.</p></div>
+        <label class="vh-form-field"><span>Governance secret for {{ actor_id }}</span><input type="password" name="governance_secret" autocomplete="current-password" required></label>
+        <button class="vh-button-primary" type="submit">Publish exact approved artifacts</button>
+      </form>
+      {% endif %}
+    </div>
+  </section>
+  {% endif %}
+
+  <section class="vh-surface">
+    <header class="vh-surface-header"><div><h2>Signed workflow history</h2><p>Requests, approvals and publications are read from HMAC-verified append-only records.</p></div></header>
+    <div class="vh-surface-body">
+      {% if workflow_rows %}
+      <ul class="vh-compact-list">
+        {% for row in workflow_rows %}
+        <li><span><strong>{{ row.state|upper }}</strong> — {{ row.request.request_id }} — requester {{ row.request.requester_id }}{% if row.approval %} — approver {{ row.approval.approver_id }}{% endif %}{% if row.publication %} — publisher {{ row.publication.publisher_id }}{% endif %}</span></li>
+        {% endfor %}
+      </ul>
+      {% else %}<div class="vh-empty-panel"><h3>No release request</h3><p>The signed final report remains generated and unreleased.</p></div>{% endif %}
+    </div>
+  </section>
+
+  {% if publication_rows %}
+  <section class="vh-surface">
+    <header class="vh-surface-header"><div><h2>Publication manifests</h2><p>Corrections and revocations preserve earlier artifacts and append signed notices.</p></div></header>
+    <div class="vh-surface-body">
+      <ul class="vh-compact-list">
+        {% for row in publication_rows %}
+        <li><span><strong>{{ row.state|upper }}</strong> — {{ row.publication.publication_id }} — {{ row.publication.destination.label }} — {{ row.publication.published_at }}<br><code>{{ row.publication.fingerprint }}</code></span></li>
+        {% endfor %}
+      </ul>
+      <div class="vh-empty-panel"><h3>Separate lifecycle authority</h3><p>A published report does not automatically close the finding, merge the fixed revision or deploy software.</p></div>
+    </div>
+  </section>
+  {% endif %}
+</section>
+{% endblock %}

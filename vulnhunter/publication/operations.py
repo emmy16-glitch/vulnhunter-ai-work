@@ -223,18 +223,26 @@ def audit_publication_state(store: PublicationStore) -> PublicationStateAudit:
         superseded = publications.get(superseded_id)
         replacement = publications.get(correction.replacement_publication_id)
         if superseded is None or replacement is None:
-            raise PublicationStoreError("publication correction references missing publication state")
+            raise PublicationStoreError(
+                "publication correction references missing publication state"
+            )
         if correction.superseded_publication_id != superseded.publication_id:
             raise PublicationStoreError("publication correction storage key does not match")
         if correction.replacement_publication_sha256 != replacement.fingerprint():
-            raise PublicationStoreError("publication correction replacement digest does not match")
+            raise PublicationStoreError(
+                "publication correction replacement digest does not match"
+            )
         if replacement.correction_of_publication_id != superseded.publication_id:
-            raise PublicationStoreError("replacement publication does not bind its correction target")
+            raise PublicationStoreError(
+                "replacement publication does not bind its correction target"
+            )
 
     for publication_id, revocation in revocations.items():
         publication = publications.get(publication_id)
         if publication is None:
-            raise PublicationStoreError("publication revocation references missing publication state")
+            raise PublicationStoreError(
+                "publication revocation references missing publication state"
+            )
         if revocation.publication_id != publication.publication_id:
             raise PublicationStoreError("publication revocation storage key does not match")
         if revocation.publication_sha256 != publication.fingerprint():
@@ -559,7 +567,8 @@ def inspect_publication_operations(
                     )
                 )
                 continue
-            if len(raw) != artifact.size_bytes or hashlib.sha256(raw).hexdigest() != artifact.sha256:
+            digest_mismatch = hashlib.sha256(raw).hexdigest() != artifact.sha256
+            if len(raw) != artifact.size_bytes or digest_mismatch:
                 issues.append(
                     _issue(
                         "publication_artifact_mismatch",

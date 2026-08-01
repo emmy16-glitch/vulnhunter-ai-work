@@ -27,6 +27,7 @@
   let followingLatest = true;
   let scheduled = false;
   let programmatic = false;
+  let scrollGeneration = 0;
   let unreadMessages = 0;
   let knownMessageCount = feed.querySelectorAll(".vh-chat-message").length;
 
@@ -57,6 +58,12 @@
     renderJump();
   };
 
+  const cancelProgrammaticScroll = () => {
+    scrollGeneration += 1;
+    scheduled = false;
+    programmatic = false;
+  };
+
   const syncFromPosition = () => {
     if (programmatic) return;
     followingLatest = distanceFromBottom() <= bottomThreshold;
@@ -64,7 +71,13 @@
     publishState();
   };
 
-  const settleProgrammaticScroll = (frame = 0, stableFrames = 0) => {
+  const settleProgrammaticScroll = (
+    generation,
+    frame = 0,
+    stableFrames = 0,
+  ) => {
+    if (generation !== scrollGeneration) return;
+
     let arrived = distanceFromBottom() <= bottomThreshold;
     let nextStableFrames = arrived ? stableFrames + 1 : 0;
 
@@ -79,6 +92,7 @@
     if (nextStableFrames >= requiredStableFrames || frame >= maximumSettleFrames) {
       feed.scrollTop = feed.scrollHeight;
       window.requestAnimationFrame(() => {
+        if (generation !== scrollGeneration) return;
         const finalArrival = distanceFromBottom() <= bottomThreshold;
         scheduled = false;
         programmatic = false;
@@ -91,7 +105,7 @@
     }
 
     window.requestAnimationFrame(() =>
-      settleProgrammaticScroll(frame + 1, nextStableFrames),
+      settleProgrammaticScroll(generation, frame + 1, nextStableFrames),
     );
   };
 
@@ -100,14 +114,17 @@
     if (scheduled) return true;
     scheduled = true;
     programmatic = true;
+    const generation = ++scrollGeneration;
     window.requestAnimationFrame(() => {
+      if (generation !== scrollGeneration) return;
       feed.scrollTo({ top: feed.scrollHeight, behavior });
-      window.requestAnimationFrame(() => settleProgrammaticScroll());
+      window.requestAnimationFrame(() => settleProgrammaticScroll(generation));
     });
     return true;
   };
 
   const pauseFollowing = () => {
+    cancelProgrammaticScroll();
     if (distanceFromBottom() > bottomThreshold) {
       followingLatest = false;
       publishState();

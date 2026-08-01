@@ -1,0 +1,102 @@
+.vh-stop-response {
+  min-height: 32px;
+  margin-left: auto;
+  border: 1px solid rgba(244, 63, 94, .42);
+  border-radius: 999px;
+  padding: .3rem .65rem;
+  background: rgba(244, 63, 94, .1);
+  color: var(--text-primary, #fff);
+  font: inherit;
+  font-size: .72rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.vh-stop-response:hover {
+  background: rgba(244, 63, 94, .18);
+}
+
+.vh-stop-response:focus-visible,
+.vh-message-utility-button:focus-visible {
+  outline: 2px solid var(--primary, #16b878);
+  outline-offset: 2px;
+}
+
+.vh-stop-response[hidden] {
+  display: none;
+}
+
+.vh-message-utility-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: .35rem;
+  margin-top: .55rem;
+}
+
+.vh-message-utility-button {
+  min-height: 30px;
+  border: 1px solid var(--border, #2c302d);
+  border-radius: 999px;
+  padding: .25rem .58rem;
+  background: transparent;
+  color: var(--text-secondary, #a7aca9);
+  font: inherit;
+  font-size: .7rem;
+  cursor: pointer;
+}
+
+.vh-message-utility-button:hover {
+  border-color: rgba(108, 124, 255, .44);
+  background: rgba(108, 124, 255, .08);
+  color: var(--text-primary, #fff);
+}
+
+.vh-chat-message.is-user .vh-message-utility-actions {
+  justify-content: flex-end;
+}
+
+.vh-chat-message.is-local-notice .vh-message-copy {
+  color: var(--text-secondary, #a7aca9);
+}
+
+.vh-clipboard-proxy {
+  position: fixed;
+  left: -10000px;
+  top: 0;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+@media (max-width: 640px) {
+  .vh-llm-progress-head {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .vh-llm-progress-head [data-llm-progress-elapsed] {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .vh-stop-response {
+    grid-column: 1 / -1;
+    width: 100%;
+    min-height: 40px;
+    margin-left: 0;
+  }
+
+  .vh-message-utility-button {
+    min-height: 36px;
+    padding-inline: .7rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vh-stop-response,
+  .vh-message-utility-button {
+    transition: none;
+  }
+}

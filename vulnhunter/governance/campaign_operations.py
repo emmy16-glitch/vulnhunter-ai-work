@@ -173,8 +173,7 @@ def _ownership_evidence_is_explicit(authorization) -> bool:
         and authorization.approved_by.strip()
         and authorization.purpose.strip()
         and evidence_reference.strip()
-        and authorization.owner.strip().casefold()
-        != authorization.approved_by.strip().casefold()
+        and authorization.owner.strip().casefold() != authorization.approved_by.strip().casefold()
     )
 
 
@@ -259,8 +258,7 @@ def _release_package_status(
             return CampaignReleasePackageStatus(
                 state="missing",
                 detail=(
-                    "The dataset is released, but its append-only provenance package "
-                    "is missing."
+                    "The dataset is released, but its append-only provenance package is missing."
                 ),
                 release_id=release.release_id,
             )

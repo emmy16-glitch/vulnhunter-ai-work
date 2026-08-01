@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 
 from vulnhunter.findings.models import (
     EvidenceReference,
+    FinalReportReference,
     Finding,
     FindingStatus,
     RemediationRecord,
@@ -394,6 +395,81 @@ class FindingService:
             finding.model_copy(
                 update={
                     "status": status,
+                    "remediation": updated_remediation,
+                    "evidence": finding.evidence + (evidence,),
+                    "revision": finding.revision + 1,
+                    "updated_at": recorded_at,
+                }
+            ).model_dump()
+        )
+        self.store.save(updated, expected_revision=expected_revision)
+        return updated
+
+    def record_final_report(
+        self,
+        finding_id: str,
+        *,
+        report: FinalReportReference,
+        evidence: EvidenceReference,
+        expected_revision: int,
+        now: datetime | None = None,
+    ) -> Finding:
+        """Atomically append one signed unreleased final report without closing."""
+
+        finding = self.store.get(finding_id)
+        if finding.revision != expected_revision:
+            raise FindingConflict(
+                f"finding revision conflict: expected {expected_revision}, found {finding.revision}"
+            )
+        remediation = finding.remediation
+        latest_verification = (
+            remediation.verification_history[-1]
+            if remediation is not None and remediation.verification_history
+            else None
+        )
+        latest_review = (
+            remediation.review_history[-1]
+            if remediation is not None and remediation.review_history
+            else None
+        )
+        if (
+            finding.status != FindingStatus.READY_FOR_REPORT
+            or remediation is None
+            or remediation.remediation_id is None
+            or remediation.state != RemediationState.REVIEW_APPROVED
+            or latest_verification is None
+            or latest_verification.verdict != "fixed"
+            or latest_review is None
+            or latest_review.outcome != RemediationReviewOutcome.APPROVED
+        ):
+            raise FindingLifecycleError(
+                "final report requires a ready-for-report approved remediation review"
+            )
+        if any(item.evidence_id == evidence.evidence_id for item in finding.evidence):
+            raise FindingLifecycleError("the final report manifest is already linked")
+        if evidence.evidence_id != report.manifest_id:
+            raise FindingLifecycleError("final report evidence must identify the signed manifest")
+        if evidence.sha256 != report.manifest_sha256:
+            raise FindingLifecycleError("final report evidence must match the manifest digest")
+        if report.fixed_revision != latest_verification.fixed_revision:
+            raise FindingLifecycleError("final report is bound to another fixed revision")
+        if report.review_receipt_id != latest_review.receipt_id:
+            raise FindingLifecycleError("final report is bound to another review receipt")
+
+        recorded_at = (now or datetime.now(UTC)).astimezone(UTC)
+        if recorded_at < finding.updated_at.astimezone(UTC):
+            raise FindingLifecycleError(
+                "final report timestamp cannot predate the current finding revision"
+            )
+        if report.created_at.astimezone(UTC) != recorded_at:
+            raise FindingLifecycleError(
+                "final report reference and finding transition must share one timestamp"
+            )
+        updated_remediation = remediation.record_report(report)
+        updated = Finding.model_validate(
+            finding.model_copy(
+                update={
+                    "status": FindingStatus.REPORT_GENERATED,
                     "remediation": updated_remediation,
                     "evidence": finding.evidence + (evidence,),
                     "revision": finding.revision + 1,

@@ -17,6 +17,8 @@ from vulnhunter.web import (
     intelligence_views,
     lab_views,
     operations_views,
+    remediation_final_report_conversation_views,
+    remediation_final_report_views,
     remediation_review_conversation_views,
     remediation_review_views,
     remediation_views,
@@ -54,6 +56,11 @@ urlpatterns = [
         "workspace/remediation-review/",
         remediation_review_conversation_views.remediation_review_chat_view,
         name="web-conversation-remediation-review",
+    ),
+    path(
+        "workspace/remediation-final-report/",
+        remediation_final_report_conversation_views.remediation_final_report_chat_view,
+        name="web-conversation-remediation-final-report",
     ),
     path(
         "workspace/retest/",
@@ -275,6 +282,16 @@ urlpatterns = [
         "findings/<str:finding_id>/remediation/review/",
         remediation_review_views.remediation_review_view,
         name="web-remediation-review",
+    ),
+    path(
+        "findings/<str:finding_id>/remediation/report/",
+        remediation_final_report_views.remediation_final_report_view,
+        name="web-remediation-final-report",
+    ),
+    path(
+        "findings/<str:finding_id>/remediation/report/download/<slug:artifact_format>/",
+        remediation_final_report_views.remediation_final_report_download_view,
+        name="web-remediation-final-report-download",
     ),
     path(
         "findings/<str:finding_id>/remediation/cancel/",

@@ -8,6 +8,7 @@
       <p>{{ remediation.summary }}</p>
     </div>
     <div class="vh-page-actions">
+      {% if can_generate_report %}<a class="vh-button-primary" href="{{ report_url }}">Generate final report</a>{% endif %}
       {% if can_review %}<a class="vh-button-primary" href="{{ review_url }}">Open independent review</a>{% endif %}
       {% if can_verify %}<a class="vh-button-primary" href="{{ verification_url }}">Record implementation and verify</a>{% endif %}
       {% if workspace_return_url %}<a class="vh-button-secondary" href="{{ workspace_return_url }}">Return to chat</a>{% endif %}
@@ -124,6 +125,28 @@
   </section>
   {% elif remediation.state.value == 'awaiting_review' %}
   <section class="vh-surface"><div class="vh-empty-panel"><h3>Independent review required</h3><p>The governed retest passed. An identity-separated reviewer must evaluate the exact evidence before report generation can become ready.</p><a class="vh-button-primary" href="{{ review_url }}">Open protected review</a></div></section>
+  {% endif %}
+
+
+  {% if latest_report %}
+  <section class="vh-surface">
+    <header class="vh-surface-header"><div><h2>Signed final remediation report</h2><p>The artifact set is integrity-bound and unreleased. It does not close the finding or grant publication authority.</p></div></header>
+    <div class="vh-surface-body">
+      <dl class="vh-terminal-facts">
+        <div><dt>Report ID</dt><dd>{{ latest_report.report_id }}</dd></div>
+        <div><dt>Manifest ID</dt><dd>{{ latest_report.manifest_id }}</dd></div>
+        <div><dt>Generator</dt><dd>{{ latest_report.generator_id }}</dd></div>
+        <div><dt>Fixed revision</dt><dd><code>{{ latest_report.fixed_revision }}</code></dd></div>
+        <div><dt>Manifest SHA-256</dt><dd><code>{{ latest_report.manifest_sha256 }}</code></dd></div>
+        <div><dt>Formats</dt><dd>{{ latest_report.formats|join:", " }}</dd></div>
+        <div><dt>Release state</dt><dd>unreleased</dd></div>
+      </dl>
+      {% if report_bundle %}<p>{{ report_bundle.report.evidence_citations|length }} redacted evidence citations are included. Raw evidence bytes are not embedded.</p>{% else %}<div class="vh-alert vh-alert-danger" role="alert">The report pointer exists, but its signed manifest or artifact integrity could not be verified.</div>{% endif %}
+      <a class="vh-button-secondary" href="{{ report_url }}">Inspect final report</a>
+    </div>
+  </section>
+  {% elif remediation.state.value == 'review_approved' %}
+  <section class="vh-surface"><div class="vh-empty-panel"><h3>Final report generation ready</h3><p>The exact fixed revision, passed retest and approved independent review can now be rendered into signed unreleased artifacts.</p><a class="vh-button-primary" href="{{ report_url }}">Generate protected report</a></div></section>
   {% endif %}
 
   {% if can_cancel %}

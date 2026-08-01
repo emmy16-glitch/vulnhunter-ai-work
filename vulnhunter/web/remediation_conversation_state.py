@@ -89,6 +89,11 @@ def remediation_review_url(finding_id: str, workspace_id: str | None) -> str:
     return f"{base}?{urlencode({'thread': workspace_id})}" if workspace_id else base
 
 
+def remediation_final_report_url(finding_id: str, workspace_id: str | None) -> str:
+    base = reverse("web-remediation-final-report", kwargs={"finding_id": finding_id})
+    return f"{base}?{urlencode({'thread': workspace_id})}" if workspace_id else base
+
+
 def _verification_payload(reference) -> dict[str, object]:
     return {
         "receipt_id": reference.receipt_id,
@@ -114,6 +119,22 @@ def _review_payload(reference) -> dict[str, object]:
     }
 
 
+def _report_payload(reference) -> dict[str, object]:
+    return {
+        "report_id": reference.report_id,
+        "manifest_id": reference.manifest_id,
+        "report_sha256": reference.report_sha256,
+        "manifest_sha256": reference.manifest_sha256,
+        "generator_id": reference.generator_id,
+        "generator_identity_sha256": reference.generator_identity_sha256,
+        "fixed_revision": reference.fixed_revision,
+        "review_receipt_id": reference.review_receipt_id,
+        "formats": list(reference.formats),
+        "release_state": "unreleased",
+        "created_at": reference.created_at.isoformat(),
+    }
+
+
 def _finding_payload(
     finding: Finding,
     *,
@@ -129,8 +150,10 @@ def _finding_payload(
     latest_verification = verification_history[-1] if verification_history else None
     review_history = [_review_payload(item) for item in remediation.review_history]
     latest_review = review_history[-1] if review_history else None
+    report_history = [_report_payload(item) for item in remediation.report_history]
+    latest_report = report_history[-1] if report_history else None
     return {
-        "schema_version": "1.2",
+        "schema_version": "1.3",
         "finding_id": finding.finding_id,
         "run_id": remediation.remediation_id,
         "remediation_id": remediation.remediation_id,
@@ -163,6 +186,8 @@ def _finding_payload(
             "latest_verification": latest_verification,
             "review_history": review_history,
             "latest_review": latest_review,
+            "report_history": report_history,
+            "latest_report": latest_report,
             "created_at": remediation.created_at.isoformat() if remediation.created_at else None,
             "expires_at": remediation.expires_at.isoformat() if remediation.expires_at else None,
             "due_at": remediation.due_at.isoformat() if remediation.due_at else None,
@@ -173,6 +198,7 @@ def _finding_payload(
         "detail_url": remediation_detail_url(finding.finding_id, workspace_id),
         "verify_url": remediation_verify_url(finding.finding_id, workspace_id),
         "review_url": remediation_review_url(finding.finding_id, workspace_id),
+        "report_url": remediation_final_report_url(finding.finding_id, workspace_id),
         "workspace_url": remediation_workspace_url(workspace_id),
     }
 
@@ -251,6 +277,8 @@ def _event_message(plan: dict[str, object]) -> dict[str, object]:
     latest = latest if isinstance(latest, dict) else {}
     latest_review = remediation.get("latest_review")
     latest_review = latest_review if isinstance(latest_review, dict) else {}
+    latest_report = remediation.get("latest_report")
+    latest_report = latest_report if isinstance(latest_report, dict) else {}
     event_key = f"remediation:{remediation_id}:{state}:{revision}"
     if state == "ready_for_retest":
         boundary = "Fix verification passed; retest, review, merge and release remain separate."
@@ -261,6 +289,11 @@ def _event_message(plan: dict[str, object]) -> dict[str, object]:
     elif state == "review_approved":
         boundary = (
             "Independent review approved report readiness; merge and closure remain separate."
+        )
+    elif state == "report_generated":
+        boundary = (
+            "The signed final report is generated but unreleased; closure and publication remain "
+            "separate."
         )
     else:
         boundary = "Developer implementation, fix verification, review and merge remain separate."
@@ -285,6 +318,9 @@ def _event_message(plan: dict[str, object]) -> dict[str, object]:
                 "verification_verdict": latest.get("verdict"),
                 "review_receipt_id": latest_review.get("receipt_id"),
                 "review_outcome": latest_review.get("outcome"),
+                "final_report_id": latest_report.get("report_id"),
+                "final_report_manifest_id": latest_report.get("manifest_id"),
+                "release_state": latest_report.get("release_state"),
                 "report_state": graph.get("report_state"),
             },
         },
@@ -353,8 +389,17 @@ def remediation_chat_reply(intent: str, plan: dict[str, object]) -> str:
     latest = latest if isinstance(latest, dict) else {}
     latest_review = remediation.get("latest_review")
     latest_review = latest_review if isinstance(latest_review, dict) else {}
+    latest_report = remediation.get("latest_report")
+    latest_report = latest_report if isinstance(latest_report, dict) else {}
 
     if intent == "status":
+        if latest_report:
+            return (
+                f"Remediation for {finding_id} is {state}. Final report "
+                f"{latest_report.get('report_id', 'unknown')} is generated with signed manifest "
+                f"{latest_report.get('manifest_id', 'unknown')} and remains unreleased. Finding "
+                "closure, release and publication are not implied."
+            )
         if latest_review:
             return (
                 f"Remediation for {finding_id} is {state}. Independent review returned "
@@ -376,6 +421,13 @@ def remediation_chat_reply(intent: str, plan: dict[str, object]) -> str:
             "No source change, fix verification, merge or finding closure has been recorded."
         )
     if intent == "results":
+        if latest_report:
+            return (
+                f"The immutable final report is {latest_report.get('report_id', 'unknown')} with "
+                f"manifest {latest_report.get('manifest_id', 'unknown')}. Available formats: "
+                f"{', '.join(latest_report.get('formats') or []) or 'unknown'}. The release state "
+                "is unreleased."
+            )
         if latest_review:
             return (
                 f"The signed independent review receipt is "
@@ -430,6 +482,12 @@ def remediation_chat_reply(intent: str, plan: dict[str, object]) -> str:
                 "Independent review approved the evidence. The next milestone is governed final "
                 "report generation; merge, closure, release and publication remain separate."
             )
+        if state == "report_generated":
+            return (
+                "The signed report and artifact manifest are complete but unreleased. The next "
+                "milestone is a dedicated human-authorised release/publication service; this "
+                "report does not close the finding."
+            )
         if state == "cancelled":
             return (
                 "The verified finding remains triaged. This slice does not create a replacement "
@@ -448,6 +506,7 @@ __all__ = [
     "remediation_chat_reply",
     "remediation_create_url",
     "remediation_detail_url",
+    "remediation_final_report_url",
     "remediation_finding_store",
     "remediation_review_url",
     "remediation_verify_url",

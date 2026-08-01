@@ -26,8 +26,10 @@ from vulnhunter.findings import (
     RemediationState,
     VerificationState,
 )
+from vulnhunter.reports import FinalRemediationReportError
 from vulnhunter.security import redact_text
 from vulnhunter.source_hunt import RepositorySnapshot, SourceReference, VerifierReceipt
+from vulnhunter.web.final_report_service import final_report_store
 from vulnhunter.web.remediation_assessment_graph import (
     bind_remediation_assessment_graph,
     fail_remediation_graph,
@@ -44,6 +46,7 @@ from vulnhunter.web.remediation_conversation_state import (
     remediation_workspace_url,
     remember_remediation_workspace,
 )
+from vulnhunter.web.remediation_final_report_views import remediation_final_report_url
 from vulnhunter.web.remediation_fix_verification import (
     remediation_fix_verification_service,
     remediation_fix_verification_store,
@@ -637,6 +640,13 @@ def remediation_detail_view(request: HttpRequest, finding_id: str) -> HttpRespon
             review_bundle = remediation_review_receipt_store().load(latest_review.receipt_id)
         except RemediationReviewError:
             review_bundle = None
+    latest_report = remediation.report_history[-1] if remediation.report_history else None
+    report_bundle = None
+    if latest_report is not None:
+        try:
+            report_bundle = final_report_store().load(latest_report.report_id)
+        except FinalRemediationReportError:
+            report_bundle = None
     active_states = {
         RemediationState.READY_FOR_IMPLEMENTATION,
         RemediationState.NEEDS_REWORK,
@@ -654,14 +664,18 @@ def remediation_detail_view(request: HttpRequest, finding_id: str) -> HttpRespon
             "verification_bundle": verification_bundle,
             "latest_review": latest_review,
             "review_bundle": review_bundle,
+            "latest_report": latest_report,
+            "report_bundle": report_bundle,
             "verification_url": remediation_verify_url(finding_id, workspace_id),
             "review_url": remediation_review_url(finding_id, workspace_id),
+            "report_url": remediation_final_report_url(finding_id, workspace_id),
             "workspace_return_url": remediation_workspace_url(workspace_id),
             "can_verify": (
                 remediation.state in active_states
                 and (request.user.is_staff or request.user.is_superuser)
             ),
             "can_review": remediation.state == RemediationState.AWAITING_REVIEW,
+            "can_generate_report": remediation.state == RemediationState.REVIEW_APPROVED,
             "can_cancel": (
                 remediation.state in active_states
                 and (request.user.is_staff or request.user.is_superuser)

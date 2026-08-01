@@ -33,6 +33,11 @@
     return /\b(retest|re-test|verify after fix|test the fix again)\b/.test(text);
   };
 
+  const finalReportMessage = (value) => {
+    const text = String(value || "").toLowerCase().replace(/\s+/g, " ").trim();
+    return /\b(generate final report|create final report|open final report|final remediation report|export final report|build final report)\b/.test(text);
+  };
+
   const remediationReviewMessage = (value) => {
     const text = String(value || "").toLowerCase().replace(/\s+/g, " ").trim();
     return /\b(independent remediation review|review remediation|review the remediation|review the fix|approve remediation review)\b/.test(text);
@@ -62,10 +67,11 @@
       const message = input?.value || "";
       const activeValidation = activeValidationMessage(message);
       const retest = retestMessage(message);
-      const remediationReview = remediationReviewMessage(message);
-      const remediation = !retest && !remediationReview && remediationMessage(message);
+      const finalReport = finalReportMessage(message);
+      const remediationReview = !finalReport && remediationReviewMessage(message);
+      const remediation = !retest && !finalReport && !remediationReview && remediationMessage(message);
       const sourceHunt = sourceHuntMessage(message);
-      if (!activeValidation && !retest && !remediationReview && !remediation && !sourceHunt) return;
+      if (!activeValidation && !retest && !finalReport && !remediationReview && !remediation && !sourceHunt) return;
 
       event.preventDefault();
       event.stopImmediatePropagation();
@@ -79,7 +85,7 @@
       const threadId = workspace?.dataset.threadId || form.dataset.threadId || "";
       const payload = new FormData();
       payload.set("message", message);
-      if (sourceHunt && !activeValidation && !retest && !remediationReview && !remediation) {
+      if (sourceHunt && !activeValidation && !retest && !finalReport && !remediationReview && !remediation) {
         payload.set("source_chat_bridge", "yes");
       }
       if (threadId) payload.set("thread_id", threadId);
@@ -89,7 +95,9 @@
         ? "/workspace/active-validation/"
         : retest
           ? "/workspace/retest/"
-          : remediationReview
+          : finalReport
+            ? "/workspace/remediation-final-report/"
+            : remediationReview
             ? "/workspace/remediation-review/"
             : remediation
             ? "/workspace/remediation/"
@@ -98,7 +106,9 @@
         ? "Active Validation"
         : retest
           ? "Governed Retest"
-          : remediationReview
+          : finalReport
+            ? "Final Remediation Report"
+            : remediationReview
             ? "Independent Remediation Review"
             : remediation
             ? "Remediation"
@@ -137,7 +147,7 @@
     if (document.querySelector(`script[${marker}]`)) return;
     const url = new URL(current, window.location.href);
     url.pathname = url.pathname.replace(/conversation-runtime-compat\.js$/, filename);
-    url.search = "?v=20260801-review1";
+    url.search = "?v=20260801-report1";
     const script = document.createElement("script");
     script.src = url.toString();
     script.async = false;
@@ -158,7 +168,7 @@
     const subtitle = workspace?.querySelector(".vh-chat-subtitle");
     if (subtitle) {
       subtitle.textContent =
-        "Conversational analysis for authorised websites, APKs, source repositories, controlled validation, remediation, retesting and independent review";
+        "Conversational analysis for authorised websites, APKs, source repositories, controlled validation, remediation, retesting, independent review and final reporting";
     }
   };
 

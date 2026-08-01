@@ -20,6 +20,7 @@ _FAILED_SAFE_PREFIX = "Remediation failed safely: "
 _REWORK_PREFIX = "Fix verification requires rework: "
 _RETEST_PREFIX = "Governed retest result: "
 _REVIEW_PREFIX = "Independent remediation review: "
+_REPORT_PREFIX = "Final remediation report generated: "
 
 
 class RemediationAssessmentGraphService:
@@ -208,6 +209,7 @@ class RemediationAssessmentGraphService:
             "awaiting_review",
             "review_needs_rework",
             "review_approved",
+            "report_generated",
         }:
             return True
         if normalized == "cancelled":
@@ -310,6 +312,8 @@ class RemediationAssessmentGraphService:
         if normalized == "cancelled":
             return True
         if normalized == "passed":
+            if review.status == NodeStatus.COMPLETED:
+                return True
             if review.status == NodeStatus.READY:
                 if str(review.last_error or "").startswith(_REVIEW_PREFIX):
                     graph = self.core._transition(
@@ -413,6 +417,41 @@ class RemediationAssessmentGraphService:
             raise AssessmentGraphError("report stage changed before review approval")
         return True
 
+    def project_report_generation(
+        self,
+        remediation_id: str,
+        *,
+        report_id: str,
+        manifest_id: str,
+    ) -> bool:
+        """Complete only the report stage for one immutable unreleased manifest."""
+
+        graph = self.core._load_optional(remediation_id)
+        if graph is None:
+            return False
+        report = self.core._stage_node(graph, AssessmentStage.REPORT)
+        marker = f"{_REPORT_PREFIX}report={report_id}; manifest={manifest_id}"
+        if report.status == NodeStatus.COMPLETED:
+            if report.last_error == marker:
+                return True
+            raise AssessmentGraphError("report stage already contains a different final report")
+        if report.status != NodeStatus.READY:
+            raise AssessmentGraphError("final report stage is not ready for generation")
+        graph = self.core._transition(
+            graph,
+            node_id=report.node_id,
+            status=NodeStatus.RUNNING,
+            last_error=None,
+        )
+        report = self.core._stage_node(graph, AssessmentStage.REPORT)
+        self.core._transition(
+            graph,
+            node_id=report.node_id,
+            status=NodeStatus.COMPLETED,
+            last_error=marker,
+        )
+        return True
+
     def _complete_attempt_stage(
         self,
         graph: TaskGraph,
@@ -471,7 +510,13 @@ class RemediationAssessmentGraphService:
         review_error = (
             str(review_node.get("last_error") or "") if isinstance(review_node, dict) else ""
         )
-        if review == NodeStatus.COMPLETED.value and report == NodeStatus.READY.value:
+        report_error = (
+            str(report_node.get("last_error") or "") if isinstance(report_node, dict) else ""
+        )
+        if report == NodeStatus.COMPLETED.value and report_error.startswith(_REPORT_PREFIX):
+            payload["chat_stage"] = "final_report_generated_awaiting_release"
+            payload["report_state"] = "generated_unreleased"
+        elif review == NodeStatus.COMPLETED.value and report == NodeStatus.READY.value:
             payload["chat_stage"] = "remediation_review_approved_ready_for_report"
             payload["report_state"] = "ready_for_generation"
         elif review == NodeStatus.READY.value and review_error.startswith(_REVIEW_PREFIX):
@@ -576,6 +621,15 @@ class RemediationAssessmentGraphService:
             ):
                 statuses[stage] = NodeStatus.COMPLETED
             statuses[AssessmentStage.REPORT] = NodeStatus.READY
+        elif normalized == "report_generated":
+            for stage in (
+                AssessmentStage.EXECUTION,
+                AssessmentStage.EVIDENCE,
+                AssessmentStage.VERIFICATION,
+                AssessmentStage.REVIEW,
+                AssessmentStage.REPORT,
+            ):
+                statuses[stage] = NodeStatus.COMPLETED
         elif normalized == "cancelled":
             for stage in (
                 AssessmentStage.EXECUTION,

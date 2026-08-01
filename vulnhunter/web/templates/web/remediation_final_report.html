@@ -1,0 +1,83 @@
+{% extends "web/base.html" %}
+{% block content %}
+<section class="vh-page-shell">
+  <header class="vh-page-header">
+    <div>
+      <p class="vh-eyebrow">Finding {{ finding.finding_id }}</p>
+      <h1>Governed final remediation report</h1>
+      <p>Generate immutable report artifacts from the exact fixed revision, passed retest and approved independent review. This workspace cannot publish, release, close or deploy.</p>
+    </div>
+    <div class="vh-page-actions">
+      <a class="vh-button-secondary" href="{{ remediation_url }}">Remediation plan</a>
+      <a class="vh-button-secondary" href="{{ workspace_return_url }}">Return to chat</a>
+    </div>
+  </header>
+
+  <section class="vh-surface">
+    <header class="vh-surface-header"><div><h2>Authoritative report binding</h2><p>The report writer and every artifact are bound to one approved review and fixed revision.</p></div></header>
+    <div class="vh-surface-body">
+      <dl class="vh-terminal-facts">
+        <div><dt>Report writer</dt><dd>{{ actor_id }}</dd></div>
+        <div><dt>Finding status</dt><dd>{{ finding.status.value }}</dd></div>
+        <div><dt>Finding revision</dt><dd>{{ finding.revision }}</dd></div>
+        <div><dt>Remediation ID</dt><dd>{% if remediation %}{{ remediation.remediation_id }}{% else %}Unavailable{% endif %}</dd></div>
+        <div><dt>Fixed revision</dt><dd><code>{% if latest_review %}{{ latest_review.fixed_revision }}{% else %}Unavailable{% endif %}</code></dd></div>
+        <div><dt>Approved review receipt</dt><dd>{% if latest_review %}{{ latest_review.receipt_id }}{% else %}Unavailable{% endif %}</dd></div>
+        <div><dt>Graph stage</dt><dd>{% if assessment_graph %}{{ assessment_graph.chat_stage }}{% else %}Unavailable{% endif %}</dd></div>
+        <div><dt>Report state</dt><dd>{% if assessment_graph %}{{ assessment_graph.report_state }}{% else %}Unavailable{% endif %}</dd></div>
+        <div><dt>PDF readiness</dt><dd>{% if pdf_readiness.enabled %}Ready — {{ pdf_readiness.renderer_id }} {{ pdf_readiness.renderer_version }}{% else %}Disabled by configuration{% endif %}</dd></div>
+      </dl>
+    </div>
+  </section>
+
+  {% if eligible %}
+  <section class="vh-surface">
+    <header class="vh-surface-header"><div><h2>Generate immutable artifacts</h2><p>JSON and HTML are always generated. PDF is optional and requires the explicit renderer readiness gate.</p></div></header>
+    <div class="vh-surface-body">
+      {% if error %}<div class="vh-alert vh-alert-danger" role="alert">{{ error }}</div>{% endif %}
+      <form method="post" class="vh-form-stack">
+        {% csrf_token %}
+        <input type="hidden" name="thread_id" value="{{ request.vulnhunter_thread.thread_id }}">
+        <input type="hidden" name="expected_revision" value="{{ finding.revision }}">
+        <label class="vh-form-field"><span>Additional report limitations</span><textarea name="limitations" rows="5">{{ submitted.limitations }}</textarea><small>One bounded limitation per line. Existing reviewer limitations remain included automatically.</small></label>
+        <label class="vh-check-row">
+          <input type="checkbox" name="include_pdf" value="true" {% if submitted.include_pdf %}checked{% endif %} {% if not pdf_readiness.enabled %}disabled{% endif %}>
+          <span>Generate readiness-gated PDF alongside JSON and HTML</span>
+        </label>
+        <label class="vh-form-field"><span>Governance secret</span><input type="password" name="governance_secret" autocomplete="current-password" required><small>This authenticates the mapped report-writer identity and is never accepted through ordinary chat.</small></label>
+        <button class="vh-button-primary" type="submit">Generate signed unreleased report</button>
+      </form>
+    </div>
+  </section>
+  {% endif %}
+
+  {% if latest_report %}
+  <section class="vh-surface">
+    <header class="vh-surface-header"><div><h2>Signed immutable report manifest</h2><p>These artifacts are generated and integrity-checked, but remain unreleased.</p></div></header>
+    <div class="vh-surface-body">
+      <dl class="vh-terminal-facts">
+        <div><dt>Report ID</dt><dd>{{ latest_report.report_id }}</dd></div>
+        <div><dt>Manifest ID</dt><dd>{{ latest_report.manifest_id }}</dd></div>
+        <div><dt>Report SHA-256</dt><dd><code>{{ latest_report.report_sha256 }}</code></dd></div>
+        <div><dt>Manifest SHA-256</dt><dd><code>{{ latest_report.manifest_sha256 }}</code></dd></div>
+        <div><dt>Generator</dt><dd>{{ latest_report.generator_id }}</dd></div>
+        <div><dt>Fixed revision</dt><dd><code>{{ latest_report.fixed_revision }}</code></dd></div>
+        <div><dt>Review receipt</dt><dd>{{ latest_report.review_receipt_id }}</dd></div>
+        <div><dt>Release state</dt><dd>unreleased</dd></div>
+      </dl>
+      {% if report_bundle %}
+      <h3>Artifacts</h3>
+      <ul class="vh-compact-list">
+        {% for download in artifact_downloads %}
+        <li><span><strong>{{ download.artifact.format.value|upper }}</strong> — {{ download.artifact.size_bytes }} bytes — <code>{{ download.artifact.sha256 }}</code></span><a class="vh-button-secondary" href="{{ download.url }}">Download</a></li>
+        {% endfor %}
+      </ul>
+      <h3>Evidence citations</h3><p>{{ report_bundle.report.evidence_citations|length }} integrity references are included as redacted metadata. Raw evidence bytes are not embedded.</p>
+      <h3>Limitations</h3>{% if report_bundle.report.limitations %}<ul class="vh-compact-list">{% for item in report_bundle.report.limitations %}<li><span>{{ item }}</span></li>{% endfor %}</ul>{% else %}<p>No additional limitation was recorded.</p>{% endif %}
+      {% else %}<div class="vh-alert vh-alert-danger" role="alert">The report pointer exists, but its signed manifest or artifact integrity could not be verified.</div>{% endif %}
+      <div class="vh-empty-panel"><h3>Release remains blocked</h3><p>Generating this report does not mark the finding remediated or closed. Publication, release, deployment and correction procedures require a later dedicated human-authorised service.</p></div>
+    </div>
+  </section>
+  {% endif %}
+</section>
+{% endblock %}

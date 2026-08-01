@@ -47,6 +47,7 @@ class FindingStatus(StrEnum):
     RETESTING = "retesting"
     AWAITING_REMEDIATION_REVIEW = "awaiting_remediation_review"
     READY_FOR_REPORT = "ready_for_report"
+    REPORT_GENERATED = "report_generated"
     REMEDIATED = "remediated"
     ACCEPTED_RISK = "accepted_risk"
     CLOSED = "closed"
@@ -60,6 +61,7 @@ class RemediationState(StrEnum):
     AWAITING_REVIEW = "awaiting_review"
     REVIEW_NEEDS_REWORK = "review_needs_rework"
     REVIEW_APPROVED = "review_approved"
+    REPORT_GENERATED = "report_generated"
     CANCELLED = "cancelled"
     FAILED = "failed"
 
@@ -451,6 +453,53 @@ class RemediationReviewReference(BaseModel):
         return self
 
 
+class FinalReportReference(BaseModel):
+    """Integrity pointer to one signed unreleased final report manifest."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    report_id: str
+    manifest_id: str
+    report_sha256: str
+    manifest_sha256: str
+    generator_id: str
+    generator_identity_sha256: str
+    fixed_revision: str = Field(min_length=1, max_length=256)
+    review_receipt_id: str
+    formats: tuple[str, ...] = Field(min_length=2, max_length=3)
+    created_at: datetime
+
+    @field_validator("report_id", "manifest_id", "generator_id", "review_receipt_id")
+    @classmethod
+    def validate_identifier(cls, value: str) -> str:
+        if _IDENTIFIER.fullmatch(value) is None:
+            raise ValueError("final report references require stable identifiers")
+        return value
+
+    @field_validator("report_sha256", "manifest_sha256", "generator_identity_sha256")
+    @classmethod
+    def validate_sha256(cls, value: str) -> str:
+        if _SHA256.fullmatch(value) is None:
+            raise ValueError("final report references require SHA-256 values")
+        return value
+
+    @field_validator("formats")
+    @classmethod
+    def validate_formats(cls, values: tuple[str, ...]) -> tuple[str, ...]:
+        allowed = {"json", "html", "pdf"}
+        if len(set(values)) != len(values) or not set(values).issubset(allowed):
+            raise ValueError("final report formats must be unique supported values")
+        if "json" not in values or "html" not in values:
+            raise ValueError("final report references require JSON and HTML")
+        return values
+
+    @model_validator(mode="after")
+    def validate_reference(self) -> Self:
+        if self.created_at.tzinfo is None or self.created_at.utcoffset() is None:
+            raise ValueError("final report reference time must be timezone-aware")
+        return self
+
+
 class RemediationRecord(BaseModel):
     """A legacy note or an exact human-owned remediation plan.
 
@@ -477,6 +526,7 @@ class RemediationRecord(BaseModel):
     verification_history: tuple[RemediationVerificationReference, ...] = ()
     retest_history: tuple[RetestReceiptReference, ...] = ()
     review_history: tuple[RemediationReviewReference, ...] = ()
+    report_history: tuple[FinalReportReference, ...] = ()
     created_at: datetime | None = None
     expires_at: datetime | None = None
     cancelled_at: datetime | None = None
@@ -519,6 +569,7 @@ class RemediationRecord(BaseModel):
                 self.verification_history,
                 self.retest_history,
                 self.review_history,
+                self.report_history,
                 self.created_at,
                 self.expires_at,
                 self.cancelled_at,
@@ -565,6 +616,7 @@ class RemediationRecord(BaseModel):
         latest_verification = self.verification_history[-1] if self.verification_history else None
         latest_retest = self.retest_history[-1] if self.retest_history else None
         latest_review = self.review_history[-1] if self.review_history else None
+        latest_report = self.report_history[-1] if self.report_history else None
         if self.state == RemediationState.READY_FOR_IMPLEMENTATION:
             if latest_verification is not None or latest_retest is not None:
                 raise ValueError("ready-for-implementation plans cannot have later receipts")
@@ -644,9 +696,25 @@ class RemediationRecord(BaseModel):
                 or latest_retest.fixed_revision != latest_verification.fixed_revision
                 or latest_review.fixed_revision != latest_verification.fixed_revision
                 or latest_review.retest_receipt_id != latest_retest.receipt_id
+                or latest_report is not None
             ):
                 raise ValueError(
                     "review-approved remediation requires approval of the latest passed retest"
+                )
+        elif self.state == RemediationState.REPORT_GENERATED:
+            if (
+                latest_verification is None
+                or latest_retest is None
+                or latest_review is None
+                or latest_report is None
+                or latest_review.outcome != RemediationReviewOutcome.APPROVED
+                or latest_retest.outcome != RetestOutcome.PASSED
+                or latest_report.fixed_revision != latest_verification.fixed_revision
+                or latest_report.fixed_revision != latest_review.fixed_revision
+                or latest_report.review_receipt_id != latest_review.receipt_id
+            ):
+                raise ValueError(
+                    "report-generated remediation requires the latest approved review and report"
                 )
 
         if self.state == RemediationState.CANCELLED:
@@ -795,6 +863,30 @@ class RemediationRecord(BaseModel):
             ).model_dump()
         )
 
+    def record_report(self, reference: FinalReportReference) -> RemediationRecord:
+        if self.remediation_id is None or self.state is None:
+            raise ValueError("legacy remediation notes cannot record final reports")
+        if self.state != RemediationState.REVIEW_APPROVED:
+            raise ValueError("the remediation plan is not ready for final report generation")
+        if any(item.report_id == reference.report_id for item in self.report_history):
+            raise ValueError("the final report is already recorded")
+        latest_verification = self.verification_history[-1] if self.verification_history else None
+        latest_review = self.review_history[-1] if self.review_history else None
+        if latest_verification is None or latest_review is None:
+            raise ValueError("final report requires verification and review history")
+        if reference.fixed_revision != latest_verification.fixed_revision:
+            raise ValueError("final report is bound to another fixed revision")
+        if reference.review_receipt_id != latest_review.receipt_id:
+            raise ValueError("final report is bound to another review receipt")
+        return RemediationRecord.model_validate(
+            self.model_copy(
+                update={
+                    "state": RemediationState.REPORT_GENERATED,
+                    "report_history": self.report_history + (reference,),
+                }
+            ).model_dump()
+        )
+
     def cancel(self, *, cancelled_at: datetime, reason: str) -> RemediationRecord:
         if self.remediation_id is None or self.state is None:
             raise ValueError("legacy remediation notes cannot be cancelled as governed plans")
@@ -806,6 +898,7 @@ class RemediationRecord(BaseModel):
             RemediationState.AWAITING_REVIEW,
             RemediationState.REVIEW_NEEDS_REWORK,
             RemediationState.REVIEW_APPROVED,
+            RemediationState.REPORT_GENERATED,
         }:
             raise ValueError("terminal or verified remediation plans cannot be cancelled")
         return RemediationRecord.model_validate(
@@ -951,6 +1044,14 @@ class Finding(BaseModel):
                 or self.remediation.state != RemediationState.REVIEW_APPROVED
             ):
                 raise ValueError("report-ready findings require approved remediation review")
+        if self.status == FindingStatus.REPORT_GENERATED:
+            if (
+                self.remediation is None
+                or self.remediation.remediation_id is None
+                or self.remediation.state != RemediationState.REPORT_GENERATED
+                or not self.remediation.report_history
+            ):
+                raise ValueError("report-generated findings require an immutable final report")
         if self.status == FindingStatus.REMEDIATED:
             if not self.retests or self.retests[-1].outcome != "passed":
                 raise ValueError("remediated findings require a passed legacy retest")
@@ -1017,6 +1118,11 @@ class Finding(BaseModel):
                 != old_remediation.review_history
             ):
                 raise ValueError("remediation review history is append-only")
+            if (
+                new_remediation.report_history[: len(old_remediation.report_history)]
+                != old_remediation.report_history
+            ):
+                raise ValueError("remediation report history is append-only")
             if (
                 old_remediation.state
                 in {

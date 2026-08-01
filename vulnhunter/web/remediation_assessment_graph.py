@@ -44,9 +44,10 @@ def bind_remediation_assessment_graph(
         plan_sha256=remediation.plan_sha256,
         target_references=remediation.target_references,
         expires_at=remediation.expires_at,
-        state=remediation.state.value,
-        reason=remediation.cancellation_reason,
+        state=RemediationState.READY_FOR_IMPLEMENTATION.value,
+        reason=None,
     )
+    project_remediation_finding(finding)
     graph = _service().status_payload(remediation.remediation_id)
     if graph is None:
         raise RuntimeError("the remediation assessment graph was not persisted")
@@ -60,11 +61,16 @@ def project_remediation_finding(finding: Finding) -> dict[str, object] | None:
     if remediation is None or remediation.remediation_id is None or remediation.state is None:
         return None
     service = _service()
-    service.project_state(
-        remediation.remediation_id,
-        state=remediation.state.value,
-        reason=remediation.cancellation_reason,
-    )
+    if remediation.state in {
+        RemediationState.READY_FOR_IMPLEMENTATION,
+        RemediationState.CANCELLED,
+        RemediationState.FAILED,
+    }:
+        service.project_state(
+            remediation.remediation_id,
+            state=remediation.state.value,
+            reason=remediation.cancellation_reason,
+        )
     if remediation.verification_history:
         latest = remediation.verification_history[-1]
         service.project_fix_verification(
@@ -85,6 +91,13 @@ def project_remediation_finding(finding: Finding) -> dict[str, object] | None:
             remediation.remediation_id,
             receipt_id=latest_review.receipt_id,
             outcome=latest_review.outcome.value,
+        )
+    if remediation.report_history:
+        latest_report = remediation.report_history[-1]
+        service.project_report_generation(
+            remediation.remediation_id,
+            report_id=latest_report.report_id,
+            manifest_id=latest_report.manifest_id,
         )
     return service.status_payload(remediation.remediation_id)
 

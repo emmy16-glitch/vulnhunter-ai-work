@@ -14,8 +14,17 @@ from vulnhunter.findings.models import (
     RemediationRecord,
     RemediationState,
     RemediationVerificationReference,
+    RetestOutcome,
+    RetestPlanRecord,
+    RetestReceiptReference,
     RetestRecord,
     VerificationState,
+)
+from vulnhunter.findings.retest import (
+    GovernedRetestBundle,
+    GovernedRetestError,
+    GovernedRetestService,
+    RetestReceiptStore,
 )
 from vulnhunter.findings.service import FindingLifecycleError, FindingService
 from vulnhunter.findings.store import FindingConflict, FindingStore, FindingStoreError
@@ -30,6 +39,9 @@ __all__ = [
     "FindingStatus",
     "FindingStore",
     "FindingStoreError",
+    "GovernedRetestBundle",
+    "GovernedRetestError",
+    "GovernedRetestService",
     "RemediationFixVerificationBundle",
     "RemediationFixVerificationError",
     "RemediationFixVerificationService",
@@ -37,6 +49,10 @@ __all__ = [
     "RemediationRecord",
     "RemediationState",
     "RemediationVerificationReference",
+    "RetestOutcome",
+    "RetestPlanRecord",
+    "RetestReceiptReference",
+    "RetestReceiptStore",
     "RetestRecord",
     "VerificationState",
 ]

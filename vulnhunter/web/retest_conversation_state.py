@@ -59,8 +59,8 @@ def retest_create_url(finding_id: str, workspace_id: str | None) -> str:
     return f"{base}?{urlencode({'thread': workspace_id})}" if workspace_id else base
 
 
-def retest_detail_url(retest_id: str, workspace_id: str | None) -> str:
-    base = reverse("web-retest-detail", kwargs={"retest_id": retest_id})
+def retest_detail_url(finding_id: str, workspace_id: str | None) -> str:
+    base = reverse("web-retest-detail", kwargs={"finding_id": finding_id})
     return f"{base}?{urlencode({'thread': workspace_id})}" if workspace_id else base
 
 
@@ -130,7 +130,7 @@ def _finding_payload(
         "remediation_graph": remediation_graph,
         "report_state": report_state,
         "create_url": retest_create_url(finding.finding_id, workspace_id),
-        "detail_url": retest_detail_url(plan.retest_id, workspace_id),
+        "detail_url": retest_detail_url(finding.finding_id, workspace_id),
         "workspace_url": retest_workspace_url(workspace_id),
     }
 

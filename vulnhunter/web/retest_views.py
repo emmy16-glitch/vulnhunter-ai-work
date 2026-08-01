@@ -12,7 +12,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
 from django.views.decorators.cache import cache_control
-from django.views.decorators.http import require_GET, require_http_methods, require_POST
+from django.views.decorators.http import require_http_methods, require_POST
 
 from vulnhunter.assessment_graph import AssessmentGraphError
 from vulnhunter.findings import (
@@ -86,9 +86,7 @@ def _operator(request: HttpRequest):
 def _owner_id(request: HttpRequest, actor: object) -> str:
     governance = getattr(actor, "governance_identity", None)
     value = str(
-        getattr(governance, "reviewer_id", "")
-        or request.user.get_username()
-        or "retest-operator"
+        getattr(governance, "reviewer_id", "") or request.user.get_username() or "retest-operator"
     ).casefold()
     normalized = _IDENTIFIER_SANITIZER.sub("-", value).strip("-._")
     return (normalized or "retest-operator")[:120]
@@ -103,9 +101,7 @@ def _workspace_id(request: HttpRequest) -> str | None:
 def _split_values(value: str, *, maximum: int = 100) -> tuple[str, ...]:
     pieces = re.split(r"[\n,]+", value)
     cleaned = tuple(
-        redact_text(" ".join(piece.split()))[:1_000]
-        for piece in pieces
-        if piece.strip()
+        redact_text(" ".join(piece.split()))[:1_000] for piece in pieces if piece.strip()
     )
     if not cleaned:
         raise ValueError("Enter at least one exact bounded retest check.")
@@ -146,11 +142,7 @@ def _latest_plan(finding):
 
 def _latest_result(finding, retest_id: str):
     return next(
-        (
-            item
-            for item in reversed(finding.retest_results)
-            if item.retest_id == retest_id
-        ),
+        (item for item in reversed(finding.retest_results) if item.retest_id == retest_id),
         None,
     )
 
@@ -187,21 +179,15 @@ def retest_create_view(request: HttpRequest, finding_id: str) -> HttpResponse:
         and latest_verification.verdict == "fixed"
     )
     submitted = {
-        "check_references": (
-            remediation.verification_recipe if remediation is not None else ""
-        )
+        "check_references": (remediation.verification_recipe if remediation is not None else "")
     }
     error = None
 
     if request.method == "POST":
-        submitted = {
-            "check_references": request.POST.get("check_references", "").strip()
-        }
+        submitted = {"check_references": request.POST.get("check_references", "").strip()}
         try:
             if not eligible:
-                raise FindingLifecycleError(
-                    "This finding is not ready for a governed retest."
-                )
+                raise FindingLifecycleError("This finding is not ready for a governed retest.")
             password = request.POST.get("password", "")
             if not password or not request.user.check_password(password):
                 raise WebPermissionDenied("Password re-authentication failed.")
@@ -325,21 +311,11 @@ def retest_detail_view(request: HttpRequest, finding_id: str) -> HttpResponse:
 
     if request.method == "POST":
         submitted = {
-            "before_evidence_json": request.POST.get(
-                "before_evidence_json", "[]"
-            ).strip(),
-            "after_evidence_json": request.POST.get(
-                "after_evidence_json", "[]"
-            ).strip(),
-            "check_receipts_json": request.POST.get(
-                "check_receipts_json", "[]"
-            ).strip(),
-            "original_issue_blocked": request.POST.get(
-                "original_issue_blocked", "unknown"
-            ).strip(),
-            "regression_free": request.POST.get(
-                "regression_free", "unknown"
-            ).strip(),
+            "before_evidence_json": request.POST.get("before_evidence_json", "[]").strip(),
+            "after_evidence_json": request.POST.get("after_evidence_json", "[]").strip(),
+            "check_receipts_json": request.POST.get("check_receipts_json", "[]").strip(),
+            "original_issue_blocked": request.POST.get("original_issue_blocked", "unknown").strip(),
+            "regression_free": request.POST.get("regression_free", "unknown").strip(),
             "blocked_reason": request.POST.get("blocked_reason", "").strip(),
         }
         try:
@@ -373,9 +349,7 @@ def retest_detail_view(request: HttpRequest, finding_id: str) -> HttpResponse:
                 before_evidence=typed_before,
                 after_evidence=typed_after,
                 check_receipts=check_receipts,
-                original_issue_blocked=_optional_boolean(
-                    submitted["original_issue_blocked"]
-                ),
+                original_issue_blocked=_optional_boolean(submitted["original_issue_blocked"]),
                 regression_free=_optional_boolean(submitted["regression_free"]),
                 blocked_reason=redact_text(submitted["blocked_reason"])
                 if submitted["blocked_reason"]

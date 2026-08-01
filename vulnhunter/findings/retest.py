@@ -121,7 +121,9 @@ class GovernedRetestBundle(BaseModel):
             summary = f"The bounded retest was blocked: {normalized_blocked_reason}"
         elif not check_receipts:
             outcome = RetestOutcome.CANNOT_VERIFY
-            summary = "No deterministic retest receipt was supplied, so the claim cannot be verified."
+            summary = (
+                "No deterministic retest receipt was supplied, so the claim cannot be verified."
+            )
         elif any(not item.passed or item.exit_code != 0 for item in check_receipts):
             outcome = RetestOutcome.FAILED
             summary = "At least one deterministic retest check failed."
@@ -341,9 +343,7 @@ class GovernedRetestService:
         if expiry <= created_at:
             raise GovernedRetestError("retest expiry must follow creation")
         evidence_ids = {item.evidence_id for item in finding.evidence}
-        before_evidence_ids = tuple(
-            item for item in remediation.references if item in evidence_ids
-        )
+        before_evidence_ids = tuple(item for item in remediation.references if item in evidence_ids)
         if not before_evidence_ids:
             before_evidence_ids = tuple(
                 item.evidence_id
@@ -483,8 +483,7 @@ class GovernedRetestService:
             evidence_id=bundle.receipt_id,
             sha256=bundle.fingerprint(),
             provenance=(
-                "immutable governed before/after retest bundle; "
-                f"outcome={bundle.outcome.value}"
+                f"immutable governed before/after retest bundle; outcome={bundle.outcome.value}"
             ),
             content_type="application/vnd.vulnhunter.retest+json",
         )

@@ -16,9 +16,7 @@ _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _FIX_VERDICT = re.compile(
     r"^(fixed|partially_fixed|not_fixed|regression_detected|cannot_verify|out_of_scope_change)$"
 )
-_RETEST_OUTCOME = re.compile(
-    r"^(passed|failed|partial|cannot_verify|blocked|cancelled)$"
-)
+_RETEST_OUTCOME = re.compile(r"^(passed|failed|partial|cannot_verify|blocked|cancelled)$")
 
 
 def utc_now() -> datetime:
@@ -393,9 +391,7 @@ class RemediationRecord(BaseModel):
             if self.due_at < self.created_at:
                 raise ValueError("remediation due time cannot predate creation")
 
-        latest_verification = (
-            self.verification_history[-1] if self.verification_history else None
-        )
+        latest_verification = self.verification_history[-1] if self.verification_history else None
         latest_retest = self.retest_history[-1] if self.retest_history else None
         if self.state == RemediationState.READY_FOR_IMPLEMENTATION:
             if latest_verification is not None or latest_retest is not None:
@@ -513,10 +509,11 @@ class RemediationRecord(BaseModel):
             raise ValueError("the remediation plan is not ready for a governed retest result")
         if any(item.receipt_id == reference.receipt_id for item in self.retest_history):
             raise ValueError("the retest receipt is already recorded")
-        latest_verification = (
-            self.verification_history[-1] if self.verification_history else None
-        )
-        if latest_verification is None or reference.fixed_revision != latest_verification.fixed_revision:
+        latest_verification = self.verification_history[-1] if self.verification_history else None
+        if (
+            latest_verification is None
+            or reference.fixed_revision != latest_verification.fixed_revision
+        ):
             raise ValueError("the retest receipt is bound to a different fixed revision")
         if reference.outcome == RetestOutcome.PASSED:
             state = RemediationState.AWAITING_REVIEW
@@ -635,7 +632,9 @@ class Finding(BaseModel):
             raise ValueError("governed retest receipt identifiers must be unique")
         if any(retest_id not in set(plan_ids) for retest_id in result_retest_ids):
             raise ValueError("governed retest results require a matching plan")
-        active_plans = [item for item in self.retest_plans if item.retest_id not in set(result_retest_ids)]
+        active_plans = [
+            item for item in self.retest_plans if item.retest_id not in set(result_retest_ids)
+        ]
         if len(active_plans) > 1:
             raise ValueError("only one governed retest plan may be active")
 
@@ -738,8 +737,12 @@ class Finding(BaseModel):
                 != old_remediation.retest_history
             ):
                 raise ValueError("remediation retest history is append-only")
-            if old_remediation.state in {
-                RemediationState.CANCELLED,
-                RemediationState.FAILED,
-            } and new_remediation != old_remediation:
+            if (
+                old_remediation.state
+                in {
+                    RemediationState.CANCELLED,
+                    RemediationState.FAILED,
+                }
+                and new_remediation != old_remediation
+            ):
                 raise ValueError("terminal remediation record is immutable")

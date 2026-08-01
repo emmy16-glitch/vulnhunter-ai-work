@@ -34,9 +34,7 @@ def _configure(settings, tmp_path: Path) -> None:
 
 
 def _actor() -> SimpleNamespace:
-    return SimpleNamespace(
-        governance_identity=SimpleNamespace(reviewer_id="retest-operator")
-    )
+    return SimpleNamespace(governance_identity=SimpleNamespace(reviewer_id="retest-operator"))
 
 
 def _receipt(name: str) -> VerifierReceipt:
@@ -68,9 +66,7 @@ def _ready_finding(store: FindingStore, now: datetime):
                 affected_component="app/users.py",
             ),
             title="IDOR",
-            description=(
-                "User lookup may expose another user's record without ownership checks."
-            ),
+            description=("User lookup may expose another user's record without ownership checks."),
             severity=FindingSeverity.HIGH,
             confidence=90,
             verification=VerificationState.VERIFIED,
@@ -287,9 +283,7 @@ def test_protected_passed_retest_opens_review_but_keeps_report_blocked(
             {
                 "thread_id": str(thread.thread_id),
                 "expected_revision": str(started.revision),
-                "before_evidence_json": json.dumps(
-                    [original.model_dump(mode="json")]
-                ),
+                "before_evidence_json": json.dumps([original.model_dump(mode="json")]),
                 "after_evidence_json": json.dumps([after.model_dump(mode="json")]),
                 "check_receipts_json": json.dumps(
                     [
@@ -314,13 +308,9 @@ def test_protected_passed_retest_opens_review_but_keeps_report_blocked(
     thread.refresh_from_db()
     state = thread.data["vulnhunter_conversation_retest"]
     assert state["result"]["outcome"] == "passed"
-    assert state["assessment_graph"]["chat_stage"] == (
-        "retest_passed_awaiting_independent_review"
-    )
+    assert state["assessment_graph"]["chat_stage"] == ("retest_passed_awaiting_independent_review")
     assert state["report_state"] == "blocked_pending_independent_review"
-    assert state["remediation_graph"]["chat_stage"] == (
-        "retest_passed_awaiting_independent_review"
-    )
+    assert state["remediation_graph"]["chat_stage"] == ("retest_passed_awaiting_independent_review")
 
 
 @pytest.mark.django_db

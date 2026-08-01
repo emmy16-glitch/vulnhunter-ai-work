@@ -100,9 +100,7 @@ def _finding_payload(
         "finding_id": finding.finding_id,
         "retest_id": plan.retest_id,
         "run_id": plan.retest_id,
-        "task_graph_id": (
-            retest_graph.get("graph_id") if isinstance(retest_graph, dict) else None
-        ),
+        "task_graph_id": (retest_graph.get("graph_id") if isinstance(retest_graph, dict) else None),
         "finding": {
             "campaign_id": finding.campaign_id,
             "fingerprint": finding.fingerprint,
@@ -244,8 +242,7 @@ def record_retest_event(request: object, state: dict[str, object]) -> None:
     raw = request.session.get(_SESSION_MESSAGES, [])
     messages = [item for item in raw if isinstance(item, dict)] if isinstance(raw, list) else []
     if any(
-        isinstance(item.get("metadata"), dict)
-        and item["metadata"].get("retest_event") == event_key
+        isinstance(item.get("metadata"), dict) and item["metadata"].get("retest_event") == event_key
         for item in messages
     ):
         return
@@ -313,7 +310,8 @@ def retest_chat_reply(intent: str, state: dict[str, object]) -> str:
         if outcome == "pending":
             return (
                 "Open the protected retest page, run only the declared checks through separately "
-                "controlled tools, then submit typed before/after evidence and deterministic receipts."
+                "controlled tools, then submit typed before/after evidence and deterministic "
+                "receipts."
             )
         if outcome == "passed":
             return (

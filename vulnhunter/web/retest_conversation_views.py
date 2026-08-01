@@ -80,9 +80,7 @@ def retest_chat_view(request: HttpRequest) -> JsonResponse:
         plan = plan if isinstance(plan, dict) else {}
         remediation_ready = plan.get("state") == "ready_for_retest"
         finding_id = (
-            str(remediation_state.get("finding_id") or "")
-            if remediation_state is not None
-            else ""
+            str(remediation_state.get("finding_id") or "") if remediation_state is not None else ""
         )
         if terminal_cancelled and remediation_ready and finding_id:
             redirect_url = retest_create_url(finding_id, workspace_id)

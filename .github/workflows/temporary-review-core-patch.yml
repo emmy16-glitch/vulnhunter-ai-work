@@ -6,6 +6,7 @@ on:
     paths:
       - .github/workflows/temporary-review-core-patch.yml
       - scripts/patch_remediation_review_core.py
+      - scripts/prepare_remediation_review_core_patch.py
 
 permissions:
   contents: write
@@ -23,6 +24,7 @@ jobs:
         with:
           python-version: '3.12'
       - run: python -m pip install ruff
+      - run: python scripts/prepare_remediation_review_core_patch.py
       - run: python scripts/patch_remediation_review_core.py
       - run: python -m ruff format vulnhunter/findings/models.py vulnhunter/findings/service.py vulnhunter/findings/__init__.py vulnhunter/assessment_graph/remediation.py vulnhunter/web/remediation_assessment_graph.py vulnhunter/findings/remediation_review.py tests/unit/test_independent_remediation_review.py tests/unit/test_remediation_review_graph.py
       - run: python -m ruff check --fix vulnhunter/findings/models.py vulnhunter/findings/service.py vulnhunter/findings/__init__.py vulnhunter/assessment_graph/remediation.py vulnhunter/web/remediation_assessment_graph.py vulnhunter/findings/remediation_review.py tests/unit/test_independent_remediation_review.py tests/unit/test_remediation_review_graph.py

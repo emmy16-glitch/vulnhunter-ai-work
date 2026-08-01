@@ -50,7 +50,9 @@ jobs:
           node-version: "22"
 
       - name: Check phone acceptance JavaScript
-        run: node --check tests/ui/phone_acceptance_e2e.cjs
+        run: |
+          node --check tests/ui/phone_acceptance_e2e.cjs
+          node --check tests/ui/phone_composer_tools_e2e.cjs
 
       - name: Install application and Chromium
         run: |
@@ -89,6 +91,12 @@ jobs:
           set -o pipefail
           node tests/ui/phone_acceptance_e2e.cjs 2>&1 | tee /tmp/vh-phone/acceptance.log
 
+      - name: Verify phone prompt composer tools
+        shell: bash
+        run: |
+          set -o pipefail
+          node tests/ui/phone_composer_tools_e2e.cjs 2>&1 | tee /tmp/vh-phone/composer-tools.log
+
       - name: Upload phone diagnostics
         if: always()
         uses: actions/upload-artifact@v6
@@ -98,6 +106,7 @@ jobs:
             /tmp/vh-phone/screenshots
             /tmp/vh-phone/prepare.log
             /tmp/vh-phone/acceptance.log
+            /tmp/vh-phone/composer-tools.log
             /tmp/vh-phone/server.log
           if-no-files-found: warn
           retention-days: 7

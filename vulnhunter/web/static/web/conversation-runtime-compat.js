@@ -147,7 +147,7 @@
     if (document.querySelector(`script[${marker}]`)) return;
     const url = new URL(current, window.location.href);
     url.pathname = url.pathname.replace(/conversation-runtime-compat\.js$/, filename);
-    url.search = "?v=20260801-llm-control1";
+    url.search = "?v=20260801-llm-control2";
     const script = document.createElement("script");
     script.src = url.toString();
     script.async = false;
@@ -175,7 +175,7 @@
   const providerName = (runtime) => {
     const detail = String(runtime?.getAttribute("title") || "");
     const hasGroq = /\bGroq\b/i.test(detail);
-    const hasHuggingFace = /Hugging Face/i.test(detail);
+    const hasHuggingFace = /Hugging\s*Face/i.test(detail);
     if (hasHuggingFace && !hasGroq) return "Hugging Face";
     if (hasGroq && !hasHuggingFace) return "Groq";
     return "the AI provider";
@@ -186,7 +186,7 @@
     const detail = String(runtime?.getAttribute("title") || "");
     if (runtime) {
       const hasGroq = /\bGroq\b/i.test(detail);
-      const hasHuggingFace = /Hugging Face/i.test(detail);
+      const hasHuggingFace = /Hugging\s*Face/i.test(detail);
       if (hasGroq && hasHuggingFace) runtime.textContent = "AI providers configured";
       else if (hasHuggingFace) runtime.textContent = "Hugging Face configured";
       else if (/Groq live conversation ready/i.test(detail)) runtime.textContent = "Groq live";
@@ -212,11 +212,15 @@
 
     const feed = document.querySelector("[data-conversation-feed]");
     if (feed) {
-      const rewriteFallbackBadges = () => {
+      const rewriteProviderBadges = () => {
         feed.querySelectorAll(".vh-message-reasoning").forEach((badge) => {
+          const copy = badge.textContent || "";
+          if (/\bHuggingface\b/i.test(copy)) {
+            badge.textContent = copy.replace(/\bHuggingface\b/gi, "Hugging Face");
+          }
           if (badge.dataset.providerFallbackRewritten === "true") return;
           const detailText = String(badge.getAttribute("title") || "");
-          if (!/Groq|Hugging Face/i.test(detailText)) return;
+          if (!/Groq|Hugging\s*Face/i.test(detailText)) return;
           if (!/Deterministic/i.test(badge.textContent || "")) return;
           badge.dataset.providerFallbackRewritten = "true";
           badge.classList.add("is-degraded");
@@ -226,8 +230,8 @@
           );
         });
       };
-      rewriteFallbackBadges();
-      new MutationObserver(rewriteFallbackBadges).observe(feed, {
+      rewriteProviderBadges();
+      new MutationObserver(rewriteProviderBadges).observe(feed, {
         childList: true,
         subtree: true,
       });

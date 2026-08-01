@@ -32,7 +32,7 @@ async function login(page) {
       await page.locator("[data-conversation-form]").waitFor({ state: "visible" });
       await page.locator("select[data-provider-preference]").waitFor({ state: "visible" });
 
-      const layout = await page.evaluate(() => {
+      const layout = await page.evaluate(async () => {
         const composer = document.querySelector("[data-conversation-form]");
         const reasoning = document.querySelector("[data-reasoning-effort]");
         const provider = document.querySelector("[data-provider-runtime]");
@@ -47,12 +47,15 @@ async function login(page) {
             <div><button type="button">Retry</button><button type="button">Cancel</button></div>
           </article>`;
         document.body.append(dock);
+        await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 
         const composerRect = composer.getBoundingClientRect();
         const dockRect = dock.getBoundingClientRect();
         const reasoningRect = reasoning.getBoundingClientRect();
         const providerRect = provider.getBoundingClientRect();
         const providerPreferenceRect = providerPreference.getBoundingClientRect();
+        const dockStyle = getComputedStyle(dock);
+        const rootStyle = getComputedStyle(document.documentElement);
         const options = [...reasoning.options].map((option) => option.textContent.trim());
         const providerOptions = [...providerPreference.options].map((option) =>
           option.textContent.trim(),
@@ -64,6 +67,35 @@ async function login(page) {
         const result = {
           missing: false,
           innerWidth: window.innerWidth,
+          innerHeight: window.innerHeight,
+          composerRect: {
+            top: composerRect.top,
+            right: composerRect.right,
+            bottom: composerRect.bottom,
+            left: composerRect.left,
+            width: composerRect.width,
+            height: composerRect.height,
+          },
+          dockRect: {
+            top: dockRect.top,
+            right: dockRect.right,
+            bottom: dockRect.bottom,
+            left: dockRect.left,
+            width: dockRect.width,
+            height: dockRect.height,
+          },
+          dockComputed: {
+            position: dockStyle.position,
+            bottom: dockStyle.bottom,
+            maxHeight: dockStyle.maxHeight,
+            zIndex: dockStyle.zIndex,
+          },
+          phoneComposerClearance: rootStyle
+            .getPropertyValue("--vh-phone-composer-clearance")
+            .trim(),
+          providerRuntimeStylePresent: Boolean(
+            document.getElementById("vh-provider-control-styles"),
+          ),
           composerVisible: composerRect.width > 0 && composerRect.height > 0,
           composerInsideViewport:
             composerRect.left >= -1 &&

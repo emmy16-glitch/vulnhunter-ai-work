@@ -196,7 +196,7 @@
     if (!(copy instanceof HTMLElement)) return;
     const article = copy.closest(".vh-chat-message");
     if (!article?.classList.contains("is-assistant")) return;
-    if (copy.dataset.richRendering === "true") return;
+    if (copy.dataset.richRendering === "true" || copy.dataset.richRendered === "true") return;
 
     const raw = copy.dataset.rawMessage || copy.textContent || "";
     copy.dataset.rawMessage = raw;
@@ -212,7 +212,7 @@
   };
 
   const scheduleCopy = (copy, delay = 180) => {
-    if (!(copy instanceof HTMLElement)) return;
+    if (!(copy instanceof HTMLElement) || copy.dataset.richRendered === "true") return;
     const existing = timers.get(copy);
     if (existing) window.clearTimeout(existing);
     const timer = window.setTimeout(() => {

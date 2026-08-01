@@ -32,18 +32,23 @@ def test_jump_latest_does_not_force_scroll_while_user_is_reading() -> None:
 
     assert "if (!force && !followingLatest) return false" in script
     assert "if (followingLatest) unreadMessages = 0" in script
-    expected_copy = 'jump.textContent = unreadMessages > 0 ? `↓ ${unreadMessages} new` : "↓ Latest"'
+    expected_copy = (
+        'jump.textContent = unreadMessages > 0 ? `↓ ${unreadMessages} new` : "↓ Latest"'
+    )
     assert expected_copy in script
 
 
-def test_jump_latest_waits_for_the_feed_to_physically_settle() -> None:
+def test_jump_latest_waits_for_a_stable_physical_bottom() -> None:
     script = SCRIPT.read_text(encoding="utf-8")
 
     assert "const maximumSettleFrames = 90" in script
-    assert "const settleProgrammaticScroll = (frame = 0)" in script
-    assert "const arrived = distanceFromBottom() <= bottomThreshold" in script
-    assert "followingLatest = arrived" in script
-    assert "settleProgrammaticScroll(frame + 1)" in script
+    assert "const requiredStableFrames = 8" in script
+    assert "const smoothScrollGraceFrames = 12" in script
+    assert "settleProgrammaticScroll = (frame = 0, stableFrames = 0)" in script
+    assert "feed.scrollTop = feed.scrollHeight" in script
+    assert "nextStableFrames >= requiredStableFrames" in script
+    assert "const finalArrival = distanceFromBottom() <= bottomThreshold" in script
+    assert 'scrollToLatest({ behavior: "auto", force: true })' in script
     resume = script[script.index("const resume"): script.index("jump.addEventListener")]
     assert "followingLatest = true" not in resume
     assert 'scrollToLatest({ behavior, force: true })' in resume

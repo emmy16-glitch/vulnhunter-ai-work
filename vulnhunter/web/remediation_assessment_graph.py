@@ -59,12 +59,20 @@ def project_remediation_finding(finding: Finding) -> dict[str, object] | None:
     remediation = finding.remediation
     if remediation is None or remediation.remediation_id is None or remediation.state is None:
         return None
-    _service().project_state(
+    service = _service()
+    service.project_state(
         remediation.remediation_id,
         state=remediation.state.value,
         reason=remediation.cancellation_reason,
     )
-    return _service().status_payload(remediation.remediation_id)
+    if remediation.verification_history:
+        latest = remediation.verification_history[-1]
+        service.project_fix_verification(
+            remediation.remediation_id,
+            receipt_id=latest.receipt_id,
+            verdict=latest.verdict,
+        )
+    return service.status_payload(remediation.remediation_id)
 
 
 def fail_remediation_graph(remediation_id: str, *, reason: str) -> dict[str, object] | None:

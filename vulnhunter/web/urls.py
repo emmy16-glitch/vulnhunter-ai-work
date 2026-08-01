@@ -253,6 +253,11 @@ urlpatterns = [
         name="web-remediation-detail",
     ),
     path(
+        "findings/<str:finding_id>/remediation/verify/",
+        remediation_views.remediation_verify_view,
+        name="web-remediation-verify",
+    ),
+    path(
         "findings/<str:finding_id>/remediation/cancel/",
         remediation_views.remediation_cancel_view,
         name="web-remediation-cancel",

@@ -17,6 +17,7 @@ from vulnhunter.taskgraph.models import TERMINAL_STATUSES, GraphNode, NodeStatus
 from vulnhunter.taskgraph.store import TaskGraphStoreError
 
 _FAILED_SAFE_PREFIX = "Remediation failed safely: "
+_REWORK_PREFIX = "Fix verification requires rework: "
 
 
 class RemediationAssessmentGraphService:
@@ -86,6 +87,16 @@ class RemediationAssessmentGraphService:
 
         for stage in AssessmentStage:
             node_id = f"{remediation_id}-{stage.value}"
+            maximum_attempts = (
+                10
+                if stage
+                in {
+                    AssessmentStage.EXECUTION,
+                    AssessmentStage.EVIDENCE,
+                    AssessmentStage.VERIFICATION,
+                }
+                else 1
+            )
             manifest = ActionManifest(
                 manifest_id=node_id,
                 campaign_id=campaign_id,
@@ -103,7 +114,7 @@ class RemediationAssessmentGraphService:
                     maximum_requests=1,
                     maximum_output_bytes=10_000_000,
                     maximum_targets=len(references),
-                    maximum_attempts=1,
+                    maximum_attempts=maximum_attempts,
                 ),
                 approval_required=stage == AssessmentStage.EXECUTION,
                 created_at=now,
@@ -121,7 +132,7 @@ class RemediationAssessmentGraphService:
                     action_manifest_sha256=manifest.fingerprint(),
                     dependencies=(() if previous_node is None else (previous_node,)),
                     status=status,
-                    maximum_attempts=1,
+                    maximum_attempts=maximum_attempts,
                     last_error=(
                         reason
                         if stage == AssessmentStage.EXECUTION
@@ -187,6 +198,8 @@ class RemediationAssessmentGraphService:
                     last_error=None,
                 )
             return True
+        if normalized in {"needs_rework", "ready_for_retest"}:
+            return True
         if normalized == "cancelled":
             return self.core.project_terminal(
                 remediation_id,
@@ -212,6 +225,99 @@ class RemediationAssessmentGraphService:
             return True
         return True
 
+    def project_fix_verification(
+        self,
+        remediation_id: str,
+        *,
+        receipt_id: str,
+        verdict: str,
+    ) -> bool:
+        """Project one immutable receipt without executing developer or verifier commands."""
+
+        graph = self.core._load_optional(remediation_id)
+        if graph is None:
+            return False
+        normalized = verdict.strip().casefold()
+        verification = self.core._stage_node(graph, AssessmentStage.VERIFICATION)
+
+        if normalized == "fixed":
+            if verification.status == NodeStatus.COMPLETED:
+                return True
+            for stage in (
+                AssessmentStage.EXECUTION,
+                AssessmentStage.EVIDENCE,
+                AssessmentStage.VERIFICATION,
+            ):
+                graph = self._complete_attempt_stage(graph, stage)
+            review = self.core._stage_node(graph, AssessmentStage.REVIEW)
+            if review.status == NodeStatus.PENDING:
+                self.core._transition(
+                    graph,
+                    node_id=review.node_id,
+                    status=NodeStatus.READY,
+                    last_error=None,
+                )
+            return True
+
+        marker = f"{_REWORK_PREFIX}{normalized}; receipt={receipt_id}"
+        if verification.status == NodeStatus.READY and verification.last_error == marker:
+            return True
+        for stage in (
+            AssessmentStage.EXECUTION,
+            AssessmentStage.EVIDENCE,
+            AssessmentStage.VERIFICATION,
+        ):
+            node = self.core._stage_node(graph, stage)
+            if node.status in TERMINAL_STATUSES:
+                raise AssessmentGraphError(
+                    "terminal remediation stages cannot accept another verification receipt"
+                )
+            if node.status in {NodeStatus.PENDING, NodeStatus.READY}:
+                graph = self.core._transition(
+                    graph,
+                    node_id=node.node_id,
+                    status=NodeStatus.RUNNING,
+                    last_error=None,
+                )
+            node = self.core._stage_node(graph, stage)
+            if node.status == NodeStatus.RUNNING:
+                graph = self.core._transition(
+                    graph,
+                    node_id=node.node_id,
+                    status=NodeStatus.READY,
+                    last_error=marker,
+                )
+        return True
+
+    def _complete_attempt_stage(
+        self,
+        graph: TaskGraph,
+        stage: AssessmentStage,
+    ) -> TaskGraph:
+        node = self.core._stage_node(graph, stage)
+        if node.status == NodeStatus.COMPLETED:
+            return graph
+        if node.status in TERMINAL_STATUSES:
+            raise AssessmentGraphError(
+                "terminal remediation stages cannot be completed by a later receipt"
+            )
+        if node.status in {NodeStatus.PENDING, NodeStatus.READY}:
+            graph = self.core._transition(
+                graph,
+                node_id=node.node_id,
+                status=NodeStatus.RUNNING,
+                last_error=None,
+            )
+        node = self.core._stage_node(graph, stage)
+        if node.status == NodeStatus.RUNNING:
+            graph = self.core._transition(
+                graph,
+                node_id=node.node_id,
+                status=NodeStatus.COMPLETED,
+                last_error=None,
+            )
+        return graph
+
     def status_payload(self, remediation_id: str) -> dict[str, object] | None:
         payload = self.core.status_payload(remediation_id)
         if payload is None:
@@ -221,11 +327,26 @@ class RemediationAssessmentGraphService:
             return payload
         by_stage = {str(item.get("stage")): item for item in nodes if isinstance(item, dict)}
         execution_node = by_stage.get(AssessmentStage.EXECUTION.value)
+        verification_node = by_stage.get(AssessmentStage.VERIFICATION.value)
         execution = str(execution_node.get("status")) if isinstance(execution_node, dict) else None
         execution_error = (
             str(execution_node.get("last_error") or "") if isinstance(execution_node, dict) else ""
         )
-        if execution == NodeStatus.READY.value:
+        verification = (
+            str(verification_node.get("status")) if isinstance(verification_node, dict) else None
+        )
+        verification_error = (
+            str(verification_node.get("last_error") or "")
+            if isinstance(verification_node, dict)
+            else ""
+        )
+        if verification == NodeStatus.COMPLETED.value:
+            payload["chat_stage"] = "fix_verified_awaiting_retest"
+        elif verification == NodeStatus.READY.value and verification_error.startswith(
+            _REWORK_PREFIX
+        ):
+            payload["chat_stage"] = "fix_verification_requires_rework"
+        elif execution == NodeStatus.READY.value:
             payload["chat_stage"] = "awaiting_developer_implementation"
         elif execution == NodeStatus.CANCELLED.value:
             payload["chat_stage"] = (
@@ -252,6 +373,21 @@ class RemediationAssessmentGraphService:
         normalized = state.strip().casefold()
         if normalized == "ready_for_implementation":
             statuses[AssessmentStage.EXECUTION] = NodeStatus.READY
+        elif normalized == "needs_rework":
+            for stage in (
+                AssessmentStage.EXECUTION,
+                AssessmentStage.EVIDENCE,
+                AssessmentStage.VERIFICATION,
+            ):
+                statuses[stage] = NodeStatus.READY
+        elif normalized == "ready_for_retest":
+            for stage in (
+                AssessmentStage.EXECUTION,
+                AssessmentStage.EVIDENCE,
+                AssessmentStage.VERIFICATION,
+            ):
+                statuses[stage] = NodeStatus.COMPLETED
+            statuses[AssessmentStage.REVIEW] = NodeStatus.READY
         elif normalized == "cancelled":
             for stage in (
                 AssessmentStage.EXECUTION,

@@ -79,6 +79,22 @@ def remediation_detail_url(finding_id: str, workspace_id: str | None) -> str:
     return f"{base}?{urlencode({'thread': workspace_id})}" if workspace_id else base
 
 
+def remediation_verify_url(finding_id: str, workspace_id: str | None) -> str:
+    base = reverse("web-remediation-verify", kwargs={"finding_id": finding_id})
+    return f"{base}?{urlencode({'thread': workspace_id})}" if workspace_id else base
+
+
+def _verification_payload(reference) -> dict[str, object]:
+    return {
+        "receipt_id": reference.receipt_id,
+        "sha256": reference.sha256,
+        "verdict": reference.verdict,
+        "original_revision": reference.original_revision,
+        "fixed_revision": reference.fixed_revision,
+        "created_at": reference.created_at.isoformat(),
+    }
+
+
 def _finding_payload(
     finding: Finding,
     *,
@@ -88,8 +104,12 @@ def _finding_payload(
     remediation = finding.remediation
     if remediation is None or remediation.remediation_id is None:
         raise ValueError("the finding has no governed remediation plan")
+    verification_history = [
+        _verification_payload(item) for item in remediation.verification_history
+    ]
+    latest_verification = verification_history[-1] if verification_history else None
     return {
-        "schema_version": "1.0",
+        "schema_version": "1.1",
         "finding_id": finding.finding_id,
         "run_id": remediation.remediation_id,
         "remediation_id": remediation.remediation_id,
@@ -118,6 +138,8 @@ def _finding_payload(
             "verification_recipe": remediation.verification_recipe,
             "compatibility_risks": list(remediation.compatibility_risks),
             "references": list(remediation.references),
+            "verification_history": verification_history,
+            "latest_verification": latest_verification,
             "created_at": remediation.created_at.isoformat() if remediation.created_at else None,
             "expires_at": remediation.expires_at.isoformat() if remediation.expires_at else None,
             "due_at": remediation.due_at.isoformat() if remediation.due_at else None,
@@ -126,6 +148,7 @@ def _finding_payload(
         "assessment_graph": graph,
         "create_url": remediation_create_url(finding.finding_id, workspace_id),
         "detail_url": remediation_detail_url(finding.finding_id, workspace_id),
+        "verify_url": remediation_verify_url(finding.finding_id, workspace_id),
         "workspace_url": remediation_workspace_url(workspace_id),
     }
 
@@ -200,14 +223,21 @@ def _event_message(plan: dict[str, object]) -> dict[str, object]:
     state = str(remediation.get("state") or "unknown")
     revision = int(finding.get("revision") or 0)
     remediation_id = str(plan.get("remediation_id") or "")
+    latest = remediation.get("latest_verification")
+    latest = latest if isinstance(latest, dict) else {}
     event_key = f"remediation:{remediation_id}:{state}:{revision}"
+    if state == "ready_for_retest":
+        boundary = "Fix verification passed; retest, review, merge and release remain separate."
+    elif state == "needs_rework":
+        boundary = "The verifier requires rework; no fixed, retested or merged claim exists."
+    else:
+        boundary = "Developer implementation, fix verification, review and merge remain separate."
     return {
         "role": "assistant",
         "kind": "status",
         "content": (
             f"Remediation plan {state} for finding {plan.get('finding_id', 'unknown')}. "
-            f"Authoritative stage: {graph.get('chat_stage', 'unknown')}. "
-            "Developer implementation, fix verification, review and merge remain separate."
+            f"Authoritative stage: {graph.get('chat_stage', 'unknown')}. {boundary}"
         ),
         "timestamp": datetime.now(UTC).isoformat(),
         "metadata": {
@@ -219,6 +249,8 @@ def _event_message(plan: dict[str, object]) -> dict[str, object]:
                 "chat_stage": graph.get("chat_stage"),
                 "task_graph_id": plan.get("task_graph_id"),
                 "finding_revision": revision,
+                "verification_receipt_id": latest.get("receipt_id"),
+                "verification_verdict": latest.get("verdict"),
             },
         },
     }
@@ -282,13 +314,29 @@ def remediation_chat_reply(intent: str, plan: dict[str, object]) -> str:
     state = str(remediation.get("state") or "unknown")
     chat_stage = str(graph.get("chat_stage") or "unknown")
     finding_id = str(plan.get("finding_id") or "the selected finding")
+    latest = remediation.get("latest_verification")
+    latest = latest if isinstance(latest, dict) else {}
 
     if intent == "status":
+        if latest:
+            return (
+                f"Remediation for {finding_id} is {state}. Authoritative stage: {chat_stage}. "
+                f"Latest read-only verdict: {latest.get('verdict', 'unknown')} for revisions "
+                f"{latest.get('original_revision', 'unknown')} → "
+                f"{latest.get('fixed_revision', 'unknown')}. Retest, review and merge are not "
+                "implied by this verdict."
+            )
         return (
             f"Remediation for {finding_id} is {state}. Authoritative stage: {chat_stage}. "
             "No source change, fix verification, merge or finding closure has been recorded."
         )
     if intent == "results":
+        if latest:
+            return (
+                f"The latest immutable receipt is {latest.get('receipt_id', 'unknown')} with "
+                f"verdict {latest.get('verdict', 'unknown')}. It binds the fixed revision and "
+                "deterministic receipts, but it is not a retest, review or merge decision."
+            )
         return (
             f"The exact plan targets {len(remediation.get('target_references') or [])} "
             "bounded component(s). It defines a RED security test and an independent "
@@ -298,8 +346,20 @@ def remediation_chat_reply(intent: str, plan: dict[str, object]) -> str:
         if state == "ready_for_implementation":
             return (
                 "A human developer must implement only the declared targets through separately "
-                "controlled engineering tools. The next VulnHunter milestone will record the fixed "
-                "revision and run read-only fix verification before retest or review."
+                "controlled engineering tools, then open the protected handoff to submit exact "
+                "snapshot metadata and deterministic receipts for read-only verification."
+            )
+        if state == "needs_rework":
+            return (
+                "The developer must revise only the approved targets and submit a new exact fixed "
+                "revision and fresh deterministic receipts. The prior verifier receipt remains "
+                "append-only evidence."
+            )
+        if state == "ready_for_retest":
+            return (
+                "The fix verifier passed. The next milestone is a separately governed retest "
+                "that preserves before-and-after evidence; review, merge and closure still "
+                "require their own authority."
             )
         if state == "cancelled":
             return (
@@ -320,5 +380,6 @@ __all__ = [
     "remediation_create_url",
     "remediation_detail_url",
     "remediation_finding_store",
+    "remediation_verify_url",
     "remediation_workspace_url",
 ]

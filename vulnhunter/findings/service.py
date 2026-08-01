@@ -6,10 +6,12 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 
 from vulnhunter.findings.models import (
+    EvidenceReference,
     Finding,
     FindingStatus,
     RemediationRecord,
     RemediationState,
+    RemediationVerificationReference,
     RetestRecord,
     VerificationState,
     utc_now,
@@ -117,6 +119,74 @@ class FindingService:
         self.store.save(updated, expected_revision=expected_revision)
         return updated
 
+    def record_fix_verification(
+        self,
+        finding_id: str,
+        *,
+        verification: RemediationVerificationReference,
+        expected_revision: int,
+        now: datetime | None = None,
+    ) -> Finding:
+        """Atomically append one immutable fix verdict and update the finding state."""
+
+        finding = self.store.get(finding_id)
+        if finding.revision != expected_revision:
+            raise FindingConflict(
+                f"finding revision conflict: expected {expected_revision}, found {finding.revision}"
+            )
+        remediation = finding.remediation
+        if (
+            finding.verification != VerificationState.VERIFIED
+            or finding.status != FindingStatus.IN_REMEDIATION
+            or remediation is None
+            or remediation.remediation_id is None
+            or remediation.state
+            not in {RemediationState.READY_FOR_IMPLEMENTATION, RemediationState.NEEDS_REWORK}
+        ):
+            raise FindingLifecycleError(
+                "fix verification requires an active independently verified remediation"
+            )
+        if any(item.evidence_id == verification.receipt_id for item in finding.evidence):
+            raise FindingLifecycleError("the fix-verification receipt is already linked")
+
+        recorded_at = (now or datetime.now(UTC)).astimezone(UTC)
+        if recorded_at < finding.updated_at.astimezone(UTC):
+            raise FindingLifecycleError(
+                "fix-verification timestamp cannot predate the current finding revision"
+            )
+        if verification.created_at.astimezone(UTC) != recorded_at:
+            raise FindingLifecycleError(
+                "fix-verification reference and finding transition must share one timestamp"
+            )
+
+        updated_remediation = remediation.record_verification(verification)
+        status = (
+            FindingStatus.READY_FOR_RETEST
+            if verification.verdict == "fixed"
+            else FindingStatus.IN_REMEDIATION
+        )
+        evidence = EvidenceReference(
+            evidence_id=verification.receipt_id,
+            sha256=verification.sha256,
+            provenance=(
+                f"immutable read-only fix-verification bundle; verdict={verification.verdict}"
+            ),
+            content_type="application/vnd.vulnhunter.fix-verification+json",
+        )
+        updated = Finding.model_validate(
+            finding.model_copy(
+                update={
+                    "status": status,
+                    "remediation": updated_remediation,
+                    "evidence": finding.evidence + (evidence,),
+                    "revision": finding.revision + 1,
+                    "updated_at": recorded_at,
+                }
+            ).model_dump()
+        )
+        self.store.save(updated, expected_revision=expected_revision)
+        return updated
+
     def cancel_remediation(
         self,
         finding_id: str,
@@ -137,7 +207,8 @@ class FindingService:
             finding.status != FindingStatus.IN_REMEDIATION
             or remediation is None
             or remediation.remediation_id is None
-            or remediation.state != RemediationState.READY_FOR_IMPLEMENTATION
+            or remediation.state
+            not in {RemediationState.READY_FOR_IMPLEMENTATION, RemediationState.NEEDS_REWORK}
         ):
             raise FindingLifecycleError("no active governed remediation plan can be cancelled")
         cancelled_at = (now or datetime.now(UTC)).astimezone(UTC)

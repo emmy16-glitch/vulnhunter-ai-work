@@ -1,5 +1,11 @@
 """Unified finding lifecycle."""
 
+from vulnhunter.findings.fix_verification import (
+    RemediationFixVerificationBundle,
+    RemediationFixVerificationError,
+    RemediationFixVerificationService,
+    RemediationFixVerificationStore,
+)
 from vulnhunter.findings.models import (
     EvidenceReference,
     Finding,
@@ -7,6 +13,7 @@ from vulnhunter.findings.models import (
     FindingStatus,
     RemediationRecord,
     RemediationState,
+    RemediationVerificationReference,
     RetestRecord,
     VerificationState,
 )
@@ -23,8 +30,13 @@ __all__ = [
     "FindingStatus",
     "FindingStore",
     "FindingStoreError",
+    "RemediationFixVerificationBundle",
+    "RemediationFixVerificationError",
+    "RemediationFixVerificationService",
+    "RemediationFixVerificationStore",
     "RemediationRecord",
     "RemediationState",
+    "RemediationVerificationReference",
     "RetestRecord",
     "VerificationState",
 ]

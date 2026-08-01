@@ -144,11 +144,33 @@ class PublicationStore:
     def load_request(self, request_id: str) -> ReleaseRequest:
         return self._load("requests", request_id, ReleaseRequest)
 
+    def list_requests_for_finding(self, finding_id: str) -> tuple[ReleaseRequest, ...]:
+        """Return verified requests for one finding in deterministic time order."""
+
+        records = [self.load_request(identifier) for identifier in self._identifiers("requests")]
+        matched = [record for record in records if record.source_finding_id == finding_id]
+        matched.sort(key=lambda item: (item.created_at, item.request_id))
+        return tuple(matched)
+
     def save_approval(self, record: ReleaseApproval) -> bool:
         return self._save("approvals", record.approval_id, record)
 
     def load_approval(self, approval_id: str) -> ReleaseApproval:
         return self._load("approvals", approval_id, ReleaseApproval)
+
+    def list_approvals_for_request(self, request_id: str) -> tuple[ReleaseApproval, ...]:
+        """Return verified approvals for one request in deterministic time order."""
+
+        records = [
+            self.load_approval(identifier) for identifier in self._identifiers("approvals")
+        ]
+        matched = [record for record in records if record.request_id == request_id]
+        matched.sort(key=lambda item: (item.approved_at, item.approval_id))
+        return tuple(matched)
+
+    def latest_approval_for_request(self, request_id: str) -> ReleaseApproval | None:
+        records = self.list_approvals_for_request(request_id)
+        return records[-1] if records else None
 
     def save_publication(self, record: PublicationManifest) -> bool:
         return self._save("publications", record.publication_id, record)
@@ -175,6 +197,23 @@ class PublicationStore:
     ) -> PublicationManifest | None:
         records = self.list_publications_for_finding(finding_id)
         return records[-1] if records else None
+
+    def publication_for_request(self, request_id: str) -> PublicationManifest | None:
+        records = [
+            record
+            for record in self._all_publications()
+            if record.request_id == request_id
+        ]
+        if len(records) > 1:
+            raise PublicationStoreError("release request has multiple publication records")
+        return records[0] if records else None
+
+    def _all_publications(self) -> tuple[PublicationManifest, ...]:
+        records = [
+            self.load_publication(identifier) for identifier in self._identifiers("publications")
+        ]
+        records.sort(key=lambda item: (item.published_at, item.publication_id))
+        return tuple(records)
 
     def save_correction(self, record: PublicationCorrection) -> bool:
         return self._save(

@@ -22,8 +22,8 @@ def test_jump_latest_counts_message_elements_not_rich_dom_mutations() -> None:
     assert 'feed.querySelectorAll(".vh-chat-message").length' in script
     assert "nextMessageCount - knownMessageCount" in script
     assert "unreadMessages += addedMessages" in script
-    assert 'childList: true' in script
-    assert 'subtree: true' in script
+    assert "childList: true" in script
+    assert "subtree: true" in script
     assert "unreadCount: () => unreadMessages" in script
 
 
@@ -32,9 +32,7 @@ def test_jump_latest_does_not_force_scroll_while_user_is_reading() -> None:
 
     assert "if (!force && !followingLatest) return false" in script
     assert "if (followingLatest) unreadMessages = 0" in script
-    expected_copy = (
-        'jump.textContent = unreadMessages > 0 ? `↓ ${unreadMessages} new` : "↓ Latest"'
-    )
+    expected_copy = 'jump.textContent = unreadMessages > 0 ? `↓ ${unreadMessages} new` : "↓ Latest"'
     assert expected_copy in script
 
 
@@ -50,9 +48,9 @@ def test_jump_latest_waits_for_a_stable_physical_bottom() -> None:
     assert "nextStableFrames >= requiredStableFrames" in script
     assert "const finalArrival = distanceFromBottom() <= bottomThreshold" in script
     assert 'scrollToLatest({ behavior: "auto", force: true })' in script
-    resume = script[script.index("const resume"): script.index("jump.addEventListener")]
+    resume = script[script.index("const resume") : script.index("jump.addEventListener")]
     assert "followingLatest = true" not in resume
-    assert 'scrollToLatest({ behavior, force: true })' in resume
+    assert "scrollToLatest({ behavior, force: true })" in resume
 
 
 def test_user_gestures_cancel_any_in_flight_auto_follow() -> None:
@@ -62,7 +60,7 @@ def test_user_gestures_cancel_any_in_flight_auto_follow() -> None:
     assert "scrollGeneration += 1" in script
     assert "scheduled = false" in script
     assert "programmatic = false" in script
-    pause = script[script.index("const pauseFollowing"): script.index("const resume")]
+    pause = script[script.index("const pauseFollowing") : script.index("const resume")]
     assert "cancelProgrammaticScroll()" in pause
     assert 'feed.addEventListener("wheel", pauseFollowing' in script
     assert 'feed.addEventListener("touchstart", pauseFollowing' in script

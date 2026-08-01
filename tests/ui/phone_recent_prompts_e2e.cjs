@@ -72,10 +72,12 @@ async function login(page) {
         if ((await recentSection.locator(".vh-composer-recent-option").count()) === 5) break;
         await page.waitForTimeout(50);
       }
-      await recentSection.waitFor({ state: "visible" });
       const recentOptions = recentSection.locator(".vh-composer-recent-option");
       if ((await recentOptions.count()) !== 5) {
         throw new Error(`Expected five deduplicated recent prompts, found ${await recentOptions.count()}`);
+      }
+      if (!(await recentSection.isHidden()) || !(await menu.isHidden())) {
+        throw new Error("Recent prompts should remain hidden until the prompt menu is opened");
       }
       const recentCopies = await recentOptions.allTextContents();
       if (!recentCopies[0].includes("Most recent reusable prompt for this phone test")) {
@@ -100,6 +102,7 @@ async function login(page) {
 
       await trigger.click();
       await menu.waitFor({ state: "visible" });
+      await recentSection.waitFor({ state: "visible" });
       const geometry = await recentSection.evaluate((element) => {
         const rect = element.getBoundingClientRect();
         return {

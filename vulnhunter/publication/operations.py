@@ -229,9 +229,7 @@ def audit_publication_state(store: PublicationStore) -> PublicationStateAudit:
         if correction.superseded_publication_id != superseded.publication_id:
             raise PublicationStoreError("publication correction storage key does not match")
         if correction.replacement_publication_sha256 != replacement.fingerprint():
-            raise PublicationStoreError(
-                "publication correction replacement digest does not match"
-            )
+            raise PublicationStoreError("publication correction replacement digest does not match")
         if replacement.correction_of_publication_id != superseded.publication_id:
             raise PublicationStoreError(
                 "replacement publication does not bind its correction target"
@@ -780,9 +778,7 @@ def assess_publication_readiness(
     if destination_problems:
         blockers.extend(destination_problems)
         checks.append(
-            PublicationReadinessCheck(
-                "destinations", "failed", "; ".join(destination_problems)
-            )
+            PublicationReadinessCheck("destinations", "failed", "; ".join(destination_problems))
         )
     else:
         probe_detail = " with write probes" if probe_writes else ""

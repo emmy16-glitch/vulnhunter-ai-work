@@ -77,6 +77,14 @@ Primary packages:
 
 ## 4. Required engineering workflow
 
+Substantial delivery must also follow
+`docs/engineering/TEST_ENGINEERED_BATCH_DELIVERY.md`. Related capabilities may be
+combined into one dependency-aligned batch when they share one authoritative
+lifecycle, trust boundary, cancellation model and acceptance path. Unrelated
+features must not be bundled merely to reduce pull-request count. No required
+test, security, browser, phone, worker or repository gate may be bypassed or
+weakened to make a batch pass.
+
 Before changing code:
 
 1. Read the relevant implementation, tests, public exports, and CLI wiring.

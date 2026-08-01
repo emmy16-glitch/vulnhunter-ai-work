@@ -137,7 +137,7 @@ def _review_world(tmp_path: Path, settings):
         remediation=remediation,
         retest_plans=(retest_plan,),
         retest_results=(retest,),
-        revision=4,
+        revision=0,
         created_at=NOW - timedelta(hours=2),
         updated_at=retest.created_at,
     )

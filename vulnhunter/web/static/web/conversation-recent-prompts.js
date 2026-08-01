@@ -17,6 +17,19 @@
     link.dataset.recentPromptsStyles = "true";
     document.head.append(link);
   }
+  if (current && !document.querySelector("script[data-conversation-export-loader]")) {
+    const exportUrl = new URL(current, window.location.href);
+    exportUrl.pathname = exportUrl.pathname.replace(
+      /conversation-recent-prompts\.js$/,
+      "conversation-export.js",
+    );
+    exportUrl.search = "?v=20260801-export1";
+    const script = document.createElement("script");
+    script.src = exportUrl.toString();
+    script.async = false;
+    script.dataset.conversationExportLoader = "true";
+    document.head.append(script);
+  }
 
   const feed = document.querySelector("[data-conversation-feed]");
   const list = document.querySelector(".vh-composer-prompt-list");

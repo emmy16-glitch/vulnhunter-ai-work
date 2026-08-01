@@ -127,19 +127,19 @@
   const renderPreference = () => {
     const available = providerAvailability(state.preference);
     const label = providerLabel(state.preference);
-    preferenceStatus.textContent = available ? "ready" : "not configured";
+    preferenceStatus.textContent = available ? "configured" : "not configured";
     preferenceStatus.title = available
       ? `${label} will be requested for the next ordinary chat answer.`
       : `${label} is not configured; VulnHunter will fail safely to deterministic guidance.`;
-    runtime.dataset.providerPreference = state.preference;
+    runtime.dataset.providerPreferenceActive = state.preference;
     if (!state.lastProvider) {
       runtime.textContent = label;
       runtime.title = available
         ? `${label} selected. The final response badge records the provider and model that actually answered.`
         : `${label} selected but unavailable. Deterministic guidance remains available.`;
-      runtime.classList.toggle("is-ready", available);
-      runtime.classList.toggle("is-warning", !available);
-      runtime.classList.remove("is-offline");
+      runtime.classList.remove("is-ready");
+      runtime.classList.toggle("is-warning", available);
+      runtime.classList.toggle("is-offline", !available);
     }
   };
 

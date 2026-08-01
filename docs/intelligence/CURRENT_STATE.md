@@ -27,6 +27,10 @@ VulnHunter currently includes:
 - deterministic append-only campaign release provenance packages that retain exact
   application-family, environment, authorization, primary-review and adjudication
   hashes after a governed dataset release;
+- a protected read-only campaign operations workspace that separates pre-activation
+  owned-target prerequisites from post-collection review and release readiness,
+  reports application-family coverage and adjudication workload, and withholds
+  ownership evidence references and local repository paths from the browser;
 - read-only governed pilot readiness reporting over release manifests,
   authorization provenance, exact scan links, review attestations, duplicate
   evidence indicators, class balance, and dataset fingerprints;
@@ -56,7 +60,7 @@ VulnHunter currently includes:
 
 The platform is a secure research pipeline and decision-support prototype with a narrowly controlled passive private-lab scanner path. It is not an autonomous public-Internet scanner, exploit framework, automatic vulnerability publisher, or production-grade vulnerability classifier.
 
-The governed collection and authenticated-review control plane is implemented. The release provenance package now preserves exact application-family and review/adjudication lineage after a governed dataset release. These implementations prove workflow enforcement; they do not mean a diverse real dataset has already been collected.
+The governed collection and authenticated-review control plane is implemented. The release provenance package now preserves exact application-family and review/adjudication lineage after a governed dataset release. The protected campaign operations workspace truthfully reports whether an approved or active campaign still satisfies private-target authorization, ownership-evidence declaration, family-diversity and review-separation prerequisites. These implementations prove workflow enforcement; they do not mean a diverse real dataset has already been collected, and an ownership declaration is not treated as proof without independent human verification.
 
 The dedicated publication foundation is implemented and operationally hardened, but remains separately activation-gated by deployment-owned keys, authority identities and destination configuration. It does not publish reports merely because they were generated or approved, and it does not merge code, deploy software or close findings.
 

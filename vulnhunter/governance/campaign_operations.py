@@ -239,7 +239,10 @@ def _release_package_status(
             state="not_released",
             detail="No immutable dataset release exists, so no release package is expected.",
         )
-    if _IDENTIFIER.fullmatch(campaign_id) is None or _IDENTIFIER.fullmatch(release.release_id) is None:
+    if (
+        _IDENTIFIER.fullmatch(campaign_id) is None
+        or _IDENTIFIER.fullmatch(release.release_id) is None
+    ):
         return CampaignReleasePackageStatus(
             state="invalid",
             detail="The release identifiers are not safe stable package keys.",
@@ -255,7 +258,10 @@ def _release_package_status(
         if not path.is_file():
             return CampaignReleasePackageStatus(
                 state="missing",
-                detail="The dataset is released, but its append-only provenance package is missing.",
+                detail=(
+                    "The dataset is released, but its append-only provenance package "
+                    "is missing."
+                ),
                 release_id=release.release_id,
             )
         package = CampaignReleasePackage.model_validate_json(path.read_text(encoding="utf-8"))
@@ -280,7 +286,10 @@ def _release_package_status(
     ):
         return CampaignReleasePackageStatus(
             state="invalid",
-            detail="The persisted release package is unavailable, unsafe, or does not match governed state.",
+            detail=(
+                "The persisted release package is unavailable, unsafe, or does not "
+                "match governed state."
+            ),
             release_id=release.release_id,
         )
     return CampaignReleasePackageStatus(
@@ -378,14 +387,18 @@ def assess_campaign_operations(
     application_count_ok = len(applications) >= campaign.minimum_applications
     if not application_count_ok:
         blockers.append(
-            f"Register at least {campaign.minimum_applications} applications; found {len(applications)}."
+            f"Register at least {campaign.minimum_applications} applications; "
+            f"found {len(applications)}."
         )
     prerequisites.append(
         _prerequisite(
             "application_count",
             "Application coverage",
             "met" if application_count_ok else "blocked",
-            f"{len(applications)} of {campaign.minimum_applications} required applications are registered.",
+            (
+                f"{len(applications)} of {campaign.minimum_applications} required "
+                "applications are registered."
+            ),
         )
     )
 
@@ -583,12 +596,15 @@ def assess_campaign_operations(
         next_actions.append("Reissue or repair exact current authorizations before collection.")
     if not ownership_evidence_ok:
         next_actions.append(
-            "Record verifiable owned-target evidence and a separate approving authority in each authorization."
+            "Record verifiable owned-target evidence and a separate approving authority "
+            "in each authorization."
         )
     if campaign.status == "draft" and core_prerequisites_ok:
         next_actions.append("Request independent approval of the frozen campaign manifest.")
     elif operator_activation_ready:
-        next_actions.append("A distinct authorized administrator may activate the approved campaign.")
+        next_actions.append(
+            "A distinct authorized administrator may activate the approved campaign."
+        )
     elif genuine_collection_ready and not scans:
         next_actions.append("Run only bounded scans against the exact authorized owned targets.")
     if workload.unassigned_observations:

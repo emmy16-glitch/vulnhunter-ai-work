@@ -10,7 +10,7 @@ def test_rich_content_is_loaded_after_response_controls() -> None:
     controls = RESPONSE_CONTROLS.read_text(encoding="utf-8")
 
     assert "conversation-rich-content.js" in controls
-    assert "data.richContentLoader" in controls
+    assert "script.dataset.richContentLoader" in controls
     assert "conversation-rich-content.css" not in controls
 
 

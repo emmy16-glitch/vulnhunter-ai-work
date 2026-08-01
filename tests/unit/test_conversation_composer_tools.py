@@ -43,7 +43,7 @@ def test_composer_tools_expose_clear_and_character_count() -> None:
 def test_slash_commands_filter_and_insert_without_submitting() -> None:
     script = SCRIPT.read_text(encoding="utf-8")
 
-    assert 'input.value.match(/^\\/([^\\n]*)$/)' in script
+    assert "input.value.match(/^\\/([^\\n]*)$/)" in script
     assert "filterPrompts(query)" in script
     assert 'menu.dataset.openedBySlash = openedBySlash ? "true" : "false"' in script
     assert 'event.key === "Enter" && options.length' in script
@@ -58,7 +58,7 @@ def test_composer_prompt_menu_closes_with_escape_from_any_focus_target() -> None
 
     assert 'document.addEventListener("keydown"' in script
     assert 'event.key !== "Escape" || menu.hidden' in script
-    assert 'closeMenu({ focusTrigger: true })' in script
+    assert "closeMenu({ focusTrigger: true })" in script
     assert 'trigger.setAttribute("aria-expanded", "false")' in script
 
 

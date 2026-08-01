@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import subprocess
 
+# Branch-only formatter input; this helper is deleted before merge.
 FILES = (
     "tests/unit/test_governed_retest.py",
     "tests/unit/test_governed_retest_web.py",

@@ -127,6 +127,17 @@ class PublicationStore:
             raise PublicationStoreError("publication record digest verification failed")
         return record
 
+    def _identifiers(self, category: str) -> tuple[str, ...]:
+        directory = self._directory(category)
+        identifiers: list[str] = []
+        for path in sorted(directory.glob("*.json")):
+            if path.is_symlink():
+                raise PublicationStoreError("publication storage contains an unsafe symlink")
+            if not path.is_file():
+                continue
+            identifiers.append(path.stem)
+        return tuple(identifiers)
+
     def save_request(self, record: ReleaseRequest) -> bool:
         return self._save("requests", record.request_id, record)
 
@@ -144,6 +155,27 @@ class PublicationStore:
 
     def load_publication(self, publication_id: str) -> PublicationManifest:
         return self._load("publications", publication_id, PublicationManifest)
+
+    def list_publications_for_finding(
+        self,
+        finding_id: str,
+    ) -> tuple[PublicationManifest, ...]:
+        """Return verified publications for one finding in deterministic time order."""
+
+        records = [
+            self.load_publication(identifier)
+            for identifier in self._identifiers("publications")
+        ]
+        matched = [record for record in records if record.source_finding_id == finding_id]
+        matched.sort(key=lambda item: (item.published_at, item.publication_id))
+        return tuple(matched)
+
+    def latest_publication_for_finding(
+        self,
+        finding_id: str,
+    ) -> PublicationManifest | None:
+        records = self.list_publications_for_finding(finding_id)
+        return records[-1] if records else None
 
     def save_correction(self, record: PublicationCorrection) -> bool:
         return self._save(

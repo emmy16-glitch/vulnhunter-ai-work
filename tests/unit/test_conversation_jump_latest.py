@@ -36,6 +36,19 @@ def test_jump_latest_does_not_force_scroll_while_user_is_reading() -> None:
     assert expected_copy in script
 
 
+def test_jump_latest_waits_for_the_feed_to_physically_settle() -> None:
+    script = SCRIPT.read_text(encoding="utf-8")
+
+    assert "const maximumSettleFrames = 90" in script
+    assert "const settleProgrammaticScroll = (frame = 0)" in script
+    assert "const arrived = distanceFromBottom() <= bottomThreshold" in script
+    assert "followingLatest = arrived" in script
+    assert "settleProgrammaticScroll(frame + 1)" in script
+    resume = script[script.index("const resume"): script.index("jump.addEventListener")]
+    assert "followingLatest = true" not in resume
+    assert 'scrollToLatest({ behavior, force: true })' in resume
+
+
 def test_jump_latest_uses_self_hosted_composer_anchored_styles() -> None:
     script = SCRIPT.read_text(encoding="utf-8")
     styles = STYLES.read_text(encoding="utf-8")

@@ -134,7 +134,7 @@ def _world(tmp_path: Path):
         remediation=remediation,
         retest_plans=(retest_plan,),
         retest_results=(retest_reference,),
-        revision=4,
+        revision=0,
         created_at=NOW - timedelta(hours=2),
         updated_at=retest_reference.created_at,
     )

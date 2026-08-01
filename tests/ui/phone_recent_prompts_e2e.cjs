@@ -39,6 +39,12 @@ async function login(page) {
       await form.waitFor({ state: "visible" });
       await trigger.waitFor({ state: "visible" });
       await recentSection.waitFor({ state: "attached" });
+      for (let attempt = 0; attempt < 100 && !(await trigger.isEnabled()); attempt += 1) {
+        await page.waitForTimeout(50);
+      }
+      if (!(await trigger.isEnabled())) {
+        throw new Error("Prompt tools did not become available after their stylesheet loaded");
+      }
 
       const prompts = [
         "Oldest prompt that should be dropped",
@@ -105,6 +111,8 @@ async function login(page) {
       await recentSection.waitFor({ state: "visible" });
       const geometry = await recentSection.evaluate((element) => {
         const rect = element.getBoundingClientRect();
+        const composerStyles = document.querySelector("link[data-composer-tools-styles]");
+        const recentStyles = document.querySelector("link[data-recent-prompts-styles]");
         return {
           left: rect.left,
           right: rect.right,
@@ -114,11 +122,15 @@ async function login(page) {
           height: rect.height,
           innerWidth: window.innerWidth,
           innerHeight: window.innerHeight,
-          stylesLoaded: Boolean(document.querySelector("link[data-recent-prompts-styles]")),
+          composerStylesLoaded: Boolean(composerStyles?.sheet),
+          recentStylesLoaded: Boolean(recentStyles?.sheet),
+          stylesReady: window.VulnHunterComposerTools?.stylesReady?.(),
         };
       });
       if (
-        !geometry.stylesLoaded ||
+        !geometry.composerStylesLoaded ||
+        !geometry.recentStylesLoaded ||
+        geometry.stylesReady !== true ||
         geometry.width <= 0 ||
         geometry.height <= 0 ||
         geometry.left < -1 ||

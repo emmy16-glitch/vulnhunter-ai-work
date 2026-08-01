@@ -291,7 +291,7 @@ def test_report_writer_must_be_separate_from_remediation_actors(tmp_path):
 def test_report_generation_requires_ready_for_report_state(tmp_path):
     _store, finding, service, report_store = _world(
         tmp_path,
-        finding_status=FindingStatus.AWAITING_REMEDIATION_REVIEW,
+        finding_status=FindingStatus.TRIAGED,
     )
 
     with pytest.raises(FinalRemediationReportError, match="approved remediation review"):

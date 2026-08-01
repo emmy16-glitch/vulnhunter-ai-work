@@ -4,17 +4,28 @@ from __future__ import annotations
 
 import json
 import os
+import sqlite3
 import stat
 from dataclasses import dataclass
+from datetime import timedelta
 from pathlib import Path
 
 from django.conf import settings
 
+from vulnhunter.exceptions import GovernanceError
 from vulnhunter.publication import (
     PublicationDestinationConfig,
     PublicationService,
     PublicationServiceError,
     PublicationStore,
+)
+from vulnhunter.publication.operations import (
+    PublicationReadinessReport,
+    PublicationRecoveryReport,
+    assess_publication_readiness,
+    disabled_publication_readiness,
+    failed_publication_readiness,
+    recover_publication_operations,
 )
 from vulnhunter.reports import FinalReportFormat
 from vulnhunter.web.final_report_service import final_report_store
@@ -166,9 +177,70 @@ def publication_service() -> PublicationService:
     )
 
 
+def publication_deployment_readiness(
+    *,
+    probe_writes: bool = False,
+    minimum_free_bytes: int = 64 * 1024 * 1024,
+    stale_after: timedelta = timedelta(hours=1),
+) -> PublicationReadinessReport:
+    """Assess optional publication activation without publishing or authenticating actors."""
+
+    key_file = publication_signing_key_file()
+    config_file = publication_config_file()
+    if key_file is None and config_file is None:
+        return disabled_publication_readiness()
+    if key_file is None or config_file is None:
+        return failed_publication_readiness(
+            "publication activation is partial; both signing key and configuration are required"
+        )
+    try:
+        runtime = publication_runtime_config()
+        store = publication_store()
+        governance = governance_store()
+        governance.verify_integrity()
+        return assess_publication_readiness(
+            governance,
+            store,
+            runtime.destinations,
+            runtime.release_authority_ids,
+            probe_writes=probe_writes,
+            minimum_free_bytes=minimum_free_bytes,
+            stale_after=stale_after,
+        )
+    except (
+        GovernanceError,
+        PublicationServiceError,
+        OSError,
+        RuntimeError,
+        ValueError,
+        sqlite3.Error,
+    ) as exc:
+        return failed_publication_readiness(str(exc))
+
+
+def publication_recovery(
+    *,
+    apply_safe: bool = False,
+    stale_after: timedelta = timedelta(hours=1),
+) -> PublicationRecoveryReport:
+    """Inspect or safely repair interrupted local publication metadata operations."""
+
+    if publication_signing_key_file() is None or publication_config_file() is None:
+        raise PublicationServiceError("publication recovery requires complete activation")
+    runtime = publication_runtime_config()
+    return recover_publication_operations(
+        publication_store(),
+        runtime.destinations,
+        apply_safe=apply_safe,
+        stale_after=stale_after,
+    )
+
+
 __all__ = [
     "PublicationRuntimeConfig",
     "publication_config_file",
+    "publication_deployment_readiness",
+    "publication_recovery",
     "publication_runtime_config",
     "publication_service",
     "publication_signing_key",

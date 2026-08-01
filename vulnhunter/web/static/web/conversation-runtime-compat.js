@@ -214,9 +214,11 @@
     if (feed) {
       const rewriteFallbackBadges = () => {
         feed.querySelectorAll(".vh-message-reasoning").forEach((badge) => {
+          if (badge.dataset.providerFallbackRewritten === "true") return;
           const detailText = String(badge.getAttribute("title") || "");
           if (!/Groq|Hugging Face/i.test(detailText)) return;
           if (!/Deterministic/i.test(badge.textContent || "")) return;
+          badge.dataset.providerFallbackRewritten = "true";
           badge.classList.add("is-degraded");
           badge.textContent = (badge.textContent || "").replace(
             /Deterministic(?: fallback)?/i,

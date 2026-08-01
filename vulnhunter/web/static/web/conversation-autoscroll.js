@@ -22,6 +22,8 @@
 
   const bottomThreshold = 96;
   const maximumSettleFrames = 90;
+  const requiredStableFrames = 8;
+  const smoothScrollGraceFrames = 12;
   let followingLatest = true;
   let scheduled = false;
   let programmatic = false;
@@ -62,17 +64,35 @@
     publishState();
   };
 
-  const settleProgrammaticScroll = (frame = 0) => {
-    const arrived = distanceFromBottom() <= bottomThreshold;
-    if (arrived || frame >= maximumSettleFrames) {
-      scheduled = false;
-      programmatic = false;
-      followingLatest = arrived;
-      if (followingLatest) unreadMessages = 0;
-      publishState();
+  const settleProgrammaticScroll = (frame = 0, stableFrames = 0) => {
+    let arrived = distanceFromBottom() <= bottomThreshold;
+    let nextStableFrames = arrived ? stableFrames + 1 : 0;
+
+    if (!arrived && frame >= smoothScrollGraceFrames) {
+      feed.scrollTop = feed.scrollHeight;
+      arrived = distanceFromBottom() <= bottomThreshold;
+      nextStableFrames = arrived ? 1 : 0;
+    } else if (arrived) {
+      feed.scrollTop = feed.scrollHeight;
+    }
+
+    if (nextStableFrames >= requiredStableFrames || frame >= maximumSettleFrames) {
+      feed.scrollTop = feed.scrollHeight;
+      window.requestAnimationFrame(() => {
+        const finalArrival = distanceFromBottom() <= bottomThreshold;
+        scheduled = false;
+        programmatic = false;
+        followingLatest = finalArrival;
+        if (followingLatest) unreadMessages = 0;
+        publishState();
+        if (!finalArrival) scrollToLatest({ behavior: "auto", force: true });
+      });
       return;
     }
-    window.requestAnimationFrame(() => settleProgrammaticScroll(frame + 1));
+
+    window.requestAnimationFrame(() =>
+      settleProgrammaticScroll(frame + 1, nextStableFrames),
+    );
   };
 
   const scrollToLatest = ({ behavior = "smooth", force = false } = {}) => {

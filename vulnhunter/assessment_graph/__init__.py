@@ -10,6 +10,7 @@ from vulnhunter.assessment_graph.models import (
     AssessmentStage,
 )
 from vulnhunter.assessment_graph.remediation import RemediationAssessmentGraphService
+from vulnhunter.assessment_graph.retest import RetestAssessmentGraphService
 from vulnhunter.assessment_graph.service import (
     AssessmentGraphError,
     AssessmentGraphService,
@@ -25,5 +26,6 @@ __all__ = [
     "AssessmentStage",
     "MobileAssessmentGraphService",
     "RemediationAssessmentGraphService",
+    "RetestAssessmentGraphService",
     "SourceAssessmentGraphService",
 ]

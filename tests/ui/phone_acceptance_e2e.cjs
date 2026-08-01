@@ -30,12 +30,14 @@ async function login(page) {
       await login(page);
       await page.goto(`${baseUrl}/`, { waitUntil: "domcontentloaded" });
       await page.locator("[data-conversation-form]").waitFor({ state: "visible" });
+      await page.locator("[data-provider-preference]").waitFor({ state: "visible" });
 
       const layout = await page.evaluate(() => {
         const composer = document.querySelector("[data-conversation-form]");
         const reasoning = document.querySelector("[data-reasoning-effort]");
         const provider = document.querySelector("[data-provider-runtime]");
-        if (!composer || !reasoning || !provider) return { missing: true };
+        const providerPreference = document.querySelector("[data-provider-preference]");
+        if (!composer || !reasoning || !provider || !providerPreference) return { missing: true };
 
         const dock = document.createElement("div");
         dock.className = "vh-background-upload-dock";
@@ -50,7 +52,11 @@ async function login(page) {
         const dockRect = dock.getBoundingClientRect();
         const reasoningRect = reasoning.getBoundingClientRect();
         const providerRect = provider.getBoundingClientRect();
+        const providerPreferenceRect = providerPreference.getBoundingClientRect();
         const options = [...reasoning.options].map((option) => option.textContent.trim());
+        const providerOptions = [...providerPreference.options].map((option) =>
+          option.textContent.trim(),
+        );
         const overlapsComposer = !(
           dockRect.bottom <= composerRect.top + 1 ||
           dockRect.top >= composerRect.bottom - 1
@@ -66,6 +72,9 @@ async function login(page) {
           reasoningVisible: reasoningRect.width >= 80 && reasoningRect.height >= 38,
           reasoningOptions: options,
           providerVisible: providerRect.width > 0 && providerRect.height > 0,
+          providerPreferenceVisible:
+            providerPreferenceRect.width >= 110 && providerPreferenceRect.height >= 32,
+          providerOptions,
           dockVisible: dockRect.width > 0 && dockRect.height > 0,
           dockInsideViewport:
             dockRect.left >= -1 &&
@@ -94,11 +103,82 @@ async function login(page) {
         throw new Error(`Reasoning options are incomplete: ${layout.reasoningOptions.join(",")}`);
       }
       if (!layout.providerVisible) {
-        throw new Error(`Groq runtime status is hidden at ${viewport.width}px`);
+        throw new Error(`AI runtime status is hidden at ${viewport.width}px`);
+      }
+      if (!layout.providerPreferenceVisible) {
+        throw new Error(
+          `Provider selector is not usable at ${viewport.width}px: ${JSON.stringify(layout)}`,
+        );
+      }
+      if (layout.providerOptions.join(",") !== "Auto,Groq,Hugging Face") {
+        throw new Error(`Provider options are incomplete: ${layout.providerOptions.join(",")}`);
       }
       if (!layout.dockVisible || !layout.dockInsideViewport || layout.overlapsComposer) {
         throw new Error(`Upload dock overlaps or leaves the viewport: ${JSON.stringify(layout)}`);
       }
+
+      const providerSelect = page.locator("[data-provider-preference]");
+      await providerSelect.selectOption("huggingface");
+      for (let attempt = 0; attempt < 80; attempt += 1) {
+        if ((await providerSelect.inputValue()) === "huggingface" && (await providerSelect.isEnabled())) {
+          break;
+        }
+        await page.waitForTimeout(50);
+      }
+      if ((await providerSelect.inputValue()) !== "huggingface") {
+        throw new Error("The Hugging Face preference did not persist in the active workspace");
+      }
+
+      const messageUrl = await page.locator("[data-conversation-form]").getAttribute("action");
+      if (!messageUrl) throw new Error("Conversation message URL is missing");
+      const absoluteMessageUrl = new URL(messageUrl, baseUrl).toString();
+      let providerPostData = "";
+      await page.route(absoluteMessageUrl, async (route) => {
+        providerPostData = route.request().postData() || "";
+        await page.waitForTimeout(1800);
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            message: {
+              role: "assistant",
+              kind: "text",
+              content: "Provider selection test complete.",
+              timestamp: new Date().toISOString(),
+              metadata: {
+                provider: "huggingface",
+                model: "test/huggingface-model",
+                reasoning_effort: "medium",
+                provider_detail: "Hugging Face model: test/huggingface-model",
+              },
+            },
+          }),
+        });
+      });
+
+      const input = page.locator("[data-conversation-input]");
+      await input.fill("Explain the current workspace provider selection");
+      await page.locator("[data-conversation-send]").click();
+      const progress = page.locator("[data-progress-mode='validated-stages']");
+      await progress.waitFor({ state: "visible" });
+      await page.waitForTimeout(1200);
+      const progressText = await progress.textContent();
+      if (!/Contacting Hugging Face|validated model response/i.test(progressText || "")) {
+        throw new Error(`Provider progress did not advance: ${progressText}`);
+      }
+      await page.getByText("Provider selection test complete.").waitFor({ state: "visible" });
+      await progress.waitFor({ state: "hidden" });
+      if (!providerPostData.includes('name="provider_preference"')) {
+        throw new Error("The provider preference field was missing from the chat request");
+      }
+      if (!providerPostData.includes("huggingface")) {
+        throw new Error("The selected Hugging Face provider was not submitted with the chat request");
+      }
+      const runtimeText = await page.locator("[data-provider-runtime]").textContent();
+      if (!/Hugging Face answered/i.test(runtimeText || "")) {
+        throw new Error(`The actual response provider was not shown: ${runtimeText}`);
+      }
+      await page.unroute(absoluteMessageUrl);
 
       const startUrl = await page
         .locator("[data-conversation-form]")
@@ -170,7 +250,9 @@ async function login(page) {
       await page.getByRole("button", { name: "Cancel" }).last().click();
       await context.close();
     }
-    console.log("Phone conversation, reasoning, upload recovery and layout acceptance passed.");
+    console.log(
+      "Phone conversation, provider selection, validated progress, upload recovery and layout acceptance passed.",
+    );
   } finally {
     await browser.close();
   }

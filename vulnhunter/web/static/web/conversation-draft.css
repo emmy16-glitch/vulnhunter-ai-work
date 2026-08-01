@@ -1,0 +1,47 @@
+.vh-draft-status {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  min-width: 0;
+  color: var(--text-muted, #747a76);
+  font-size: .68rem;
+  white-space: nowrap;
+}
+
+.vh-draft-status::before {
+  width: .42rem;
+  height: .42rem;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: currentColor;
+  content: "";
+}
+
+.vh-draft-status[data-state="saved"],
+.vh-draft-status[data-state="sent"] {
+  color: var(--success, #22c55e);
+}
+
+.vh-draft-status[data-state="restored"] {
+  color: var(--warning, #f59e0b);
+}
+
+.vh-draft-status[data-state="sending"] {
+  color: var(--primary, #16b878);
+}
+
+.vh-draft-status[data-state="unavailable"] {
+  color: #f87171;
+}
+
+.vh-draft-status[hidden] {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .vh-draft-status {
+    grid-column: 1 / -1;
+    order: -1;
+    width: 100%;
+  }
+}

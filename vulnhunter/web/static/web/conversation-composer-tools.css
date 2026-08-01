@@ -175,10 +175,16 @@
   .vh-composer-prompt-menu {
     position: fixed;
     right: .65rem;
-    bottom: calc(14.5rem + env(safe-area-inset-bottom, 0px));
+    bottom: calc(
+      var(--vh-phone-composer-clearance, 14.5rem) +
+      max(.75rem, env(safe-area-inset-bottom))
+    );
     left: .65rem;
     width: auto;
-    max-height: min(55dvh, 27rem);
+    max-height: min(
+      calc(100dvh - var(--vh-phone-composer-clearance, 14.5rem) - 1.5rem),
+      27rem
+    );
   }
 
   .vh-composer-prompt-list {

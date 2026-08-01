@@ -17,6 +17,19 @@
     link.dataset.conversationSearchStyles = "true";
     document.head.append(link);
   }
+  if (current && !document.querySelector("script[data-composer-tools-loader]")) {
+    const toolsUrl = new URL(current, window.location.href);
+    toolsUrl.pathname = toolsUrl.pathname.replace(
+      /conversation-search\.js$/,
+      "conversation-composer-tools.js",
+    );
+    toolsUrl.search = "?v=20260801-composer-tools1";
+    const script = document.createElement("script");
+    script.src = toolsUrl.toString();
+    script.async = false;
+    script.dataset.composerToolsLoader = "true";
+    document.head.append(script);
+  }
 
   const workspace = document.querySelector("[data-conversation-workspace]");
   const headerActions = document.querySelector(".vh-chat-runtime");

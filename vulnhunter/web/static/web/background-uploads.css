@@ -25,7 +25,7 @@
 @media (max-width: 700px) {
   .vh-background-upload-dock {
     right: .65rem;
-    bottom: 8.25rem;
+    bottom: var(--vh-phone-composer-clearance, 8.25rem);
     width: calc(100vw - 1.3rem);
     max-height: min(38dvh, 22rem);
     overflow-y: auto;

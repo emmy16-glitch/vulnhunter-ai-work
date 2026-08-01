@@ -78,7 +78,7 @@
       .vh-llm-progress-step.is-complete::after,.vh-llm-progress-step.is-active::after{transform:scaleX(1)}
       .vh-llm-progress-step.is-active::after{animation:vh-provider-pulse 1.1s ease-in-out infinite alternate}
       @keyframes vh-provider-pulse{from{opacity:.45}to{opacity:1}}
-      @media(max-width:640px){.vh-chat-composer-meta{align-items:flex-start;gap:.45rem;flex-wrap:wrap}.vh-provider-control{order:2;width:100%;justify-content:space-between}.vh-provider-control select{max-width:none;flex:1}.vh-provider-control small{display:none}.vh-provider-runtime{order:3}.vh-llm-progress{margin-inline:.15rem}}
+      @media(max-width:640px){.vh-chat-composer-meta{align-items:flex-start;gap:.45rem;flex-wrap:wrap}.vh-provider-control{order:2;width:100%;justify-content:space-between}.vh-provider-control select{max-width:none;flex:1}.vh-provider-control small{display:none}.vh-provider-runtime{order:3}.vh-llm-progress{margin-inline:.15rem}.vh-background-upload-dock{bottom:calc(var(--vh-phone-composer-clearance,14rem) + env(safe-area-inset-bottom,0px))}}
       @media(prefers-reduced-motion:reduce){.vh-llm-progress-step.is-active::after{animation:none}}
     `;
     document.head.append(style);

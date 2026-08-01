@@ -172,8 +172,69 @@
     }
   };
 
+  const providerName = (runtime) => {
+    const detail = String(runtime?.getAttribute("title") || "");
+    const hasGroq = /\bGroq\b/i.test(detail);
+    const hasHuggingFace = /Hugging Face/i.test(detail);
+    if (hasHuggingFace && !hasGroq) return "Hugging Face";
+    if (hasGroq && !hasHuggingFace) return "Groq";
+    return "the AI provider";
+  };
+
+  const bindProviderRuntime = () => {
+    const runtime = document.querySelector("[data-provider-runtime]");
+    const detail = String(runtime?.getAttribute("title") || "");
+    if (runtime) {
+      const hasGroq = /\bGroq\b/i.test(detail);
+      const hasHuggingFace = /Hugging Face/i.test(detail);
+      if (hasGroq && hasHuggingFace) runtime.textContent = "AI providers configured";
+      else if (hasHuggingFace) runtime.textContent = "Hugging Face configured";
+      else if (/Groq live conversation ready/i.test(detail)) runtime.textContent = "Groq live";
+      else if (hasGroq) runtime.textContent = "Groq configured";
+      else runtime.textContent = "AI unavailable";
+    }
+
+    const thinkingCopy = document.querySelector("[data-thinking-copy]");
+    if (thinkingCopy) {
+      const rewriteThinkingCopy = () => {
+        const value = thinkingCopy.textContent || "";
+        if (!value.startsWith("Asking Groq")) return;
+        const name = providerName(runtime);
+        thinkingCopy.textContent = value.replace("Asking Groq", `Asking ${name}`);
+      };
+      rewriteThinkingCopy();
+      new MutationObserver(rewriteThinkingCopy).observe(thinkingCopy, {
+        childList: true,
+        characterData: true,
+        subtree: true,
+      });
+    }
+
+    const feed = document.querySelector("[data-conversation-feed]");
+    if (feed) {
+      const rewriteFallbackBadges = () => {
+        feed.querySelectorAll(".vh-message-reasoning").forEach((badge) => {
+          const detailText = String(badge.getAttribute("title") || "");
+          if (!/Groq|Hugging Face/i.test(detailText)) return;
+          if (!/Deterministic/i.test(badge.textContent || "")) return;
+          badge.classList.add("is-degraded");
+          badge.textContent = (badge.textContent || "").replace(
+            /Deterministic(?: fallback)?/i,
+            "AI provider unavailable · deterministic fallback",
+          );
+        });
+      };
+      rewriteFallbackBadges();
+      new MutationObserver(rewriteFallbackBadges).observe(feed, {
+        childList: true,
+        subtree: true,
+      });
+    }
+  };
+
   const loadWorkspaceBridges = () => {
     bindSourceHuntLinks();
+    bindProviderRuntime();
     loadScript("workspace-state.js", "data-workspace-state-loader");
     loadScript("workspace-safety-polish.js", "data-workspace-safety-loader");
   };

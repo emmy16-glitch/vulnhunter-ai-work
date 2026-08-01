@@ -337,9 +337,7 @@ def test_release_package_preserves_two_families_reviews_and_adjudication(
         "consensus",
         "adjudicated",
     }
-    adjudicated = next(
-        item for item in package.reviews if item.resolution_state == "adjudicated"
-    )
+    adjudicated = next(item for item in package.reviews if item.resolution_state == "adjudicated")
     assert adjudicated.assigned_adjudicator_id == "lead-c"
     assert adjudicated.adjudication_attestation_id is not None
     assert adjudicated.effective_label == "false_positive"

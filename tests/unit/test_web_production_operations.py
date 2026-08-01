@@ -12,12 +12,17 @@ from django.test import Client, RequestFactory
 from django.urls import resolve
 
 from vulnhunter.web import readiness
+from vulnhunter.web.deployment_policy import DeploymentPolicyReport
 from vulnhunter.web.observability import (
     RequestCorrelationMiddleware,
     request_log_record,
     trusted_request_id,
 )
 from vulnhunter.web.readiness import ReadinessReport
+
+
+def ready_policy(mode: str = "baseline") -> DeploymentPolicyReport:
+    return DeploymentPolicyReport(mode=mode, checks=(("policy_safe", True),))
 
 
 def test_trusted_request_id_accepts_only_bounded_safe_values() -> None:
@@ -127,21 +132,58 @@ def test_deployment_preflight_prints_safe_json_and_succeeds(monkeypatch) -> None
         "deployment_readiness",
         lambda: ReadinessReport(configuration=True, database=True, agent_store=True),
     )
+    monkeypatch.setattr(
+        vh_deployment_preflight,
+        "deployment_policy",
+        lambda *, public=False: ready_policy("public" if public else "baseline"),
+    )
     stdout = StringIO()
     call_command("vh_deployment_preflight", stdout=stdout)
 
     payload = json.loads(stdout.getvalue())
     assert payload["status"] == "ready"
     assert set(payload["checks"]) == {"configuration", "database", "agent_store"}
+    assert payload["policy"] == {
+        "mode": "baseline",
+        "status": "ready",
+        "checks": {"policy_safe": "ok"},
+    }
 
 
-def test_deployment_preflight_exits_nonzero_when_unready(monkeypatch) -> None:
+def test_deployment_preflight_public_flag_selects_public_policy(monkeypatch) -> None:
+    from vulnhunter.web.management.commands import vh_deployment_preflight
+
+    selected: list[bool] = []
+    monkeypatch.setattr(
+        vh_deployment_preflight,
+        "deployment_readiness",
+        lambda: ReadinessReport(configuration=True, database=True, agent_store=True),
+    )
+
+    def select_policy(*, public: bool = False) -> DeploymentPolicyReport:
+        selected.append(public)
+        return ready_policy("public" if public else "baseline")
+
+    monkeypatch.setattr(vh_deployment_preflight, "deployment_policy", select_policy)
+    stdout = StringIO()
+    call_command("vh_deployment_preflight", "--public", stdout=stdout)
+
+    assert selected == [True]
+    assert json.loads(stdout.getvalue())["policy"]["mode"] == "public"
+
+
+def test_deployment_preflight_exits_nonzero_when_dependency_unready(monkeypatch) -> None:
     from vulnhunter.web.management.commands import vh_deployment_preflight
 
     monkeypatch.setattr(
         vh_deployment_preflight,
         "deployment_readiness",
         lambda: ReadinessReport(configuration=False, database=True, agent_store=True),
+    )
+    monkeypatch.setattr(
+        vh_deployment_preflight,
+        "deployment_policy",
+        lambda *, public=False: ready_policy("public" if public else "baseline"),
     )
     stdout = StringIO()
 
@@ -151,3 +193,31 @@ def test_deployment_preflight_exits_nonzero_when_unready(monkeypatch) -> None:
     payload = json.loads(stdout.getvalue())
     assert payload["status"] == "unready"
     assert payload["checks"]["configuration"] == "failed"
+    assert payload["policy"]["status"] == "ready"
+
+
+def test_deployment_preflight_exits_nonzero_when_policy_unready(monkeypatch) -> None:
+    from vulnhunter.web.management.commands import vh_deployment_preflight
+
+    monkeypatch.setattr(
+        vh_deployment_preflight,
+        "deployment_readiness",
+        lambda: ReadinessReport(configuration=True, database=True, agent_store=True),
+    )
+    monkeypatch.setattr(
+        vh_deployment_preflight,
+        "deployment_policy",
+        lambda *, public=False: DeploymentPolicyReport(
+            mode="public" if public else "baseline",
+            checks=(("debug_disabled", False),),
+        ),
+    )
+    stdout = StringIO()
+
+    with pytest.raises(CommandError, match="deployment readiness checks failed"):
+        call_command("vh_deployment_preflight", "--public", stdout=stdout)
+
+    payload = json.loads(stdout.getvalue())
+    assert payload["status"] == "unready"
+    assert payload["checks"]["database"] == "ok"
+    assert payload["policy"]["checks"]["debug_disabled"] == "failed"

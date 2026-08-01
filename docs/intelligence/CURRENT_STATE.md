@@ -48,6 +48,12 @@ VulnHunter currently includes:
   `python -m vulnhunter.product`;
 - an authenticated Django operational surface connected to governed assessment,
   approval, activity, evidence, candidate-finding and release state;
+- optional Groq and Hugging Face advisory providers wired into the persistent
+  conversational workspace with deterministic high-impact action routing,
+  redacted context, bounded reasoning budgets and provider/model provenance;
+- secure provider setup and a provider-neutral `vh_verify_llm` command that proves
+  one harmless answer passes through the exact browser conversation path rather
+  than accepting credential presence or low-level API reachability as readiness;
 - a versioned scanner-manager protocol shared by a controlled Nuclei worker and
   planned mobile adapters;
 - a file-backed Nuclei execution lifecycle with hash-linked audit transitions,
@@ -69,6 +75,12 @@ route authorization, exact approval, operational read models and a separate sign
 Nuclei worker. The reviewed passive pilot can run one pinned template against one
 exact authorized RFC1918 target. Public scanning, intrusive execution and dynamic
 mobile analysis remain unavailable.
+
+Remote LLM answers remain optional advisory output. A deployment can now verify the
+same prompt construction, provider wrapper, structured decoding and user-facing
+answer path used by the browser. Passing that readiness check proves connectivity
+and integration only; deterministic services still own authorization, approvals,
+scanner execution, finding verification, severity and publication.
 
 ## Current model status
 
@@ -103,6 +115,9 @@ vulnhunter loop --help
 vulnhunter research --help
 vulnhunter unattended --help
 python -m vulnhunter.product --help
+python manage.py vh_configure_groq --help
+python manage.py vh_configure_huggingface --help
+python manage.py vh_verify_llm --help
 python manage.py vh_publication_preflight --help
 python manage.py vh_publication_recover --help
 python manage.py vh_campaign_release_package --help

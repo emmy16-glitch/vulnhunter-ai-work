@@ -1,0 +1,32 @@
+name: Temporary remediation review documentation patch
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/temporary-remediation-review-doc-patch.yml
+      - scripts/patch_remediation_review_documentation.py
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.head_ref == 'impl/independent-remediation-review' && github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: impl/independent-remediation-review
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - run: python scripts/patch_remediation_review_documentation.py
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .env.example docs/intelligence/VULNHUNTER_MASTER_ARCHITECTURE.md
+          git diff --cached --exit-code && exit 1 || true
+          git commit -m "Document independent remediation review milestone"
+          git push origin HEAD:impl/independent-remediation-review

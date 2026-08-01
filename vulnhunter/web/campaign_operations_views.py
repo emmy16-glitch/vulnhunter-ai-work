@@ -63,6 +63,13 @@ def campaign_operations_view(request: HttpRequest, campaign_id: str) -> HttpResp
 
     governance_path = Path(settings.VULNHUNTER_GOVERNANCE_DATABASE).expanduser()
     authorization_path = Path(settings.VULNHUNTER_AUTHORIZATION_DATABASE).expanduser()
+    package_root = Path(
+        getattr(
+            settings,
+            "VULNHUNTER_CAMPAIGN_RELEASE_PACKAGE_ROOT",
+            governance_path.parent / "campaign-release-packages",
+        )
+    )
     if not governance_path.is_file() or not authorization_path.is_file():
         return operational_unavailable(
             request,
@@ -77,7 +84,7 @@ def campaign_operations_view(request: HttpRequest, campaign_id: str) -> HttpResp
             governance_store,
             authorization_store,
             repositories,
-            Path(settings.VULNHUNTER_CAMPAIGN_RELEASE_PACKAGE_ROOT),
+            package_root,
             campaign_id=campaign_id,
         )
     except GovernanceNotFoundError as exc:

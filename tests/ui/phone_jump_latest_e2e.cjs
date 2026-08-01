@@ -59,6 +59,11 @@ async function login(page) {
       });
       await page.waitForTimeout(100);
 
+      await feed.dispatchEvent("pointerdown", {
+        pointerType: "touch",
+        isPrimary: true,
+        bubbles: true,
+      });
       await page.evaluate(() => {
         const feedElement = document.querySelector("[data-conversation-feed]");
         feedElement.scrollTo({ top: 0, behavior: "auto" });
@@ -129,7 +134,7 @@ async function login(page) {
       }
 
       await jump.click();
-      for (let attempt = 0; attempt < 40 && !(await jump.isHidden()); attempt += 1) {
+      for (let attempt = 0; attempt < 60 && !(await jump.isHidden()); attempt += 1) {
         await page.waitForTimeout(50);
       }
       if (!(await jump.isHidden())) {

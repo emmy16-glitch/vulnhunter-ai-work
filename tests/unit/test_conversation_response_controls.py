@@ -23,7 +23,7 @@ def test_stop_waiting_aborts_only_the_active_message_request() -> None:
     assert "requestUrl.pathname === messageUrl.pathname" in script
     assert 'controller.abort("user-stopped-waiting")' in script
     assert "The remote provider may already have received the request" in script
-    assert 'JSON.stringify({ stopped: true })' in script
+    assert "JSON.stringify({ stopped: true })" in script
     assert "window.VulnHunterResponseControls" in script
 
 
@@ -34,7 +34,7 @@ def test_message_actions_support_copy_edit_and_retry() -> None:
     assert 'utilityButton("Edit"' in script
     assert 'utilityButton("Retry"' in script
     assert "navigator.clipboard?.writeText" in script
-    assert 'setInputValue(prompt, { submit: true })' in script
+    assert "setInputValue(prompt, { submit: true })" in script
     assert "previousUserCopy" in script
 
 

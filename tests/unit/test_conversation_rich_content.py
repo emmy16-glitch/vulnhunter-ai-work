@@ -42,7 +42,7 @@ def test_rich_content_preserves_raw_answer_for_whole_message_copy() -> None:
     controls = RESPONSE_CONTROLS.read_text(encoding="utf-8")
 
     assert "copy.dataset.rawMessage = raw" in script
-    assert "copy.dataset.richRendered === \"true\"" in script
+    assert 'copy.dataset.richRendered === "true"' in script
     assert "messageCopy.dataset.rawMessage || messageCopy.textContent" in controls
 
 

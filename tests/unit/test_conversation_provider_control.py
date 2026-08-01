@@ -60,5 +60,6 @@ def test_provider_control_uses_only_self_hosted_static_styles() -> None:
     assert ".vh-provider-control" in styles
     assert ".vh-llm-progress" in styles
     assert ".vh-llm-progress-step.is-active" in styles
-    assert "bottom: 14rem" in upload_styles
-    assert "--vh-phone-composer-clearance" not in upload_styles
+    assert "var(--vh-phone-composer-clearance" in upload_styles
+    assert "env(safe-area-inset-bottom)" in upload_styles
+    assert "100dvh" in upload_styles

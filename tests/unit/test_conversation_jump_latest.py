@@ -32,7 +32,8 @@ def test_jump_latest_does_not_force_scroll_while_user_is_reading() -> None:
 
     assert "if (!force && !followingLatest) return false" in script
     assert "if (followingLatest) unreadMessages = 0" in script
-    assert 'jump.textContent = unreadMessages > 0 ? `↓ ${unreadMessages} new` : "↓ Latest"' in script
+    expected_copy = 'jump.textContent = unreadMessages > 0 ? `↓ ${unreadMessages} new` : "↓ Latest"'
+    assert expected_copy in script
 
 
 def test_jump_latest_uses_self_hosted_composer_anchored_styles() -> None:

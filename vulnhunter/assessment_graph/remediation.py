@@ -18,6 +18,7 @@ from vulnhunter.taskgraph.store import TaskGraphStoreError
 
 _FAILED_SAFE_PREFIX = "Remediation failed safely: "
 _REWORK_PREFIX = "Fix verification requires rework: "
+_RETEST_PREFIX = "Governed retest result: "
 
 
 class RemediationAssessmentGraphService:
@@ -198,7 +199,12 @@ class RemediationAssessmentGraphService:
                     last_error=None,
                 )
             return True
-        if normalized in {"needs_rework", "ready_for_retest"}:
+        if normalized in {
+            "needs_rework",
+            "ready_for_retest",
+            "retest_needs_rework",
+            "awaiting_review",
+        }:
             return True
         if normalized == "cancelled":
             return self.core.project_terminal(
@@ -249,14 +255,6 @@ class RemediationAssessmentGraphService:
                 AssessmentStage.VERIFICATION,
             ):
                 graph = self._complete_attempt_stage(graph, stage)
-            review = self.core._stage_node(graph, AssessmentStage.REVIEW)
-            if review.status == NodeStatus.PENDING:
-                self.core._transition(
-                    graph,
-                    node_id=review.node_id,
-                    status=NodeStatus.READY,
-                    last_error=None,
-                )
             return True
 
         marker = f"{_REWORK_PREFIX}{normalized}; receipt={receipt_id}"
@@ -287,6 +285,49 @@ class RemediationAssessmentGraphService:
                     status=NodeStatus.READY,
                     last_error=marker,
                 )
+        return True
+
+    def project_retest_outcome(
+        self,
+        remediation_id: str,
+        *,
+        receipt_id: str,
+        outcome: str,
+        reason: str | None = None,
+    ) -> bool:
+        """Gate remediation review and report on one governed retest outcome."""
+
+        graph = self.core._load_optional(remediation_id)
+        if graph is None:
+            return False
+        normalized = outcome.strip().casefold()
+        review = self.core._stage_node(graph, AssessmentStage.REVIEW)
+        marker = f"{_RETEST_PREFIX}{normalized}; receipt={receipt_id}"
+        if normalized == "cancelled":
+            return True
+        if normalized == "passed":
+            if review.status == NodeStatus.READY:
+                return True
+            if review.status != NodeStatus.PENDING:
+                raise AssessmentGraphError("terminal remediation review cannot be reopened")
+            self.core._transition(
+                graph,
+                node_id=review.node_id,
+                status=NodeStatus.READY,
+                last_error=None,
+            )
+            return True
+        if review.status == NodeStatus.CANCELLED and str(review.last_error or "").startswith(
+            marker
+        ):
+            return True
+        if review.status != NodeStatus.PENDING:
+            raise AssessmentGraphError("remediation review is not accepting another retest outcome")
+        self.core._cancel_downstream(
+            graph,
+            starting_stage=AssessmentStage.REVIEW,
+            reason=marker if reason is None else f"{marker}; reason={reason[:1_000]}",
+        )
         return True
 
     def _complete_attempt_stage(
@@ -328,6 +369,7 @@ class RemediationAssessmentGraphService:
         by_stage = {str(item.get("stage")): item for item in nodes if isinstance(item, dict)}
         execution_node = by_stage.get(AssessmentStage.EXECUTION.value)
         verification_node = by_stage.get(AssessmentStage.VERIFICATION.value)
+        review_node = by_stage.get(AssessmentStage.REVIEW.value)
         execution = str(execution_node.get("status")) if isinstance(execution_node, dict) else None
         execution_error = (
             str(execution_node.get("last_error") or "") if isinstance(execution_node, dict) else ""
@@ -340,22 +382,37 @@ class RemediationAssessmentGraphService:
             if isinstance(verification_node, dict)
             else ""
         )
-        if verification == NodeStatus.COMPLETED.value:
+        review = str(review_node.get("status")) if isinstance(review_node, dict) else None
+        review_error = (
+            str(review_node.get("last_error") or "") if isinstance(review_node, dict) else ""
+        )
+        if review == NodeStatus.READY.value:
+            payload["chat_stage"] = "retest_passed_awaiting_independent_review"
+            payload["report_state"] = "blocked_pending_independent_review"
+        elif review == NodeStatus.CANCELLED.value and review_error.startswith(_RETEST_PREFIX):
+            payload["chat_stage"] = "retest_requires_rework"
+            payload["report_state"] = "blocked_rework_required"
+        elif verification == NodeStatus.COMPLETED.value:
             payload["chat_stage"] = "fix_verified_awaiting_retest"
+            payload["report_state"] = "blocked_pending_retest"
         elif verification == NodeStatus.READY.value and verification_error.startswith(
             _REWORK_PREFIX
         ):
             payload["chat_stage"] = "fix_verification_requires_rework"
+            payload["report_state"] = "blocked_fix_verification"
         elif execution == NodeStatus.READY.value:
             payload["chat_stage"] = "awaiting_developer_implementation"
+            payload["report_state"] = "blocked_pending_implementation"
         elif execution == NodeStatus.CANCELLED.value:
             payload["chat_stage"] = (
                 "remediation_failed_safe"
                 if execution_error.startswith(_FAILED_SAFE_PREFIX)
                 else "remediation_cancelled"
             )
+            payload["report_state"] = "cancelled"
         elif execution in {NodeStatus.BLOCKED.value, NodeStatus.FAILED.value}:
             payload["chat_stage"] = "remediation_failed_safe"
+            payload["report_state"] = "blocked_failure"
         return payload
 
     @staticmethod
@@ -381,6 +438,22 @@ class RemediationAssessmentGraphService:
             ):
                 statuses[stage] = NodeStatus.READY
         elif normalized == "ready_for_retest":
+            for stage in (
+                AssessmentStage.EXECUTION,
+                AssessmentStage.EVIDENCE,
+                AssessmentStage.VERIFICATION,
+            ):
+                statuses[stage] = NodeStatus.COMPLETED
+        elif normalized == "retest_needs_rework":
+            for stage in (
+                AssessmentStage.EXECUTION,
+                AssessmentStage.EVIDENCE,
+                AssessmentStage.VERIFICATION,
+            ):
+                statuses[stage] = NodeStatus.COMPLETED
+            statuses[AssessmentStage.REVIEW] = NodeStatus.CANCELLED
+            statuses[AssessmentStage.REPORT] = NodeStatus.CANCELLED
+        elif normalized == "awaiting_review":
             for stage in (
                 AssessmentStage.EXECUTION,
                 AssessmentStage.EVIDENCE,
@@ -492,10 +565,10 @@ class RemediationAssessmentGraphService:
                 "Verify the fix read-only and independently from the builder or model."
             ),
             AssessmentStage.REVIEW: (
-                "Request independent human review before any finding or release transition."
+                "Request independent human review only after a governed retest passes."
             ),
             AssessmentStage.REPORT: (
-                "Record remediation and verification limitations without publishing automatically."
+                "Keep reporting blocked until independent remediation review completes."
             ),
         }[stage]
 

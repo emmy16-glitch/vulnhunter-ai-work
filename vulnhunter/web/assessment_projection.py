@@ -185,7 +185,9 @@ def assert_mobile_projection_invariants(projection: Mapping[str, object]) -> Non
         _non_empty_text(surface_identity.get(surface)) != assessment_id
         for surface in _SURFACE_NAMES
     ):
-        raise ValueError("Every assessment surface must bind to the selected assessment identifier.")
+        raise ValueError(
+            "Every assessment surface must bind to the selected assessment identifier."
+        )
     if _non_empty_text(subject.get("label")) is None:
         raise ValueError("An assessment projection requires a selected subject.")
     if _non_empty_text(execution.get("state")) is None:

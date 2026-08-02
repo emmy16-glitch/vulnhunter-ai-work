@@ -112,7 +112,7 @@ def test_mobile_projection_exposes_one_id_for_every_assessment_surface():
     assert len(projection["stages"]) == 8
 
 
-def test_failed_projection_offers_retry_without_claiming_report_readiness():
+def test_failed_projection_does_not_invent_retry_or_report_readiness():
     projection = mobile_assessment_projection(_plan(execution_state="failed"))
 
     assert projection is not None
@@ -121,7 +121,6 @@ def test_failed_projection_offers_retry_without_claiming_report_readiness():
         "view_activity",
         "view_evidence",
         "view_findings",
-        "request_retry",
     ]
     assert projection["report"]["ready"] is False
 

@@ -85,14 +85,50 @@ python manage.py vh_backup_restore_plan /srv/vulnhunter-backups/2026-08-01T1900Z
 
 SQLite databases and governed file groups are reported as `replace_after_stop`. PostgreSQL is reported as `external_database_restore`. A failed verification produces no actions and a nonzero exit.
 
-This implementation intentionally does not replace live files. Actual restore execution must require a stopped application, an explicit maintenance marker, a verified bundle digest, rollback staging, post-restore integrity checks, and automatic rollback on failure.
+## Execute a verified SQLite database restore
+
+Restore execution is intentionally limited to configured SQLite databases. Governed file trees and PostgreSQL remain operator-controlled restore steps.
+
+First stop every VulnHunter web and worker process. Calculate the SHA-256 digest of the exact bundle `manifest.json`, then create an owner-only maintenance marker:
+
+```json
+{
+  "application": "vulnhunter",
+  "maintenance": true,
+  "database_mode": "sqlite",
+  "bundle_digest": "<sha256-of-manifest.json>"
+}
+```
+
+The marker must be a regular file with no group or other permissions. Execute the restore with a new rollback directory:
+
+```bash
+python manage.py vh_backup_restore_execute \
+  /srv/vulnhunter-backups/2026-08-01T1900Z \
+  --bundle-digest <sha256-of-manifest.json> \
+  --maintenance-marker /srv/vulnhunter-maintenance/restore.json \
+  --rollback-directory /srv/vulnhunter-rollback/2026-08-02T0900Z
+```
+
+Before changing live state, VulnHunter:
+
+- re-verifies the complete backup bundle;
+- requires SQLite deployment mode;
+- binds the command and maintenance marker to the exact manifest digest;
+- requires the bundle database inventory to match the configured deployment;
+- creates integrity-checked owner-only snapshots of every live SQLite database.
+
+Each replacement is staged in the live database directory, checked with SQLite `PRAGMA integrity_check`, and atomically moved into place. After replacement, every database is checked again for integrity and exact backup digest. A failure triggers automatic rollback of every database already replaced. The rollback directory is retained after success or recovered failure for operator inspection and must be archived or removed according to the recovery runbook.
+
+The command does not restore governed file trees, invoke PostgreSQL tooling, start application processes, remove the maintenance marker, or print runtime paths and credentials.
 
 ## Operational rules
 
-- Store bundles on encrypted storage with access restricted to recovery operators.
+- Store bundles and rollback snapshots on encrypted storage restricted to recovery operators.
 - Copy completed bundles off the application host according to retention policy.
 - Verify every copied bundle at its destination.
-- Test restore planning regularly.
-- Keep PostgreSQL dump tooling and credentials outside the application process.
-- Stop all web and worker processes before any future restore execution.
+- Test restore planning and SQLite restore execution in an isolated environment.
+- Keep PostgreSQL dump and restore tooling and credentials outside the application process.
+- Stop all web and worker processes before restore execution.
 - Preserve the original bundle unchanged during recovery.
+- Restart services only after independent application readiness and evidence checks pass.

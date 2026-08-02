@@ -30,6 +30,14 @@ def _plan(*, execution_state: str = "queued") -> dict[str, object]:
         "execution": {
             "state": execution_state,
             "job_id": "job-aabbccddeeff00112233",
+            "progress": {
+                "active_tool": "jadx",
+                "events": [{"detail": "JADX started"}],
+                "result_summary": {
+                    "captures": [{"tool": "apkanalyzer"}],
+                    "hunt": {"candidates": [{"title": "Candidate"}]},
+                },
+            },
         },
         "assessment_graph": {
             "graph_id": "mobile-aabbccddeeff00112233-graph",
@@ -62,8 +70,37 @@ def test_mobile_projection_exposes_one_id_for_every_assessment_surface():
     assert projection["subject"]["label"] == "Digi Volt.apk"
     assert projection["lifecycle"] == "collecting_evidence"
     assert projection["execution"]["state"] == "queued"
+    assert projection["authority"]["approval_status"] == "completed"
+    assert projection["stage_summary"] == {"total": 8, "completed": 3, "blocked": 0}
+    assert projection["activity"] == {
+        "event_count": 1,
+        "tool_receipt_count": 1,
+        "active_tool": "jadx",
+    }
+    assert projection["evidence"]["record_count"] == 1
+    assert projection["findings"]["candidate_count"] == 1
     assert projection["report"] == {"status": "pending", "ready": False}
+    assert projection["allowed_actions"] == [
+        "view_activity",
+        "view_evidence",
+        "view_findings",
+        "request_cancel",
+    ]
     assert len(projection["stages"]) == 8
+
+
+def test_failed_projection_offers_retry_without_claiming_report_readiness():
+    projection = mobile_assessment_projection(_plan(execution_state="failed"))
+
+    assert projection is not None
+    assert projection["execution"]["terminal"] is True
+    assert projection["allowed_actions"] == [
+        "view_activity",
+        "view_evidence",
+        "view_findings",
+        "request_retry",
+    ]
+    assert projection["report"]["ready"] is False
 
 
 def test_incomplete_legacy_plan_does_not_invent_an_active_assessment():
@@ -74,9 +111,27 @@ def test_projection_invariants_reject_subjectless_or_unbound_state():
     with pytest.raises(ValueError, match="assessment and graph identifiers"):
         assert_mobile_projection_invariants({"subject": {"label": "Digi Volt.apk"}})
 
+    base = {
+        "assessment_id": "assessment-one",
+        "graph_id": "graph-one",
+        "selected": True,
+        "subject": {"label": "Digi Volt.apk"},
+        "execution": {"state": "queued"},
+        "report": {"status": "pending", "ready": False},
+    }
+
+    with pytest.raises(ValueError, match="selected assessment"):
+        assert_mobile_projection_invariants({**base, "selected": False})
+
     with pytest.raises(ValueError, match="selected subject"):
+        assert_mobile_projection_invariants({**base, "subject": {}})
+
+    with pytest.raises(ValueError, match="execution state"):
+        assert_mobile_projection_invariants({**base, "execution": {}})
+
+    with pytest.raises(ValueError, match="Report readiness"):
         assert_mobile_projection_invariants(
-            {"assessment_id": "assessment-one", "graph_id": "graph-one", "subject": {}}
+            {**base, "report": {"status": "pending", "ready": True}}
         )
 
 

@@ -152,7 +152,10 @@ def enqueue_mobile_static_if_ready(
             category="worker_unavailable",
             reason_code="worker_not_activated",
             message="Static APK analysis is not activated in this deployment.",
-            operator_action="Enable the isolated mobile worker after its policy and signing key pass preflight.",
+            operator_action=(
+                "Enable the isolated mobile worker after its policy and signing key pass "
+                "preflight."
+            ),
         )
     policy_path = Path(settings.VULNHUNTER_MOBILE_STATIC_WORKER_POLICY)
     try:
@@ -172,7 +175,10 @@ def enqueue_mobile_static_if_ready(
                 category="storage_failure",
                 reason_code="insufficient_analysis_capacity",
                 message=capacity_reason,
-                operator_action="Free storage or reduce the configured bounded workspace limits before retrying.",
+                operator_action=(
+                    "Free storage or reduce the configured bounded workspace limits before "
+                    "retrying."
+                ),
                 safe_retry=True,
             )
         signing_key = load_worker_signing_key(_signing_key_path())
@@ -200,8 +206,14 @@ def enqueue_mobile_static_if_ready(
             plan=plan,
             category="dependency_unavailable",
             reason_code=f"activation_{type(exc).__name__.casefold()}",
-            message="Static APK analysis could not start because its protected worker dependencies failed preflight.",
-            operator_action="Inspect the worker policy, private signing key, spool permissions and registered tools.",
+            message=(
+                "Static APK analysis could not start because its protected worker "
+                "dependencies failed preflight."
+            ),
+            operator_action=(
+                "Inspect the worker policy, private signing key, spool permissions and "
+                "registered tools."
+            ),
             safe_retry=True,
         )
     _remember_job(request, job_id=job.job_id, requested_by=requested_by)
@@ -252,9 +264,17 @@ def mobile_static_status(
                 reason_code=f"status_{type(exc).__name__.casefold()}",
                 message="The latest worker status could not be verified safely.",
                 operation_id=job_id,
-                operator_action="Inspect the signed spool and progress store, then retry this status read.",
+                operator_action=(
+                    "Inspect the signed spool and progress store, then retry this status read."
+                ),
                 safe_retry=True,
                 retry_scope="worker_status",
-                preserved=("artifact", "assessment", "plan", "approval", "previous_receipts"),
+                preserved=(
+                    "artifact",
+                    "assessment",
+                    "plan",
+                    "approval",
+                    "previous_receipts",
+                ),
             ),
         )

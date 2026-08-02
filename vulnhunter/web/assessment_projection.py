@@ -4,7 +4,16 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
-_SURFACES = ("chat", "activity", "inspector", "history", "findings", "evidence", "graph", "reports")
+_SURFACES = (
+    "chat",
+    "activity",
+    "inspector",
+    "history",
+    "findings",
+    "evidence",
+    "graph",
+    "reports",
+)
 _ACTIVE = frozenset({"queued", "claimed", "running", "cancelling"})
 _FAILURE = frozenset({"blocked", "failed", "gated", "rejected"})
 _TERMINAL = _FAILURE | {"completed", "cancelled"}
@@ -56,10 +65,20 @@ def _health(state: str, failure: Mapping[str, object] | None) -> dict[str, str]:
         worker = "active"
     elif state in _FAILURE:
         category = _text((failure or {}).get("category"))
-        worker = "unavailable" if category in {
-            "dependency_unavailable", "storage_failure", "tool_failure", "tool_missing",
-            "tool_timeout", "worker_lost", "worker_unavailable",
-        } else "blocked"
+        worker = (
+            "unavailable"
+            if category
+            in {
+                "dependency_unavailable",
+                "storage_failure",
+                "tool_failure",
+                "tool_missing",
+                "tool_timeout",
+                "worker_lost",
+                "worker_unavailable",
+            }
+            else "blocked"
+        )
     else:
         worker = "available"
     assessment = "in_progress"
@@ -69,21 +88,36 @@ def _health(state: str, failure: Mapping[str, object] | None) -> dict[str, str]:
         assessment = "attention_required"
     elif state == "cancelled":
         assessment = "cancelled"
-    return {"assessment": assessment, "worker": worker, "provider": "not_evaluated"}
+    return {
+        "assessment": assessment,
+        "worker": worker,
+        "provider": "not_evaluated",
+    }
 
 
-def _actions(state: str, report_ready: bool, failure: Mapping[str, object] | None) -> list[str]:
+def _actions(
+    state: str,
+    report_ready: bool,
+    failure: Mapping[str, object] | None,
+) -> list[str]:
     actions = ["view_activity", "view_evidence", "view_findings"]
     if state in _ACTIVE:
         actions.append("request_cancel")
-    if state in _FAILURE and failure and failure.get("safe_retry") is True and _text(failure.get("retry_scope")):
+    if (
+        state in _FAILURE
+        and failure
+        and failure.get("safe_retry") is True
+        and _text(failure.get("retry_scope"))
+    ):
         actions.append("request_retry")
     if report_ready:
         actions.append("view_report")
     return actions
 
 
-def mobile_assessment_projection(plan: Mapping[str, object] | None) -> dict[str, object] | None:
+def mobile_assessment_projection(
+    plan: Mapping[str, object] | None,
+) -> dict[str, object] | None:
     if plan is None:
         return None
     graph = _map(plan.get("assessment_graph"))
@@ -99,14 +133,22 @@ def mobile_assessment_projection(plan: Mapping[str, object] | None) -> dict[str,
     result_summary = _map(progress.get("result_summary"))
     hunt = _map(result_summary.get("hunt"))
     stages = _rows(graph.get("nodes"))
-    captures = _rows(receipt.get("captures")) or _rows(result_summary.get("captures"))
-    observations = _rows(receipt.get("candidate_observations")) or _rows(hunt.get("candidates"))
+    captures = _rows(receipt.get("captures")) or _rows(
+        result_summary.get("captures")
+    )
+    observations = _rows(receipt.get("candidate_observations")) or _rows(
+        hunt.get("candidates")
+    )
     events = _rows(progress.get("events"))
     state = _text(execution.get("state")) or "prepared"
     failure = _failure(execution)
     report_status = _stage(stages, "report") or "pending"
     report_ready = report_status in {"ready", "completed"}
-    label = _text(artifact.get("original_filename")) or _text(artifact.get("artifact_id")) or "Android APK"
+    label = (
+        _text(artifact.get("original_filename"))
+        or _text(artifact.get("artifact_id"))
+        or "Android APK"
+    )
 
     projection = {
         "assessment_id": assessment_id,
@@ -116,7 +158,8 @@ def mobile_assessment_projection(plan: Mapping[str, object] | None) -> dict[str,
         "selected": True,
         "surface_identity": {surface: assessment_id for surface in _SURFACES},
         "subject": {
-            "kind": "artifact", "label": label,
+            "kind": "artifact",
+            "label": label,
             "artifact_id": _text(artifact.get("artifact_id")),
             "sha256": _text(artifact.get("artifact_sha256")),
         },
@@ -129,18 +172,26 @@ def mobile_assessment_projection(plan: Mapping[str, object] | None) -> dict[str,
         "lifecycle": _text(graph.get("chat_stage")) or "understanding_request",
         "health": _health(state, failure),
         "execution": {
-            "state": state, "reason": _text(execution.get("reason")),
-            "job_id": _text(execution.get("job_id")), "terminal": state in _TERMINAL,
+            "state": state,
+            "reason": _text(execution.get("reason")),
+            "job_id": _text(execution.get("job_id")),
+            "terminal": state in _TERMINAL,
             "failure": failure,
         },
         "stages": list(stages),
         "stage_summary": {
             "total": len(stages),
-            "completed": sum(_text(item.get("status")) == "completed" for item in stages),
-            "blocked": sum(_text(item.get("status")) in {"blocked", "failed", "rejected"} for item in stages),
+            "completed": sum(
+                _text(item.get("status")) == "completed" for item in stages
+            ),
+            "blocked": sum(
+                _text(item.get("status")) in {"blocked", "failed", "rejected"}
+                for item in stages
+            ),
         },
         "activity": {
-            "event_count": len(events), "tool_receipt_count": len(captures),
+            "event_count": len(events),
+            "tool_receipt_count": len(captures),
             "active_tool": _text(progress.get("active_tool")),
         },
         "evidence": {"record_count": len(captures)},
@@ -162,21 +213,36 @@ def assert_mobile_projection_invariants(projection: Mapping[str, object]) -> Non
     failure = _map(execution.get("failure"))
     actions = projection.get("allowed_actions")
     if assessment_id is None or graph_id is None:
-        raise ValueError("An assessment projection requires assessment and graph identifiers.")
+        raise ValueError(
+            "An assessment projection requires assessment and graph identifiers."
+        )
     if projection.get("selected") is not True:
-        raise ValueError("An assessment projection must identify the selected assessment.")
-    if set(surfaces) != set(_SURFACES) or any(_text(surfaces.get(name)) != assessment_id for name in _SURFACES):
-        raise ValueError("Every assessment surface must bind to the selected assessment identifier.")
+        raise ValueError(
+            "An assessment projection must identify the selected assessment."
+        )
+    invalid_surfaces = set(surfaces) != set(_SURFACES) or any(
+        _text(surfaces.get(name)) != assessment_id for name in _SURFACES
+    )
+    if invalid_surfaces:
+        raise ValueError(
+            "Every assessment surface must bind to the selected assessment identifier."
+        )
     if _text(subject.get("label")) is None:
         raise ValueError("An assessment projection requires a selected subject.")
     if _text(execution.get("state")) is None:
         raise ValueError("An assessment projection requires an execution state.")
-    if report.get("ready") is True and _text(report.get("status")) not in {"ready", "completed"}:
+    if report.get("ready") is True and _text(report.get("status")) not in {
+        "ready",
+        "completed",
+    }:
         raise ValueError("Report readiness must agree with the persisted report stage.")
     if isinstance(actions, list) and "request_retry" in actions and (
-        failure.get("safe_retry") is not True or _text(failure.get("retry_scope")) is None
+        failure.get("safe_retry") is not True
+        or _text(failure.get("retry_scope")) is None
     ):
-        raise ValueError("Retry actions require an exact persisted safe-retry contract.")
+        raise ValueError(
+            "Retry actions require an exact persisted safe-retry contract."
+        )
 
 
 __all__ = ["assert_mobile_projection_invariants", "mobile_assessment_projection"]

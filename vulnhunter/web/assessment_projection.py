@@ -133,12 +133,8 @@ def mobile_assessment_projection(
     result_summary = _map(progress.get("result_summary"))
     hunt = _map(result_summary.get("hunt"))
     stages = _rows(graph.get("nodes"))
-    captures = _rows(receipt.get("captures")) or _rows(
-        result_summary.get("captures")
-    )
-    observations = _rows(receipt.get("candidate_observations")) or _rows(
-        hunt.get("candidates")
-    )
+    captures = _rows(receipt.get("captures")) or _rows(result_summary.get("captures"))
+    observations = _rows(receipt.get("candidate_observations")) or _rows(hunt.get("candidates"))
     events = _rows(progress.get("events"))
     state = _text(execution.get("state")) or "prepared"
     failure = _failure(execution)
@@ -181,12 +177,9 @@ def mobile_assessment_projection(
         "stages": list(stages),
         "stage_summary": {
             "total": len(stages),
-            "completed": sum(
-                _text(item.get("status")) == "completed" for item in stages
-            ),
+            "completed": sum(_text(item.get("status")) == "completed" for item in stages),
             "blocked": sum(
-                _text(item.get("status")) in {"blocked", "failed", "rejected"}
-                for item in stages
+                _text(item.get("status")) in {"blocked", "failed", "rejected"} for item in stages
             ),
         },
         "activity": {
@@ -213,13 +206,9 @@ def assert_mobile_projection_invariants(projection: Mapping[str, object]) -> Non
     failure = _map(execution.get("failure"))
     actions = projection.get("allowed_actions")
     if assessment_id is None or graph_id is None:
-        raise ValueError(
-            "An assessment projection requires assessment and graph identifiers."
-        )
+        raise ValueError("An assessment projection requires assessment and graph identifiers.")
     if projection.get("selected") is not True:
-        raise ValueError(
-            "An assessment projection must identify the selected assessment."
-        )
+        raise ValueError("An assessment projection must identify the selected assessment.")
     invalid_surfaces = set(surfaces) != set(_SURFACES) or any(
         _text(surfaces.get(name)) != assessment_id for name in _SURFACES
     )
@@ -236,13 +225,12 @@ def assert_mobile_projection_invariants(projection: Mapping[str, object]) -> Non
         "completed",
     }:
         raise ValueError("Report readiness must agree with the persisted report stage.")
-    if isinstance(actions, list) and "request_retry" in actions and (
-        failure.get("safe_retry") is not True
-        or _text(failure.get("retry_scope")) is None
+    if (
+        isinstance(actions, list)
+        and "request_retry" in actions
+        and (failure.get("safe_retry") is not True or _text(failure.get("retry_scope")) is None)
     ):
-        raise ValueError(
-            "Retry actions require an exact persisted safe-retry contract."
-        )
+        raise ValueError("Retry actions require an exact persisted safe-retry contract.")
 
 
 __all__ = ["assert_mobile_projection_invariants", "mobile_assessment_projection"]

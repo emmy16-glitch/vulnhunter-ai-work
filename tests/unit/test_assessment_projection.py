@@ -16,6 +16,18 @@ class Session(dict):
     modified = False
 
 
+_SURFACE_IDENTITY = {
+    "chat": "assessment-one",
+    "activity": "assessment-one",
+    "inspector": "assessment-one",
+    "history": "assessment-one",
+    "findings": "assessment-one",
+    "evidence": "assessment-one",
+    "graph": "assessment-one",
+    "reports": "assessment-one",
+}
+
+
 def _plan(*, execution_state: str = "queued") -> dict[str, object]:
     return {
         "run_id": "mobile-aabbccddeeff00112233",
@@ -67,6 +79,19 @@ def test_mobile_projection_exposes_one_id_for_every_assessment_surface():
     assert projection["graph_id"] == "mobile-aabbccddeeff00112233-graph"
     assert projection["workspace_id"] == "workspace-aabbccddeeff00112233"
     assert projection["selected"] is True
+    assert set(projection["surface_identity"]) == {
+        "chat",
+        "activity",
+        "inspector",
+        "history",
+        "findings",
+        "evidence",
+        "graph",
+        "reports",
+    }
+    assert set(projection["surface_identity"].values()) == {
+        "mobile-aabbccddeeff00112233"
+    }
     assert projection["subject"]["label"] == "Digi Volt.apk"
     assert projection["lifecycle"] == "collecting_evidence"
     assert projection["execution"]["state"] == "queued"
@@ -115,6 +140,7 @@ def test_projection_invariants_reject_subjectless_or_unbound_state():
         "assessment_id": "assessment-one",
         "graph_id": "graph-one",
         "selected": True,
+        "surface_identity": _SURFACE_IDENTITY,
         "subject": {"label": "Digi Volt.apk"},
         "execution": {"state": "queued"},
         "report": {"status": "pending", "ready": False},
@@ -122,6 +148,14 @@ def test_projection_invariants_reject_subjectless_or_unbound_state():
 
     with pytest.raises(ValueError, match="selected assessment"):
         assert_mobile_projection_invariants({**base, "selected": False})
+
+    with pytest.raises(ValueError, match="Every assessment surface"):
+        assert_mobile_projection_invariants(
+            {
+                **base,
+                "surface_identity": {**_SURFACE_IDENTITY, "history": "assessment-two"},
+            }
+        )
 
     with pytest.raises(ValueError, match="selected subject"):
         assert_mobile_projection_invariants({**base, "subject": {}})
@@ -165,4 +199,5 @@ def test_remembered_mobile_plan_cannot_expose_artifact_without_selected_assessme
     assert projection["assessment_id"] == plan["run_id"]
     assert projection["workspace_id"] == str(workspace_id)
     assert projection["subject"]["artifact_id"] == plan["artifact"]["artifact_id"]
+    assert set(projection["surface_identity"].values()) == {plan["run_id"]}
     assert request.session["vulnhunter_conversation_mobile_plan"]["assessment"] == projection

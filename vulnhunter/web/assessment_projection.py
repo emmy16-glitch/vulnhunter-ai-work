@@ -12,6 +12,16 @@ from collections.abc import Mapping
 
 _TERMINAL_EXECUTION_STATES = frozenset({"completed", "failed", "rejected", "cancelled"})
 _ACTIVE_EXECUTION_STATES = frozenset({"queued", "claimed", "running", "cancelling"})
+_SURFACE_NAMES = (
+    "chat",
+    "activity",
+    "inspector",
+    "history",
+    "findings",
+    "evidence",
+    "graph",
+    "reports",
+)
 
 
 def _mapping(value: object) -> Mapping[str, object]:
@@ -108,6 +118,7 @@ def mobile_assessment_projection(plan: Mapping[str, object] | None) -> dict[str,
         "workspace_id": _non_empty_text(graph.get("workspace_id")),
         "assessment_kind": _non_empty_text(graph.get("assessment_kind")) or "apk",
         "selected": True,
+        "surface_identity": {surface: run_id for surface in _SURFACE_NAMES},
         "subject": {
             "kind": "artifact",
             "label": subject_label,
@@ -162,6 +173,7 @@ def assert_mobile_projection_invariants(projection: Mapping[str, object]) -> Non
 
     assessment_id = _non_empty_text(projection.get("assessment_id"))
     graph_id = _non_empty_text(projection.get("graph_id"))
+    surface_identity = _mapping(projection.get("surface_identity"))
     subject = _mapping(projection.get("subject"))
     execution = _mapping(projection.get("execution"))
     report = _mapping(projection.get("report"))
@@ -169,6 +181,11 @@ def assert_mobile_projection_invariants(projection: Mapping[str, object]) -> Non
         raise ValueError("An assessment projection requires assessment and graph identifiers.")
     if projection.get("selected") is not True:
         raise ValueError("An assessment projection must identify the selected assessment.")
+    if set(surface_identity) != set(_SURFACE_NAMES) or any(
+        _non_empty_text(surface_identity.get(surface)) != assessment_id
+        for surface in _SURFACE_NAMES
+    ):
+        raise ValueError("Every assessment surface must bind to the selected assessment identifier.")
     if _non_empty_text(subject.get("label")) is None:
         raise ValueError("An assessment projection requires a selected subject.")
     if _non_empty_text(execution.get("state")) is None:

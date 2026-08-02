@@ -89,9 +89,7 @@ def test_mobile_projection_exposes_one_id_for_every_assessment_surface():
         "graph",
         "reports",
     }
-    assert set(projection["surface_identity"].values()) == {
-        "mobile-aabbccddeeff00112233"
-    }
+    assert set(projection["surface_identity"].values()) == {"mobile-aabbccddeeff00112233"}
     assert projection["subject"]["label"] == "Digi Volt.apk"
     assert projection["lifecycle"] == "collecting_evidence"
     assert projection["execution"]["state"] == "queued"

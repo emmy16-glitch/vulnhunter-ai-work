@@ -82,6 +82,54 @@ answer path used by the browser. Passing that readiness check proves connectivit
 and integration only; deterministic services still own authorization, approvals,
 scanner execution, finding verification, severity and publication.
 
+## Current product-experience classification
+
+The authenticated browser workspace is real and operational, but the complete AI-first product experience is **PARTIAL** and must not be classified as finished.
+
+A direct phone and desktop-site review on 2026-08-02 confirmed that the product can:
+
+- sign in through the private-lab account;
+- hold a persistent conversation;
+- answer through Groq or deterministic fallback;
+- start and continue a resumable APK upload while navigating;
+- display artifact, inspector, findings, evidence, graph, reports, Source Hunt, authorisation, history and campaign surfaces;
+- persist and expose controlled worker and governance state.
+
+The same review also exposed important state and experience gaps:
+
+- the conversation, assessment inspector, assessment history, findings, graph and reports can present different interpretations of the same attempted APK operation;
+- a validated artifact and queued analysis can coexist with `No active assessment` and zero assessment runs;
+- worker failure is reported generically without the failed stage, preserved evidence or a safe recovery action;
+- the assistant can repeat an upload prerequisite while the upload is already active or complete;
+- the desktop inspector can be compressed beside the chat on phone, creating tiny text and competing columns;
+- Findings and Graph appear in multiple primary navigation systems;
+- the composer exposes provider, reasoning, prompt and infrastructure controls too prominently;
+- governance and worker implementation language dominates ordinary task meaning;
+- global zero-data pages use large repeated status cards instead of concise contextual empty states;
+- report records can appear disconnected from the selected user assessment;
+- seeded or pilot records are not sufficiently separated from current user work.
+
+The binding correction programme is defined in
+`docs/product/AI_FIRST_ASSESSMENT_WORKSPACE_ARCHITECTURE.md`.
+
+The next product-facing implementation sequence must first establish one authoritative assessment projection and lifecycle before performing broad cosmetic changes. A validated upload must create or bind one durable assessment, and the same assessment identity must connect chat, activity, inspector, history, findings, evidence, graph and report readiness.
+
+The target product classification remains:
+
+```text
+BACKEND SECURITY AND GOVERNANCE FOUNDATIONS   IMPLEMENTED
+CONVERSATIONAL ENTRY POINT                    IMPLEMENTED
+PERSISTED WORKER AND UPLOAD FOUNDATIONS        IMPLEMENTED
+ONE CONSISTENT ASSESSMENT SOURCE OF TRUTH      PARTIAL
+LIVE AGENT EXECUTION EXPERIENCE                PARTIAL
+ACTIONABLE FAILURE AND RECOVERY EXPERIENCE     PARTIAL
+DESKTOP CONTEXTUAL INSPECTOR                    PARTIAL
+PHONE-FIRST RESPONSIVE WORKSPACE                PARTIAL
+CONSOLIDATED NAVIGATION                         NOT COMPLETE
+ASSESSMENT-SCOPED FINDINGS/EVIDENCE/REPORTS     PARTIAL
+AI-FIRST PRODUCT EXPERIENCE                     NOT COMPLETE
+```
+
 ## Current model status
 
 Controlled benchmark results validate software plumbing and reproducibility only. They do not establish performance on real applications.

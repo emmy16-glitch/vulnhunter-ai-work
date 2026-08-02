@@ -4,6 +4,10 @@ from __future__ import annotations
 
 from django.http import HttpRequest
 
+from vulnhunter.web.assessment_projection import (
+    assert_mobile_projection_invariants,
+    mobile_assessment_projection,
+)
 from vulnhunter.web.mobile_assessment_graph import (
     bind_mobile_assessment_graph,
     refresh_mobile_assessment_graph,
@@ -24,14 +28,26 @@ def _supports_authoritative_graph(plan: dict[str, object]) -> bool:
     )
 
 
+def _attach_assessment_projection(plan: dict[str, object]) -> dict[str, object]:
+    projection = mobile_assessment_projection(plan)
+    enriched = dict(plan)
+    if projection is None:
+        enriched.pop("assessment", None)
+        return enriched
+    assert_mobile_projection_invariants(projection)
+    enriched["assessment"] = projection
+    return enriched
+
+
 def remember_mobile_plan(request: HttpRequest, plan: dict[str, object]) -> None:
     """Persist bounded plan metadata, never APK bytes or raw tool output."""
 
     stored = plan
     if not isinstance(plan.get("assessment_graph"), dict) and _supports_authoritative_graph(plan):
         stored = bind_mobile_assessment_graph(request, plan=plan)
-        plan.clear()
-        plan.update(stored)
+    stored = _attach_assessment_projection(stored)
+    plan.clear()
+    plan.update(stored)
     request.session[_SESSION_MOBILE_PLAN] = stored
     request.session.modified = True
 
@@ -66,6 +82,7 @@ def current_mobile_plan(
                 plan["execution"] = status
     if isinstance(plan.get("assessment_graph"), dict):
         plan = refresh_mobile_assessment_graph(plan)
+    plan = _attach_assessment_projection(plan)
     remember_mobile_plan(request, plan)
     return plan
 

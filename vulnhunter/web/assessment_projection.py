@@ -11,6 +11,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 
 _TERMINAL_EXECUTION_STATES = frozenset({"completed", "failed", "rejected", "cancelled"})
+_ACTIVE_EXECUTION_STATES = frozenset({"queued", "claimed", "running", "cancelling"})
 
 
 def _mapping(value: object) -> Mapping[str, object]:
@@ -26,6 +27,30 @@ def _records(value: object) -> tuple[dict[str, object], ...]:
 def _non_empty_text(value: object) -> str | None:
     text = str(value or "").strip()
     return text or None
+
+
+def _stage_status(stages: tuple[dict[str, object], ...], name: str) -> str | None:
+    for stage in stages:
+        if str(stage.get("stage") or "") == name:
+            return _non_empty_text(stage.get("status"))
+    return None
+
+
+def _allowed_actions(*, execution_state: str, report_ready: bool) -> list[str]:
+    """Return state-derived UI actions without granting authority.
+
+    These values are presentation hints only. Every endpoint must still re-check
+    identity, role, policy, immutable plan and current backend state.
+    """
+
+    actions = ["view_activity", "view_evidence", "view_findings"]
+    if execution_state in _ACTIVE_EXECUTION_STATES:
+        actions.append("request_cancel")
+    if execution_state in {"failed", "rejected"}:
+        actions.append("request_retry")
+    if report_ready:
+        actions.append("view_report")
+    return actions
 
 
 def mobile_assessment_projection(plan: Mapping[str, object] | None) -> dict[str, object] | None:
@@ -47,24 +72,37 @@ def mobile_assessment_projection(plan: Mapping[str, object] | None) -> dict[str,
     artifact = _mapping(plan.get("artifact"))
     execution = _mapping(plan.get("execution"))
     receipt = _mapping(execution.get("receipt"))
+    progress = _mapping(execution.get("progress"))
     stages = _records(graph.get("nodes"))
-    captures = _records(receipt.get("captures"))
-    observations = _records(receipt.get("candidate_observations"))
+    captures = _records(receipt.get("captures")) or _records(
+        _mapping(progress.get("result_summary")).get("captures")
+    )
+    observations = _records(receipt.get("candidate_observations")) or _records(
+        _mapping(_mapping(progress.get("result_summary")).get("hunt")).get("candidates")
+    )
+    events = _records(progress.get("events"))
 
     execution_state = _non_empty_text(execution.get("state")) or "prepared"
     lifecycle = _non_empty_text(graph.get("chat_stage")) or "understanding_request"
-    report_stage = next(
-        (stage for stage in stages if str(stage.get("stage") or "") == "report"),
-        None,
-    )
-    report_status = _non_empty_text(report_stage.get("status")) if report_stage else None
+    approval_status = _stage_status(stages, "approval") or "pending"
+    report_status = _stage_status(stages, "report") or "pending"
+    report_ready = report_status in {"ready", "completed"}
 
     original_filename = _non_empty_text(artifact.get("original_filename"))
     artifact_id = _non_empty_text(artifact.get("artifact_id"))
     artifact_sha256 = _non_empty_text(artifact.get("artifact_sha256"))
     subject_label = original_filename or artifact_id or "Android APK"
 
-    return {
+    completed_stage_count = sum(
+        1 for stage in stages if _non_empty_text(stage.get("status")) == "completed"
+    )
+    blocked_stage_count = sum(
+        1
+        for stage in stages
+        if _non_empty_text(stage.get("status")) in {"blocked", "failed", "rejected"}
+    )
+
+    projection = {
         "assessment_id": run_id,
         "graph_id": graph_id,
         "workspace_id": _non_empty_text(graph.get("workspace_id")),
@@ -80,6 +118,7 @@ def mobile_assessment_projection(plan: Mapping[str, object] | None) -> dict[str,
             "authorization_id": _non_empty_text(graph.get("authorization_id")),
             "plan_digest": _non_empty_text(plan.get("plan_digest")),
             "profile": _non_empty_text(plan.get("profile")),
+            "approval_status": approval_status,
         },
         "lifecycle": lifecycle,
         "execution": {
@@ -89,8 +128,15 @@ def mobile_assessment_projection(plan: Mapping[str, object] | None) -> dict[str,
             "terminal": execution_state in _TERMINAL_EXECUTION_STATES,
         },
         "stages": list(stages),
+        "stage_summary": {
+            "total": len(stages),
+            "completed": completed_stage_count,
+            "blocked": blocked_stage_count,
+        },
         "activity": {
+            "event_count": len(events),
             "tool_receipt_count": len(captures),
+            "active_tool": _non_empty_text(progress.get("active_tool")),
         },
         "evidence": {
             "record_count": len(captures),
@@ -99,10 +145,16 @@ def mobile_assessment_projection(plan: Mapping[str, object] | None) -> dict[str,
             "candidate_count": len(observations),
         },
         "report": {
-            "status": report_status or "pending",
-            "ready": report_status in {"ready", "completed"},
+            "status": report_status,
+            "ready": report_ready,
         },
+        "allowed_actions": _allowed_actions(
+            execution_state=execution_state,
+            report_ready=report_ready,
+        ),
     }
+    assert_mobile_projection_invariants(projection)
+    return projection
 
 
 def assert_mobile_projection_invariants(projection: Mapping[str, object]) -> None:
@@ -111,10 +163,21 @@ def assert_mobile_projection_invariants(projection: Mapping[str, object]) -> Non
     assessment_id = _non_empty_text(projection.get("assessment_id"))
     graph_id = _non_empty_text(projection.get("graph_id"))
     subject = _mapping(projection.get("subject"))
+    execution = _mapping(projection.get("execution"))
+    report = _mapping(projection.get("report"))
     if assessment_id is None or graph_id is None:
         raise ValueError("An assessment projection requires assessment and graph identifiers.")
+    if projection.get("selected") is not True:
+        raise ValueError("An assessment projection must identify the selected assessment.")
     if _non_empty_text(subject.get("label")) is None:
         raise ValueError("An assessment projection requires a selected subject.")
+    if _non_empty_text(execution.get("state")) is None:
+        raise ValueError("An assessment projection requires an execution state.")
+    if report.get("ready") is True and _non_empty_text(report.get("status")) not in {
+        "ready",
+        "completed",
+    }:
+        raise ValueError("Report readiness must agree with the persisted report stage.")
 
 
 __all__ = ["assert_mobile_projection_invariants", "mobile_assessment_projection"]

@@ -41,6 +41,4 @@ class Command(BaseCommand):
             )
         except BackupRecoveryError as exc:
             raise CommandError(str(exc)) from exc
-        self.stdout.write(
-            json.dumps(result.as_payload(), separators=(",", ":"), sort_keys=True)
-        )
+        self.stdout.write(json.dumps(result.as_payload(), separators=(",", ":"), sort_keys=True))

@@ -19,6 +19,7 @@ from vulnhunter.mobile.static_spool import MobileStaticSpool, MobileStaticSpoolE
 from vulnhunter.mobile.static_worker import MobileStaticWorkerError, MobileStaticWorkerPolicy
 from vulnhunter.security_tools.worker_spool import WorkerSpoolError, load_worker_signing_key
 from vulnhunter.web.conversation_attachments import ConversationAttachment
+from vulnhunter.web.mobile_failures import execution_failure, mobile_failure
 
 _SESSION_MOBILE_JOBS = "vulnhunter_conversation_mobile_jobs"
 _DEFAULT_ANALYSIS_RESERVE_BYTES = 1024 * 1024 * 1024
@@ -107,6 +108,34 @@ def _remember_job(request: HttpRequest, *, job_id: str, requested_by: str) -> No
     request.session.modified = True
 
 
+def _activation_failure(
+    *,
+    plan: dict[str, object],
+    category: str,
+    reason_code: str,
+    message: str,
+    user_action: str | None = None,
+    operator_action: str | None = None,
+    safe_retry: bool = False,
+) -> dict[str, object]:
+    run_id = str(plan.get("run_id") or "") or None
+    return execution_failure(
+        state="gated",
+        failure=mobile_failure(
+            category=category,
+            stage="worker_activation",
+            reason_code=reason_code,
+            message=message,
+            operation_id=run_id,
+            user_action=user_action,
+            operator_action=operator_action,
+            safe_retry=safe_retry,
+            retry_scope="worker_activation" if safe_retry else None,
+            preserved=("artifact", "assessment", "plan", "approval"),
+        ),
+    )
+
+
 def enqueue_mobile_static_if_ready(
     request: HttpRequest,
     *,
@@ -118,21 +147,39 @@ def enqueue_mobile_static_if_ready(
     """Enqueue only when deployment policy, capacity, key and worker tools are activated."""
 
     if not _env_bool("VULNHUNTER_MOBILE_STATIC_ENQUEUE_ENABLED"):
-        return {
-            "state": "gated",
-            "reason": "The isolated mobile analysis worker is not activated in this deployment.",
-        }
+        return _activation_failure(
+            plan=plan,
+            category="worker_unavailable",
+            reason_code="worker_not_activated",
+            message="Static APK analysis is not activated in this deployment.",
+            operator_action=(
+                "Enable the isolated mobile worker after its policy and signing key pass preflight."
+            ),
+        )
     policy_path = Path(settings.VULNHUNTER_MOBILE_STATIC_WORKER_POLICY)
     try:
         policy = MobileStaticWorkerPolicy.from_path(policy_path)
         if not policy.enabled:
-            return {
-                "state": "gated",
-                "reason": "The mobile analysis worker policy is present but disabled.",
-            }
+            return _activation_failure(
+                plan=plan,
+                category="policy_denied",
+                reason_code="worker_policy_disabled",
+                message="Static APK analysis is disabled by the current worker policy.",
+                operator_action="Review and explicitly enable the mobile worker policy.",
+            )
         capacity_reason = _analysis_capacity_reason(policy, artifact)
         if capacity_reason is not None:
-            return {"state": "gated", "reason": capacity_reason}
+            return _activation_failure(
+                plan=plan,
+                category="storage_failure",
+                reason_code="insufficient_analysis_capacity",
+                message=capacity_reason,
+                operator_action=(
+                    "Free storage or reduce the configured bounded workspace limits before "
+                    "retrying."
+                ),
+                safe_retry=True,
+            )
         signing_key = load_worker_signing_key(_signing_key_path())
         spool = MobileStaticSpool(_spool_root())
         run_id = str(plan["run_id"])
@@ -154,10 +201,20 @@ def enqueue_mobile_static_if_ready(
         MobileStaticWorkerError,
         WorkerSpoolError,
     ) as exc:
-        return {
-            "state": "gated",
-            "reason": f"Mobile worker activation failed closed: {type(exc).__name__}.",
-        }
+        return _activation_failure(
+            plan=plan,
+            category="dependency_unavailable",
+            reason_code=f"activation_{type(exc).__name__.casefold()}",
+            message=(
+                "Static APK analysis could not start because its protected worker "
+                "dependencies failed preflight."
+            ),
+            operator_action=(
+                "Inspect the worker policy, private signing key, spool permissions and "
+                "registered tools."
+            ),
+            safe_retry=True,
+        )
     _remember_job(request, job_id=job.job_id, requested_by=requested_by)
     return {
         "state": "queued",
@@ -196,9 +253,27 @@ def mobile_static_status(
         MobileStaticProgressError,
         MobileStaticSpoolError,
         WorkerSpoolError,
-    ):
-        return {
-            "job_id": job_id,
-            "state": "failed",
-            "reason": "The mobile worker status store failed closed.",
-        }
+    ) as exc:
+        return execution_failure(
+            state="failed",
+            job_id=job_id,
+            failure=mobile_failure(
+                category="storage_failure",
+                stage="worker_status",
+                reason_code=f"status_{type(exc).__name__.casefold()}",
+                message="The latest worker status could not be verified safely.",
+                operation_id=job_id,
+                operator_action=(
+                    "Inspect the signed spool and progress store, then retry this status read."
+                ),
+                safe_retry=True,
+                retry_scope="worker_status",
+                preserved=(
+                    "artifact",
+                    "assessment",
+                    "plan",
+                    "approval",
+                    "previous_receipts",
+                ),
+            ),
+        )

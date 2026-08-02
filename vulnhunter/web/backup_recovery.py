@@ -62,9 +62,7 @@ class BackupVerificationReport:
     def as_payload(self) -> dict[str, Any]:
         return {
             "status": "valid" if self.valid else "invalid",
-            "checks": {
-                name: "ok" if passed else "failed" for name, passed in self.checks
-            },
+            "checks": {name: "ok" if passed else "failed" for name, passed in self.checks},
             "entries": self.entries,
             "sqlite_databases": self.sqlite_databases,
             "external_database_dump": self.external_database_dump,
@@ -129,9 +127,7 @@ def _secure_tree(root: Path) -> None:
 
 def _copy_regular_file(source: Path, destination: Path) -> tuple[str, int]:
     if source.is_symlink() or not source.is_file():
-        raise BackupRecoveryError(
-            "Backup sources must be regular files and cannot be symlinks."
-        )
+        raise BackupRecoveryError("Backup sources must be regular files and cannot be symlinks.")
     destination.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(source, destination, follow_symlinks=False)
     _secure_file(destination)
@@ -140,26 +136,18 @@ def _copy_regular_file(source: Path, destination: Path) -> tuple[str, int]:
 
 def _snapshot_sqlite(source: Path, destination: Path, logical_name: str) -> BackupEntry:
     if source.is_symlink() or not source.is_file():
-        raise BackupRecoveryError(
-            f"Required SQLite source is unavailable: {logical_name}."
-        )
+        raise BackupRecoveryError(f"Required SQLite source is unavailable: {logical_name}.")
     destination.parent.mkdir(parents=True, exist_ok=True)
     source_uri = f"{source.resolve().as_uri()}?mode=ro"
     try:
         with sqlite3.connect(source_uri, uri=True) as source_connection:
             with sqlite3.connect(destination) as destination_connection:
                 source_connection.backup(destination_connection)
-                result = destination_connection.execute(
-                    "PRAGMA integrity_check"
-                ).fetchone()
+                result = destination_connection.execute("PRAGMA integrity_check").fetchone()
     except sqlite3.Error as exc:
-        raise BackupRecoveryError(
-            f"SQLite snapshot failed for {logical_name}."
-        ) from exc
+        raise BackupRecoveryError(f"SQLite snapshot failed for {logical_name}.") from exc
     if result != ("ok",):
-        raise BackupRecoveryError(
-            f"SQLite snapshot integrity failed for {logical_name}."
-        )
+        raise BackupRecoveryError(f"SQLite snapshot integrity failed for {logical_name}.")
     _secure_file(destination)
     return BackupEntry(
         logical_name=logical_name,
@@ -174,9 +162,7 @@ def _directory_entries(source: BackupSource, staging: Path) -> list[BackupEntry]
     if not source.source.exists():
         return []
     if source.source.is_symlink() or not source.source.is_dir():
-        raise BackupRecoveryError(
-            f"Backup directory is invalid: {source.logical_name}."
-        )
+        raise BackupRecoveryError(f"Backup directory is invalid: {source.logical_name}.")
     entries: list[BackupEntry] = []
     for candidate in sorted(source.source.rglob("*")):
         if candidate.is_symlink():
@@ -210,9 +196,7 @@ def _directory_entries(source: BackupSource, staging: Path) -> list[BackupEntry]
     return entries
 
 
-def configured_backup_sources() -> tuple[
-    tuple[BackupSource, ...], tuple[BackupSource, ...]
-]:
+def configured_backup_sources() -> tuple[tuple[BackupSource, ...], tuple[BackupSource, ...]]:
     databases = (
         BackupSource(
             "authorization_database",
@@ -335,9 +319,7 @@ def create_backup_bundle(
         raise BackupRecoveryError("Backup destination must not already exist.")
     database_sources, directory_sources = configured_backup_sources()
     if _destination_is_inside_source(destination, directory_sources):
-        raise BackupRecoveryError(
-            "Backup destination cannot be inside a source directory."
-        )
+        raise BackupRecoveryError("Backup destination cannot be inside a source directory.")
     destination.parent.mkdir(parents=True, exist_ok=True)
     temporary = Path(mkdtemp(prefix=f".{destination.name}.", dir=destination.parent))
     temporary.chmod(stat.S_IRWXU)
@@ -345,11 +327,7 @@ def create_backup_bundle(
         entries: list[BackupEntry] = []
         for source in database_sources:
             logical_name = _safe_logical_name(source.logical_name)
-            relative = (
-                PurePosixPath(_DATA_ROOT)
-                / "databases"
-                / f"{logical_name}.sqlite3"
-            )
+            relative = PurePosixPath(_DATA_ROOT) / "databases" / f"{logical_name}.sqlite3"
             snapshot = _snapshot_sqlite(
                 source.source,
                 temporary.joinpath(*relative.parts),
@@ -369,9 +347,7 @@ def create_backup_bundle(
                 raise BackupRecoveryError(
                     "PostgreSQL deployments require an externally created pg_dump artifact."
                 )
-            entries.append(
-                _copy_postgresql_dump(postgresql_dump.expanduser(), temporary)
-            )
+            entries.append(_copy_postgresql_dump(postgresql_dump.expanduser(), temporary))
         elif postgresql_dump is not None:
             raise BackupRecoveryError(
                 "A PostgreSQL dump can only be supplied when PostgreSQL is configured."
@@ -395,9 +371,7 @@ def create_backup_bundle(
         _secure_tree(temporary)
         verification = verify_backup_bundle(temporary)
         if not verification.valid:
-            raise BackupRecoveryError(
-                "Backup bundle failed verification before finalization."
-            )
+            raise BackupRecoveryError("Backup bundle failed verification before finalization.")
         os.replace(temporary, destination)
         return {
             "status": "created",
@@ -432,9 +406,7 @@ def _sqlite_integrity(path: Path) -> bool:
     try:
         uri = f"{path.resolve().as_uri()}?mode=ro"
         with sqlite3.connect(uri, uri=True) as connection:
-            return connection.execute("PRAGMA integrity_check").fetchone() == (
-                "ok",
-            )
+            return connection.execute("PRAGMA integrity_check").fetchone() == ("ok",)
     except (OSError, sqlite3.Error):
         return False
 
@@ -442,9 +414,7 @@ def _sqlite_integrity(path: Path) -> bool:
 def _permissions_restricted(bundle: Path) -> bool:
     for candidate in (bundle, *bundle.rglob("*")):
         try:
-            mode = stat.S_IMODE(
-                candidate.stat(follow_symlinks=False).st_mode
-            )
+            mode = stat.S_IMODE(candidate.stat(follow_symlinks=False).st_mode)
         except OSError:
             return False
         if mode & (stat.S_IRWXG | stat.S_IRWXO):
@@ -502,12 +472,8 @@ def verify_backup_bundle(bundle: Path) -> BackupVerificationReport:
             paths_valid = False
             continue
         try:
-            relative = _safe_relative_path(
-                str(raw_entry.get("relative_path", ""))
-            )
-            logical_name = _safe_logical_name(
-                str(raw_entry.get("logical_name", ""))
-            )
+            relative = _safe_relative_path(str(raw_entry.get("relative_path", "")))
+            logical_name = _safe_logical_name(str(raw_entry.get("logical_name", "")))
         except BackupRecoveryError:
             paths_valid = False
             continue
@@ -547,17 +513,13 @@ def verify_backup_bundle(bundle: Path) -> BackupVerificationReport:
             web_database_kind = kind
     actual_files: set[str] = set()
     for candidate in bundle.rglob("*"):
-        if candidate.is_symlink() or (
-            not candidate.is_dir() and not candidate.is_file()
-        ):
+        if candidate.is_symlink() or (not candidate.is_dir() and not candidate.is_file()):
             paths_valid = False
             continue
         if candidate.is_file():
             actual_files.add(candidate.relative_to(bundle).as_posix())
     database_mode_consistent = (
-        database_mode == "sqlite"
-        and web_database_kind == "sqlite"
-        and external_dump_count == 0
+        database_mode == "sqlite" and web_database_kind == "sqlite" and external_dump_count == 0
     ) or (
         database_mode == "postgresql"
         and web_database_kind == "postgresql_dump"
@@ -595,11 +557,7 @@ def plan_restore(bundle: Path) -> RestorePlan:
             continue
         seen.add(logical_name)
         kind = str(raw_entry["kind"])
-        action = (
-            "external_database_restore"
-            if kind == "postgresql_dump"
-            else "replace_after_stop"
-        )
+        action = "external_database_restore" if kind == "postgresql_dump" else "replace_after_stop"
         actions.append((logical_name, action))
     actions.sort()
     return RestorePlan(verification=verification, actions=tuple(actions))

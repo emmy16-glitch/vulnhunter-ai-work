@@ -153,8 +153,7 @@ def enqueue_mobile_static_if_ready(
             reason_code="worker_not_activated",
             message="Static APK analysis is not activated in this deployment.",
             operator_action=(
-                "Enable the isolated mobile worker after its policy and signing key pass "
-                "preflight."
+                "Enable the isolated mobile worker after its policy and signing key pass preflight."
             ),
         )
     policy_path = Path(settings.VULNHUNTER_MOBILE_STATIC_WORKER_POLICY)

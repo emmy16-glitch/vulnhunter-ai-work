@@ -74,12 +74,8 @@ def restore_environment(tmp_path: Path, settings):
     settings.VULNHUNTER_SECURITY_EVIDENCE_ROOT = directories["security_evidence"]
     settings.VULNHUNTER_VERIFICATION_ROOT = directories["verification"]
     settings.VULNHUNTER_TASK_GRAPH_ROOT = directories["task_graphs"]
-    settings.VULNHUNTER_ADVERSARY_LAB_WORKSPACE_ROOT = directories[
-        "adversary_lab_workspaces"
-    ]
-    settings.VULNHUNTER_ADVERSARY_LAB_EVIDENCE_ROOT = directories[
-        "adversary_lab_evidence"
-    ]
+    settings.VULNHUNTER_ADVERSARY_LAB_WORKSPACE_ROOT = directories["adversary_lab_workspaces"]
+    settings.VULNHUNTER_ADVERSARY_LAB_EVIDENCE_ROOT = directories["adversary_lab_evidence"]
     settings.VULNHUNTER_MOBILE_ARTIFACT_ROOT = directories["mobile_artifacts"]
     settings.VULNHUNTER_NUCLEI_EXECUTION_ROOT = directories["nuclei_executions"]
     settings.MEDIA_ROOT = directories["web_media"]
@@ -148,9 +144,7 @@ def test_restore_rejects_digest_or_marker_mismatch(restore_environment) -> None:
         )
 
 
-def test_restore_rolls_back_replaced_databases_on_failure(
-    restore_environment, monkeypatch
-) -> None:
+def test_restore_rolls_back_replaced_databases_on_failure(restore_environment, monkeypatch) -> None:
     from vulnhunter.web import restore_execution
 
     original_atomic_replace = restore_execution._atomic_replace

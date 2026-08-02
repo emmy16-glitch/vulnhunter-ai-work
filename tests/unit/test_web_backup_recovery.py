@@ -75,12 +75,8 @@ def backup_environment(tmp_path: Path, settings):
     settings.VULNHUNTER_SECURITY_EVIDENCE_ROOT = directory_paths["security_evidence"]
     settings.VULNHUNTER_VERIFICATION_ROOT = directory_paths["verification"]
     settings.VULNHUNTER_TASK_GRAPH_ROOT = directory_paths["task_graphs"]
-    settings.VULNHUNTER_ADVERSARY_LAB_WORKSPACE_ROOT = directory_paths[
-        "adversary_lab_workspaces"
-    ]
-    settings.VULNHUNTER_ADVERSARY_LAB_EVIDENCE_ROOT = directory_paths[
-        "adversary_lab_evidence"
-    ]
+    settings.VULNHUNTER_ADVERSARY_LAB_WORKSPACE_ROOT = directory_paths["adversary_lab_workspaces"]
+    settings.VULNHUNTER_ADVERSARY_LAB_EVIDENCE_ROOT = directory_paths["adversary_lab_evidence"]
     settings.VULNHUNTER_MOBILE_ARTIFACT_ROOT = directory_paths["mobile_artifacts"]
     settings.VULNHUNTER_NUCLEI_EXECUTION_ROOT = directory_paths["nuclei_executions"]
     settings.MEDIA_ROOT = directory_paths["web_media"]

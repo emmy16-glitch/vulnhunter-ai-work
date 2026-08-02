@@ -66,21 +66,13 @@ def backup_environment(tmp_path: Path, settings):
 
     settings.DATABASE_ENGINE = "sqlite"
     settings.DATABASES["default"]["NAME"] = database_paths["web_database"]
-    settings.VULNHUNTER_AUTHORIZATION_DATABASE = database_paths[
-        "authorization_database"
-    ]
-    settings.VULNHUNTER_GOVERNANCE_DATABASE = database_paths[
-        "governance_database"
-    ]
+    settings.VULNHUNTER_AUTHORIZATION_DATABASE = database_paths["authorization_database"]
+    settings.VULNHUNTER_GOVERNANCE_DATABASE = database_paths["governance_database"]
     settings.VULNHUNTER_AGENT_DATABASE = database_paths["agent_database"]
     settings.VULNHUNTER_APPROVAL_DATABASE = database_paths["approval_database"]
-    settings.VULNHUNTER_ADVERSARY_LAB_DATABASE = database_paths[
-        "adversary_lab_database"
-    ]
+    settings.VULNHUNTER_ADVERSARY_LAB_DATABASE = database_paths["adversary_lab_database"]
     settings.VULNHUNTER_AGENT_ACTIVITY_ROOT = directory_paths["agent_activity"]
-    settings.VULNHUNTER_SECURITY_EVIDENCE_ROOT = directory_paths[
-        "security_evidence"
-    ]
+    settings.VULNHUNTER_SECURITY_EVIDENCE_ROOT = directory_paths["security_evidence"]
     settings.VULNHUNTER_VERIFICATION_ROOT = directory_paths["verification"]
     settings.VULNHUNTER_TASK_GRAPH_ROOT = directory_paths["task_graphs"]
     settings.VULNHUNTER_ADVERSARY_LAB_WORKSPACE_ROOT = directory_paths[
@@ -89,12 +81,8 @@ def backup_environment(tmp_path: Path, settings):
     settings.VULNHUNTER_ADVERSARY_LAB_EVIDENCE_ROOT = directory_paths[
         "adversary_lab_evidence"
     ]
-    settings.VULNHUNTER_MOBILE_ARTIFACT_ROOT = directory_paths[
-        "mobile_artifacts"
-    ]
-    settings.VULNHUNTER_NUCLEI_EXECUTION_ROOT = directory_paths[
-        "nuclei_executions"
-    ]
+    settings.VULNHUNTER_MOBILE_ARTIFACT_ROOT = directory_paths["mobile_artifacts"]
+    settings.VULNHUNTER_NUCLEI_EXECUTION_ROOT = directory_paths["nuclei_executions"]
     settings.MEDIA_ROOT = directory_paths["web_media"]
 
     return {
@@ -261,9 +249,7 @@ def test_existing_destination_is_never_replaced(backup_environment) -> None:
     assert marker.read_text(encoding="utf-8") == "preserve\n"
 
 
-def test_postgresql_requires_external_dump_and_verifies_it(
-    backup_environment, settings
-) -> None:
+def test_postgresql_requires_external_dump_and_verifies_it(backup_environment, settings) -> None:
     settings.DATABASE_ENGINE = "postgresql"
     root = backup_environment["root"]
     assert isinstance(root, Path)

@@ -1,4 +1,4 @@
-"""Authenticated browser actions for authoritative mobile assessment retries."""
+"""Authenticated browser action for authoritative mobile assessment retries."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, JsonResponse
 from django.urls import reverse
 from django.views.decorators.cache import cache_control
-from django.views.decorators.http import require_GET, require_POST
+from django.views.decorators.http import require_http_methods
 
 from vulnhunter.web.assessment_projection import mobile_assessment_projection
 from vulnhunter.web.conversation_attachments import ConversationAttachment
@@ -53,40 +53,30 @@ def _projection_payload(plan: dict[str, object]) -> dict[str, object] | None:
 
 @cache_control(private=True, no_store=True)
 @login_required
-@require_GET
-def mobile_retry_state_view(request: HttpRequest) -> JsonResponse:
-    """Return the selected server-owned retry projection after refresh or reconnect."""
-
-    selected = _selected_plan(request)
-    if isinstance(selected, JsonResponse):
-        return selected
-    _actor_record, plan = selected
-    payload = _projection_payload(plan)
-    if payload is None:
-        return JsonResponse(
-            {
-                "detail": (
-                    "The selected mobile assessment could not be projected from "
-                    "authoritative state."
-                )
-            },
-            status=409,
-        )
-    return JsonResponse(payload)
-
-
-@cache_control(private=True, no_store=True)
-@login_required
-@require_POST
+@require_http_methods(["GET", "POST"])
 def mobile_retry_view(request: HttpRequest) -> JsonResponse:
-    """Retry exactly the persisted safe scope and refresh authoritative plan state."""
+    """Read or retry the selected server-owned mobile assessment state."""
 
     selected = _selected_plan(request)
     if isinstance(selected, JsonResponse):
         return selected
     actor, plan = selected
-    requested_by = actor.governance_identity.reviewer_id
 
+    if request.method == "GET":
+        payload = _projection_payload(plan)
+        if payload is None:
+            return JsonResponse(
+                {
+                    "detail": (
+                        "The selected mobile assessment could not be projected from "
+                        "authoritative state."
+                    )
+                },
+                status=409,
+            )
+        return JsonResponse(payload)
+
+    requested_by = actor.governance_identity.reviewer_id
     retry_scope = request.POST.get("retry_scope", "").strip()
     idempotency_key = request.POST.get("idempotency_key", "").strip()
     attachment = _retry_attachment(plan)
@@ -127,4 +117,4 @@ def mobile_retry_view(request: HttpRequest) -> JsonResponse:
     return JsonResponse(payload)
 
 
-__all__ = ["mobile_retry_state_view", "mobile_retry_view"]
+__all__ = ["mobile_retry_view"]

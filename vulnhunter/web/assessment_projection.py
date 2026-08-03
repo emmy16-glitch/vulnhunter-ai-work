@@ -334,7 +334,10 @@ def assert_mobile_projection_invariants(projection: Mapping[str, object]) -> Non
         raise ValueError("Report readiness must agree with the persisted report stage.")
     retry_action = isinstance(actions, list) and "request_retry" in actions
     retry_available = retry.get("available") is True
-    failure_retryable = failure.get("safe_retry") is True and _text(failure.get("retry_scope")) is not None
+    failure_retryable = (
+        failure.get("safe_retry") is True
+        and _text(failure.get("retry_scope")) is not None
+    )
     if retry_action != retry_available or retry_available != failure_retryable:
         raise ValueError("Task-card retry state must agree with the persisted failure contract.")
     if retry_available and _text(retry.get("scope")) != _text(failure.get("retry_scope")):

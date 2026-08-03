@@ -71,6 +71,23 @@ def _plan(*, execution_state: str = "queued") -> dict[str, object]:
     }
 
 
+def _retryable_plan() -> dict[str, object]:
+    plan = _plan(execution_state="failed")
+    plan["execution"]["failure"] = {
+        "category": "worker_unavailable",
+        "stage": "worker_status",
+        "reason_code": "worker_status_unavailable",
+        "reference": "failure-123",
+        "message": "Worker status could not be confirmed.",
+        "user_action": "Retry the worker status check.",
+        "operator_action": "Inspect worker health.",
+        "safe_retry": True,
+        "retry_scope": "worker_status",
+        "preserved": ["artifact", "assessment", "plan", "approval", "evidence"],
+    }
+    return plan
+
+
 def test_mobile_projection_exposes_one_id_for_every_assessment_surface():
     projection = mobile_assessment_projection(_plan())
 
@@ -109,6 +126,11 @@ def test_mobile_projection_exposes_one_id_for_every_assessment_surface():
         "view_findings",
         "request_cancel",
     ]
+    assert projection["task_card"]["retry"] == {
+        "available": False,
+        "scope": None,
+        "user_action": None,
+    }
     assert len(projection["stages"]) == 8
 
 
@@ -122,7 +144,26 @@ def test_failed_projection_does_not_invent_retry_or_report_readiness():
         "view_evidence",
         "view_findings",
     ]
+    assert projection["task_card"]["retry"] == {
+        "available": False,
+        "scope": None,
+        "user_action": None,
+    }
     assert projection["report"]["ready"] is False
+
+
+def test_retryable_failure_projects_exact_actionable_task_card_contract():
+    projection = mobile_assessment_projection(_retryable_plan())
+
+    assert projection is not None
+    assert projection["allowed_actions"][-1] == "request_retry"
+    assert projection["task_card"]["retry"] == {
+        "available": True,
+        "scope": "worker_status",
+        "user_action": "Retry the worker status check.",
+    }
+    assert projection["task_card"]["failure"]["reference"] == "failure-123"
+    assert "job_id" not in projection["task_card"]["retry"]
 
 
 def test_incomplete_legacy_plan_does_not_invent_an_active_assessment():
@@ -144,8 +185,10 @@ def test_projection_invariants_reject_subjectless_or_unbound_state():
             "assessment_id": "assessment-one",
             "stage_progress": {"completed": 0, "total": 0},
             "byte_progress": {"received": None, "expected": None},
+            "retry": {"available": False, "scope": None, "user_action": None},
         },
         "report": {"status": "pending", "ready": False},
+        "allowed_actions": [],
     }
 
     with pytest.raises(ValueError, match="selected assessment"):
@@ -169,6 +212,19 @@ def test_projection_invariants_reject_subjectless_or_unbound_state():
         assert_mobile_projection_invariants(
             {**base, "report": {"status": "pending", "ready": True}}
         )
+
+
+def test_projection_invariants_reject_contradictory_retry_state():
+    projection = mobile_assessment_projection(_retryable_plan())
+    assert projection is not None
+
+    projection["task_card"]["retry"] = {
+        "available": False,
+        "scope": None,
+        "user_action": None,
+    }
+    with pytest.raises(ValueError, match="Task-card retry state"):
+        assert_mobile_projection_invariants(projection)
 
 
 def test_remembered_mobile_plan_cannot_expose_artifact_without_selected_assessment(

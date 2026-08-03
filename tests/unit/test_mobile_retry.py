@@ -73,6 +73,35 @@ def test_status_retry_is_idempotent_and_preserves_one_attempt(monkeypatch):
     assert "retry-click-one" not in repr(request.session)
 
 
+def test_same_idempotency_key_is_isolated_by_reviewer(monkeypatch):
+    request = _request()
+    reviewers: list[str] = []
+
+    def _status(_request_arg, *, job_id: str, requested_by: str):
+        reviewers.append(requested_by)
+        return {"state": "completed", "job_id": job_id}
+
+    monkeypatch.setattr("vulnhunter.web.mobile_retry.mobile_static_status", _status)
+    plan = _plan(scope="worker_status")
+
+    retry_mobile_execution(
+        request,
+        plan=plan,
+        requested_by="reviewer-one",
+        retry_scope="worker_status",
+        idempotency_key="shared-key",
+    )
+    retry_mobile_execution(
+        request,
+        plan=plan,
+        requested_by="reviewer-two",
+        retry_scope="worker_status",
+        idempotency_key="shared-key",
+    )
+
+    assert reviewers == ["reviewer-one", "reviewer-two"]
+
+
 def test_retry_rejects_scope_different_from_persisted_failure():
     with pytest.raises(MobileRetryError, match="does not match"):
         retry_mobile_execution(
@@ -133,6 +162,19 @@ def test_activation_retry_requires_verified_artifact_binding():
             requested_by="reviewer-one",
             retry_scope="worker_activation",
             idempotency_key="retry-one",
+        )
+
+
+def test_activation_retry_rejects_mismatched_artifact_binding():
+    with pytest.raises(MobileRetryError, match="verified artifact binding"):
+        retry_mobile_execution(
+            _request(),
+            plan=_plan(scope="worker_activation", job_id=None),
+            requested_by="reviewer-one",
+            retry_scope="worker_activation",
+            idempotency_key="retry-one",
+            attachment=SimpleNamespace(artifact_id="artifact-one"),
+            artifact=SimpleNamespace(artifact_id="artifact-two"),
         )
 
 

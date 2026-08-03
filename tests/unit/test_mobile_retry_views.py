@@ -24,6 +24,8 @@ def _request(**post):
 def _plan() -> dict[str, object]:
     return {
         "run_id": "mobile-run-one",
+        "profile": "balanced",
+        "plan_digest": "plan-digest-one",
         "artifact": {
             "attachment_id": "attachment-one",
             "kind": "android_apk",
@@ -37,6 +39,17 @@ def _plan() -> dict[str, object]:
             "native_abis": [],
             "created_at": "2026-08-03T00:00:00+00:00",
         },
+        "assessment_graph": {
+            "graph_id": "graph-one",
+            "workspace_id": "workspace-one",
+            "assessment_kind": "apk",
+            "chat_stage": "executing",
+            "nodes": [
+                {"stage": "artifact", "status": "completed"},
+                {"stage": "worker", "status": "failed"},
+                {"stage": "report", "status": "pending"},
+            ],
+        },
         "execution": {
             "state": "failed",
             "failure": {"safe_retry": True, "retry_scope": "worker_status"},
@@ -44,7 +57,7 @@ def _plan() -> dict[str, object]:
     }
 
 
-def test_browser_retry_persists_authoritative_execution(monkeypatch):
+def test_browser_retry_persists_authoritative_execution_and_projection(monkeypatch):
     request = _request(retry_scope="worker_status", idempotency_key="retry-one")
     plan = _plan()
     remembered: list[dict[str, object]] = []
@@ -75,7 +88,44 @@ def test_browser_retry_persists_authoritative_execution(monkeypatch):
     assert response.status_code == 200
     assert payload["mobile_execution"]["state"] == "completed"
     assert payload["mobile_plan"]["execution"] == payload["mobile_execution"]
+    assert payload["assessment_projection"]["assessment_id"] == "mobile-run-one"
+    assert payload["task_card"] == payload["assessment_projection"]["task_card"]
+    assert payload["task_card"]["assessment_id"] == "mobile-run-one"
+    assert payload["task_card"]["state"] == "completed"
     assert remembered == [payload["mobile_plan"]]
+    assert plan["execution"]["state"] == "failed"
+
+
+def test_browser_retry_rejects_unprojectable_refresh_without_persisting(monkeypatch):
+    request = _request(retry_scope="worker_status", idempotency_key="retry-one")
+    plan = _plan()
+    remembered: list[dict[str, object]] = []
+    actor = SimpleNamespace(governance_identity=SimpleNamespace(reviewer_id="reviewer-one"))
+
+    monkeypatch.setattr(views, "_actor", lambda *_args: actor)
+    monkeypatch.setattr(views, "current_mobile_plan", lambda *_args, **_kwargs: plan)
+    monkeypatch.setattr(views, "_resolve_artifact", lambda _attachment: None)
+    monkeypatch.setattr(
+        views,
+        "retry_mobile_execution",
+        lambda *_args, **_kwargs: {"state": "completed", "job_id": "job-one"},
+    )
+    monkeypatch.setattr(views, "mobile_assessment_projection", lambda _plan: None)
+    monkeypatch.setattr(
+        views,
+        "remember_mobile_plan",
+        lambda _request, value: remembered.append(value),
+    )
+
+    response = inspect.unwrap(views.mobile_retry_view)(request)
+
+    assert response.status_code == 409
+    assert json.loads(response.content) == {
+        "detail": (
+            "The refreshed mobile assessment could not be projected from authoritative state."
+        )
+    }
+    assert remembered == []
     assert plan["execution"]["state"] == "failed"
 
 

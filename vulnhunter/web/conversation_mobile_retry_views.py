@@ -10,6 +10,7 @@ from django.urls import reverse
 from django.views.decorators.cache import cache_control
 from django.views.decorators.http import require_POST
 
+from vulnhunter.web.assessment_projection import mobile_assessment_projection
 from vulnhunter.web.conversation_attachments import ConversationAttachment
 from vulnhunter.web.conversation_mobile_views import _resolve_artifact
 from vulnhunter.web.conversational_views import _actor
@@ -66,11 +67,24 @@ def mobile_retry_view(request: HttpRequest) -> JsonResponse:
             kwargs={"job_id": execution["job_id"]},
         )
     refreshed["execution"] = execution
+    projection = mobile_assessment_projection(refreshed)
+    if projection is None:
+        return JsonResponse(
+            {
+                "detail": (
+                    "The refreshed mobile assessment could not be projected from "
+                    "authoritative state."
+                )
+            },
+            status=409,
+        )
     remember_mobile_plan(request, refreshed)
     return JsonResponse(
         {
             "mobile_execution": execution,
             "mobile_plan": refreshed,
+            "assessment_projection": projection,
+            "task_card": projection["task_card"],
         }
     )
 

@@ -8,6 +8,7 @@ from vulnhunter.web import (
     audit_views,
     conversation_approval_views,
     conversation_mobile_extension_views,
+    conversation_mobile_retry_views,
     conversation_mobile_views,
     conversation_thread_views,
     conversational_views,
@@ -138,6 +139,11 @@ urlpatterns = [
         "workspace/mobile-context/reset/",
         conversation_mobile_views.mobile_context_reset_view,
         name="web-conversation-mobile-context-reset",
+    ),
+    path(
+        "workspace/mobile-retry/",
+        conversation_mobile_retry_views.mobile_retry_view,
+        name="web-conversation-mobile-retry",
     ),
     path(
         "workspace/mobile-runs/<str:job_id>/status/",

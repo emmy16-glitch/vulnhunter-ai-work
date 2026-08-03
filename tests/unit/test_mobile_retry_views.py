@@ -63,7 +63,11 @@ def test_browser_retry_persists_authoritative_execution(monkeypatch):
             "retry_attempt": 1,
         },
     )
-    monkeypatch.setattr(views, "remember_mobile_plan", lambda _request, value: remembered.append(value))
+    monkeypatch.setattr(
+        views,
+        "remember_mobile_plan",
+        lambda _request, value: remembered.append(value),
+    )
 
     response = inspect.unwrap(views.mobile_retry_view)(request)
     payload = json.loads(response.content)

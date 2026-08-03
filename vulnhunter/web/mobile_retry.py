@@ -34,8 +34,14 @@ def _text(value: object) -> str | None:
     return text or None
 
 
-def _retry_key(*, assessment_id: str, scope: str, idempotency_key: str) -> str:
-    material = f"{assessment_id}\x00{scope}\x00{idempotency_key}".encode()
+def _retry_key(
+    *,
+    assessment_id: str,
+    requested_by: str,
+    scope: str,
+    idempotency_key: str,
+) -> str:
+    material = f"{assessment_id}\x00{requested_by}\x00{scope}\x00{idempotency_key}".encode()
     return sha256(material).hexdigest()
 
 
@@ -97,16 +103,14 @@ def retry_mobile_execution(
     attachment: ConversationAttachment | None = None,
     artifact: MobileArtifactRecord | None = None,
 ) -> dict[str, object]:
-    """Retry only the persisted failed scope and replay duplicate requests safely.
-
-    The idempotency ledger stores bounded redacted execution receipts in the
-    authenticated session. Duplicate submissions return the original receipt and
-    never enqueue a second worker job or create a second attempt.
-    """
+    """Retry only the persisted failed scope and replay duplicate requests safely."""
 
     assessment_id, execution, failure = _failure_contract(plan)
     exact_scope = _text(retry_scope)
     persisted_scope = _text(failure.get("retry_scope"))
+    reviewer_id = _text(requested_by)
+    if reviewer_id is None:
+        raise MobileRetryError("A retry requires one authenticated reviewer identity.")
     if exact_scope != persisted_scope:
         raise MobileRetryError("The requested retry scope does not match the persisted failure.")
     key_text = _text(idempotency_key)
@@ -115,6 +119,7 @@ def retry_mobile_execution(
 
     ledger_key = _retry_key(
         assessment_id=assessment_id,
+        requested_by=reviewer_id,
         scope=exact_scope,
         idempotency_key=key_text,
     )
@@ -132,12 +137,14 @@ def retry_mobile_execution(
         retried = mobile_static_status(
             request,
             job_id=job_id,
-            requested_by=requested_by,
+            requested_by=reviewer_id,
         )
         if retried is None:
             raise MobileRetryError("The preserved worker job is unavailable to this session.")
     elif exact_scope == "worker_activation":
-        if attachment is None or artifact is None:
+        attachment_id = _text(getattr(attachment, "artifact_id", None))
+        artifact_id = _text(getattr(artifact, "artifact_id", None))
+        if attachment_id is None or artifact_id is None or attachment_id != artifact_id:
             raise MobileRetryError(
                 "A worker-activation retry requires the preserved verified artifact binding."
             )
@@ -146,9 +153,9 @@ def retry_mobile_execution(
             plan=plan,
             attachment=attachment,
             artifact=artifact,
-            requested_by=requested_by,
+            requested_by=reviewer_id,
         )
-    else:  # pragma: no cover - guarded by the persisted contract validation.
+    else:  # pragma: no cover
         raise MobileRetryError("The requested retry scope is not supported.")
 
     receipt = deepcopy(retried)

@@ -1,6 +1,5 @@
 from pathlib import Path
 
-
 BRIDGE = Path("vulnhunter/web/static/web/conversation-mobile-bridge.js")
 
 
@@ -37,6 +36,7 @@ def test_mobile_retry_control_restores_server_owned_state_after_reconnect() -> N
     assert 'cache: "no-store"' in source
     assert 'window.setTimeout(refreshRetryProjection, 0);' in source
     assert 'emit("vh:mobile-projection", payload);' in source
+    assert 'if (!retryCard())' in source
 
 
 def test_mobile_retry_control_keeps_csrf_and_session_boundaries() -> None:

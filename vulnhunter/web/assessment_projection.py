@@ -147,6 +147,16 @@ def _current_stage(stages: tuple[dict[str, object], ...]) -> dict[str, object] |
     return None
 
 
+def _retry_contract(failure: Mapping[str, object] | None) -> dict[str, object]:
+    scope = _text((failure or {}).get("retry_scope"))
+    available = bool(failure and failure.get("safe_retry") is True and scope)
+    return {
+        "available": available,
+        "scope": scope if available else None,
+        "user_action": _text((failure or {}).get("user_action")) if available else None,
+    }
+
+
 def _task_card(
     *,
     assessment_id: str,
@@ -184,6 +194,7 @@ def _task_card(
             "latest_event": dict(events[-1]) if events else None,
         },
         "failure": dict(failure) if failure else None,
+        "retry": _retry_contract(failure),
     }
 
 
@@ -288,6 +299,7 @@ def assert_mobile_projection_invariants(projection: Mapping[str, object]) -> Non
     task_card = _map(projection.get("task_card"))
     stage_progress = _map(task_card.get("stage_progress"))
     byte_progress = _map(task_card.get("byte_progress"))
+    retry = _map(task_card.get("retry"))
     failure = _map(execution.get("failure"))
     actions = projection.get("allowed_actions")
     if assessment_id is None or graph_id is None:
@@ -320,12 +332,15 @@ def assert_mobile_projection_invariants(projection: Mapping[str, object]) -> Non
         "completed",
     }:
         raise ValueError("Report readiness must agree with the persisted report stage.")
-    if (
-        isinstance(actions, list)
-        and "request_retry" in actions
-        and (failure.get("safe_retry") is not True or _text(failure.get("retry_scope")) is None)
-    ):
-        raise ValueError("Retry actions require an exact persisted safe-retry contract.")
+    retry_action = isinstance(actions, list) and "request_retry" in actions
+    retry_available = retry.get("available") is True
+    failure_retryable = failure.get("safe_retry") is True and _text(failure.get("retry_scope")) is not None
+    if retry_action != retry_available or retry_available != failure_retryable:
+        raise ValueError("Task-card retry state must agree with the persisted failure contract.")
+    if retry_available and _text(retry.get("scope")) != _text(failure.get("retry_scope")):
+        raise ValueError("Task-card retry scope must match the persisted failure contract.")
+    if not retry_available and (_text(retry.get("scope")) or _text(retry.get("user_action"))):
+        raise ValueError("Unavailable task-card retry state cannot expose retry instructions.")
 
 
 __all__ = ["assert_mobile_projection_invariants", "mobile_assessment_projection"]

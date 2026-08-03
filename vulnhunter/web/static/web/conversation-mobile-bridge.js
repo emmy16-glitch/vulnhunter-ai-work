@@ -133,6 +133,10 @@
   };
 
   const refreshRetryProjection = async () => {
+    if (!retryCard()) {
+      renderRetryProjection(null);
+      return;
+    }
     try {
       const response = await originalFetch(retryUrl, {
         method: "GET",

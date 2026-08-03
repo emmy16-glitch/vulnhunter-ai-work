@@ -1,4 +1,4 @@
-"""Authenticated browser action for authoritative mobile assessment retries."""
+"""Authenticated browser actions for authoritative mobile assessment retries."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, JsonResponse
 from django.urls import reverse
 from django.views.decorators.cache import cache_control
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_GET, require_POST
 
 from vulnhunter.web.assessment_projection import mobile_assessment_projection
 from vulnhunter.web.conversation_attachments import ConversationAttachment
@@ -23,12 +23,7 @@ def _retry_attachment(plan: dict[str, object]) -> ConversationAttachment | None:
     return ConversationAttachment.from_payload(plan.get("artifact"))
 
 
-@cache_control(private=True, no_store=True)
-@login_required
-@require_POST
-def mobile_retry_view(request: HttpRequest) -> JsonResponse:
-    """Retry exactly the persisted safe scope and refresh authoritative plan state."""
-
+def _selected_plan(request: HttpRequest) -> tuple[object, dict[str, object] | None] | JsonResponse:
     try:
         actor = _actor(request, "scan.create")
     except WebPermissionDenied as exc:
@@ -41,6 +36,56 @@ def mobile_retry_view(request: HttpRequest) -> JsonResponse:
             {"detail": "No mobile assessment is selected in this conversation."},
             status=404,
         )
+    return actor, plan
+
+
+def _projection_payload(plan: dict[str, object]) -> dict[str, object] | None:
+    projection = mobile_assessment_projection(plan)
+    if projection is None:
+        return None
+    return {
+        "mobile_execution": plan.get("execution") or {},
+        "mobile_plan": plan,
+        "assessment_projection": projection,
+        "task_card": projection["task_card"],
+    }
+
+
+@cache_control(private=True, no_store=True)
+@login_required
+@require_GET
+def mobile_retry_state_view(request: HttpRequest) -> JsonResponse:
+    """Return the selected server-owned retry projection after refresh or reconnect."""
+
+    selected = _selected_plan(request)
+    if isinstance(selected, JsonResponse):
+        return selected
+    _actor_record, plan = selected
+    payload = _projection_payload(plan)
+    if payload is None:
+        return JsonResponse(
+            {
+                "detail": (
+                    "The selected mobile assessment could not be projected from "
+                    "authoritative state."
+                )
+            },
+            status=409,
+        )
+    return JsonResponse(payload)
+
+
+@cache_control(private=True, no_store=True)
+@login_required
+@require_POST
+def mobile_retry_view(request: HttpRequest) -> JsonResponse:
+    """Retry exactly the persisted safe scope and refresh authoritative plan state."""
+
+    selected = _selected_plan(request)
+    if isinstance(selected, JsonResponse):
+        return selected
+    actor, plan = selected
+    requested_by = actor.governance_identity.reviewer_id
 
     retry_scope = request.POST.get("retry_scope", "").strip()
     idempotency_key = request.POST.get("idempotency_key", "").strip()
@@ -67,8 +112,8 @@ def mobile_retry_view(request: HttpRequest) -> JsonResponse:
             kwargs={"job_id": execution["job_id"]},
         )
     refreshed["execution"] = execution
-    projection = mobile_assessment_projection(refreshed)
-    if projection is None:
+    payload = _projection_payload(refreshed)
+    if payload is None:
         return JsonResponse(
             {
                 "detail": (
@@ -79,14 +124,7 @@ def mobile_retry_view(request: HttpRequest) -> JsonResponse:
             status=409,
         )
     remember_mobile_plan(request, refreshed)
-    return JsonResponse(
-        {
-            "mobile_execution": execution,
-            "mobile_plan": refreshed,
-            "assessment_projection": projection,
-            "task_card": projection["task_card"],
-        }
-    )
+    return JsonResponse(payload)
 
 
-__all__ = ["mobile_retry_view"]
+__all__ = ["mobile_retry_state_view", "mobile_retry_view"]

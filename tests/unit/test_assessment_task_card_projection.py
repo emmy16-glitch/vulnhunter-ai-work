@@ -78,6 +78,11 @@ def test_task_card_uses_persisted_stage_byte_and_activity_records():
             "latest_event": {"stage": "execution", "status": "running"},
         },
         "failure": None,
+        "retry": {
+            "available": False,
+            "scope": None,
+            "user_action": None,
+        },
     }
     assert "percent" not in str(task).casefold()
 

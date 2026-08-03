@@ -112,5 +112,5 @@ def test_projection_invariant_rejects_retry_without_safe_contract():
     contradictory = deepcopy(projection)
     contradictory["execution"]["failure"]["safe_retry"] = False
 
-    with pytest.raises(ValueError, match="exact persisted safe-retry contract"):
+    with pytest.raises(ValueError, match="Task-card retry state"):
         assert_mobile_projection_invariants(contradictory)

@@ -28,6 +28,16 @@ def _text(value: object) -> str | None:
     return text or None
 
 
+def _integer(value: object) -> int | None:
+    if isinstance(value, bool):
+        return None
+    try:
+        number = int(value)
+    except (TypeError, ValueError):
+        return None
+    return number if number >= 0 else None
+
+
 def _rows(value: object) -> tuple[dict[str, object], ...]:
     if not isinstance(value, list):
         return ()
@@ -115,6 +125,68 @@ def _actions(
     return actions
 
 
+def _current_stage(stages: tuple[dict[str, object], ...]) -> dict[str, object] | None:
+    for item in stages:
+        status = _text(item.get("status"))
+        if status in {"active", "blocked", "failed", "queued", "running"}:
+            return {
+                "stage": _text(item.get("stage")),
+                "status": status,
+            }
+    for item in stages:
+        if _text(item.get("status")) not in {"completed", "skipped"}:
+            return {
+                "stage": _text(item.get("stage")),
+                "status": _text(item.get("status")) or "pending",
+            }
+    if stages:
+        return {
+            "stage": _text(stages[-1].get("stage")),
+            "status": _text(stages[-1].get("status")) or "completed",
+        }
+    return None
+
+
+def _task_card(
+    *,
+    assessment_id: str,
+    state: str,
+    stages: tuple[dict[str, object], ...],
+    progress: Mapping[str, object],
+    events: tuple[dict[str, object], ...],
+    captures: tuple[dict[str, object], ...],
+    observations: tuple[dict[str, object], ...],
+    failure: Mapping[str, object] | None,
+) -> dict[str, object]:
+    received_bytes = _integer(progress.get("received_bytes"))
+    expected_bytes = _integer(progress.get("expected_bytes"))
+    if expected_bytes is not None and received_bytes is not None:
+        received_bytes = min(received_bytes, expected_bytes)
+    completed_stages = sum(_text(item.get("status")) in {"completed", "skipped"} for item in stages)
+    return {
+        "task_id": f"{assessment_id}:mobile-assessment",
+        "assessment_id": assessment_id,
+        "state": state,
+        "terminal": state in _TERMINAL,
+        "current_stage": _current_stage(stages),
+        "stage_progress": {
+            "completed": completed_stages,
+            "total": len(stages),
+        },
+        "byte_progress": {
+            "received": received_bytes,
+            "expected": expected_bytes,
+        },
+        "activity": {
+            "event_count": len(events),
+            "receipt_count": len(captures),
+            "candidate_count": len(observations),
+            "latest_event": dict(events[-1]) if events else None,
+        },
+        "failure": dict(failure) if failure else None,
+    }
+
+
 def mobile_assessment_projection(
     plan: Mapping[str, object] | None,
 ) -> dict[str, object] | None:
@@ -182,6 +254,16 @@ def mobile_assessment_projection(
                 _text(item.get("status")) in {"blocked", "failed", "rejected"} for item in stages
             ),
         },
+        "task_card": _task_card(
+            assessment_id=assessment_id,
+            state=state,
+            stages=stages,
+            progress=progress,
+            events=events,
+            captures=captures,
+            observations=observations,
+            failure=failure,
+        ),
         "activity": {
             "event_count": len(events),
             "tool_receipt_count": len(captures),
@@ -203,6 +285,9 @@ def assert_mobile_projection_invariants(projection: Mapping[str, object]) -> Non
     subject = _map(projection.get("subject"))
     execution = _map(projection.get("execution"))
     report = _map(projection.get("report"))
+    task_card = _map(projection.get("task_card"))
+    stage_progress = _map(task_card.get("stage_progress"))
+    byte_progress = _map(task_card.get("byte_progress"))
     failure = _map(execution.get("failure"))
     actions = projection.get("allowed_actions")
     if assessment_id is None or graph_id is None:
@@ -220,6 +305,16 @@ def assert_mobile_projection_invariants(projection: Mapping[str, object]) -> Non
         raise ValueError("An assessment projection requires a selected subject.")
     if _text(execution.get("state")) is None:
         raise ValueError("An assessment projection requires an execution state.")
+    if _text(task_card.get("assessment_id")) != assessment_id:
+        raise ValueError("The task card must bind to the selected assessment identifier.")
+    completed = _integer(stage_progress.get("completed"))
+    total = _integer(stage_progress.get("total"))
+    if completed is None or total is None or completed > total:
+        raise ValueError("Task-card stage progress must come from persisted stages.")
+    received = _integer(byte_progress.get("received"))
+    expected = _integer(byte_progress.get("expected"))
+    if received is not None and expected is not None and received > expected:
+        raise ValueError("Task-card byte progress cannot exceed the declared byte total.")
     if report.get("ready") is True and _text(report.get("status")) not in {
         "ready",
         "completed",

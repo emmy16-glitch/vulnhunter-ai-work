@@ -140,6 +140,11 @@ def test_projection_invariants_reject_subjectless_or_unbound_state():
         "surface_identity": _SURFACE_IDENTITY,
         "subject": {"label": "Digi Volt.apk"},
         "execution": {"state": "queued"},
+        "task_card": {
+            "assessment_id": "assessment-one",
+            "stage_progress": {"completed": 0, "total": 0},
+            "byte_progress": {"received": None, "expected": None},
+        },
         "report": {"status": "pending", "ready": False},
     }
 

@@ -40,6 +40,7 @@
     activeTab: "overview",
     returnFocus: null,
     sheetHistoryActive: false,
+    unsubscribeSelectedAssessment: null,
   };
 
   const text = (value) => (value === null || value === undefined ? "" : String(value));
@@ -378,6 +379,27 @@
     updateGraph();
   };
 
+  const applySelectedAssessment = (snapshot) => {
+    state.projection = snapshot?.assessment_projection || null;
+    state.taskCard = snapshot?.task_card || null;
+    state.plan = snapshot?.mobile_plan || null;
+    state.attachment = state.plan?.artifact || null;
+    state.execution = snapshot?.mobile_execution || state.plan?.execution || null;
+    if (!snapshot) {
+      hideInspector({ restoreFocus: false });
+      return;
+    }
+    setTab(state.activeTab);
+    render();
+  };
+
+  const bindSelectedAssessmentStore = (store = window.vhSelectedAssessmentStore) => {
+    if (!store || typeof store.subscribe !== "function") return;
+    if (state.unsubscribeSelectedAssessment) return;
+    state.unsubscribeSelectedAssessment = store.subscribe(applySelectedAssessment);
+    applySelectedAssessment(store.getSnapshot());
+  };
+
   tabs.forEach((tab, index) => {
     tab.addEventListener("click", () => setTab(tab.dataset.inspectorTab || "overview"));
     tab.addEventListener("keydown", (event) => {
@@ -424,43 +446,10 @@
     if (!inspector.hidden && isMobile()) hideInspector({ fromHistory: true });
   });
 
-  document.addEventListener("vh:mobile-attachment", (event) => {
-    state.attachment = event.detail || null;
-  });
-  document.addEventListener("vh:mobile-plan", (event) => {
-    if (!event.detail) return;
-    state.plan = event.detail;
-    state.attachment = event.detail.artifact || state.attachment;
-    state.execution = event.detail.execution || null;
-  });
-  document.addEventListener("vh:mobile-status", (event) => {
-    state.execution = event.detail || null;
-  });
-  document.addEventListener("vh:mobile-projection", (event) => {
-    const payload = event.detail || {};
-    const projection = payload.assessment_projection || null;
-    const taskCard = payload.task_card || projection?.task_card || null;
-    if (!projection || taskCard?.assessment_id !== projection.assessment_id) {
-      state.projection = null;
-      state.taskCard = null;
-      render();
-      return;
-    }
-    state.projection = projection;
-    state.taskCard = taskCard;
-    state.plan = payload.mobile_plan || state.plan;
-    state.execution = payload.mobile_execution || state.plan?.execution || state.execution;
-    setTab(state.activeTab);
-    render();
-  });
-  document.addEventListener("vh:mobile-reset", () => {
-    state.attachment = null;
-    state.plan = null;
-    state.execution = null;
-    state.projection = null;
-    state.taskCard = null;
-    hideInspector({ restoreFocus: false });
+  document.addEventListener("vh:selected-assessment-store-ready", (event) => {
+    bindSelectedAssessmentStore(event.detail);
   });
 
+  bindSelectedAssessmentStore();
   setTab("overview");
 })();

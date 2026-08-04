@@ -81,5 +81,5 @@ def test_mobile_task_activity_is_removed_on_reset_or_missing_selection() -> None
     source = _source()
 
     assert "removeMobileProjectionControls();" in source
-    assert '[data-mobile-task-projection], [data-mobile-retry-control]' in source
+    assert "[data-mobile-task-projection], [data-mobile-retry-control]" in source
     assert 'document.addEventListener("vh:mobile-reset"' in source

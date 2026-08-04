@@ -38,22 +38,22 @@
         </div>
         <div class="vh-analysis-section">
           <div class="vh-analysis-section-heading"><h3>Worker readiness</h3><small>Separate from assessment and provider health</small></div>
-          <p class="vh-inspector-empty" data-inspector-worker>No worker is assigned to the selected assessment.</p>
+          <p class="vh-inspector-empty" data-inspector-worker role="status">No worker is assigned yet.</p>
         </div>
       </section>
 
       <section id="vh-inspector-findings" class="vh-analysis-panel" data-inspector-panel="findings" role="tabpanel" aria-label="Evidence-backed findings" hidden>
-        <p class="vh-inspector-empty" data-inspector-empty-findings>No finding is shown until a real worker observation has been persisted and judged.</p>
+        <p class="vh-inspector-empty" data-inspector-empty-findings role="status" aria-live="polite">No reviewed findings yet.</p>
         <div class="vh-inspector-finding-list" data-inspector-findings></div>
       </section>
 
       <section id="vh-inspector-artifacts" class="vh-analysis-panel" data-inspector-panel="artifacts" role="tabpanel" aria-label="Assessment evidence" hidden>
-        <p class="vh-inspector-empty" data-inspector-empty-artifacts>Evidence receipts appear only after real execution produces them.</p>
+        <p class="vh-inspector-empty" data-inspector-empty-artifacts role="status" aria-live="polite">No evidence receipts yet.</p>
         <div class="vh-inspector-artifact-list" data-inspector-artifacts></div>
       </section>
 
       <section id="vh-inspector-graph" class="vh-analysis-panel" data-inspector-panel="graph" role="tabpanel" aria-label="Evidence graph" hidden>
-        <p class="vh-inspector-empty" data-inspector-empty-graph>The graph is created only from real target, artifact, component, tool, evidence and candidate records.</p>
+        <p class="vh-inspector-empty" data-inspector-empty-graph role="status" aria-live="polite">No evidence relationships yet.</p>
         <div data-inspector-graph></div>
       </section>
     </div>

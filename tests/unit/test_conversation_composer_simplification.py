@@ -1,9 +1,7 @@
 from pathlib import Path
 
 TEMPLATE = Path("vulnhunter/web/templates/web/conversation.html")
-PROVIDER_CLIENT = Path(
-    "vulnhunter/web/static/web/conversation-provider-control.js"
-)
+PROVIDER_CLIENT = Path("vulnhunter/web/static/web/conversation-provider-control.js")
 
 
 def _template() -> str:

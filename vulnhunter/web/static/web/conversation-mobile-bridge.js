@@ -71,6 +71,36 @@
       .replaceAll("_", " ")
       .replace(/\b\w/g, (letter) => letter.toUpperCase());
 
+  const renderStageTimeline = (projection) => {
+    const stages = Array.isArray(projection?.stages) ? projection.stages : [];
+    if (!stages.length) return null;
+
+    const details = document.createElement("details");
+    details.dataset.mobileActivityTimeline = "";
+    const summary = document.createElement("summary");
+    summary.textContent = "Recorded stage timeline";
+    const list = document.createElement("ol");
+    list.setAttribute("aria-label", "Persisted assessment stages");
+
+    stages.forEach((item) => {
+      const stage = String(item?.stage || "").trim();
+      const status = String(item?.status || "").trim();
+      if (!stage || !status) return;
+      const row = document.createElement("li");
+      row.dataset.stageStatus = status;
+      const name = document.createElement("strong");
+      name.textContent = readableStage(stage);
+      const state = document.createElement("span");
+      state.textContent = readableStage(status);
+      row.append(name, state);
+      list.append(row);
+    });
+
+    if (!list.children.length) return null;
+    details.append(summary, list);
+    return details;
+  };
+
   const renderTaskProjection = (payload) => {
     document.querySelectorAll("[data-mobile-task-projection]").forEach((item) => item.remove());
     const projection = payload?.assessment_projection;
@@ -132,6 +162,8 @@
     } else {
       panel.append(title, stage, progress, activityCopy);
     }
+    const timeline = renderStageTimeline(projection);
+    if (timeline) panel.append(timeline);
     card.append(panel);
   };
 

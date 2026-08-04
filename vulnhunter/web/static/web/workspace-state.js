@@ -3,8 +3,8 @@
 
   if (typeof document === "undefined" || typeof window === "undefined") return;
 
-  // Compatibility contract only: progress_percent is intentionally not consumed.
-  // A genuine numeric progress value is unavailable unless the authoritative task card supplies measured stages.
+  // progress_percent is intentionally not consumed. Genuine progress exists only
+  // when the authoritative task card supplies measured persisted stages or bytes.
   const listeners = new Set();
   let snapshot = null;
 
@@ -63,11 +63,4 @@
   });
 
   document.dispatchEvent(new CustomEvent("vh:selected-assessment-store-ready", { detail: store }));
-
-  document.addEventListener("vh:mobile-projection", (event) => {
-    store.replace(event.detail || {});
-  });
-  document.addEventListener("vh:mobile-reset", () => {
-    store.clear();
-  });
 })();

@@ -6,9 +6,8 @@ from unittest.mock import patch
 
 import pytest
 from django.contrib.auth import get_user_model
-from django.http import HttpResponse
 
-from vulnhunter.web import conversational_views, dashboard_dispatch_views
+from vulnhunter.web import conversational_views
 from vulnhunter.web.conversation_service import (
     _sanitize_for_groq,
     canonical_target,
@@ -208,7 +207,7 @@ def test_root_is_the_single_account_conversational_workspace(client, settings):
 
 
 @pytest.mark.django_db
-def test_root_preserves_dashboard_for_non_scanning_roles(client, settings):
+def test_root_routes_reviewer_to_assigned_review_work(client, settings):
     settings.ALLOWED_HOSTS = ["testserver"]
     user = get_user_model().objects.create_user(
         username="reviewer",
@@ -221,16 +220,10 @@ def test_root_preserves_dashboard_for_non_scanning_roles(client, settings):
     )
     client.force_login(user)
 
-    with patch.object(
-        dashboard_dispatch_views.views,
-        "dashboard_view",
-        return_value=HttpResponse("governed dashboard"),
-    ) as dashboard:
-        response = client.get("/")
+    response = client.get("/")
 
-    assert response.status_code == 200
-    assert response.content == b"governed dashboard"
-    dashboard.assert_called_once()
+    assert response.status_code == 302
+    assert response["Location"] == "/reviews/"
 
 
 @pytest.mark.django_db

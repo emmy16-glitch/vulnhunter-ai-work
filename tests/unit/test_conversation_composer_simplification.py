@@ -1,6 +1,5 @@
 from pathlib import Path
 
-
 TEMPLATE = Path("vulnhunter/web/templates/web/conversation.html")
 
 

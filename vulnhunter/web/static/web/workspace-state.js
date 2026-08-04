@@ -62,6 +62,8 @@
     value: store,
   });
 
+  document.dispatchEvent(new CustomEvent("vh:selected-assessment-store-ready", { detail: store }));
+
   document.addEventListener("vh:mobile-projection", (event) => {
     store.replace(event.detail || {});
   });

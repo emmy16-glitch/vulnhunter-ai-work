@@ -60,6 +60,81 @@
     return cards.length ? cards[cards.length - 1] : null;
   };
 
+  const removeMobileProjectionControls = () => {
+    document
+      .querySelectorAll("[data-mobile-task-projection], [data-mobile-retry-control]")
+      .forEach((item) => item.remove());
+  };
+
+  const readableStage = (value) =>
+    String(value || "assessment")
+      .replaceAll("_", " ")
+      .replace(/\b\w/g, (letter) => letter.toUpperCase());
+
+  const renderTaskProjection = (payload) => {
+    document.querySelectorAll("[data-mobile-task-projection]").forEach((item) => item.remove());
+    const projection = payload?.assessment_projection;
+    const taskCard = payload?.task_card || projection?.task_card;
+    const card = retryCard();
+    if (!card || !taskCard || taskCard.assessment_id !== projection?.assessment_id) return;
+
+    const panel = document.createElement("section");
+    panel.className = "vh-inline-approval";
+    panel.dataset.mobileTaskProjection = "";
+    panel.setAttribute("aria-label", "Assessment activity");
+
+    const title = document.createElement("strong");
+    title.textContent = "Assessment activity";
+
+    const stage = document.createElement("p");
+    const currentStage = taskCard.current_stage || {};
+    stage.textContent = `${readableStage(currentStage.stage)} · ${readableStage(
+      currentStage.status,
+    )}`;
+
+    const progress = document.createElement("p");
+    const completed = Number(taskCard.stage_progress?.completed);
+    const total = Number(taskCard.stage_progress?.total);
+    progress.textContent =
+      Number.isInteger(completed) && Number.isInteger(total) && total >= completed
+        ? `${completed} of ${total} recorded stages complete`
+        : "Stage progress is not available yet.";
+
+    const byteProgress = taskCard.byte_progress || {};
+    const received = Number(byteProgress.received);
+    const expected = Number(byteProgress.expected);
+    if (
+      Number.isFinite(received) &&
+      Number.isFinite(expected) &&
+      received >= 0 &&
+      expected > 0 &&
+      received <= expected
+    ) {
+      const bytes = document.createElement("p");
+      bytes.textContent = `${received.toLocaleString()} of ${expected.toLocaleString()} bytes received`;
+      panel.append(bytes);
+    }
+
+    const activity = taskCard.activity || {};
+    const activityCopy = document.createElement("p");
+    const eventCount = Number(activity.event_count) || 0;
+    const receiptCount = Number(activity.receipt_count) || 0;
+    const candidateCount = Number(activity.candidate_count) || 0;
+    activityCopy.textContent = `${eventCount} events · ${receiptCount} evidence receipts · ${candidateCount} candidates`;
+
+    const latest = activity.latest_event;
+    if (latest?.stage && latest?.status) {
+      const latestCopy = document.createElement("small");
+      latestCopy.textContent = `Latest: ${readableStage(latest.stage)} · ${readableStage(
+        latest.status,
+      )}`;
+      panel.append(title, stage, progress, activityCopy, latestCopy);
+    } else {
+      panel.append(title, stage, progress, activityCopy);
+    }
+    card.append(panel);
+  };
+
   const renderRetryProjection = (payload) => {
     document.querySelectorAll("[data-mobile-retry-control]").forEach((item) => item.remove());
     const projection = payload?.assessment_projection;
@@ -132,9 +207,14 @@
     card.append(panel);
   };
 
+  const renderMobileProjection = (payload) => {
+    renderTaskProjection(payload);
+    renderRetryProjection(payload);
+  };
+
   const refreshRetryProjection = async () => {
     if (!retryCard()) {
-      renderRetryProjection(null);
+      removeMobileProjectionControls();
       return;
     }
     try {
@@ -145,7 +225,7 @@
         cache: "no-store",
       });
       if (response.status === 404) {
-        renderRetryProjection(null);
+        removeMobileProjectionControls();
         return;
       }
       const payload = await response.json();
@@ -193,7 +273,7 @@
   };
 
   document.addEventListener("vh:mobile-projection", (event) => {
-    renderRetryProjection(event.detail);
+    renderMobileProjection(event.detail);
   });
   document.addEventListener("vh:mobile-plan", () => {
     window.setTimeout(refreshRetryProjection, 0);
@@ -202,7 +282,7 @@
     window.setTimeout(refreshRetryProjection, 0);
   });
   document.addEventListener("vh:mobile-reset", () => {
-    renderRetryProjection(null);
+    removeMobileProjectionControls();
   });
 
   document.addEventListener("DOMContentLoaded", () => {

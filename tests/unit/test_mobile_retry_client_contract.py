@@ -45,3 +45,41 @@ def test_mobile_retry_control_keeps_csrf_and_session_boundaries() -> None:
     assert 'credentials: "same-origin"' in source
     assert '"X-CSRFToken": csrfToken()' in source
     assert 'retryUrl = "/workspace/mobile-retry/"' in source
+
+
+def test_mobile_task_activity_uses_authoritative_task_card_only() -> None:
+    source = _source()
+
+    assert "payload?.task_card || projection?.task_card" in source
+    assert "taskCard.assessment_id !== projection?.assessment_id" in source
+    assert 'panel.dataset.mobileTaskProjection = ""' in source
+    assert 'panel.setAttribute("aria-label", "Assessment activity")' in source
+
+
+def test_mobile_task_activity_uses_measured_progress_without_percentages() -> None:
+    source = _source()
+
+    assert "taskCard.stage_progress?.completed" in source
+    assert "taskCard.stage_progress?.total" in source
+    assert "taskCard.byte_progress" in source
+    assert "received <= expected" in source
+    assert "recorded stages complete" in source
+    assert "percent" not in source.casefold()
+
+
+def test_mobile_task_activity_renders_persisted_counts_and_latest_event() -> None:
+    source = _source()
+
+    assert "activity.event_count" in source
+    assert "activity.receipt_count" in source
+    assert "activity.candidate_count" in source
+    assert "activity.latest_event" in source
+    assert "evidence receipts" in source
+
+
+def test_mobile_task_activity_is_removed_on_reset_or_missing_selection() -> None:
+    source = _source()
+
+    assert "removeMobileProjectionControls();" in source
+    assert '[data-mobile-task-projection], [data-mobile-retry-control]' in source
+    assert 'document.addEventListener("vh:mobile-reset"' in source

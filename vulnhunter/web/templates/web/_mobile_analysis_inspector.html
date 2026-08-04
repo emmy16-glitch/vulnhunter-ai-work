@@ -2,43 +2,43 @@
   <div class="vh-analysis-inspector-inner">
     <header class="vh-analysis-inspector-header">
       <div class="vh-analysis-inspector-title">
-        <div><small>Live governed workspace</small><h2>Assessment Inspector</h2></div>
+        <div><small>Selected assessment</small><h2>Assessment Inspector</h2></div>
         <button type="button" class="vh-analysis-inspector-close" data-analysis-inspector-close aria-label="Return to conversation">×</button>
       </div>
       <div class="vh-analysis-progress-row">
-        <div><strong data-inspector-state>Ready</strong><p data-inspector-stage>Select or start an assessment to view authoritative details.</p></div>
+        <div><strong data-inspector-state>Unavailable</strong><p data-inspector-stage>Select an assessment to view persisted details.</p></div>
         <b data-inspector-progress-value aria-label="Progress unavailable">—</b>
-        <div class="vh-analysis-progress" data-inspector-progress aria-label="Analysis progress"></div>
+        <div class="vh-analysis-progress" data-inspector-progress aria-label="Persisted stage progress"></div>
       </div>
     </header>
 
     <dl class="vh-analysis-artifact">
       <div><dt>Subject</dt><dd data-inspector-filename data-inspector-target>No active assessment</dd></div>
       <div><dt>Identity</dt><dd><code data-inspector-digest data-inspector-run-id>Pending</code></dd></div>
-      <div><dt>Mode</dt><dd data-inspector-package data-inspector-mode>Website or APK</dd></div>
-      <div><dt>Scope</dt><dd data-inspector-inventory data-inspector-scope>Waiting for an authorised target or validated APK</dd></div>
+      <div><dt>Mode</dt><dd data-inspector-package data-inspector-mode>Website, APK or source</dd></div>
+      <div><dt>Scope</dt><dd data-inspector-inventory data-inspector-scope>Waiting for an authorised selected assessment</dd></div>
     </dl>
 
     <div class="vh-analysis-tabs" role="tablist" aria-label="Assessment inspector views">
       <button type="button" role="tab" class="is-active" data-inspector-tab="overview" aria-selected="true" aria-controls="vh-inspector-overview">Overview</button>
-      <button type="button" role="tab" data-inspector-tab="findings" aria-selected="false" aria-controls="vh-inspector-findings">Findings <b data-inspector-findings-count>0</b></button>
-      <button type="button" role="tab" data-inspector-tab="artifacts" aria-selected="false" aria-controls="vh-inspector-artifacts">Evidence <b data-inspector-artifacts-count>0</b></button>
-      <button type="button" role="tab" data-inspector-tab="graph" aria-selected="false" aria-controls="vh-inspector-graph">Graph <b data-inspector-graph-count>0</b></button>
+      <button type="button" role="tab" data-inspector-tab="findings" aria-selected="false" aria-controls="vh-inspector-findings" tabindex="-1">Findings <b data-inspector-findings-count>0</b></button>
+      <button type="button" role="tab" data-inspector-tab="artifacts" aria-selected="false" aria-controls="vh-inspector-artifacts" tabindex="-1">Evidence <b data-inspector-artifacts-count>0</b></button>
+      <button type="button" role="tab" data-inspector-tab="graph" aria-selected="false" aria-controls="vh-inspector-graph" tabindex="-1">Graph <b data-inspector-graph-count>0</b></button>
     </div>
 
     <div class="vh-analysis-panels">
       <section id="vh-inspector-overview" class="vh-analysis-panel" data-inspector-panel="overview" role="tabpanel" aria-label="Assessment overview">
         <div class="vh-analysis-section">
-          <div class="vh-analysis-section-heading"><h3>Progress and tool pipeline</h3><small>Canonical worker state only</small></div>
+          <div class="vh-analysis-section-heading"><h3>Progress and tool pipeline</h3><small>Persisted worker state only</small></div>
           <div class="vh-inspector-tool-list" data-inspector-tools></div>
         </div>
         <div class="vh-analysis-section">
-          <div class="vh-analysis-section-heading"><h3>Sanitised activity</h3><small>Signed or persisted progress receipts</small></div>
+          <div class="vh-analysis-section-heading"><h3>Recorded activity</h3><small>Signed or persisted receipts</small></div>
           <ol class="vh-inspector-events" data-inspector-events></ol>
         </div>
         <div class="vh-analysis-section">
-          <div class="vh-analysis-section-heading"><h3>Worker readiness</h3><small>No browser control can activate a gated worker</small></div>
-          <p class="vh-inspector-empty" data-inspector-worker>No worker is assigned to the current view.</p>
+          <div class="vh-analysis-section-heading"><h3>Worker readiness</h3><small>Separate from assessment and provider health</small></div>
+          <p class="vh-inspector-empty" data-inspector-worker>No worker is assigned to the selected assessment.</p>
         </div>
       </section>
 
@@ -61,8 +61,6 @@
 </aside>
 
 <nav class="vh-mobile-workspace-nav" data-mobile-workspace-nav hidden aria-label="Mobile workspace views">
-  <button type="button" class="is-active" data-mobile-workspace-view="chat">Chat</button>
-  <button type="button" data-mobile-workspace-view="analysis">Analysis</button>
-  <button type="button" data-mobile-workspace-view="findings">Findings</button>
-  <button type="button" data-mobile-workspace-view="graph">Graph</button>
+  <button type="button" class="is-active" data-mobile-workspace-view="chat" aria-current="page">Chat</button>
+  <button type="button" data-mobile-workspace-view="analysis" aria-current="false">Assessment</button>
 </nav>

@@ -140,9 +140,7 @@ def test_mobile_projection_exposes_one_id_for_every_assessment_surface():
         "graph",
         "reports",
     }
-    assert set(projection["surface_identity"].values()) == {
-        "mobile-aabbccddeeff00112233"
-    }
+    assert set(projection["surface_identity"].values()) == {"mobile-aabbccddeeff00112233"}
     assert projection["subject"]["label"] == "Digi Volt.apk"
     assert projection["lifecycle"] == "collecting_evidence"
     assert projection["execution"]["state"] == "queued"
@@ -231,9 +229,7 @@ def test_report_stage_without_persisted_report_identity_fails_closed():
 
 def test_unknown_verification_status_fails_closed_to_pending():
     plan = _completed_plan()
-    plan["execution"]["progress"]["result_summary"]["verification"]["status"] = (
-        "model-confident"
-    )
+    plan["execution"]["progress"]["result_summary"]["verification"]["status"] = "model-confident"
 
     projection = mobile_assessment_projection(plan)
 

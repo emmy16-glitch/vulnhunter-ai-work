@@ -21,6 +21,15 @@ async function login(page) {
   ]);
 }
 
+async function openAdvancedSettings(page) {
+  const disclosure = page.locator("[data-composer-advanced]");
+  await disclosure.waitFor({ state: "visible" });
+  if (!(await disclosure.evaluate((element) => element.open))) {
+    await disclosure.locator("summary").click();
+  }
+  await page.locator("select[data-provider-preference]").waitFor({ state: "visible" });
+}
+
 (async () => {
   const browser = await chromium.launch({ headless: true });
   try {
@@ -30,7 +39,7 @@ async function login(page) {
       await login(page);
       await page.goto(`${baseUrl}/`, { waitUntil: "domcontentloaded" });
       await page.locator("[data-conversation-form]").waitFor({ state: "visible" });
-      await page.locator("select[data-provider-preference]").waitFor({ state: "visible" });
+      await openAdvancedSettings(page);
       await page.locator("[data-stop-response]").waitFor({ state: "attached" });
       await page.locator("[data-draft-status]").waitFor({ state: "attached" });
       await page.locator("[data-conversation-search-trigger]").waitFor({ state: "visible" });
@@ -41,7 +50,7 @@ async function login(page) {
       await page.waitForTimeout(500);
       await page.reload({ waitUntil: "domcontentloaded" });
       await page.locator("[data-conversation-form]").waitFor({ state: "visible" });
-      await page.locator("select[data-provider-preference]").waitFor({ state: "visible" });
+      await openAdvancedSettings(page);
       await page.locator("[data-stop-response]").waitFor({ state: "attached" });
       await page.locator("[data-draft-status]").waitFor({ state: "attached" });
       await page.locator("[data-conversation-search-trigger]").waitFor({ state: "visible" });
@@ -168,14 +177,14 @@ async function login(page) {
       }
       if (!layout.reasoningVisible) {
         throw new Error(
-          `Reasoning selector is not usable at ${viewport.width}px: ${JSON.stringify(layout)}`,
+          `Answer-detail selector is not usable at ${viewport.width}px: ${JSON.stringify(layout)}`,
         );
       }
-      if (layout.reasoningOptions.join(",") !== "Low,Medium,High") {
-        throw new Error(`Reasoning options are incomplete: ${layout.reasoningOptions.join(",")}`);
+      if (layout.reasoningOptions.join(",") !== "Brief,Balanced,Detailed") {
+        throw new Error(`Answer-detail options are incomplete: ${layout.reasoningOptions.join(",")}`);
       }
       if (!layout.providerVisible) {
-        throw new Error(`AI runtime status is hidden at ${viewport.width}px`);
+        throw new Error(`Advisory provider status is hidden at ${viewport.width}px`);
       }
       if (!layout.providerPreferenceVisible) {
         throw new Error(
@@ -472,7 +481,7 @@ async function login(page) {
       await context.close();
     }
     console.log(
-      "Phone provider selection, session drafts, stop waiting, retry, rich answers, in-thread search, copy/edit controls, upload recovery and layout acceptance passed.",
+      "Phone advanced provider selection, session drafts, stop waiting, retry, rich answers, in-thread search, copy/edit controls, upload recovery and layout acceptance passed.",
     );
   } finally {
     await browser.close();

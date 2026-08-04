@@ -103,7 +103,9 @@ def website_assessment_projection(
     assessment_id = _text(payload.get("run_id"))
     graph_id = _text(graph.get("graph_id"))
     target = _text(payload.get("target"))
-    authorization_id = _text(payload.get("authorization_id"))
+    authorization_id = _text(payload.get("authorization_id")) or _text(
+        graph.get("authorization_id")
+    )
     if not all((assessment_id, graph_id, target, authorization_id)):
         return None
 

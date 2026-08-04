@@ -212,9 +212,7 @@ def _task_card(
     expected_bytes = _integer(progress.get("expected_bytes"))
     if expected_bytes is not None and received_bytes is not None:
         received_bytes = min(received_bytes, expected_bytes)
-    completed_stages = sum(
-        _text(item.get("status")) in {"completed", "skipped"} for item in stages
-    )
+    completed_stages = sum(_text(item.get("status")) in {"completed", "skipped"} for item in stages)
     return {
         "task_id": f"{assessment_id}:mobile-assessment",
         "assessment_id": assessment_id,
@@ -253,9 +251,7 @@ def mobile_assessment_projection(
     hunt = _map(result_summary.get("hunt"))
     stages = _rows(graph.get("nodes"))
     captures = _rows(receipt.get("captures")) or _rows(result_summary.get("captures"))
-    observations = _rows(receipt.get("candidate_observations")) or _rows(
-        hunt.get("candidates")
-    )
+    observations = _rows(receipt.get("candidate_observations")) or _rows(hunt.get("candidates"))
     rejected = _rows(hunt.get("rejected"))
     events = _rows(progress.get("events"))
     state = _text(execution.get("state")) or "prepared"
@@ -299,12 +295,9 @@ def mobile_assessment_projection(
         "stages": list(stages),
         "stage_summary": {
             "total": len(stages),
-            "completed": sum(
-                _text(item.get("status")) == "completed" for item in stages
-            ),
+            "completed": sum(_text(item.get("status")) == "completed" for item in stages),
             "blocked": sum(
-                _text(item.get("status")) in {"blocked", "failed", "rejected"}
-                for item in stages
+                _text(item.get("status")) in {"blocked", "failed", "rejected"} for item in stages
             ),
         },
         "task_card": _task_card(
@@ -395,23 +388,14 @@ def assert_mobile_projection_invariants(projection: Mapping[str, object]) -> Non
     retry_action = isinstance(actions, list) and "request_retry" in actions
     retry_available = retry.get("available") is True
     failure_retryable = (
-        failure.get("safe_retry") is True
-        and _text(failure.get("retry_scope")) is not None
+        failure.get("safe_retry") is True and _text(failure.get("retry_scope")) is not None
     )
     if retry_action != retry_available or retry_available != failure_retryable:
-        raise ValueError(
-            "Task-card retry state must agree with the persisted failure contract."
-        )
-    if retry_available and _text(retry.get("scope")) != _text(
-        failure.get("retry_scope")
-    ):
+        raise ValueError("Task-card retry state must agree with the persisted failure contract.")
+    if retry_available and _text(retry.get("scope")) != _text(failure.get("retry_scope")):
         raise ValueError("Task-card retry scope must match the persisted failure contract.")
-    if not retry_available and (
-        _text(retry.get("scope")) or _text(retry.get("user_action"))
-    ):
-        raise ValueError(
-            "Unavailable task-card retry state cannot expose retry instructions."
-        )
+    if not retry_available and (_text(retry.get("scope")) or _text(retry.get("user_action"))):
+        raise ValueError("Unavailable task-card retry state cannot expose retry instructions.")
 
 
 __all__ = ["assert_mobile_projection_invariants", "mobile_assessment_projection"]

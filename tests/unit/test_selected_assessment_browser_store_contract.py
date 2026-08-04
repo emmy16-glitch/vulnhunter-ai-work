@@ -41,6 +41,16 @@ def test_browser_store_exposes_one_direct_authoritative_state_interface():
     assert 'querySelector("[data-run-card]")' not in script
 
 
+def test_browser_store_isolates_subscriber_failures_before_dispatching_change_event():
+    script = _script()
+    assert "listeners.forEach((listener) => {" in script
+    assert "try {" in script
+    assert "listener(clone(snapshot));" in script
+    assert "reportListenerFailure(error);" in script
+    assert "window.setTimeout(() => {" in script
+    assert 'new CustomEvent("vh:selected-assessment-change"' in script
+
+
 def test_browser_store_does_not_mutate_inspector_or_navigation_ui():
     script = _script()
     for forbidden in (

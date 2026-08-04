@@ -19,10 +19,10 @@ def test_campaign_roles_enter_governed_campaign_work():
 
 def test_specialist_and_observer_entries_are_task_specific():
     assert entry_route_for_roles(("model-analyst",)) == "web-model-list"
-    assert entry_route_for_roles(("security-auditor",)) == "web-audit-overview"
     assert entry_route_for_roles(("read-only-observer",)) == "web-status"
 
 
-def test_unmapped_or_unknown_roles_fall_back_without_inventing_authority():
+def test_auditor_and_unknown_roles_keep_the_operational_dashboard_fallback():
+    assert entry_route_for_roles(("security-auditor",)) is None
     assert entry_route_for_roles(()) is None
     assert entry_route_for_roles(("unknown-role",)) is None

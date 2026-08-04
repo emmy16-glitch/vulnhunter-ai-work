@@ -77,6 +77,26 @@ def test_mobile_task_activity_renders_persisted_counts_and_latest_event() -> Non
     assert "evidence receipts" in source
 
 
+def test_mobile_task_activity_renders_authoritative_stage_timeline() -> None:
+    source = _source()
+
+    assert "Array.isArray(projection?.stages)" in source
+    assert 'details.dataset.mobileActivityTimeline = ""' in source
+    assert 'list.setAttribute("aria-label", "Persisted assessment stages")' in source
+    assert "row.dataset.stageStatus = status" in source
+    assert 'summary.textContent = "Recorded stage timeline"' in source
+    assert "renderStageTimeline(projection)" in source
+
+
+def test_mobile_task_activity_ignores_incomplete_timeline_rows() -> None:
+    source = _source()
+
+    assert 'const stage = String(item?.stage || "").trim();' in source
+    assert 'const status = String(item?.status || "").trim();' in source
+    assert "if (!stage || !status) return;" in source
+    assert "if (!list.children.length) return null;" in source
+
+
 def test_mobile_task_activity_is_removed_on_reset_or_missing_selection() -> None:
     source = _source()
 

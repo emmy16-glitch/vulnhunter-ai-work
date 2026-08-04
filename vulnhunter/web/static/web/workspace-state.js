@@ -29,9 +29,21 @@
     };
   };
 
+  const reportListenerFailure = (error) => {
+    window.setTimeout(() => {
+      throw error;
+    }, 0);
+  };
+
   const publish = (next) => {
     snapshot = clone(next);
-    listeners.forEach((listener) => listener(clone(snapshot)));
+    listeners.forEach((listener) => {
+      try {
+        listener(clone(snapshot));
+      } catch (error) {
+        reportListenerFailure(error);
+      }
+    });
     document.dispatchEvent(
       new CustomEvent("vh:selected-assessment-change", { detail: clone(snapshot) }),
     );

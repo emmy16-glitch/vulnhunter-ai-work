@@ -50,7 +50,8 @@ def test_mobile_refresh_cannot_overwrite_newer_authoritative_state() -> None:
     assert source.index("invalidatePendingRefresh();") < source.index(
         "withAssessmentStore((store) => store.replace(payload || {}));"
     )
-    assert source.index("invalidatePendingRefresh();", source.index("const clearSelectedAssessment")) < source.index(
+    clear_start = source.index("const clearSelectedAssessment")
+    assert source.index("invalidatePendingRefresh();", clear_start) < source.index(
         "withAssessmentStore((store) => store.clear());"
     )
 

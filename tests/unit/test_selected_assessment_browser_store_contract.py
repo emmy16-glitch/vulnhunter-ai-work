@@ -26,11 +26,15 @@ def test_browser_store_replaces_atomically_and_returns_defensive_snapshots():
     assert "Object.freeze" in script
 
 
-def test_browser_store_is_driven_only_by_authoritative_projection_and_reset_events():
+def test_browser_store_exposes_one_direct_authoritative_state_interface():
     script = _script()
-    assert 'document.addEventListener("vh:mobile-projection"' in script
-    assert 'document.addEventListener("vh:mobile-reset"' in script
+    assert "replace(payload)" in script
+    assert "clear()" in script
+    assert "subscribe(listener)" in script
     assert 'new CustomEvent("vh:selected-assessment-change"' in script
+    assert 'new CustomEvent("vh:selected-assessment-store-ready"' in script
+    assert '"vh:mobile-projection"' not in script
+    assert '"vh:mobile-reset"' not in script
     assert "MutationObserver" not in script
     assert "runFromDom" not in script
     assert "run?.progress_percent" not in script

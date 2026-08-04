@@ -9,13 +9,34 @@
     const navigation = document.querySelector("[data-mobile-workspace-nav]");
     if (navigation) navigation.hidden = !visible;
   };
-  const emit = (name, detail) => {
+
+  const emitSupportingState = (name, detail) => {
     if (["vh:mobile-attachment", "vh:mobile-plan", "vh:mobile-status"].includes(name)) {
       setMobileNavigation(true);
-    } else if (name === "vh:mobile-reset") {
-      setMobileNavigation(false);
     }
     document.dispatchEvent(new CustomEvent(name, { detail }));
+  };
+
+  const withAssessmentStore = (callback) => {
+    const store = window.vhSelectedAssessmentStore;
+    if (store) {
+      callback(store);
+      return;
+    }
+    document.addEventListener(
+      "vh:selected-assessment-store-ready",
+      (event) => callback(event.detail),
+      { once: true },
+    );
+  };
+
+  const replaceSelectedAssessment = (payload) => {
+    withAssessmentStore((store) => store.replace(payload || {}));
+  };
+
+  const clearSelectedAssessment = () => {
+    setMobileNavigation(false);
+    withAssessmentStore((store) => store.clear());
   };
 
   const classify = (url, method) => {
@@ -101,10 +122,10 @@
     return details;
   };
 
-  const renderTaskProjection = (payload) => {
+  const renderTaskProjection = (snapshot) => {
     document.querySelectorAll("[data-mobile-task-projection]").forEach((item) => item.remove());
-    const projection = payload?.assessment_projection;
-    const taskCard = payload?.task_card || projection?.task_card;
+    const projection = snapshot?.assessment_projection;
+    const taskCard = snapshot?.task_card;
     const card = retryCard();
     if (!card || !taskCard || taskCard.assessment_id !== projection?.assessment_id) return;
 
@@ -115,12 +136,9 @@
 
     const title = document.createElement("strong");
     title.textContent = "Assessment activity";
-
-    const stage = document.createElement("p");
     const currentStage = taskCard.current_stage || {};
-    stage.textContent = `${readableStage(currentStage.stage)} · ${readableStage(
-      currentStage.status,
-    )}`;
+    const stage = document.createElement("p");
+    stage.textContent = `${readableStage(currentStage.stage)} · ${readableStage(currentStage.status)}`;
 
     const progress = document.createElement("p");
     const completed = Number(taskCard.stage_progress?.completed);
@@ -130,51 +148,39 @@
         ? `${completed} of ${total} recorded stages complete`
         : "Stage progress is not available yet.";
 
+    const activity = taskCard.activity || {};
+    const activityCopy = document.createElement("p");
+    activityCopy.textContent = `${Number(activity.event_count) || 0} events · ${Number(activity.receipt_count) || 0} evidence receipts · ${Number(activity.candidate_count) || 0} candidates`;
+
+    panel.append(title, stage, progress, activityCopy);
+
     const byteProgress = taskCard.byte_progress || {};
     const received = Number(byteProgress.received);
     const expected = Number(byteProgress.expected);
-    if (
-      Number.isFinite(received) &&
-      Number.isFinite(expected) &&
-      received >= 0 &&
-      expected > 0 &&
-      received <= expected
-    ) {
+    if (Number.isFinite(received) && Number.isFinite(expected) && received >= 0 && expected > 0 && received <= expected) {
       const bytes = document.createElement("p");
       bytes.textContent = `${received.toLocaleString()} of ${expected.toLocaleString()} bytes received`;
       panel.append(bytes);
     }
 
-    const activity = taskCard.activity || {};
-    const activityCopy = document.createElement("p");
-    const eventCount = Number(activity.event_count) || 0;
-    const receiptCount = Number(activity.receipt_count) || 0;
-    const candidateCount = Number(activity.candidate_count) || 0;
-    activityCopy.textContent = `${eventCount} events · ${receiptCount} evidence receipts · ${candidateCount} candidates`;
-
     const latest = activity.latest_event;
     if (latest?.stage && latest?.status) {
       const latestCopy = document.createElement("small");
-      latestCopy.textContent = `Latest: ${readableStage(latest.stage)} · ${readableStage(
-        latest.status,
-      )}`;
-      panel.append(title, stage, progress, activityCopy, latestCopy);
-    } else {
-      panel.append(title, stage, progress, activityCopy);
+      latestCopy.textContent = `Latest: ${readableStage(latest.stage)} · ${readableStage(latest.status)}`;
+      panel.append(latestCopy);
     }
+
     const timeline = renderStageTimeline(projection);
     if (timeline) panel.append(timeline);
     card.append(panel);
   };
 
-  const renderRetryProjection = (payload) => {
+  const renderRetryProjection = (snapshot) => {
     document.querySelectorAll("[data-mobile-retry-control]").forEach((item) => item.remove());
-    const projection = payload?.assessment_projection;
-    const taskCard = payload?.task_card || projection?.task_card;
+    const projection = snapshot?.assessment_projection;
+    const taskCard = snapshot?.task_card;
     const retry = taskCard?.retry;
-    const actions = Array.isArray(projection?.allowed_actions)
-      ? projection.allowed_actions
-      : [];
+    const actions = Array.isArray(projection?.allowed_actions) ? projection.allowed_actions : [];
     const card = retryCard();
     if (!card || retry?.available !== true || !actions.includes("request_retry")) return;
 
@@ -186,7 +192,6 @@
     panel.className = "vh-inline-approval";
     panel.dataset.mobileRetryControl = "";
     panel.setAttribute("aria-live", "polite");
-
     const title = document.createElement("strong");
     title.textContent = "Retry this failed stage";
     const detail = document.createElement("p");
@@ -223,10 +228,10 @@
         }
         if (!response.ok) throw new Error(data.detail || "The retry could not be completed.");
         clearRetryIdempotencyKey(assessmentId, scope);
-        status.textContent = "Retry accepted. Authoritative state has been refreshed.";
-        emit("vh:mobile-plan", data.mobile_plan || null);
-        emit("vh:mobile-status", data.mobile_execution || null);
-        emit("vh:mobile-projection", data);
+        status.textContent = "Retry accepted. Current assessment state has been refreshed.";
+        emitSupportingState("vh:mobile-plan", data.mobile_plan || null);
+        emitSupportingState("vh:mobile-status", data.mobile_execution || null);
+        replaceSelectedAssessment(data);
       } catch (error) {
         status.textContent = error instanceof Error ? error.message : "The retry could not be completed.";
         button.disabled = false;
@@ -239,14 +244,23 @@
     card.append(panel);
   };
 
-  const renderMobileProjection = (payload) => {
-    renderTaskProjection(payload);
-    renderRetryProjection(payload);
+  const renderSelectedAssessment = (snapshot) => {
+    if (!snapshot) {
+      removeMobileProjectionControls();
+      return;
+    }
+    renderTaskProjection(snapshot);
+    renderRetryProjection(snapshot);
   };
 
-  const refreshRetryProjection = async () => {
+  const subscribeToSelectedAssessment = (store) => {
+    renderSelectedAssessment(store.getSnapshot());
+    store.subscribe(renderSelectedAssessment);
+  };
+
+  const refreshSelectedAssessment = async () => {
     if (!retryCard()) {
-      removeMobileProjectionControls();
+      clearSelectedAssessment();
       return;
     }
     try {
@@ -257,12 +271,11 @@
         cache: "no-store",
       });
       if (response.status === 404) {
-        removeMobileProjectionControls();
+        clearSelectedAssessment();
         return;
       }
       const payload = await response.json();
-      if (!response.ok) return;
-      emit("vh:mobile-projection", payload);
+      if (response.ok) replaceSelectedAssessment(payload);
     } catch (_error) {
       return;
     }
@@ -276,54 +289,38 @@
     const response = await originalFetch(input, init);
     if (!kind) return response;
 
-    response
-      .clone()
-      .json()
-      .then((payload) => {
-        if (!response.ok) {
-          emit("vh:mobile-error", { kind, payload, status: response.status });
-          return;
-        }
-        if (kind === "attachment" && payload?.attachment) {
-          emit("vh:mobile-attachment", payload.attachment);
-        } else if (kind === "plan") {
-          emit("vh:mobile-plan", payload?.mobile_plan || payload?.message?.metadata?.mobile_plan || null);
-        } else if (kind === "context" && payload?.mobile_plan) {
-          emit("vh:mobile-plan", payload.mobile_plan);
-        } else if (kind === "status" && payload?.mobile_execution) {
-          emit("vh:mobile-status", payload.mobile_execution);
-        } else if (["retry-read", "retry-write"].includes(kind)) {
-          emit("vh:mobile-projection", payload);
-        } else if (kind === "reset") {
-          emit("vh:mobile-reset", {});
-        } else if (kind === "followup" && payload?.handoff) {
-          emit("vh:mobile-reset", {});
-        }
-      })
-      .catch(() => undefined);
+    response.clone().json().then((payload) => {
+      if (!response.ok) {
+        document.dispatchEvent(new CustomEvent("vh:mobile-error", { detail: { kind, payload, status: response.status } }));
+        return;
+      }
+      if (kind === "attachment" && payload?.attachment) {
+        emitSupportingState("vh:mobile-attachment", payload.attachment);
+      } else if (kind === "plan") {
+        emitSupportingState("vh:mobile-plan", payload?.mobile_plan || payload?.message?.metadata?.mobile_plan || null);
+      } else if (kind === "context" && payload?.mobile_plan) {
+        emitSupportingState("vh:mobile-plan", payload.mobile_plan);
+      } else if (kind === "status" && payload?.mobile_execution) {
+        emitSupportingState("vh:mobile-status", payload.mobile_execution);
+      } else if (["retry-read", "retry-write"].includes(kind)) {
+        replaceSelectedAssessment(payload);
+      } else if (kind === "reset" || (kind === "followup" && payload?.handoff)) {
+        clearSelectedAssessment();
+      }
+    }).catch(() => undefined);
     return response;
   };
 
-  document.addEventListener("vh:mobile-projection", (event) => {
-    renderMobileProjection(event.detail);
-  });
-  document.addEventListener("vh:mobile-plan", () => {
-    window.setTimeout(refreshRetryProjection, 0);
-  });
-  document.addEventListener("vh:mobile-status", () => {
-    window.setTimeout(refreshRetryProjection, 0);
-  });
-  document.addEventListener("vh:mobile-reset", () => {
-    removeMobileProjectionControls();
-  });
+  document.addEventListener("vh:mobile-plan", () => window.setTimeout(refreshSelectedAssessment, 0));
+  document.addEventListener("vh:mobile-status", () => window.setTimeout(refreshSelectedAssessment, 0));
+
+  withAssessmentStore(subscribeToSelectedAssessment);
 
   document.addEventListener("DOMContentLoaded", () => {
-    document.querySelector("[data-conversation-reset]")?.addEventListener("click", () => {
-      emit("vh:mobile-reset", {});
-    });
+    document.querySelector("[data-conversation-reset]")?.addEventListener("click", clearSelectedAssessment);
     document.querySelector("[data-attachment-tray]")?.addEventListener("click", (event) => {
-      if (event.target.closest(".vh-apk-attachment-remove")) emit("vh:mobile-reset", {});
+      if (event.target.closest(".vh-apk-attachment-remove")) clearSelectedAssessment();
     });
-    window.setTimeout(refreshRetryProjection, 0);
+    window.setTimeout(refreshSelectedAssessment, 0);
   });
 })();

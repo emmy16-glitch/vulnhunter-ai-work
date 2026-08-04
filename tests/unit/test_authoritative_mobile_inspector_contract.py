@@ -24,14 +24,14 @@ def test_inspector_requires_the_authoritative_selected_assessment():
     assert "if (!hasAuthoritativeAssessment())" in script
 
 
-def test_selected_assessment_store_announces_readiness_before_projection_events():
+def test_selected_assessment_store_announces_readiness_after_interface_is_defined():
     store = _text(STORE)
+    interface = store.index('Object.defineProperty(window, "vhSelectedAssessmentStore"')
     ready = store.index('new CustomEvent("vh:selected-assessment-store-ready"')
-    projection = store.index('document.addEventListener("vh:mobile-projection"')
-    reset = store.index('document.addEventListener("vh:mobile-reset"')
-    assert ready < projection
-    assert ready < reset
+    assert interface < ready
     assert "detail: store" in store
+    assert '"vh:mobile-projection"' not in store
+    assert '"vh:mobile-reset"' not in store
 
 
 def test_inspector_replaces_and_clears_complete_selected_assessment_snapshots():

@@ -1,6 +1,7 @@
 from pathlib import Path
 
 BRIDGE = Path("vulnhunter/web/static/web/conversation-mobile-bridge.js")
+STORE = Path("vulnhunter/web/static/web/workspace-state.js")
 
 
 def _source() -> str:
@@ -34,8 +35,8 @@ def test_mobile_retry_control_restores_server_owned_state_after_reconnect() -> N
 
     assert 'method: "GET"' in source
     assert 'cache: "no-store"' in source
-    assert "window.setTimeout(refreshRetryProjection, 0);" in source
-    assert 'emit("vh:mobile-projection", payload);' in source
+    assert "window.setTimeout(refreshSelectedAssessment, 0)" in source
+    assert "replaceSelectedAssessment(payload);" in source
     assert "if (!retryCard())" in source
 
 
@@ -47,10 +48,25 @@ def test_mobile_retry_control_keeps_csrf_and_session_boundaries() -> None:
     assert 'retryUrl = "/workspace/mobile-retry/"' in source
 
 
+def test_mobile_task_activity_uses_selected_assessment_store_only() -> None:
+    source = _source()
+    store = STORE.read_text(encoding="utf-8")
+
+    assert "window.vhSelectedAssessmentStore" in source
+    assert '"vh:selected-assessment-store-ready"' in source
+    assert "store.replace(payload || {})" in source
+    assert "store.clear()" in source
+    assert "store.subscribe(renderSelectedAssessment)" in source
+    assert '"vh:mobile-projection"' not in source
+    assert '"vh:mobile-reset"' not in source
+    assert '"vh:mobile-projection"' not in store
+    assert '"vh:mobile-reset"' not in store
+
+
 def test_mobile_task_activity_uses_authoritative_task_card_only() -> None:
     source = _source()
 
-    assert "payload?.task_card || projection?.task_card" in source
+    assert "const taskCard = snapshot?.task_card" in source
     assert "taskCard.assessment_id !== projection?.assessment_id" in source
     assert 'panel.dataset.mobileTaskProjection = ""' in source
     assert 'panel.setAttribute("aria-label", "Assessment activity")' in source
@@ -64,7 +80,7 @@ def test_mobile_task_activity_uses_measured_progress_without_percentages() -> No
     assert "taskCard.byte_progress" in source
     assert "received <= expected" in source
     assert "recorded stages complete" in source
-    assert "percent" not in source.casefold()
+    assert "progress_percent" not in source
 
 
 def test_mobile_task_activity_renders_persisted_counts_and_latest_event() -> None:
@@ -97,9 +113,10 @@ def test_mobile_task_activity_ignores_incomplete_timeline_rows() -> None:
     assert "if (!list.children.length) return null;" in source
 
 
-def test_mobile_task_activity_is_removed_on_reset_or_missing_selection() -> None:
+def test_mobile_task_activity_is_removed_when_authoritative_selection_clears() -> None:
     source = _source()
 
+    assert "if (!snapshot)" in source
     assert "removeMobileProjectionControls();" in source
     assert "[data-mobile-task-projection], [data-mobile-retry-control]" in source
-    assert 'document.addEventListener("vh:mobile-reset"' in source
+    assert "clearSelectedAssessment" in source

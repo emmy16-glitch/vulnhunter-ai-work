@@ -120,10 +120,7 @@ def test_enriched_website_run_uses_persisted_stages_and_no_percentage():
 
 def test_source_contains_no_browser_mapped_percentage_contract():
     source = (
-        Path(__file__).resolve().parents[2]
-        / "vulnhunter"
-        / "web"
-        / "conversation_state.py"
+        Path(__file__).resolve().parents[2] / "vulnhunter" / "web" / "conversation_state.py"
     ).read_text(encoding="utf-8")
     assert 'result["progress_percent"] = round' not in source
     assert 'result.pop("progress_percent", None)' in source

@@ -28,7 +28,7 @@ def test_workspace_copy_and_shared_product_styles_are_final():
     assert "Ask a security question, paste an authorised target" not in conversation
     assert "AI conversation ready" not in conversation
     assert (
-        "Message VulnHunter — describe a target, attach an APK, or ask about a finding"
+        "Describe an authorised website, attach an APK, or ask about a finding"
         in conversation
     )
     assert ".vh-product-heading" in polish

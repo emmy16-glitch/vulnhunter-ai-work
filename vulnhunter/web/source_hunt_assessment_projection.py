@@ -112,9 +112,7 @@ def source_hunt_assessment_projection(
     surfaces_examined = _integer(report.get("surfaces_examined")) or 0
     report_status = _text(report.get("stage")) or "pending"
     report_ready = state == "completed" and bool(_text(report.get("report_id")))
-    completed_stages = sum(
-        _text(item.get("status")) in {"completed", "skipped"} for item in stages
-    )
+    completed_stages = sum(_text(item.get("status")) in {"completed", "skipped"} for item in stages)
     safe_error = _text(execution.get("safe_error") or report.get("safe_error"))
     latest_event = None
     completed_at = _text(execution.get("completed_at"))
@@ -146,9 +144,7 @@ def source_hunt_assessment_projection(
             "sha256": snapshot_sha256,
             "visibility": _text(repository.get("visibility")),
             "permitted_paths": [
-                value
-                for item in repository.get("permitted_paths", [])
-                if (value := _text(item))
+                value for item in repository.get("permitted_paths", []) if (value := _text(item))
             ]
             if isinstance(repository.get("permitted_paths"), list)
             else [],
@@ -188,8 +184,7 @@ def source_hunt_assessment_projection(
             "total": len(stages),
             "completed": completed_stages,
             "blocked": sum(
-                _text(item.get("status")) in {"blocked", "failed", "rejected"}
-                for item in stages
+                _text(item.get("status")) in {"blocked", "failed", "rejected"} for item in stages
             ),
         },
         "task_card": {
@@ -250,8 +245,7 @@ def assert_source_hunt_projection_invariants(projection: Mapping[str, object]) -
     ):
         raise ValueError("Every Source Hunt surface must bind to one selected assessment.")
     if not all(
-        _text(subject.get(field))
-        for field in ("repository_id", "revision", "sha256", "label")
+        _text(subject.get(field)) for field in ("repository_id", "revision", "sha256", "label")
     ):
         raise ValueError("Source Hunt requires one exact repository snapshot identity.")
     if _text(task_card.get("assessment_id")) != assessment_id:

@@ -20,7 +20,6 @@ _ROLE_ENTRY_ROUTES = (
     ("campaign-operator", "web-campaign-list"),
     ("campaign-approver", "web-campaign-list"),
     ("model-analyst", "web-model-list"),
-    ("security-auditor", "web-audit-overview"),
     ("read-only-observer", "web-status"),
 )
 

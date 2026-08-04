@@ -1,6 +1,5 @@
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[2]
 STATIC = ROOT / "vulnhunter" / "web" / "static" / "web"
 TEMPLATES = ROOT / "vulnhunter" / "web" / "templates" / "web"
@@ -24,7 +23,7 @@ def test_inspector_requires_the_authoritative_selected_assessment():
 def test_inspector_never_invents_prepared_progress():
     script = _text(SCRIPT)
     assert "state.plan\n          ? 8" not in script
-    assert 'state.plan ? 8' not in script
+    assert "state.plan ? 8" not in script
     assert 'progressValue.textContent = measured ? `${completed} of ${total}` : "—"' in script
     assert "persisted stages complete" in script
     assert '"Progress unavailable"' in script
@@ -48,7 +47,7 @@ def test_mobile_sheet_supports_focus_escape_and_android_back_semantics():
         'event.key === "Escape"',
         'event.key !== "Tab"',
         "state.returnFocus",
-        'close?.focus()',
+        "close?.focus()",
         'inspector.setAttribute("aria-modal", "true")',
         'inspector.removeAttribute("aria-modal")',
     ):
@@ -60,5 +59,5 @@ def test_inspector_tabs_have_keyboard_roving_focus():
     template = _text(TEMPLATE)
     for key in ("ArrowLeft", "ArrowRight", "Home", "End"):
         assert key in script
-    assert 'tab.tabIndex = selected ? 0 : -1' in script
+    assert "tab.tabIndex = selected ? 0 : -1" in script
     assert template.count('tabindex="-1"') == 3

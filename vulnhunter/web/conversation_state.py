@@ -6,6 +6,8 @@ import re
 from datetime import UTC, datetime
 from typing import Any
 
+from vulnhunter.web.website_assessment_projection import website_assessment_projection
+
 _HIDDEN_EVENT_TYPES = {
     "objective_received",
     "role_selected",
@@ -265,6 +267,22 @@ def reply_for_intent(intent: str, payload: dict[str, Any]) -> str:
     return contextual_chat_reply("", payload, None)
 
 
+def _persisted_stage_progress(result: dict[str, Any]) -> tuple[int, int] | None:
+    graph = result.get("task_graph")
+    if not isinstance(graph, dict):
+        return None
+    nodes = graph.get("nodes")
+    if not isinstance(nodes, list):
+        return None
+    stages = [item for item in nodes if isinstance(item, dict)]
+    if not stages:
+        return None
+    completed = sum(
+        _text(item.get("status")).casefold() in {"completed", "skipped"} for item in stages
+    )
+    return completed, len(stages)
+
+
 def enrich_run_payload(
     payload: dict[str, Any],
     *,
@@ -281,11 +299,10 @@ def enrich_run_payload(
     result["elapsed_seconds"] = elapsed
     result["elapsed_label"] = _duration(elapsed)
 
-    stage_index, default_step = _STAGE.get(state, (1, "Preparing the governed assessment…"))
+    _stage_index, default_step = _STAGE.get(state, (1, "Preparing the governed assessment…"))
     if state in _TERMINAL_STATES and state != "completed":
         reason = _text(result.get("blocking_reason"))
         default_step = f"Assessment stopped: {reason}" if reason else "Assessment stopped."
-        stage_index = _STAGE_TOTAL
     events = result["events"]
     latest = events[-1] if events else None
     latest_summary = _event_summary(latest) if latest else ""
@@ -297,8 +314,13 @@ def enrich_run_payload(
     ):
         current_step = latest_summary
     result["current_step"] = current_step
-    result["progress_label"] = f"Step {stage_index} of {_STAGE_TOTAL}"
-    result["progress_percent"] = round((stage_index / _STAGE_TOTAL) * 100)
+    persisted_progress = _persisted_stage_progress(result)
+    result["progress_label"] = (
+        f"{persisted_progress[0]} of {persisted_progress[1]} persisted stages complete"
+        if persisted_progress
+        else "Progress unavailable"
+    )
+    result.pop("progress_percent", None)
 
     if template_count > 0:
         if state == "completed":
@@ -313,4 +335,9 @@ def enrich_run_payload(
         result["check_progress"] = ""
     result["next_action"] = next_step_reply(result)
     result["final_message"] = final_result_reply(result) if terminal else None
+    projection = website_assessment_projection(result)
+    if projection is not None:
+        result["assessment_projection"] = projection
+    else:
+        result.pop("assessment_projection", None)
     return result

@@ -40,6 +40,21 @@ def test_mobile_retry_control_restores_server_owned_state_after_reconnect() -> N
     assert "if (!retryCard())" in source
 
 
+def test_mobile_refresh_cannot_overwrite_newer_authoritative_state() -> None:
+    source = _source()
+
+    assert "let refreshGeneration = 0;" in source
+    assert "const invalidatePendingRefresh = () =>" in source
+    assert "const generation = ++refreshGeneration;" in source
+    assert source.count("if (generation !== refreshGeneration) return;") == 2
+    assert source.index("invalidatePendingRefresh();") < source.index(
+        "withAssessmentStore((store) => store.replace(payload || {}));"
+    )
+    assert source.index("invalidatePendingRefresh();", source.index("const clearSelectedAssessment")) < source.index(
+        "withAssessmentStore((store) => store.clear());"
+    )
+
+
 def test_mobile_retry_control_keeps_csrf_and_session_boundaries() -> None:
     source = _source()
 

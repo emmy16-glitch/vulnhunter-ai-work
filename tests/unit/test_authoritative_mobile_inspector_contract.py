@@ -4,6 +4,7 @@ ROOT = Path(__file__).resolve().parents[2]
 STATIC = ROOT / "vulnhunter" / "web" / "static" / "web"
 TEMPLATES = ROOT / "vulnhunter" / "web" / "templates" / "web"
 SCRIPT = STATIC / "conversation-mobile-inspector.js"
+STORE = STATIC / "workspace-state.js"
 TEMPLATE = TEMPLATES / "_mobile_analysis_inspector.html"
 
 
@@ -16,8 +17,37 @@ def test_inspector_requires_the_authoritative_selected_assessment():
     assert "state.projection" in script
     assert "state.taskCard" in script
     assert "taskCard?.assessment_id === selectedAssessmentId()" in script
-    assert 'document.addEventListener("vh:mobile-projection"' in script
+    assert "window.vhSelectedAssessmentStore" in script
+    assert 'document.addEventListener("vh:selected-assessment-store-ready"' in script
+    assert 'document.addEventListener("vh:mobile-projection"' not in script
+    assert 'document.addEventListener("vh:mobile-reset"' not in script
     assert "if (!hasAuthoritativeAssessment())" in script
+
+
+def test_selected_assessment_store_announces_readiness_before_projection_events():
+    store = _text(STORE)
+    ready = store.index('new CustomEvent("vh:selected-assessment-store-ready"')
+    projection = store.index('document.addEventListener("vh:mobile-projection"')
+    reset = store.index('document.addEventListener("vh:mobile-reset"')
+    assert ready < projection
+    assert ready < reset
+    assert "detail: store" in store
+
+
+def test_inspector_replaces_and_clears_complete_selected_assessment_snapshots():
+    script = _text(SCRIPT)
+    for token in (
+        "state.projection = snapshot?.assessment_projection || null",
+        "state.taskCard = snapshot?.task_card || null",
+        "state.plan = snapshot?.mobile_plan || null",
+        "state.execution = snapshot?.mobile_execution || state.plan?.execution || null",
+        "state.attachment = state.plan?.artifact || null",
+        "applySelectedAssessment(store.getSnapshot())",
+        "state.unsubscribeSelectedAssessment = store.subscribe(applySelectedAssessment)",
+    ):
+        assert token in script
+    assert "if (!snapshot)" in script
+    assert "hideInspector({ restoreFocus: false })" in script
 
 
 def test_inspector_never_invents_prepared_progress():

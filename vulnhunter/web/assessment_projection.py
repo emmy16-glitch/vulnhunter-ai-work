@@ -17,6 +17,7 @@ _SURFACES = (
 _ACTIVE = frozenset({"queued", "claimed", "running", "cancelling"})
 _FAILURE = frozenset({"blocked", "failed", "gated", "rejected"})
 _TERMINAL = _FAILURE | {"completed", "cancelled"}
+_DECISIONS = frozenset({"pending", "verified", "rejected", "abstained", "mixed"})
 
 
 def _map(value: object) -> Mapping[str, object]:
@@ -129,10 +130,7 @@ def _current_stage(stages: tuple[dict[str, object], ...]) -> dict[str, object] |
     for item in stages:
         status = _text(item.get("status"))
         if status in {"active", "blocked", "failed", "queued", "running"}:
-            return {
-                "stage": _text(item.get("stage")),
-                "status": status,
-            }
+            return {"stage": _text(item.get("stage")), "status": status}
     for item in stages:
         if _text(item.get("status")) not in {"completed", "skipped"}:
             return {
@@ -154,6 +152,48 @@ def _retry_contract(failure: Mapping[str, object] | None) -> dict[str, object]:
         "available": available,
         "scope": scope if available else None,
         "user_action": _text((failure or {}).get("user_action")) if available else None,
+    }
+
+
+def _verification_projection(result_summary: Mapping[str, object]) -> dict[str, object]:
+    raw = _map(result_summary.get("verification"))
+    status = _text(raw.get("status")) or "pending"
+    if status not in _DECISIONS:
+        status = "pending"
+    verified = _integer(raw.get("verified_count")) or 0
+    rejected = _integer(raw.get("rejected_count")) or 0
+    abstained = _integer(raw.get("abstained_count")) or 0
+    reason = _text(raw.get("reason"))
+    return {
+        "status": status,
+        "verified_count": verified,
+        "rejected_count": rejected,
+        "abstained_count": abstained,
+        "reason": reason,
+        "complete": status in {"verified", "rejected", "abstained", "mixed"},
+    }
+
+
+def _report_projection(
+    result_summary: Mapping[str, object],
+    stages: tuple[dict[str, object], ...],
+) -> dict[str, object]:
+    raw = _map(result_summary.get("report"))
+    stage_status = _stage(stages, "report") or "pending"
+    persisted_status = _text(raw.get("status"))
+    report_id = _text(raw.get("report_id"))
+    digest = _text(raw.get("digest"))
+    ready = bool(
+        report_id
+        and persisted_status in {"ready", "completed"}
+        and stage_status in {"ready", "completed"}
+    )
+    return {
+        "status": persisted_status or stage_status,
+        "stage_status": stage_status,
+        "report_id": report_id,
+        "digest": digest,
+        "ready": ready,
     }
 
 
@@ -179,14 +219,8 @@ def _task_card(
         "state": state,
         "terminal": state in _TERMINAL,
         "current_stage": _current_stage(stages),
-        "stage_progress": {
-            "completed": completed_stages,
-            "total": len(stages),
-        },
-        "byte_progress": {
-            "received": received_bytes,
-            "expected": expected_bytes,
-        },
+        "stage_progress": {"completed": completed_stages, "total": len(stages)},
+        "byte_progress": {"received": received_bytes, "expected": expected_bytes},
         "activity": {
             "event_count": len(events),
             "receipt_count": len(captures),
@@ -218,11 +252,12 @@ def mobile_assessment_projection(
     stages = _rows(graph.get("nodes"))
     captures = _rows(receipt.get("captures")) or _rows(result_summary.get("captures"))
     observations = _rows(receipt.get("candidate_observations")) or _rows(hunt.get("candidates"))
+    rejected = _rows(hunt.get("rejected"))
     events = _rows(progress.get("events"))
     state = _text(execution.get("state")) or "prepared"
     failure = _failure(execution)
-    report_status = _stage(stages, "report") or "pending"
-    report_ready = report_status in {"ready", "completed"}
+    verification = _verification_projection(result_summary)
+    report = _report_projection(result_summary, stages)
     label = (
         _text(artifact.get("original_filename"))
         or _text(artifact.get("artifact_id"))
@@ -281,9 +316,15 @@ def mobile_assessment_projection(
             "active_tool": _text(progress.get("active_tool")),
         },
         "evidence": {"record_count": len(captures)},
-        "findings": {"candidate_count": len(observations)},
-        "report": {"status": report_status, "ready": report_ready},
-        "allowed_actions": _actions(state, report_ready, failure),
+        "findings": {
+            "candidate_count": len(observations),
+            "rejected_count": len(rejected),
+            "verified_count": verification["verified_count"],
+            "abstained_count": verification["abstained_count"],
+        },
+        "verification": verification,
+        "report": report,
+        "allowed_actions": _actions(state, bool(report["ready"]), failure),
     }
     assert_mobile_projection_invariants(projection)
     return projection
@@ -295,6 +336,7 @@ def assert_mobile_projection_invariants(projection: Mapping[str, object]) -> Non
     surfaces = _map(projection.get("surface_identity"))
     subject = _map(projection.get("subject"))
     execution = _map(projection.get("execution"))
+    verification = _map(projection.get("verification"))
     report = _map(projection.get("report"))
     task_card = _map(projection.get("task_card"))
     stage_progress = _map(task_card.get("stage_progress"))
@@ -327,11 +369,22 @@ def assert_mobile_projection_invariants(projection: Mapping[str, object]) -> Non
     expected = _integer(byte_progress.get("expected"))
     if received is not None and expected is not None and received > expected:
         raise ValueError("Task-card byte progress cannot exceed the declared byte total.")
-    if report.get("ready") is True and _text(report.get("status")) not in {
-        "ready",
-        "completed",
-    }:
-        raise ValueError("Report readiness must agree with the persisted report stage.")
+    verification_status = _text(verification.get("status"))
+    if verification_status not in _DECISIONS:
+        raise ValueError("Verification must expose one supported persisted disposition.")
+    if verification.get("complete") is True and verification_status == "pending":
+        raise ValueError("Pending verification cannot be presented as complete.")
+    report_ready = report.get("ready") is True
+    if report_ready and (
+        _text(report.get("status")) not in {"ready", "completed"}
+        or _text(report.get("stage_status")) not in {"ready", "completed"}
+        or _text(report.get("report_id")) is None
+    ):
+        raise ValueError(
+            "Report readiness requires matching persisted stage, status, and report identity."
+        )
+    if isinstance(actions, list) and ("view_report" in actions) != report_ready:
+        raise ValueError("Report action must agree with persisted report readiness.")
     retry_action = isinstance(actions, list) and "request_retry" in actions
     retry_available = retry.get("available") is True
     failure_retryable = (

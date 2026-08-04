@@ -88,6 +88,40 @@ def _retryable_plan() -> dict[str, object]:
     return plan
 
 
+def _completed_plan() -> dict[str, object]:
+    plan = _plan(execution_state="completed")
+    plan["assessment_graph"]["nodes"] = [
+        {"stage": "authorization", "status": "completed"},
+        {"stage": "plan", "status": "completed"},
+        {"stage": "approval", "status": "completed"},
+        {"stage": "execution", "status": "completed"},
+        {"stage": "evidence", "status": "completed"},
+        {"stage": "verification", "status": "completed"},
+        {"stage": "review", "status": "completed"},
+        {"stage": "report", "status": "completed"},
+    ]
+    plan["execution"]["progress"]["result_summary"] = {
+        "captures": [{"tool": "apkanalyzer"}, {"tool": "jadx"}],
+        "hunt": {
+            "candidates": [{"title": "Exported component"}],
+            "rejected": [{"title": "Unreachable debug branch"}],
+        },
+        "verification": {
+            "status": "mixed",
+            "verified_count": 1,
+            "rejected_count": 1,
+            "abstained_count": 1,
+            "reason": "One candidate needs dynamic confirmation.",
+        },
+        "report": {
+            "status": "completed",
+            "report_id": "report-aabbccddeeff00112233",
+            "digest": "e" * 64,
+        },
+    }
+    return plan
+
+
 def test_mobile_projection_exposes_one_id_for_every_assessment_surface():
     projection = mobile_assessment_projection(_plan())
 
@@ -118,8 +152,27 @@ def test_mobile_projection_exposes_one_id_for_every_assessment_surface():
         "active_tool": "jadx",
     }
     assert projection["evidence"]["record_count"] == 1
-    assert projection["findings"]["candidate_count"] == 1
-    assert projection["report"] == {"status": "pending", "ready": False}
+    assert projection["findings"] == {
+        "candidate_count": 1,
+        "rejected_count": 0,
+        "verified_count": 0,
+        "abstained_count": 0,
+    }
+    assert projection["verification"] == {
+        "status": "pending",
+        "verified_count": 0,
+        "rejected_count": 0,
+        "abstained_count": 0,
+        "reason": None,
+        "complete": False,
+    }
+    assert projection["report"] == {
+        "status": "pending",
+        "stage_status": "pending",
+        "report_id": None,
+        "digest": None,
+        "ready": False,
+    }
     assert projection["allowed_actions"] == [
         "view_activity",
         "view_evidence",
@@ -132,6 +185,57 @@ def test_mobile_projection_exposes_one_id_for_every_assessment_surface():
         "user_action": None,
     }
     assert len(projection["stages"]) == 8
+
+
+def test_completed_projection_connects_evidence_verification_and_report_identity():
+    projection = mobile_assessment_projection(_completed_plan())
+
+    assert projection is not None
+    assert projection["evidence"] == {"record_count": 2}
+    assert projection["findings"] == {
+        "candidate_count": 1,
+        "rejected_count": 1,
+        "verified_count": 1,
+        "abstained_count": 1,
+    }
+    assert projection["verification"] == {
+        "status": "mixed",
+        "verified_count": 1,
+        "rejected_count": 1,
+        "abstained_count": 1,
+        "reason": "One candidate needs dynamic confirmation.",
+        "complete": True,
+    }
+    assert projection["report"] == {
+        "status": "completed",
+        "stage_status": "completed",
+        "report_id": "report-aabbccddeeff00112233",
+        "digest": "e" * 64,
+        "ready": True,
+    }
+    assert projection["allowed_actions"][-1] == "view_report"
+
+
+def test_report_stage_without_persisted_report_identity_fails_closed():
+    plan = _completed_plan()
+    del plan["execution"]["progress"]["result_summary"]["report"]["report_id"]
+
+    projection = mobile_assessment_projection(plan)
+
+    assert projection is not None
+    assert projection["report"]["ready"] is False
+    assert "view_report" not in projection["allowed_actions"]
+
+
+def test_unknown_verification_status_fails_closed_to_pending():
+    plan = _completed_plan()
+    plan["execution"]["progress"]["result_summary"]["verification"]["status"] = "model-confident"
+
+    projection = mobile_assessment_projection(plan)
+
+    assert projection is not None
+    assert projection["verification"]["status"] == "pending"
+    assert projection["verification"]["complete"] is False
 
 
 def test_failed_projection_does_not_invent_retry_or_report_readiness():
@@ -187,7 +291,13 @@ def test_projection_invariants_reject_subjectless_or_unbound_state():
             "byte_progress": {"received": None, "expected": None},
             "retry": {"available": False, "scope": None, "user_action": None},
         },
-        "report": {"status": "pending", "ready": False},
+        "verification": {"status": "pending", "complete": False},
+        "report": {
+            "status": "pending",
+            "stage_status": "pending",
+            "report_id": None,
+            "ready": False,
+        },
         "allowed_actions": [],
     }
 
@@ -210,7 +320,15 @@ def test_projection_invariants_reject_subjectless_or_unbound_state():
 
     with pytest.raises(ValueError, match="Report readiness"):
         assert_mobile_projection_invariants(
-            {**base, "report": {"status": "pending", "ready": True}}
+            {
+                **base,
+                "report": {
+                    "status": "completed",
+                    "stage_status": "completed",
+                    "report_id": None,
+                    "ready": True,
+                },
+            }
         )
 
 
@@ -224,6 +342,15 @@ def test_projection_invariants_reject_contradictory_retry_state():
         "user_action": None,
     }
     with pytest.raises(ValueError, match="Task-card retry state"):
+        assert_mobile_projection_invariants(projection)
+
+
+def test_projection_invariants_reject_report_action_without_ready_identity():
+    projection = mobile_assessment_projection(_plan())
+    assert projection is not None
+    projection["allowed_actions"].append("view_report")
+
+    with pytest.raises(ValueError, match="Report action"):
         assert_mobile_projection_invariants(projection)
 
 

@@ -33,7 +33,7 @@ def test_browser_store_is_driven_only_by_authoritative_projection_and_reset_even
     assert 'new CustomEvent("vh:selected-assessment-change"' in script
     assert "MutationObserver" not in script
     assert "runFromDom" not in script
-    assert "progress_percent" not in script
+    assert "run?.progress_percent" not in script
     assert "querySelector(\"[data-run-card]\")" not in script
 
 

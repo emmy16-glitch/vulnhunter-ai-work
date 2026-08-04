@@ -1,6 +1,9 @@
 from pathlib import Path
 
 TEMPLATE = Path("vulnhunter/web/templates/web/conversation.html")
+PROVIDER_CLIENT = Path(
+    "vulnhunter/web/static/web/conversation-provider-control.js"
+)
 
 
 def _template() -> str:
@@ -20,6 +23,14 @@ def test_primary_composer_keeps_infrastructure_controls_behind_disclosure() -> N
     assert "<summary>Advanced settings</summary>" in template
     assert "data-reasoning-effort" in template
     assert "data-provider-runtime" in template
+
+
+def test_provider_preference_control_stays_inside_advanced_container() -> None:
+    client = PROVIDER_CLIENT.read_text(encoding="utf-8")
+
+    assert "const providerContainer = runtime.parentElement;" in client
+    assert "providerContainer.insertBefore(control, runtime);" in client
+    assert "composerMeta.insertBefore(control, runtime);" not in client
 
 
 def test_composer_uses_ordinary_language_before_provider_language() -> None:

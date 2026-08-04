@@ -27,10 +27,7 @@ def test_workspace_copy_and_shared_product_styles_are_final():
     polish = _text(STATIC / "workspace-polish.css")
     assert "Ask a security question, paste an authorised target" not in conversation
     assert "AI conversation ready" not in conversation
-    assert (
-        "Describe an authorised website, attach an APK, or ask about a finding"
-        in conversation
-    )
+    assert "Describe an authorised website, attach an APK, or ask about a finding" in conversation
     assert ".vh-product-heading" in polish
     assert '.vh-nav-list li:has(a[href$="/mobile-analysis/"])' not in polish
     assert "--vh-final-sidebar: 264px" in polish

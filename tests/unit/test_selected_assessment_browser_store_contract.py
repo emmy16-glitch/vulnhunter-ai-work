@@ -34,7 +34,7 @@ def test_browser_store_is_driven_only_by_authoritative_projection_and_reset_even
     assert "MutationObserver" not in script
     assert "runFromDom" not in script
     assert "run?.progress_percent" not in script
-    assert "querySelector(\"[data-run-card]\")" not in script
+    assert 'querySelector("[data-run-card]")' not in script
 
 
 def test_browser_store_does_not_mutate_inspector_or_navigation_ui():
@@ -46,6 +46,6 @@ def test_browser_store_does_not_mutate_inspector_or_navigation_ui():
         "data-state-scope",
         "data-state-approval",
         "data-state-active",
-        "classList.add(\"is-open\")",
+        'classList.add("is-open")',
     ):
         assert forbidden not in script

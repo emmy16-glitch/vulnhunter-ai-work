@@ -13,6 +13,9 @@ from django.urls import reverse
 from vulnhunter.source_hunt import SourceHuntStore
 from vulnhunter.source_hunt.jobs import SourceHuntJob, SourceHuntJobStore
 from vulnhunter.web.source_hunt_assessment_graph import project_source_hunt_job
+from vulnhunter.web.source_hunt_assessment_projection import (
+    source_hunt_assessment_projection,
+)
 
 _SESSION_SOURCE_HUNT = "vulnhunter_conversation_source_hunt"
 _SESSION_MESSAGES = "vulnhunter_conversation_messages"
@@ -83,6 +86,17 @@ def _report_payload(job: SourceHuntJob) -> dict[str, object] | None:
     }
 
 
+def _attach_projection(plan: dict[str, object]) -> dict[str, object]:
+    """Attach the shared assessment read model or fail closed for incomplete state."""
+
+    projection = source_hunt_assessment_projection(plan)
+    if projection is None:
+        plan.pop("assessment_projection", None)
+        return plan
+    plan["assessment_projection"] = projection
+    return plan
+
+
 def remember_source_hunt_plan(
     request: object,
     *,
@@ -92,7 +106,7 @@ def remember_source_hunt_plan(
     """Store only bounded repository metadata, never source text or credentials."""
 
     plan: dict[str, object] = {
-        "schema_version": "1.0",
+        "schema_version": "1.1",
         "job_id": job.job_id,
         "run_id": job.job_id,
         "task_graph_id": graph["graph_id"],
@@ -117,6 +131,7 @@ def remember_source_hunt_plan(
         "setup_url": source_hunt_setup_url(request),
         "workspace_url": source_hunt_workspace_url(request),
     }
+    _attach_projection(plan)
     request.session[_SESSION_SOURCE_HUNT] = plan
     request.session.modified = True
     return plan
@@ -140,6 +155,7 @@ def current_source_hunt_plan(request: object) -> dict[str, object] | None:
         execution["state"] = "unavailable"
         execution["safe_error"] = "The persisted Source Hunt job is currently unavailable."
         plan["execution"] = execution
+        _attach_projection(plan)
         request.session[_SESSION_SOURCE_HUNT] = plan
         request.session.modified = True
         return plan
@@ -151,6 +167,7 @@ def current_source_hunt_plan(request: object) -> dict[str, object] | None:
     plan["report"] = _report_payload(job)
     plan["setup_url"] = source_hunt_setup_url(request)
     plan["workspace_url"] = source_hunt_workspace_url(request)
+    _attach_projection(plan)
     request.session[_SESSION_SOURCE_HUNT] = plan
     request.session.modified = True
     return plan
@@ -180,6 +197,8 @@ def record_source_hunt_event(request: object, plan: dict[str, object]) -> None:
     repository = repository if isinstance(repository, dict) else {}
     graph = plan.get("assessment_graph")
     graph = graph if isinstance(graph, dict) else {}
+    projection = plan.get("assessment_projection")
+    projection = projection if isinstance(projection, dict) else {}
     message = {
         "role": "assistant",
         "kind": "status",
@@ -192,6 +211,8 @@ def record_source_hunt_event(request: object, plan: dict[str, object]) -> None:
         "timestamp": datetime.now(UTC).isoformat(),
         "metadata": {
             "source_hunt_event": event_key,
+            "assessment_id": projection.get("assessment_id"),
+            "assessment_kind": projection.get("assessment_kind"),
             "source_hunt": {
                 "job_id": job_id,
                 "repository_id": repository.get("repository_id"),

@@ -61,3 +61,18 @@ def test_inspector_tabs_have_keyboard_roving_focus():
         assert key in script
     assert "tab.tabIndex = selected ? 0 : -1" in script
     assert template.count('tabindex="-1"') == 3
+
+
+def test_assessment_empty_states_are_compact_ordinary_language_statuses():
+    template = _text(TEMPLATE)
+    for copy in (
+        "No worker is assigned yet.",
+        "No reviewed findings yet.",
+        "No evidence receipts yet.",
+        "No evidence relationships yet.",
+    ):
+        assert copy in template
+    assert template.count('role="status"') == 4
+    assert template.count('aria-live="polite"') == 3
+    assert "until a real worker observation has been persisted and judged" not in template
+    assert "The graph is created only from real target" not in template

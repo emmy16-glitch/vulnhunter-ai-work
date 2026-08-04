@@ -3,8 +3,8 @@
 
   if (typeof document === "undefined" || typeof window === "undefined") return;
 
-  // progress_percent is intentionally not consumed. Genuine progress exists only
-  // when the authoritative task card supplies measured persisted stages or bytes.
+  // Compatibility contract only: progress_percent is intentionally not consumed.
+  // A genuine numeric progress value is unavailable unless the authoritative task card supplies measured stages.
   const listeners = new Set();
   let snapshot = null;
 

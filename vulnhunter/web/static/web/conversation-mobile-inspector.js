@@ -35,7 +35,11 @@
     attachment: null,
     plan: null,
     execution: null,
+    projection: null,
+    taskCard: null,
     activeTab: "overview",
+    returnFocus: null,
+    sheetHistoryActive: false,
   };
 
   const text = (value) => (value === null || value === undefined ? "" : String(value));
@@ -43,67 +47,111 @@
     text(value)
       .replaceAll("_", " ")
       .replace(/\b\w/g, (letter) => letter.toUpperCase());
+  const safeArray = (value) => (Array.isArray(value) ? value : []);
+  const isMobile = () => window.matchMedia("(max-width: 767px)").matches;
   const formatBytes = (value) => {
     const bytes = Math.max(0, Number(value) || 0);
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
-  const safeArray = (value) => (Array.isArray(value) ? value : []);
 
-  const showInspector = () => {
+  const selectedAssessmentId = () => text(state.projection?.assessment_id);
+  const hasAuthoritativeAssessment = () =>
+    Boolean(selectedAssessmentId() && state.taskCard?.assessment_id === selectedAssessmentId());
+
+  const focusable = () =>
+    [...inspector.querySelectorAll("button, [href], input, select, textarea, [tabindex]")].filter(
+      (item) => !item.hidden && !item.disabled && item.getAttribute("tabindex") !== "-1",
+    );
+
+  const showInspector = ({ trigger = null, pushHistory = true } = {}) => {
     inspector.hidden = false;
     workspace.classList.add("has-analysis-inspector");
+    if (!isMobile()) return;
+    if (trigger instanceof HTMLElement) state.returnFocus = trigger;
+    document.documentElement.classList.add("vh-mobile-sheet-open");
+    inspector.setAttribute("aria-modal", "true");
+    if (pushHistory && !state.sheetHistoryActive) {
+      window.history.pushState({ vhAssessmentSheet: true }, "");
+      state.sheetHistoryActive = true;
+    }
+    window.requestAnimationFrame(() => close?.focus());
   };
 
-  const hideInspector = () => {
+  const hideInspector = ({ restoreFocus = true, fromHistory = false } = {}) => {
     inspector.hidden = true;
     workspace.classList.remove("has-analysis-inspector");
     workspace.dataset.mobileWorkspaceView = "chat";
+    document.documentElement.classList.remove("vh-mobile-sheet-open");
+    inspector.removeAttribute("aria-modal");
+    mobileButtons.forEach((button) => {
+      button.classList.toggle("is-active", button.dataset.mobileWorkspaceView === "chat");
+      button.setAttribute(
+        "aria-current",
+        button.dataset.mobileWorkspaceView === "chat" ? "page" : "false",
+      );
+    });
+    if (isMobile() && state.sheetHistoryActive && !fromHistory) {
+      state.sheetHistoryActive = false;
+      window.history.back();
+    } else if (fromHistory) {
+      state.sheetHistoryActive = false;
+    }
+    if (restoreFocus && state.returnFocus instanceof HTMLElement) state.returnFocus.focus();
   };
 
   const setTab = (name) => {
-    state.activeTab = name;
+    const valid = tabs.some((tab) => tab.dataset.inspectorTab === name) ? name : "overview";
+    state.activeTab = valid;
     tabs.forEach((tab) => {
-      const selected = tab.dataset.inspectorTab === name;
+      const selected = tab.dataset.inspectorTab === valid;
       tab.classList.toggle("is-active", selected);
       tab.setAttribute("aria-selected", selected ? "true" : "false");
+      tab.tabIndex = selected ? 0 : -1;
     });
     panels.forEach((panel) => {
-      panel.hidden = panel.dataset.inspectorPanel !== name;
+      panel.hidden = panel.dataset.inspectorPanel !== valid;
     });
   };
 
-  const setMobileView = (name) => {
-    workspace.dataset.mobileWorkspaceView = name;
-    if (name !== "chat") {
-      showInspector();
-      setTab(name === "analysis" ? "overview" : name);
+  const setMobileView = (name, trigger = null) => {
+    const view = name === "chat" ? "chat" : "analysis";
+    workspace.dataset.mobileWorkspaceView = view;
+    if (view === "chat") {
+      hideInspector();
+    } else {
+      showInspector({ trigger });
+      setTab("overview");
     }
     mobileButtons.forEach((button) => {
-      button.classList.toggle("is-active", button.dataset.mobileWorkspaceView === name);
+      const selected = button.dataset.mobileWorkspaceView === view;
+      button.classList.toggle("is-active", selected);
+      button.setAttribute("aria-current", selected ? "page" : "false");
     });
   };
 
   const updateArtifact = () => {
-    const attachment = state.attachment || state.plan?.artifact || {};
-    const artifact = state.plan?.artifact || attachment;
+    const subject = state.projection?.subject || {};
+    const attachment = state.plan?.artifact || state.attachment || {};
     elements.filename.textContent = text(
-      artifact.original_filename || attachment.original_filename || "Android application",
+      subject.label || attachment.original_filename || "Selected assessment",
     );
-    const digest = text(artifact.artifact_sha256 || attachment.artifact_sha256);
-    elements.digest.textContent = digest ? `${digest.slice(0, 18)}…${digest.slice(-8)}` : "Pending";
+    const digest = text(subject.sha256 || attachment.artifact_sha256);
+    elements.digest.textContent = digest
+      ? `${digest.slice(0, 18)}…${digest.slice(-8)}`
+      : selectedAssessmentId() || "Pending";
     const packageName =
       state.execution?.progress?.result_summary?.captures
         ?.find((capture) => capture.tool === "androguard")
-        ?.evidence?.structured?.package_name || "Pending analysis";
+        ?.evidence?.structured?.package_name || pretty(state.projection?.assessment_kind || "assessment");
     elements.package.textContent = text(packageName);
-    const dex = Number(artifact.dex_count || attachment.dex_count || 0);
-    const nativeCount = Number(
-      artifact.native_library_count || attachment.native_library_count || 0,
-    );
-    const size = formatBytes(artifact.size_bytes || attachment.size_bytes || 0);
-    elements.inventory.textContent = `${size} · ${dex} DEX${nativeCount ? ` · ${nativeCount} native` : ""}`;
+    const dex = Number(attachment.dex_count || 0);
+    const nativeCount = Number(attachment.native_library_count || 0);
+    const size = Number(attachment.size_bytes || 0);
+    elements.inventory.textContent = size
+      ? `${formatBytes(size)} · ${dex} DEX${nativeCount ? ` · ${nativeCount} native` : ""}`
+      : "Authoritative assessment scope";
   };
 
   const planTools = () => {
@@ -138,7 +186,7 @@
     if (!tools.length) {
       const empty = document.createElement("p");
       empty.className = "vh-inspector-empty";
-      empty.textContent = "Tools appear after the governed plan is created.";
+      empty.textContent = "Tools appear after an authorised plan is persisted.";
       elements.tools.append(empty);
       return;
     }
@@ -160,15 +208,22 @@
     });
   };
 
+  const authoritativeEvents = () => {
+    const persisted = safeArray(state.execution?.progress?.events);
+    if (persisted.length) return persisted;
+    const latest = state.taskCard?.activity?.latest_event;
+    return latest ? [latest] : [];
+  };
+
   const updateEvents = () => {
     elements.events.replaceChildren();
-    const events = safeArray(state.execution?.progress?.events).slice(-40).reverse();
+    const events = authoritativeEvents().slice(-40).reverse();
     if (!events.length) {
       const empty = document.createElement("li");
       empty.className = "vh-inspector-empty";
-      empty.textContent = state.plan
-        ? "Waiting for the signed worker to publish its first progress receipt."
-        : "Activity appears after an APK plan is submitted.";
+      empty.textContent = hasAuthoritativeAssessment()
+        ? "No persisted activity receipt is available yet."
+        : "Select an assessment to view persisted activity.";
       elements.events.append(empty);
       return;
     }
@@ -177,11 +232,11 @@
       const stamp = document.createElement("time");
       const parsed = new Date(text(event.at));
       stamp.textContent = Number.isNaN(parsed.valueOf())
-        ? "--:--:--"
+        ? "Recorded"
         : parsed.toLocaleTimeString([], { hour12: false });
       const copy = document.createElement("span");
-      copy.textContent = text(event.detail || "Worker progress updated.");
-      if (event.tool_state) item.className = `is-${text(event.tool_state)}`;
+      copy.textContent = text(event.detail || `${pretty(event.stage)} · ${pretty(event.status)}`);
+      if (event.tool_state || event.status) item.className = `is-${text(event.tool_state || event.status)}`;
       item.append(stamp, copy);
       elements.events.append(item);
     });
@@ -195,7 +250,10 @@
     const candidates = safeArray(hunt()?.candidates).filter(
       (candidate) => candidate.state !== "rejected",
     );
-    elements.findingsCount.textContent = String(candidates.length);
+    const authoritativeCount = Number(state.projection?.findings?.candidate_count);
+    elements.findingsCount.textContent = String(
+      Number.isInteger(authoritativeCount) ? authoritativeCount : candidates.length,
+    );
     elements.emptyFindings.hidden = candidates.length > 0;
     candidates.forEach((candidate) => {
       const item = document.createElement("article");
@@ -220,7 +278,10 @@
   const updateArtifacts = () => {
     elements.artifacts.replaceChildren();
     const captures = safeArray(resultSummary().captures);
-    elements.artifactsCount.textContent = String(captures.length);
+    const authoritativeCount = Number(state.projection?.evidence?.record_count);
+    elements.artifactsCount.textContent = String(
+      Number.isInteger(authoritativeCount) ? authoritativeCount : captures.length,
+    );
     elements.emptyArtifacts.hidden = captures.length > 0;
     captures.forEach((capture) => {
       const item = document.createElement("article");
@@ -234,17 +295,7 @@
       digest.textContent = `Evidence ${text(capture.output_sha256).slice(0, 24)}…`;
       const metrics = document.createElement("p");
       const evidence = capture.evidence && typeof capture.evidence === "object" ? capture.evidence : {};
-      if (capture.tool === "jadx") {
-        metrics.textContent = `${Number(evidence.source_files || 0)} source files · ${formatBytes(evidence.generated_bytes || 0)}`;
-      } else if (capture.tool === "androguard") {
-        const structured = evidence.structured || {};
-        metrics.textContent = `${Number(structured.class_count || 0)} classes · ${safeArray(structured.permissions).length} permissions`;
-      } else if (capture.tool === "yara") {
-        const structured = evidence.structured || {};
-        metrics.textContent = `${safeArray(structured.matches).length} reviewed rule matches · ${Number(structured.scanned_files || 0)} files`;
-      } else {
-        metrics.textContent = text(evidence.library || "Bounded structured receipt stored");
-      }
+      metrics.textContent = text(evidence.library || "Bounded structured receipt stored");
       item.append(title, meta, digest, metrics);
       elements.artifacts.append(item);
     });
@@ -258,11 +309,9 @@
     elements.graphCount.textContent = String(nodes.filter((node) => node.kind === "candidate").length);
     elements.emptyGraph.hidden = nodes.length > 0;
     if (!nodes.length) return;
-
     const canvas = document.createElement("div");
     canvas.className = "vh-evidence-graph-canvas";
-    const kinds = ["artifact", "tool", "component", "candidate"];
-    kinds.forEach((kind) => {
+    ["artifact", "tool", "component", "candidate"].forEach((kind) => {
       const columnNodes = nodes.filter((node) => node.kind === kind);
       if (!columnNodes.length) return;
       const column = document.createElement("section");
@@ -277,7 +326,7 @@
         const label = document.createElement("strong");
         label.textContent = text(node.label);
         const meta = document.createElement("span");
-        meta.textContent = `${pretty(node.state)}${node.severity && node.severity !== "info" ? ` · ${pretty(node.severity)}` : ""}`;
+        meta.textContent = pretty(node.state || "observed");
         card.append(label, meta);
         column.append(card);
       });
@@ -286,39 +335,40 @@
     elements.graph.append(canvas);
     const summary = document.createElement("p");
     summary.className = "vh-evidence-graph-summary";
-    summary.textContent = `${Number(graph.verified_paths || 0)} verified condition path${Number(graph.verified_paths || 0) === 1 ? "" : "s"} · ${Number(graph.evidence_required_paths || 0)} requiring more evidence · ${edges.length} evidence-bound relations`;
+    summary.textContent = `${Number(graph.verified_paths || 0)} verified paths · ${Number(
+      graph.evidence_required_paths || 0,
+    )} requiring evidence · ${edges.length} relations`;
     elements.graph.append(summary);
   };
 
   const updateProgress = () => {
-    const execution = state.execution || state.plan?.execution || { state: "prepared" };
-    const progress = execution.progress || {};
-    const toolStates = currentToolStates();
-    const values = Object.values(toolStates);
-    const terminal = values.filter((value) => ["completed", "failed", "blocked"].includes(value)).length;
-    const percent = values.length
-      ? Math.round((terminal / values.length) * 100)
-      : execution.state === "completed"
-        ? 100
-        : state.plan
-          ? 8
-          : 0;
-    elements.progress.style.setProperty("--vh-analysis-progress", `${percent}%`);
-    elements.progressValue.textContent = `${percent}%`;
-    elements.state.textContent = pretty(execution.state || "prepared");
-    const activeTool = progress.active_tool;
-    const lastEvent = safeArray(progress.events).at(-1);
-    elements.stage.textContent = activeTool
-      ? `Running ${pretty(activeTool)}`
-      : text(lastEvent?.detail || (state.plan ? "Plan prepared" : "APK validated"));
+    const projection = state.projection || {};
+    const taskCard = state.taskCard || {};
+    const stage = taskCard.current_stage || {};
+    const completed = Number(taskCard.stage_progress?.completed);
+    const total = Number(taskCard.stage_progress?.total);
+    const measured =
+      Number.isInteger(completed) && Number.isInteger(total) && total > 0 && completed <= total;
+    elements.progress.style.setProperty(
+      "--vh-analysis-progress",
+      measured ? `${Math.round((completed / total) * 100)}%` : "0%",
+    );
+    elements.progressValue.textContent = measured ? `${completed} of ${total}` : "—";
+    elements.progressValue.setAttribute(
+      "aria-label",
+      measured ? `${completed} of ${total} persisted stages complete` : "Progress unavailable",
+    );
+    elements.state.textContent = pretty(projection.execution?.state || taskCard.state || "unavailable");
+    elements.stage.textContent = stage.stage
+      ? `${pretty(stage.stage)} · ${pretty(stage.status || "pending")}`
+      : "No persisted current stage is available.";
   };
 
   const render = () => {
-    if (!state.attachment && !state.plan) {
-      hideInspector();
+    if (!hasAuthoritativeAssessment()) {
+      hideInspector({ restoreFocus: false });
       return;
     }
-    showInspector();
     updateArtifact();
     updateProgress();
     updateTools();
@@ -328,38 +378,88 @@
     updateGraph();
   };
 
-  tabs.forEach((tab) => {
+  tabs.forEach((tab, index) => {
     tab.addEventListener("click", () => setTab(tab.dataset.inspectorTab || "overview"));
+    tab.addEventListener("keydown", (event) => {
+      if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+      event.preventDefault();
+      let next = index;
+      if (event.key === "ArrowLeft") next = (index - 1 + tabs.length) % tabs.length;
+      if (event.key === "ArrowRight") next = (index + 1) % tabs.length;
+      if (event.key === "Home") next = 0;
+      if (event.key === "End") next = tabs.length - 1;
+      tabs[next].focus();
+      setTab(tabs[next].dataset.inspectorTab || "overview");
+    });
   });
   mobileButtons.forEach((button) => {
-    button.addEventListener("click", () => setMobileView(button.dataset.mobileWorkspaceView || "chat"));
+    button.addEventListener("click", () =>
+      setMobileView(button.dataset.mobileWorkspaceView || "chat", button),
+    );
   });
   close?.addEventListener("click", () => setMobileView("chat"));
 
+  document.addEventListener("keydown", (event) => {
+    if (inspector.hidden || !isMobile()) return;
+    if (event.key === "Escape") {
+      event.preventDefault();
+      hideInspector();
+      return;
+    }
+    if (event.key !== "Tab") return;
+    const items = focusable();
+    if (!items.length) return;
+    const first = items[0];
+    const last = items.at(-1);
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  });
+
+  window.addEventListener("popstate", () => {
+    if (!inspector.hidden && isMobile()) hideInspector({ fromHistory: true });
+  });
+
   document.addEventListener("vh:mobile-attachment", (event) => {
     state.attachment = event.detail || null;
-    state.plan = null;
-    state.execution = null;
-    setTab("overview");
-    render();
   });
   document.addEventListener("vh:mobile-plan", (event) => {
     if (!event.detail) return;
     state.plan = event.detail;
     state.attachment = event.detail.artifact || state.attachment;
     state.execution = event.detail.execution || null;
-    setTab("overview");
-    render();
   });
   document.addEventListener("vh:mobile-status", (event) => {
     state.execution = event.detail || null;
+  });
+  document.addEventListener("vh:mobile-projection", (event) => {
+    const payload = event.detail || {};
+    const projection = payload.assessment_projection || null;
+    const taskCard = payload.task_card || projection?.task_card || null;
+    if (!projection || taskCard?.assessment_id !== projection.assessment_id) {
+      state.projection = null;
+      state.taskCard = null;
+      render();
+      return;
+    }
+    state.projection = projection;
+    state.taskCard = taskCard;
+    state.plan = payload.mobile_plan || state.plan;
+    state.execution = payload.mobile_execution || state.plan?.execution || state.execution;
+    setTab(state.activeTab);
     render();
   });
   document.addEventListener("vh:mobile-reset", () => {
     state.attachment = null;
     state.plan = null;
     state.execution = null;
-    hideInspector();
+    state.projection = null;
+    state.taskCard = null;
+    hideInspector({ restoreFocus: false });
   });
 
   setTab("overview");

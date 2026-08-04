@@ -102,24 +102,30 @@
             <span aria-hidden="true">+</span>
           </button>
           <input type="file" name="attachment" accept=".apk,application/vnd.android.package-archive" data-conversation-file hidden>
-          <textarea id="vh-chat-message" name="message" rows="1" maxlength="4000" autocomplete="off" spellcheck="true" placeholder="Message VulnHunter — describe a target, attach an APK, or ask about a finding" data-conversation-input required></textarea>
-          <label class="vh-reasoning-control" title="Reasoning level for the next answer">
-            <span class="vh-visually-hidden">Reasoning level</span>
-            <select name="reasoning_effort" data-reasoning-effort aria-label="Reasoning level">
-              <option value="low"{% if conversation.reasoning_effort == "low" %} selected{% endif %}>Low</option>
-              <option value="medium"{% if conversation.reasoning_effort == "medium" %} selected{% endif %}>Medium</option>
-              <option value="high"{% if conversation.reasoning_effort == "high" %} selected{% endif %}>High</option>
-            </select>
-          </label>
+          <textarea id="vh-chat-message" name="message" rows="1" maxlength="4000" autocomplete="off" spellcheck="true" placeholder="Describe an authorised website, attach an APK, or ask about a finding" data-conversation-input required></textarea>
           <button type="submit" class="vh-chat-send" data-conversation-send aria-label="Send message">
             <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m4 12 16-8-5.5 16-3.2-6.8z"/><path d="m11.3 13.2 4.6-4.6"/></svg>
           </button>
         </div>
         <div class="vh-chat-composer-meta">
-          <span><b data-reasoning-copy>{{ conversation.reasoning_effort|title }}</b> reasoning · Website and APK assessments start here · Enter to send</span>
-          <span class="vh-provider-runtime{% if groq.live_verified %} is-ready{% elif groq.configured %} is-warning{% else %} is-offline{% endif %}" data-provider-runtime title="{{ groq.label }}">
-            {% if groq.live_verified %}Groq live{% elif groq.configured %}Groq needs verified restart{% else %}Groq unavailable{% endif %}
-          </span>
+          <span>Website and APK assessments start here · Enter to send</span>
+          <details class="vh-composer-advanced" data-composer-advanced>
+            <summary>Advanced settings</summary>
+            <div class="vh-composer-advanced-body">
+              <label class="vh-reasoning-control" title="Reasoning level for the next answer">
+                <span>Answer detail</span>
+                <select name="reasoning_effort" data-reasoning-effort aria-label="Answer detail">
+                  <option value="low"{% if conversation.reasoning_effort == "low" %} selected{% endif %}>Brief</option>
+                  <option value="medium"{% if conversation.reasoning_effort == "medium" %} selected{% endif %}>Balanced</option>
+                  <option value="high"{% if conversation.reasoning_effort == "high" %} selected{% endif %}>Detailed</option>
+                </select>
+              </label>
+              <p><b data-reasoning-copy>{{ conversation.reasoning_effort|title }}</b> answer detail</p>
+              <p class="vh-provider-runtime{% if groq.live_verified %} is-ready{% elif groq.configured %} is-warning{% else %} is-offline{% endif %}" data-provider-runtime title="{{ groq.label }}">
+                {% if groq.live_verified %}Advisory provider ready{% elif groq.configured %}Advisory provider needs operator verification{% else %}Advisory provider unavailable; deterministic workflows remain available{% endif %}
+              </p>
+            </div>
+          </details>
         </div>
       </form>
     </main>

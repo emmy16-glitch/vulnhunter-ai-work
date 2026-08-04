@@ -73,7 +73,9 @@
   const select = control.querySelector("[data-provider-preference]");
   const preferenceStatus = control.querySelector("[data-provider-preference-status]");
   select.value = state.preference;
-  composerMeta.insertBefore(control, runtime);
+  const providerContainer = runtime.parentElement;
+  if (!providerContainer || !providerContainer.contains(runtime)) return;
+  providerContainer.insertBefore(control, runtime);
 
   const progress = document.createElement("div");
   progress.className = "vh-llm-progress";

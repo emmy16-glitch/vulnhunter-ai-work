@@ -4,6 +4,7 @@
   const originalFetch = window.fetch.bind(window);
   const retryUrl = "/workspace/mobile-retry/";
   const retryStoragePrefix = "vh-mobile-retry:";
+  let refreshGeneration = 0;
 
   const setMobileNavigation = (visible) => {
     const navigation = document.querySelector("[data-mobile-workspace-nav]");
@@ -30,11 +31,17 @@
     );
   };
 
+  const invalidatePendingRefresh = () => {
+    refreshGeneration += 1;
+  };
+
   const replaceSelectedAssessment = (payload) => {
+    invalidatePendingRefresh();
     withAssessmentStore((store) => store.replace(payload || {}));
   };
 
   const clearSelectedAssessment = () => {
+    invalidatePendingRefresh();
     setMobileNavigation(false);
     withAssessmentStore((store) => store.clear());
   };
@@ -259,6 +266,7 @@
   };
 
   const refreshSelectedAssessment = async () => {
+    const generation = ++refreshGeneration;
     if (!retryCard()) {
       clearSelectedAssessment();
       return;
@@ -270,11 +278,13 @@
         headers: { Accept: "application/json" },
         cache: "no-store",
       });
+      if (generation !== refreshGeneration) return;
       if (response.status === 404) {
         clearSelectedAssessment();
         return;
       }
       const payload = await response.json();
+      if (generation !== refreshGeneration) return;
       if (response.ok) replaceSelectedAssessment(payload);
     } catch (_error) {
       return;

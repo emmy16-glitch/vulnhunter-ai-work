@@ -2,10 +2,7 @@ from vulnhunter.web.dashboard_dispatch_views import entry_route_for_roles
 
 
 def test_adjudicator_enters_the_adjudication_queue_before_review_work():
-    assert (
-        entry_route_for_roles(("reviewer", "adjudicator"))
-        == "web-adjudication-queue"
-    )
+    assert entry_route_for_roles(("reviewer", "adjudicator")) == "web-adjudication-queue"
 
 
 def test_reviewer_enters_the_assigned_review_queue():

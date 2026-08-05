@@ -1,7 +1,7 @@
-from pathlib import Path
+import pathlib
 
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = pathlib.Path(__file__).resolve().parents[2]
 TEMPLATE = ROOT / "vulnhunter" / "web" / "templates" / "web" / "conversation.html"
 
 

@@ -96,10 +96,10 @@ def test_inspector_tabs_have_keyboard_roving_focus():
 def test_assessment_empty_states_are_compact_ordinary_language_statuses():
     template = _text(TEMPLATE)
     for copy in (
-        "Analysis has not started yet.",
-        "No reviewed findings yet.",
-        "No saved evidence yet.",
-        "No evidence links yet.",
+        "Select an assessment to view its analysis status.",
+        "Select an assessment to view reviewed findings.",
+        "Select an assessment to view saved evidence.",
+        "Select an assessment to view evidence links.",
     ):
         assert copy in template
     assert template.count('role="status"') == 4
@@ -114,13 +114,13 @@ def test_assessment_inspector_uses_task_language_before_system_language():
     for copy in (
         "Assessment details",
         "Assessment ID",
-        "Choose an assessment to see its scope.",
+        "Select an assessment to see its scope.",
         "Analysis progress",
         "Saved analysis state",
         "Activity",
         "Saved events",
-        "Analysis worker",
-        "Execution status",
+        "Analysis status",
+        "Saved execution state",
     ):
         assert copy in template
     for implementation_copy in (

@@ -1,6 +1,5 @@
 import pathlib
 
-
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 TEMPLATE = ROOT / "vulnhunter" / "web" / "templates" / "web" / "conversation.html"
 

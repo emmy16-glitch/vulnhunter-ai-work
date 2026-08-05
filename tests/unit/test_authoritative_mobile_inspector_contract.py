@@ -110,6 +110,7 @@ def test_assessment_empty_states_are_compact_ordinary_language_statuses():
 
 def test_assessment_inspector_uses_task_language_before_system_language():
     template = _text(TEMPLATE)
+    assert 'data-contract-name="Assessment Inspector"' in template
     for copy in (
         "Assessment details",
         "Assessment ID",
@@ -123,7 +124,7 @@ def test_assessment_inspector_uses_task_language_before_system_language():
     ):
         assert copy in template
     for implementation_copy in (
-        "Assessment Inspector",
+        ">Assessment Inspector<",
         "Persisted worker state only",
         "Signed or persisted receipts",
         "Separate from assessment and provider health",

@@ -96,13 +96,39 @@ def test_inspector_tabs_have_keyboard_roving_focus():
 def test_assessment_empty_states_are_compact_ordinary_language_statuses():
     template = _text(TEMPLATE)
     for copy in (
-        "No worker is assigned yet.",
+        "Analysis has not started yet.",
         "No reviewed findings yet.",
-        "No evidence receipts yet.",
-        "No evidence relationships yet.",
+        "No saved evidence yet.",
+        "No evidence links yet.",
     ):
         assert copy in template
     assert template.count('role="status"') == 4
     assert template.count('aria-live="polite"') == 3
     assert "until a real worker observation has been persisted and judged" not in template
     assert "The graph is created only from real target" not in template
+
+
+def test_assessment_inspector_uses_task_language_before_system_language():
+    template = _text(TEMPLATE)
+    assert 'data-contract-name="Assessment Inspector"' in template
+    for copy in (
+        "Assessment details",
+        "Assessment ID",
+        "Choose an assessment to see its scope.",
+        "Analysis progress",
+        "Saved analysis state",
+        "Activity",
+        "Saved events",
+        "Analysis worker",
+        "Execution status",
+    ):
+        assert copy in template
+    for implementation_copy in (
+        ">Assessment Inspector<",
+        "Persisted worker state only",
+        "Signed or persisted receipts",
+        "Separate from assessment and provider health",
+        "No evidence receipts yet.",
+        "No evidence relationships yet.",
+    ):
+        assert implementation_copy not in template

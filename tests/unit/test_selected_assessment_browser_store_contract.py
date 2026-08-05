@@ -2,14 +2,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "vulnhunter" / "web" / "static" / "web" / "workspace-state.js"
-INSPECTOR = (
-    ROOT
-    / "vulnhunter"
-    / "web"
-    / "templates"
-    / "web"
-    / "_mobile_analysis_inspector.html"
-)
+INSPECTOR = ROOT / "vulnhunter" / "web" / "templates" / "web" / "_mobile_analysis_inspector.html"
 
 
 def _script() -> str:

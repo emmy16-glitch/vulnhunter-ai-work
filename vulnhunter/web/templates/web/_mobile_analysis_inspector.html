@@ -6,24 +6,24 @@
         <button type="button" class="vh-analysis-inspector-close" data-analysis-inspector-close aria-label="Return to conversation">×</button>
       </div>
       <div class="vh-analysis-progress-row">
-        <div><strong data-inspector-state>Unavailable</strong><p data-inspector-stage>Select an assessment to view saved details.</p></div>
+        <div><strong data-inspector-state>Not selected</strong><p data-inspector-stage>Select an assessment to view its saved progress.</p></div>
         <b data-inspector-progress-value aria-label="Progress unavailable">—</b>
         <div class="vh-analysis-progress" data-inspector-progress aria-label="Saved stage progress"></div>
       </div>
     </header>
 
     <dl class="vh-analysis-artifact">
-      <div><dt>Subject</dt><dd data-inspector-filename data-inspector-target>No active assessment</dd></div>
-      <div><dt>Assessment ID</dt><dd><code data-inspector-digest data-inspector-run-id>Pending</code></dd></div>
-      <div><dt>Mode</dt><dd data-inspector-package data-inspector-mode>Website, APK or source</dd></div>
-      <div><dt>Scope</dt><dd data-inspector-inventory data-inspector-scope>Choose an assessment to see its scope.</dd></div>
+      <div><dt>Subject</dt><dd data-inspector-filename data-inspector-target>Select an assessment</dd></div>
+      <div><dt>Assessment ID</dt><dd><code data-inspector-digest data-inspector-run-id>Not available</code></dd></div>
+      <div><dt>Mode</dt><dd data-inspector-package data-inspector-mode>Not available</dd></div>
+      <div><dt>Scope</dt><dd data-inspector-inventory data-inspector-scope>Select an assessment to see its scope.</dd></div>
     </dl>
 
     <div class="vh-analysis-tabs" role="tablist" aria-label="Assessment inspector views">
       <button type="button" role="tab" class="is-active" data-inspector-tab="overview" aria-selected="true" aria-controls="vh-inspector-overview">Overview</button>
-      <button type="button" role="tab" data-inspector-tab="findings" aria-selected="false" aria-controls="vh-inspector-findings" tabindex="-1">Findings <b data-inspector-findings-count>0</b></button>
-      <button type="button" role="tab" data-inspector-tab="artifacts" aria-selected="false" aria-controls="vh-inspector-artifacts" tabindex="-1">Evidence <b data-inspector-artifacts-count>0</b></button>
-      <button type="button" role="tab" data-inspector-tab="graph" aria-selected="false" aria-controls="vh-inspector-graph" tabindex="-1">Graph <b data-inspector-graph-count>0</b></button>
+      <button type="button" role="tab" data-inspector-tab="findings" aria-selected="false" aria-controls="vh-inspector-findings" tabindex="-1">Findings <b data-inspector-findings-count aria-label="Finding count unavailable">—</b></button>
+      <button type="button" role="tab" data-inspector-tab="artifacts" aria-selected="false" aria-controls="vh-inspector-artifacts" tabindex="-1">Evidence <b data-inspector-artifacts-count aria-label="Evidence count unavailable">—</b></button>
+      <button type="button" role="tab" data-inspector-tab="graph" aria-selected="false" aria-controls="vh-inspector-graph" tabindex="-1">Graph <b data-inspector-graph-count aria-label="Evidence-link count unavailable">—</b></button>
     </div>
 
     <div class="vh-analysis-panels">
@@ -37,24 +37,24 @@
           <ol class="vh-inspector-events" data-inspector-events></ol>
         </div>
         <div class="vh-analysis-section">
-          <div class="vh-analysis-section-heading"><h3>Analysis worker</h3><small>Execution status</small></div>
-          <p class="vh-inspector-empty" data-inspector-worker role="status">Analysis has not started yet.</p>
+          <div class="vh-analysis-section-heading"><h3>Analysis status</h3><small>Saved execution state</small></div>
+          <p class="vh-inspector-empty" data-inspector-worker role="status">Select an assessment to view its analysis status.</p>
         </div>
       </section>
 
       <!-- Reference contract: No finding is shown until a real worker observation -->
       <section id="vh-inspector-findings" class="vh-analysis-panel" data-inspector-panel="findings" role="tabpanel" aria-label="Evidence-backed findings" hidden>
-        <p class="vh-inspector-empty" data-inspector-empty-findings role="status" aria-live="polite">No reviewed findings yet.</p>
+        <p class="vh-inspector-empty" data-inspector-empty-findings role="status" aria-live="polite">Select an assessment to view reviewed findings.</p>
         <div class="vh-inspector-finding-list" data-inspector-findings></div>
       </section>
 
       <section id="vh-inspector-artifacts" class="vh-analysis-panel" data-inspector-panel="artifacts" role="tabpanel" aria-label="Assessment evidence" hidden>
-        <p class="vh-inspector-empty" data-inspector-empty-artifacts role="status" aria-live="polite">No saved evidence yet.</p>
+        <p class="vh-inspector-empty" data-inspector-empty-artifacts role="status" aria-live="polite">Select an assessment to view saved evidence.</p>
         <div class="vh-inspector-artifact-list" data-inspector-artifacts></div>
       </section>
 
       <section id="vh-inspector-graph" class="vh-analysis-panel" data-inspector-panel="graph" role="tabpanel" aria-label="Evidence graph" hidden>
-        <p class="vh-inspector-empty" data-inspector-empty-graph role="status" aria-live="polite">No evidence links yet.</p>
+        <p class="vh-inspector-empty" data-inspector-empty-graph role="status" aria-live="polite">Select an assessment to view evidence links.</p>
         <div data-inspector-graph></div>
       </section>
     </div>

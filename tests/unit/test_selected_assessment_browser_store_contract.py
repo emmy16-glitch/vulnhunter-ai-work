@@ -2,10 +2,15 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "vulnhunter" / "web" / "static" / "web" / "workspace-state.js"
+INSPECTOR = ROOT / "vulnhunter" / "web" / "templates" / "web" / "_mobile_analysis_inspector.html"
 
 
 def _script() -> str:
     return SCRIPT.read_text(encoding="utf-8")
+
+
+def _inspector() -> str:
+    return INSPECTOR.read_text(encoding="utf-8")
 
 
 def test_browser_store_accepts_only_matching_authoritative_projection_and_task_card():
@@ -63,3 +68,18 @@ def test_browser_store_does_not_mutate_inspector_or_navigation_ui():
         'classList.add("is-open")',
     ):
         assert forbidden not in script
+
+
+def test_unselected_inspector_does_not_present_zero_counts_or_pending_identity_as_data():
+    inspector = _inspector()
+    assert ">Not selected<" in inspector
+    assert ">Select an assessment<" in inspector
+    assert ">Not available<" in inspector
+    assert 'aria-label="Finding count unavailable">—<' in inspector
+    assert 'aria-label="Evidence count unavailable">—<' in inspector
+    assert 'aria-label="Evidence-link count unavailable">—<' in inspector
+    assert ">No active assessment<" not in inspector
+    assert ">Pending<" not in inspector
+    assert "data-inspector-findings-count>0<" not in inspector
+    assert "data-inspector-artifacts-count>0<" not in inspector
+    assert "data-inspector-graph-count>0<" not in inspector

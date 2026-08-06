@@ -11,6 +11,7 @@
   const tabs = [...inspector.querySelectorAll("[data-inspector-tab]")];
   const allowedTabs = new Set(tabs.map((tab) => tab.dataset.inspectorTab).filter(Boolean));
   const routeKeys = ["assessment", "inspector"];
+  const routeStateKey = "vhMobileInspector";
   let selectedAssessmentId = "";
   let restoringRoute = false;
   let unsubscribe = null;
@@ -24,41 +25,67 @@
     };
   };
 
-  const writeRoute = ({ assessmentId = "", tab = "" } = {}) => {
+  const writeRoute = (
+    { assessmentId = "", tab = "" } = {},
+    { mode = "replace" } = {},
+  ) => {
     const url = new URL(window.location.href);
     routeKeys.forEach((key) => url.searchParams.delete(key));
-    if (assessmentId && allowedTabs.has(tab)) {
+    const hasRoute = Boolean(assessmentId && allowedTabs.has(tab));
+    if (hasRoute) {
       url.searchParams.set("assessment", assessmentId);
       url.searchParams.set("inspector", tab);
     }
-    window.history.replaceState(window.history.state, "", url);
+    if (url.href === window.location.href) return;
+    const state = { ...(window.history.state || {}), [routeStateKey]: hasRoute };
+    const method = mode === "push" ? "pushState" : "replaceState";
+    window.history[method](state, "", url);
   };
 
   const activeTab = () =>
     tabs.find((tab) => tab.getAttribute("aria-selected") === "true")?.dataset.inspectorTab ||
     "overview";
 
+  const showChatWithoutPublishing = () => {
+    if (inspector.hidden) return;
+    restoringRoute = true;
+    chatButton?.click();
+    restoringRoute = false;
+  };
+
   const clearRoute = () => {
     if (restoringRoute) return;
     const current = route();
-    if (current.assessmentId || current.tab) writeRoute();
+    if (!current.assessmentId && !current.tab) return;
+    if (window.history.state?.[routeStateKey] === true) {
+      window.history.back();
+      return;
+    }
+    writeRoute();
   };
 
   const publishCurrentRoute = () => {
     if (restoringRoute || !isMobile() || inspector.hidden || !selectedAssessmentId) return;
-    writeRoute({ assessmentId: selectedAssessmentId, tab: activeTab() });
+    const next = { assessmentId: selectedAssessmentId, tab: activeTab() };
+    const current = route();
+    if (current.assessmentId === next.assessmentId && current.tab === next.tab) return;
+    writeRoute(next, { mode: "push" });
   };
 
   const restoreRoute = () => {
     if (!isMobile()) return;
     const current = route();
-    if (!current.assessmentId && !current.tab) return;
+    if (!current.assessmentId && !current.tab) {
+      showChatWithoutPublishing();
+      return;
+    }
     if (
       !selectedAssessmentId ||
       current.assessmentId !== selectedAssessmentId ||
       !allowedTabs.has(current.tab)
     ) {
       writeRoute();
+      showChatWithoutPublishing();
       return;
     }
 
@@ -66,7 +93,6 @@
     analysisButton?.click();
     tabs.find((tab) => tab.dataset.inspectorTab === current.tab)?.click();
     restoringRoute = false;
-    publishCurrentRoute();
   };
 
   const applySelectedAssessment = (snapshot) => {
@@ -74,6 +100,7 @@
     const current = route();
     if (!selectedAssessmentId && (current.assessmentId || current.tab)) {
       writeRoute();
+      showChatWithoutPublishing();
       return;
     }
     restoreRoute();
@@ -94,7 +121,10 @@
 
   window.addEventListener("popstate", () => window.queueMicrotask(restoreRoute));
   window.addEventListener("resize", () => {
-    if (!isMobile()) clearRoute();
+    if (!isMobile()) {
+      writeRoute();
+      showChatWithoutPublishing();
+    }
   });
   document.addEventListener("vh:selected-assessment-store-ready", (event) => bindStore(event.detail));
 

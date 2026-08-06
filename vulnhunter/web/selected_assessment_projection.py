@@ -79,7 +79,9 @@ def _assert_measured_progress(task_card: Mapping[str, object]) -> None:
     completed = _non_negative_integer(progress.get("completed"))
     total = _non_negative_integer(progress.get("total"))
     if completed is None or total is None or total == 0 or completed > total:
-        raise ValueError("Measured task progress requires bounded persisted completed and total values.")
+        raise ValueError(
+            "Measured task progress requires bounded persisted completed and total values."
+        )
     required = {"measurement", "completed", "total"}
     if measurement == "stage":
         required.add("stage")

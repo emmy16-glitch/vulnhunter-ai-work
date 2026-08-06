@@ -123,4 +123,13 @@ def test_activity_stream_rejects_invalid_sequence(client, settings, monkeypatch)
     )
 
     assert response.status_code == 400
-    assert "must be integers" in response.json()["detail"]
+    error = response.json()["error"]
+    assert error["code"] == "assessment_activity_cursor_invalid"
+    assert "must be integers" in error["message"]
+    assert error["retryable"] is False
+    assert error["assessment_id"] == "run-stream"
+    assert error["action"] == {
+        "label": "Return to assessment history",
+        "method": "GET",
+        "url": "/assessments/",
+    }

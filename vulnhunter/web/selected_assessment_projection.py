@@ -24,6 +24,7 @@ _REQUIRED_SURFACES = frozenset(
         "reports",
     }
 )
+_REQUIRED_RESULT_SURFACES = frozenset({"evidence", "findings", "graph", "reports"})
 
 
 def _map(value: object) -> Mapping[str, object]:
@@ -55,6 +56,7 @@ def assert_selected_assessment_invariants(projection: Mapping[str, object]) -> N
     assessment_kind = _text(projection.get("assessment_kind"))
     graph_id = _text(projection.get("graph_id"))
     surfaces = _map(projection.get("surface_identity"))
+    result_identity = _map(projection.get("result_identity"))
     task_card = _map(projection.get("task_card"))
     health = _map(projection.get("health"))
     execution = _map(projection.get("execution"))
@@ -70,6 +72,11 @@ def assert_selected_assessment_invariants(projection: Mapping[str, object]) -> N
         _text(surfaces.get(surface)) != assessment_id for surface in _REQUIRED_SURFACES
     ):
         raise ValueError("Every browser surface must bind to the selected assessment.")
+    if set(result_identity) != _REQUIRED_RESULT_SURFACES or any(
+        _text(result_identity.get(surface)) != assessment_id
+        for surface in _REQUIRED_RESULT_SURFACES
+    ):
+        raise ValueError("Every result projection must bind to the selected assessment.")
     if _text(task_card.get("assessment_id")) != assessment_id:
         raise ValueError("The persisted task card must bind to the selected assessment.")
     if _text(execution.get("state")) is None:

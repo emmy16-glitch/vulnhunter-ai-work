@@ -29,6 +29,15 @@ def _projection(
             "reports",
         )
     }
+    result_identity = {
+        name: assessment_id
+        for name in (
+            "findings",
+            "evidence",
+            "graph",
+            "reports",
+        )
+    }
     return {
         "assessment_id": assessment_id,
         "assessment_kind": kind,
@@ -36,6 +45,7 @@ def _projection(
         "selected": True,
         "projection_revision": revision,
         "surface_identity": surfaces,
+        "result_identity": result_identity,
         "task_card": {"assessment_id": assessment_id},
         "execution": {"state": state},
         "health": {
@@ -114,6 +124,21 @@ def test_cross_surface_identity_is_rejected():
     projection = _projection()
     projection["surface_identity"]["reports"] = "another-assessment"
     with pytest.raises(ValueError, match="Every browser surface"):
+        assert_selected_assessment_invariants(projection)
+
+
+@pytest.mark.parametrize("surface", ["findings", "evidence", "graph", "reports"])
+def test_cross_assessment_result_identity_is_rejected(surface: str):
+    projection = _projection()
+    projection["result_identity"][surface] = "another-assessment"
+    with pytest.raises(ValueError, match="Every result projection"):
+        assert_selected_assessment_invariants(projection)
+
+
+def test_missing_result_identity_is_rejected():
+    projection = _projection()
+    projection.pop("result_identity")
+    with pytest.raises(ValueError, match="Every result projection"):
         assert_selected_assessment_invariants(projection)
 
 

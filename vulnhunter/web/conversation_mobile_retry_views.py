@@ -151,8 +151,7 @@ def mobile_retry_view(request: HttpRequest) -> JsonResponse:
             request,
             code="mobile_retry_projection_refresh_unavailable",
             message=(
-                "The refreshed mobile assessment could not be projected from "
-                "authoritative state."
+                "The refreshed mobile assessment could not be projected from authoritative state."
             ),
             status=409,
             retryable=True,

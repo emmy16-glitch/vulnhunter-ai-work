@@ -38,6 +38,14 @@ def _projection(
             "reports",
         )
     }
+    terminal = state in {"blocked", "failed", "gated", "rejected", "completed", "cancelled"}
+    assessment_health = "in_progress"
+    if state == "completed":
+        assessment_health = "completed"
+    elif state == "cancelled":
+        assessment_health = "cancelled"
+    elif state in {"blocked", "failed", "gated", "rejected"}:
+        assessment_health = "attention_required"
     return {
         "assessment_id": assessment_id,
         "assessment_kind": kind,
@@ -46,11 +54,15 @@ def _projection(
         "projection_revision": revision,
         "surface_identity": surfaces,
         "result_identity": result_identity,
-        "task_card": {"assessment_id": assessment_id},
+        "task_card": {
+            "assessment_id": assessment_id,
+            "state": state,
+            "terminal": terminal,
+        },
         "execution": {"state": state},
         "health": {
-            "assessment": "in_progress",
-            "worker": "active",
+            "assessment": assessment_health,
+            "worker": "active" if not terminal else "available",
             "provider": "not_evaluated",
         },
     }
@@ -144,8 +156,29 @@ def test_missing_result_identity_is_rejected():
 
 def test_task_card_identity_is_rejected():
     projection = _projection()
-    projection["task_card"] = {"assessment_id": "another-assessment"}
+    projection["task_card"]["assessment_id"] = "another-assessment"
     with pytest.raises(ValueError, match="persisted task card"):
+        assert_selected_assessment_invariants(projection)
+
+
+def test_task_card_state_must_match_execution_state():
+    projection = _projection(state="running")
+    projection["task_card"]["state"] = "completed"
+    with pytest.raises(ValueError, match="task card must agree"):
+        assert_selected_assessment_invariants(projection)
+
+
+def test_task_card_terminal_flag_must_match_execution_state():
+    projection = _projection(state="completed")
+    projection["task_card"]["terminal"] = False
+    with pytest.raises(ValueError, match="terminal flag"):
+        assert_selected_assessment_invariants(projection)
+
+
+def test_assessment_health_must_match_execution_state():
+    projection = _projection(state="failed")
+    projection["health"]["assessment"] = "completed"
+    with pytest.raises(ValueError, match="Assessment health"):
         assert_selected_assessment_invariants(projection)
 
 
@@ -153,6 +186,15 @@ def test_health_dimensions_cannot_collapse_into_one_generic_state():
     projection = _projection()
     projection["health"] = {"assessment": "failed"}
     with pytest.raises(ValueError, match="must remain separate"):
+        assert_selected_assessment_invariants(projection)
+
+
+@pytest.mark.parametrize("state", [None, "", "unknown", "finished"])
+def test_execution_state_must_be_supported(state: object):
+    projection = _projection()
+    projection["execution"]["state"] = state
+    projection["task_card"]["state"] = state
+    with pytest.raises(ValueError, match="supported execution state"):
         assert_selected_assessment_invariants(projection)
 
 

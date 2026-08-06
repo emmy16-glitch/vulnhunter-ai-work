@@ -4,6 +4,7 @@ ROOT = Path(__file__).resolve().parents[2]
 STATIC = ROOT / "vulnhunter" / "web" / "static" / "web"
 TEMPLATES = ROOT / "vulnhunter" / "web" / "templates" / "web"
 SCRIPT = STATIC / "conversation-mobile-inspector.js"
+ROUTE = STATIC / "conversation-mobile-inspector-route.js"
 STORE = STATIC / "workspace-state.js"
 TEMPLATE = TEMPLATES / "_mobile_analysis_inspector.html"
 
@@ -82,6 +83,26 @@ def test_mobile_sheet_supports_focus_escape_and_android_back_semantics():
         'inspector.removeAttribute("aria-modal")',
     ):
         assert token in script
+
+
+def test_mobile_inspector_route_is_assessment_scoped_and_restorable():
+    route = _text(ROUTE)
+    template = _text(TEMPLATE)
+    assert "conversation-mobile-inspector-route.js" in template
+    for token in (
+        'url.searchParams.set("assessment", assessmentId)',
+        'url.searchParams.set("inspector", tab)',
+        "current.assessmentId !== selectedAssessmentId",
+        "!allowedTabs.has(current.tab)",
+        "analysisButton?.click()",
+        'window.addEventListener("popstate"',
+        'window.addEventListener("resize"',
+        "store.subscribe(applySelectedAssessment)",
+        "applySelectedAssessment(store.getSnapshot())",
+    ):
+        assert token in route
+    assert 'url.searchParams.set("assessment", current.assessmentId)' not in route
+    assert "writeRoute();" in route
 
 
 def test_inspector_tabs_have_keyboard_roving_focus():

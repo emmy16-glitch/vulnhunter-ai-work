@@ -18,7 +18,18 @@ _SUPPORTED_SCOPES = frozenset({"worker_activation", "worker_status"})
 
 
 class MobileRetryError(ValueError):
-    """Raised when a retry request conflicts with authoritative assessment state."""
+    """Typed conflict raised when a retry cannot preserve authoritative state."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        code: str = "mobile_retry_conflict",
+        retryable: bool = False,
+    ) -> None:
+        super().__init__(message)
+        self.code = code
+        self.retryable = retryable
 
 
 class _Session(Protocol):
@@ -74,15 +85,27 @@ def _failure_contract(plan: dict[str, object]) -> tuple[str, dict[str, object], 
     assessment_id = _text(plan.get("run_id"))
     execution = plan.get("execution")
     if assessment_id is None or not isinstance(execution, dict):
-        raise MobileRetryError("A retry requires one selected persisted assessment execution.")
+        raise MobileRetryError(
+            "A retry requires one selected persisted assessment execution.",
+            code="mobile_retry_assessment_missing",
+        )
     failure = execution.get("failure")
     if not isinstance(failure, dict):
-        raise MobileRetryError("The selected assessment has no persisted retryable failure.")
+        raise MobileRetryError(
+            "The selected assessment has no persisted retryable failure.",
+            code="mobile_retry_not_available",
+        )
     if failure.get("safe_retry") is not True:
-        raise MobileRetryError("The persisted failure does not permit a retry.")
+        raise MobileRetryError(
+            "The persisted failure does not permit a retry.",
+            code="mobile_retry_not_allowed",
+        )
     persisted_scope = _text(failure.get("retry_scope"))
     if persisted_scope not in _SUPPORTED_SCOPES:
-        raise MobileRetryError("The persisted failure has no supported exact retry scope.")
+        raise MobileRetryError(
+            "The persisted failure has no supported exact retry scope.",
+            code="mobile_retry_scope_unsupported",
+        )
     return assessment_id, execution, failure
 
 
@@ -110,12 +133,21 @@ def retry_mobile_execution(
     persisted_scope = _text(failure.get("retry_scope"))
     reviewer_id = _text(requested_by)
     if reviewer_id is None:
-        raise MobileRetryError("A retry requires one authenticated reviewer identity.")
+        raise MobileRetryError(
+            "A retry requires one authenticated reviewer identity.",
+            code="mobile_retry_identity_required",
+        )
     if exact_scope != persisted_scope:
-        raise MobileRetryError("The requested retry scope does not match the persisted failure.")
+        raise MobileRetryError(
+            "The requested retry scope does not match the persisted failure.",
+            code="mobile_retry_scope_mismatch",
+        )
     key_text = _text(idempotency_key)
     if key_text is None or len(key_text) > 200:
-        raise MobileRetryError("A bounded idempotency key is required for retry execution.")
+        raise MobileRetryError(
+            "A bounded idempotency key is required for retry execution.",
+            code="mobile_retry_idempotency_key_invalid",
+        )
 
     ledger_key = _retry_key(
         assessment_id=assessment_id,
@@ -126,27 +158,37 @@ def retry_mobile_execution(
     ledger = _load_ledger(request)
     replay = ledger.get(ledger_key)
     if replay is not None:
-        return deepcopy(replay)
+        replayed = deepcopy(replay)
+        replayed["retry_replayed"] = True
+        return replayed
 
     previous_attempts = _attempt_history(execution)
     attempt_number = len(previous_attempts) + 1
     if exact_scope == "worker_status":
         job_id = _text(execution.get("job_id"))
         if job_id is None:
-            raise MobileRetryError("A worker-status retry requires the preserved worker job.")
+            raise MobileRetryError(
+                "A worker-status retry requires the preserved worker job.",
+                code="mobile_retry_preserved_job_missing",
+            )
         retried = mobile_static_status(
             request,
             job_id=job_id,
             requested_by=reviewer_id,
         )
         if retried is None:
-            raise MobileRetryError("The preserved worker job is unavailable to this session.")
+            raise MobileRetryError(
+                "The preserved worker job is temporarily unavailable to this session.",
+                code="mobile_retry_preserved_job_unavailable",
+                retryable=True,
+            )
     elif exact_scope == "worker_activation":
         attachment_id = _text(getattr(attachment, "artifact_id", None))
         artifact_id = _text(getattr(artifact, "artifact_id", None))
         if attachment_id is None or artifact_id is None or attachment_id != artifact_id:
             raise MobileRetryError(
-                "A worker-activation retry requires the preserved verified artifact binding."
+                "A worker-activation retry requires the preserved verified artifact binding.",
+                code="mobile_retry_artifact_binding_missing",
             )
         retried = enqueue_mobile_static_if_ready(
             request,
@@ -156,7 +198,10 @@ def retry_mobile_execution(
             requested_by=reviewer_id,
         )
     else:  # pragma: no cover
-        raise MobileRetryError("The requested retry scope is not supported.")
+        raise MobileRetryError(
+            "The requested retry scope is not supported.",
+            code="mobile_retry_scope_unsupported",
+        )
 
     receipt = deepcopy(retried)
     receipt["retry_scope"] = exact_scope

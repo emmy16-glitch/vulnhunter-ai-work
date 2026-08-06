@@ -27,8 +27,7 @@ def _projection(progress: dict[str, object]) -> dict[str, object]:
             )
         },
         "result_identity": {
-            surface: assessment_id
-            for surface in ("evidence", "findings", "graph", "reports")
+            surface: assessment_id for surface in ("evidence", "findings", "graph", "reports")
         },
         "task_card": {
             "assessment_id": assessment_id,

@@ -131,5 +131,5 @@ def test_activity_stream_rejects_invalid_sequence(client, settings, monkeypatch)
     assert error["action"] == {
         "label": "Return to assessment history",
         "method": "GET",
-        "url": "/assessments/",
+        "url": "/scans/",
     }

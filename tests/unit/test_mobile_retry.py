@@ -64,15 +64,15 @@ def test_status_retry_is_idempotent_and_marks_replayed_receipt(monkeypatch):
 
     assert calls == ["job-one"]
     assert first["state"] == replay["state"] == "completed"
-    assert first["receipt"] == replay["receipt"] == {
-        "captures": [{"capture_id": "capture-one"}]
-    }
+    assert first["receipt"] == replay["receipt"] == {"captures": [{"capture_id": "capture-one"}]}
     assert first["retry_attempt"] == replay["retry_attempt"] == 1
     assert first["retry_replayed"] is False
     assert replay["retry_replayed"] is True
-    assert first["retry_attempts"] == replay["retry_attempts"] == [
-        {"attempt": 1, "scope": "worker_status", "state": "completed"}
-    ]
+    assert (
+        first["retry_attempts"]
+        == replay["retry_attempts"]
+        == [{"attempt": 1, "scope": "worker_status", "state": "completed"}]
+    )
     assert "retry-click-one" not in repr(request.session)
 
 

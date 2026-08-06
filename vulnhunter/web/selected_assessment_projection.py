@@ -35,6 +35,19 @@ def _text(value: object) -> str | None:
     return text or None
 
 
+def _revision(projection: Mapping[str, object]) -> int:
+    revision = projection.get("projection_revision")
+    if isinstance(revision, bool) or not isinstance(revision, int) or revision < 0:
+        raise ValueError("Selected assessment state requires a non-negative projection revision.")
+    return revision
+
+
+def _payload_without_contract(projection: Mapping[str, object]) -> dict[str, object]:
+    payload = deepcopy(dict(projection))
+    payload.pop("projection_contract", None)
+    return payload
+
+
 def assert_selected_assessment_invariants(projection: Mapping[str, object]) -> None:
     """Reject contradictory or incomplete cross-workflow assessment state."""
 
@@ -52,6 +65,7 @@ def assert_selected_assessment_invariants(projection: Mapping[str, object]) -> N
         raise ValueError("Selected assessment state uses an unsupported assessment kind.")
     if projection.get("selected") is not True:
         raise ValueError("Selected assessment state must identify the current assessment.")
+    _revision(projection)
     if set(surfaces) != _REQUIRED_SURFACES or any(
         _text(surfaces.get(surface)) != assessment_id for surface in _REQUIRED_SURFACES
     ):
@@ -85,11 +99,31 @@ def replace_selected_assessment(
     """Atomically replace browser state with one authoritative server snapshot.
 
     Missing incoming state clears the selection. A different assessment replaces the
-    old snapshot completely; state is never merged across assessments or workflows.
+    old snapshot completely. For the same assessment, projection revisions are
+    monotonic so a delayed poll, reconnect response, or timeout-after-success replay
+    cannot roll the browser back to older lifecycle or result state.
     """
 
-    del current
-    return selected_assessment_projection(incoming)
+    replacement = selected_assessment_projection(incoming)
+    if replacement is None or current is None:
+        return replacement
+
+    existing = selected_assessment_projection(current)
+    assert existing is not None
+    if _text(existing.get("assessment_id")) != _text(replacement.get("assessment_id")):
+        return replacement
+
+    current_revision = _revision(existing)
+    incoming_revision = _revision(replacement)
+    if incoming_revision < current_revision:
+        return existing
+    if incoming_revision == current_revision:
+        if _payload_without_contract(existing) != _payload_without_contract(replacement):
+            raise ValueError(
+                "The same selected-assessment revision cannot describe different state."
+            )
+        return existing
+    return replacement
 
 
 __all__ = [

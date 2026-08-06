@@ -25,6 +25,16 @@ _REQUIRED_SURFACES = frozenset(
     }
 )
 _REQUIRED_RESULT_SURFACES = frozenset({"evidence", "findings", "graph", "reports"})
+_ACTIVE_STATES = frozenset({"prepared", "queued", "claimed", "running", "cancelling"})
+_FAILURE_STATES = frozenset({"blocked", "failed", "gated", "rejected"})
+_TERMINAL_STATES = _FAILURE_STATES | {"completed", "cancelled"}
+_SUPPORTED_EXECUTION_STATES = _ACTIVE_STATES | _TERMINAL_STATES
+_EXPECTED_ASSESSMENT_HEALTH = {
+    "completed": "completed",
+    "cancelled": "cancelled",
+    **{state: "attention_required" for state in _FAILURE_STATES},
+    **{state: "in_progress" for state in _ACTIVE_STATES},
+}
 
 
 def _map(value: object) -> Mapping[str, object]:
@@ -60,6 +70,7 @@ def assert_selected_assessment_invariants(projection: Mapping[str, object]) -> N
     task_card = _map(projection.get("task_card"))
     health = _map(projection.get("health"))
     execution = _map(projection.get("execution"))
+    execution_state = _text(execution.get("state"))
 
     if assessment_id is None or graph_id is None:
         raise ValueError("Selected assessment state requires assessment and graph identifiers.")
@@ -79,11 +90,17 @@ def assert_selected_assessment_invariants(projection: Mapping[str, object]) -> N
         raise ValueError("Every result projection must bind to the selected assessment.")
     if _text(task_card.get("assessment_id")) != assessment_id:
         raise ValueError("The persisted task card must bind to the selected assessment.")
-    if _text(execution.get("state")) is None:
-        raise ValueError("Selected assessment state requires an execution state.")
+    if execution_state not in _SUPPORTED_EXECUTION_STATES:
+        raise ValueError("Selected assessment state requires one supported execution state.")
+    if _text(task_card.get("state")) != execution_state:
+        raise ValueError("The persisted task card must agree with the execution state.")
+    if task_card.get("terminal") is not (execution_state in _TERMINAL_STATES):
+        raise ValueError("The persisted task card terminal flag must agree with execution state.")
     for dimension in ("assessment", "provider", "worker"):
         if _text(health.get(dimension)) is None:
             raise ValueError("Assessment, provider, and worker health must remain separate.")
+    if _text(health.get("assessment")) != _EXPECTED_ASSESSMENT_HEALTH[execution_state]:
+        raise ValueError("Assessment health must agree with the authoritative execution state.")
 
 
 def selected_assessment_projection(

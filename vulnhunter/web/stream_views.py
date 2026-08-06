@@ -8,6 +8,7 @@ from datetime import UTC, datetime
 
 from django.contrib.auth.decorators import login_required
 from django.http import Http404, HttpRequest, JsonResponse, StreamingHttpResponse
+from django.urls import reverse
 from django.views.decorators.cache import cache_control
 from django.views.decorators.http import require_GET
 
@@ -19,6 +20,40 @@ from vulnhunter.web.services import (
     product_service,
     run_readable_to_actor,
 )
+
+
+def _activity_error(
+    request: HttpRequest,
+    *,
+    code: str,
+    message: str,
+    status: int,
+    retryable: bool,
+    run_id: str,
+) -> JsonResponse:
+    """Return a typed recovery contract for activity polling and reconnect clients."""
+
+    payload: dict[str, object] = {
+        "error": {
+            "code": code,
+            "message": message,
+            "retryable": retryable,
+        }
+    }
+    if retryable:
+        payload["error"]["action"] = {
+            "label": "Try again",
+            "method": "GET",
+            "url": request.get_full_path(),
+        }
+    else:
+        payload["error"]["action"] = {
+            "label": "Return to assessment history",
+            "method": "GET",
+            "url": reverse("web-scan-run-list"),
+        }
+    payload["error"]["assessment_id"] = run_id
+    return JsonResponse(payload, status=status)
 
 
 def _after_sequence_or_error(request: HttpRequest) -> int:
@@ -92,19 +127,40 @@ def agent_activity_stream_view(request: HttpRequest, run_id: str):
     try:
         actor = authorized_actor(request.user, required_actions=("audit.read", "scan.read"))
     except WebPermissionDenied:
-        return JsonResponse({"detail": "forbidden"}, status=403)
+        return _activity_error(
+            request,
+            code="assessment_activity_forbidden",
+            message="You do not have permission to view this assessment activity.",
+            status=403,
+            retryable=False,
+            run_id=run_id,
+        )
 
     try:
         after_sequence = _after_sequence_or_error(request)
     except ValueError as exc:
-        return JsonResponse({"detail": str(exc)}, status=400)
+        return _activity_error(
+            request,
+            code="assessment_activity_cursor_invalid",
+            message=str(exc),
+            status=400,
+            retryable=False,
+            run_id=run_id,
+        )
 
     try:
         run = product_service().get_agent_run(run_id)
     except ProductNotFoundError as exc:
         raise Http404(str(exc)) from exc
     except ProductServiceError:
-        return JsonResponse({"detail": "assessment service unavailable"}, status=503)
+        return _activity_error(
+            request,
+            code="assessment_activity_temporarily_unavailable",
+            message="Assessment activity is temporarily unavailable. Your saved assessment data has not been discarded.",
+            status=503,
+            retryable=True,
+            run_id=run_id,
+        )
     if not run_readable_to_actor(run, actor):
         raise Http404("Assessment run does not exist.")
 

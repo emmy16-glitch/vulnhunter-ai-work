@@ -30,7 +30,7 @@ def _plan(*, scope: str, job_id: str | None = "job-one") -> dict[str, object]:
     return {"run_id": "mobile-run-one", "execution": execution}
 
 
-def test_status_retry_is_idempotent_and_preserves_one_attempt(monkeypatch):
+def test_status_retry_is_idempotent_and_marks_replayed_receipt(monkeypatch):
     request = _request()
     calls: list[str] = []
 
@@ -63,13 +63,16 @@ def test_status_retry_is_idempotent_and_preserves_one_attempt(monkeypatch):
     )
 
     assert calls == ["job-one"]
-    assert first == replay
-    assert first["state"] == "completed"
-    assert first["receipt"] == {"captures": [{"capture_id": "capture-one"}]}
-    assert first["retry_attempt"] == 1
-    assert first["retry_attempts"] == [
-        {"attempt": 1, "scope": "worker_status", "state": "completed"}
-    ]
+    assert first["state"] == replay["state"] == "completed"
+    assert first["receipt"] == replay["receipt"] == {"captures": [{"capture_id": "capture-one"}]}
+    assert first["retry_attempt"] == replay["retry_attempt"] == 1
+    assert first["retry_replayed"] is False
+    assert replay["retry_replayed"] is True
+    assert (
+        first["retry_attempts"]
+        == replay["retry_attempts"]
+        == [{"attempt": 1, "scope": "worker_status", "state": "completed"}]
+    )
     assert "retry-click-one" not in repr(request.session)
 
 
@@ -103,7 +106,7 @@ def test_same_idempotency_key_is_isolated_by_reviewer(monkeypatch):
 
 
 def test_retry_rejects_scope_different_from_persisted_failure():
-    with pytest.raises(MobileRetryError, match="does not match"):
+    with pytest.raises(MobileRetryError, match="does not match") as raised:
         retry_mobile_execution(
             _request(),
             plan=_plan(scope="worker_status"),
@@ -112,12 +115,15 @@ def test_retry_rejects_scope_different_from_persisted_failure():
             idempotency_key="retry-one",
         )
 
+    assert raised.value.code == "mobile_retry_scope_mismatch"
+    assert raised.value.retryable is False
+
 
 def test_retry_rejects_failure_without_safe_retry():
     plan = _plan(scope="worker_status")
     plan["execution"]["failure"]["safe_retry"] = False
 
-    with pytest.raises(MobileRetryError, match="does not permit"):
+    with pytest.raises(MobileRetryError, match="does not permit") as raised:
         retry_mobile_execution(
             _request(),
             plan=plan,
@@ -126,9 +132,11 @@ def test_retry_rejects_failure_without_safe_retry():
             idempotency_key="retry-one",
         )
 
+    assert raised.value.code == "mobile_retry_not_allowed"
+
 
 def test_status_retry_requires_preserved_job():
-    with pytest.raises(MobileRetryError, match="preserved worker job"):
+    with pytest.raises(MobileRetryError, match="preserved worker job") as raised:
         retry_mobile_execution(
             _request(),
             plan=_plan(scope="worker_status", job_id=None),
@@ -137,14 +145,16 @@ def test_status_retry_requires_preserved_job():
             idempotency_key="retry-one",
         )
 
+    assert raised.value.code == "mobile_retry_preserved_job_missing"
 
-def test_status_retry_rejects_job_not_owned_by_session(monkeypatch):
+
+def test_status_retry_marks_temporarily_unavailable_job_retryable(monkeypatch):
     monkeypatch.setattr(
         "vulnhunter.web.mobile_retry.mobile_static_status",
         lambda *_args, **_kwargs: None,
     )
 
-    with pytest.raises(MobileRetryError, match="unavailable to this session"):
+    with pytest.raises(MobileRetryError, match="temporarily unavailable") as raised:
         retry_mobile_execution(
             _request(),
             plan=_plan(scope="worker_status"),
@@ -153,9 +163,12 @@ def test_status_retry_rejects_job_not_owned_by_session(monkeypatch):
             idempotency_key="retry-one",
         )
 
+    assert raised.value.code == "mobile_retry_preserved_job_unavailable"
+    assert raised.value.retryable is True
+
 
 def test_activation_retry_requires_verified_artifact_binding():
-    with pytest.raises(MobileRetryError, match="verified artifact binding"):
+    with pytest.raises(MobileRetryError, match="verified artifact binding") as raised:
         retry_mobile_execution(
             _request(),
             plan=_plan(scope="worker_activation", job_id=None),
@@ -163,6 +176,8 @@ def test_activation_retry_requires_verified_artifact_binding():
             retry_scope="worker_activation",
             idempotency_key="retry-one",
         )
+
+    assert raised.value.code == "mobile_retry_artifact_binding_missing"
 
 
 def test_activation_retry_rejects_mismatched_artifact_binding():
@@ -212,6 +227,7 @@ def test_activation_retry_replays_without_second_enqueue(monkeypatch):
     )
 
     assert calls == 1
-    assert first == replay
-    assert first["state"] == "queued"
-    assert first["retry_attempt"] == 1
+    assert first["state"] == replay["state"] == "queued"
+    assert first["retry_attempt"] == replay["retry_attempt"] == 1
+    assert first["retry_replayed"] is False
+    assert replay["retry_replayed"] is True

@@ -19,6 +19,30 @@ from vulnhunter.web.mobile_retry import MobileRetryError, retry_mobile_execution
 from vulnhunter.web.services import WebPermissionDenied
 
 
+def _error_response(
+    request: HttpRequest,
+    *,
+    code: str,
+    message: str,
+    status: int,
+    retryable: bool,
+    assessment_id: str | None = None,
+) -> JsonResponse:
+    error: dict[str, object] = {
+        "code": code,
+        "message": message,
+        "retryable": retryable,
+        "action": {
+            "label": "Try again" if retryable else "Return to assessment history",
+            "method": "POST" if retryable else "GET",
+            "url": request.get_full_path() if retryable else reverse("web-scan-run-list"),
+        },
+    }
+    if assessment_id:
+        error["assessment_id"] = assessment_id
+    return JsonResponse({"error": error}, status=status)
+
+
 def _retry_attachment(plan: dict[str, object]) -> ConversationAttachment | None:
     return ConversationAttachment.from_payload(plan.get("artifact"))
 
@@ -27,14 +51,23 @@ def _selected_plan(request: HttpRequest) -> tuple[object, dict[str, object] | No
     try:
         actor = _actor(request, "scan.create")
     except WebPermissionDenied as exc:
-        return JsonResponse({"detail": str(exc)}, status=403)
+        return _error_response(
+            request,
+            code="mobile_retry_forbidden",
+            message=str(exc),
+            status=403,
+            retryable=False,
+        )
 
     requested_by = actor.governance_identity.reviewer_id
     plan = current_mobile_plan(request, requested_by=requested_by)
     if plan is None:
-        return JsonResponse(
-            {"detail": "No mobile assessment is selected in this conversation."},
+        return _error_response(
+            request,
+            code="mobile_retry_assessment_not_selected",
+            message="No mobile assessment is selected in this conversation.",
             status=404,
+            retryable=False,
         )
     return actor, plan
 
@@ -61,18 +94,21 @@ def mobile_retry_view(request: HttpRequest) -> JsonResponse:
     if isinstance(selected, JsonResponse):
         return selected
     actor, plan = selected
+    assessment_id = str(plan.get("run_id") or "").strip() or None
 
     if request.method == "GET":
         payload = _projection_payload(plan)
         if payload is None:
-            return JsonResponse(
-                {
-                    "detail": (
-                        "The selected mobile assessment could not be projected from "
-                        "authoritative state."
-                    )
-                },
+            return _error_response(
+                request,
+                code="mobile_retry_projection_unavailable",
+                message=(
+                    "The selected mobile assessment could not be projected from "
+                    "authoritative state."
+                ),
                 status=409,
+                retryable=False,
+                assessment_id=assessment_id,
             )
         return JsonResponse(payload)
 
@@ -93,7 +129,14 @@ def mobile_retry_view(request: HttpRequest) -> JsonResponse:
             artifact=artifact,
         )
     except MobileRetryError as exc:
-        return JsonResponse({"detail": str(exc)}, status=409)
+        return _error_response(
+            request,
+            code=exc.code,
+            message=str(exc),
+            status=409,
+            retryable=exc.retryable,
+            assessment_id=assessment_id,
+        )
 
     refreshed = deepcopy(plan)
     if execution.get("state") == "queued" and execution.get("job_id"):
@@ -104,14 +147,15 @@ def mobile_retry_view(request: HttpRequest) -> JsonResponse:
     refreshed["execution"] = execution
     payload = _projection_payload(refreshed)
     if payload is None:
-        return JsonResponse(
-            {
-                "detail": (
-                    "The refreshed mobile assessment could not be projected from "
-                    "authoritative state."
-                )
-            },
+        return _error_response(
+            request,
+            code="mobile_retry_projection_refresh_unavailable",
+            message=(
+                "The refreshed mobile assessment could not be projected from authoritative state."
+            ),
             status=409,
+            retryable=True,
+            assessment_id=assessment_id,
         )
     remember_mobile_plan(request, refreshed)
     return JsonResponse(payload)

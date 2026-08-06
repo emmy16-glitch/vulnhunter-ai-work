@@ -56,8 +56,15 @@ def _projection(
         "result_identity": result_identity,
         "task_card": {
             "assessment_id": assessment_id,
+            "activity_timeline_id": f"activity-{assessment_id}",
             "state": state,
             "terminal": terminal,
+            "progress": {
+                "measurement": "stage",
+                "completed": 4 if terminal else 2,
+                "total": 4,
+                "stage": state,
+            },
         },
         "execution": {"state": state},
         "health": {

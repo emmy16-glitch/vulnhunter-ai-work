@@ -241,20 +241,53 @@ def assessment_activity_view(request: HttpRequest, run_id: str) -> JsonResponse:
     try:
         actor = views._protected(request, required_actions=("audit.read", "scan.read"))
     except WebPermissionDenied:
-        return JsonResponse({"detail": "forbidden"}, status=403)
+        return stream_views._activity_error(
+            request,
+            code="assessment_activity_forbidden",
+            message="You do not have permission to view this assessment activity.",
+            status=403,
+            retryable=False,
+            run_id=run_id,
+        )
     try:
         run = product_service().get_agent_run(run_id)
     except ProductNotFoundError as exc:
         raise Http404(str(exc)) from exc
     except ProductServiceError:
-        return JsonResponse({"detail": "assessment service unavailable"}, status=503)
+        return stream_views._activity_error(
+            request,
+            code="assessment_activity_temporarily_unavailable",
+            message=(
+                "Assessment activity is temporarily unavailable. "
+                "Your saved assessment data has not been discarded."
+            ),
+            status=503,
+            retryable=True,
+            run_id=run_id,
+        )
     if not _run_is_visible(run, actor):
         raise Http404("Assessment run does not exist.")
     raw = request.GET.get("after_sequence", "0")
     try:
         after_sequence = max(0, int(raw))
     except (TypeError, ValueError):
-        return JsonResponse({"detail": "after_sequence must be a non-negative integer"}, status=400)
+        return stream_views._activity_error(
+            request,
+            code="assessment_activity_cursor_invalid",
+            message="after_sequence must be a non-negative integer",
+            status=400,
+            retryable=False,
+            run_id=run_id,
+        )
+    if after_sequence < 0:
+        return stream_views._activity_error(
+            request,
+            code="assessment_activity_cursor_invalid",
+            message="after_sequence must be a non-negative integer",
+            status=400,
+            retryable=False,
+            run_id=run_id,
+        )
     return JsonResponse(activity_payload(run_id, after_sequence=after_sequence))
 
 
@@ -265,17 +298,41 @@ def assessment_activity_stream_view(request: HttpRequest, run_id: str):
     try:
         actor = views._protected(request, required_actions=("audit.read", "scan.read"))
     except WebPermissionDenied:
-        return JsonResponse({"detail": "forbidden"}, status=403)
+        return stream_views._activity_error(
+            request,
+            code="assessment_activity_forbidden",
+            message="You do not have permission to view this assessment activity.",
+            status=403,
+            retryable=False,
+            run_id=run_id,
+        )
     try:
         after_sequence = stream_views._after_sequence_or_error(request)
     except ValueError as exc:
-        return JsonResponse({"detail": str(exc)}, status=400)
+        return stream_views._activity_error(
+            request,
+            code="assessment_activity_cursor_invalid",
+            message=str(exc),
+            status=400,
+            retryable=False,
+            run_id=run_id,
+        )
     try:
         run = product_service().get_agent_run(run_id)
     except ProductNotFoundError as exc:
         raise Http404(str(exc)) from exc
     except ProductServiceError:
-        return JsonResponse({"detail": "assessment service unavailable"}, status=503)
+        return stream_views._activity_error(
+            request,
+            code="assessment_activity_temporarily_unavailable",
+            message=(
+                "Assessment activity is temporarily unavailable. "
+                "Your saved assessment data has not been discarded."
+            ),
+            status=503,
+            retryable=True,
+            run_id=run_id,
+        )
     if not _run_is_visible(run, actor):
         raise Http404("Assessment run does not exist.")
 

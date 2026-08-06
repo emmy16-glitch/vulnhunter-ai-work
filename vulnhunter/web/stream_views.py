@@ -156,7 +156,10 @@ def agent_activity_stream_view(request: HttpRequest, run_id: str):
         return _activity_error(
             request,
             code="assessment_activity_temporarily_unavailable",
-            message="Assessment activity is temporarily unavailable. Your saved assessment data has not been discarded.",
+            message=(
+                "Assessment activity is temporarily unavailable. "
+                "Your saved assessment data has not been discarded."
+            ),
             status=503,
             retryable=True,
             run_id=run_id,

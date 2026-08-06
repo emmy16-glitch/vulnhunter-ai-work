@@ -50,13 +50,10 @@ def test_forbidden_and_invalid_cursor_errors_do_not_offer_retry():
 def test_canonical_polling_and_stream_routes_share_typed_recovery_contracts():
     source = _source(UNIFIED_VIEWS)
 
-    assert source.count("stream_views._activity_error(") == 6
-    for code in (
-        "assessment_activity_forbidden",
-        "assessment_activity_cursor_invalid",
-        "assessment_activity_temporarily_unavailable",
-    ):
-        assert source.count(f'code="{code}"') == 2
+    assert source.count("stream_views._activity_error(") == 7
+    assert source.count('code="assessment_activity_forbidden"') == 2
+    assert source.count('code="assessment_activity_cursor_invalid"') == 3
+    assert source.count('code="assessment_activity_temporarily_unavailable"') == 2
 
     assert 'JsonResponse({"detail": "forbidden"}' not in source
     assert 'JsonResponse({"detail": "assessment service unavailable"}' not in source

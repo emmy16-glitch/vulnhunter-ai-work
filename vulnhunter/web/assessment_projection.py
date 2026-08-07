@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
+from vulnhunter.web.workflow_projection_contract import finalize_workflow_projection
+
 _SURFACES = (
     "chat",
     "activity",
@@ -212,7 +214,9 @@ def _task_card(
     expected_bytes = _integer(progress.get("expected_bytes"))
     if expected_bytes is not None and received_bytes is not None:
         received_bytes = min(received_bytes, expected_bytes)
-    completed_stages = sum(_text(item.get("status")) in {"completed", "skipped"} for item in stages)
+    completed_stages = sum(
+        _text(item.get("status")) in {"completed", "skipped"} for item in stages
+    )
     return {
         "task_id": f"{assessment_id}:mobile-assessment",
         "assessment_id": assessment_id,
@@ -240,7 +244,7 @@ def mobile_assessment_projection(
     graph = _map(plan.get("assessment_graph"))
     assessment_id = _text(plan.get("run_id"))
     graph_id = _text(graph.get("graph_id"))
-    if assessment_id is None or graph_id is None:
+    if assessment_id is None or graph_id is None or _integer(graph.get("revision")) is None:
         return None
 
     artifact = _map(plan.get("artifact"))
@@ -326,6 +330,12 @@ def mobile_assessment_projection(
         "report": report,
         "allowed_actions": _actions(state, bool(report["ready"]), failure),
     }
+    projection = finalize_workflow_projection(
+        projection,
+        graph=graph,
+        raw_state=state,
+        assessment_kind="apk",
+    )
     assert_mobile_projection_invariants(projection)
     return projection
 

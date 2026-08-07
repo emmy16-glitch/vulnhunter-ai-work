@@ -103,4 +103,4 @@ def test_background_upload_reconciles_timeout_after_server_success():
     assert "if (await completeFromServerPayload(record, payload)) return true" in script
     assert "if (await reconcileOffset(record)) return" in script
     assert 'emit("vh:upload-complete", record)' in script
-    assert 'record.retryAt = 0' in script
+    assert "record.retryAt = 0" in script

@@ -260,7 +260,7 @@
     if (document.querySelector("script[data-conversation-premium-continuity]")) return;
     const owner = [...document.scripts].find((script) => script.src.includes("premium-interaction.js"));
     if (!owner?.src) return;
-    const scriptUrl = new URL(owner.src, window.location.href);
+    const scriptUrl = new URL(owner.src);
     scriptUrl.pathname = scriptUrl.pathname.replace(
       /premium-interaction\.js$/,
       "conversation-premium-continuity.js",

@@ -23,6 +23,7 @@
     artifactsCount: select("artifacts-count"),
     graph: select("graph"),
     graphCount: select("graph-count"),
+    graphSection: select("graph-section"),
     reports: select("reports"),
     reportsCount: select("reports-count"),
     emptyFindings: select("empty-findings"),
@@ -251,29 +252,67 @@
 
   const updateFindings = () => {
     elements.findings.replaceChildren();
-    const candidates = safeArray(hunt()?.candidates).filter(
-      (candidate) => candidate.state !== "rejected",
+    const candidates = safeArray(hunt()?.candidates).map((candidate) => ({ ...candidate }));
+    const rejected = safeArray(hunt()?.rejected).map((candidate) => ({
+      ...candidate,
+      state: "rejected",
+    }));
+    const findings = [...candidates, ...rejected];
+    const projectedFindings = state.projection?.findings || {};
+    const candidateCount = Number(projectedFindings.candidate_count);
+    const rejectedCount = Number(projectedFindings.rejected_count);
+    const hasProjectedCounts = Number.isInteger(candidateCount) && Number.isInteger(rejectedCount);
+    elements.findingsCount.textContent = hasProjectedCounts
+      ? String(candidateCount + rejectedCount)
+      : "—";
+
+    const verification = state.projection?.verification || resultSummary().verification || {};
+    const verificationStatus = text(verification.status).toLowerCase();
+    const finalVerification = ["verified", "rejected", "abstained", "mixed"].includes(
+      verificationStatus,
     );
-    const authoritativeCount = Number(state.projection?.findings?.candidate_count);
-    elements.findingsCount.textContent = String(
-      Number.isInteger(authoritativeCount) ? authoritativeCount : candidates.length,
-    );
-    elements.emptyFindings.hidden = candidates.length > 0;
-    candidates.forEach((candidate) => {
+    elements.emptyFindings.hidden = findings.length > 0 || finalVerification;
+
+    if (finalVerification) {
+      const summary = document.createElement("article");
+      summary.className = `vh-inspector-finding is-${verificationStatus}`;
+      const header = document.createElement("header");
+      const label = document.createElement("span");
+      label.textContent = "Verification";
+      const disposition = document.createElement("b");
+      disposition.textContent = pretty(verificationStatus);
+      header.append(label, disposition);
+      const title = document.createElement("strong");
+      title.textContent = "Persisted verification outcome";
+      const counts = document.createElement("p");
+      counts.textContent = `${Number(verification.verified_count || 0)} verified · ${Number(
+        verification.rejected_count || 0,
+      )} rejected · ${Number(verification.abstained_count || 0)} abstained`;
+      summary.append(header, title, counts);
+      elements.findings.append(summary);
+    }
+
+    findings.forEach((candidate) => {
+      const dispositionState = text(candidate.state || "candidate").toLowerCase();
       const item = document.createElement("article");
-      item.className = `vh-inspector-finding is-${text(candidate.state || "evidence_required")}`;
+      item.className = `vh-inspector-finding is-${dispositionState}`;
       const header = document.createElement("header");
       const severity = document.createElement("span");
       severity.textContent = pretty(candidate.severity || "unknown");
       const disposition = document.createElement("b");
-      disposition.textContent = pretty(candidate.state || "evidence_required");
+      disposition.textContent = pretty(dispositionState);
       header.append(severity, disposition);
       const title = document.createElement("strong");
       title.textContent = text(candidate.title || "Candidate observation");
       const component = document.createElement("small");
       component.textContent = text(candidate.component || candidate.weakness_id || "Application surface");
       const reason = document.createElement("p");
-      reason.textContent = text(candidate.disposition_reason || "Additional evidence is required.");
+      reason.textContent = text(
+        candidate.disposition_reason ||
+          (dispositionState === "candidate"
+            ? "Candidate observation awaiting verification."
+            : "Persisted assessment disposition."),
+      );
       item.append(header, title, component, reason);
       elements.findings.append(item);
     });
@@ -310,9 +349,13 @@
     const graph = resultSummary().graph;
     const nodes = safeArray(graph?.nodes);
     const edges = safeArray(graph?.edges);
-    elements.graphCount.textContent = String(nodes.filter((node) => node.kind === "candidate").length);
-    elements.emptyGraph.hidden = nodes.length > 0;
-    if (!nodes.length) return;
+    const meaningful = nodes.length > 1 && edges.length > 0;
+    if (elements.graphSection) elements.graphSection.hidden = !meaningful;
+    elements.graphCount.textContent = meaningful
+      ? String(nodes.filter((node) => node.kind === "candidate").length)
+      : "—";
+    elements.emptyGraph.hidden = meaningful;
+    if (!meaningful) return;
     const canvas = document.createElement("div");
     canvas.className = "vh-evidence-graph-canvas";
     ["artifact", "tool", "component", "candidate"].forEach((kind) => {

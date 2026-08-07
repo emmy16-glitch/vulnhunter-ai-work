@@ -7,6 +7,7 @@ from vulnhunter.hunt.mobile_runtime import MobileHuntExecutionReceipt
 from vulnhunter.mobile.models import MobileArtifactRecord
 from vulnhunter.mobile.static_service import (
     _report_summary,
+    _review_summary,
     _verification_summary,
     create_mobile_static_job,
 )
@@ -57,7 +58,22 @@ def test_empty_candidate_set_abstains_instead_of_inventing_a_verified_finding():
     }
 
 
-def test_report_identity_is_deterministic_and_bound_to_assessment_artifact_and_hunt(tmp_path):
+def test_deterministic_review_receipt_cannot_claim_finding_or_publication_authority():
+    hunt = _hunt(verified=0, rejected=0, abstained=0)
+    verification = _verification_summary(hunt)
+
+    review = _review_summary(hunt=hunt, verification=verification)
+
+    assert review["status"] == "completed"
+    assert len(review["receipt_sha256"]) == 64
+    assert review["summary"]["finding_confirmation"] is False
+    assert review["summary"]["publication_authority"] is False
+    assert review["summary"]["scope"] == "deterministic_evidence_disposition"
+
+
+def test_report_identity_is_deterministic_and_bound_to_assessment_artifact_hunt_and_review(
+    tmp_path,
+):
     key = b"r" * 48
     job = create_mobile_static_job(
         run_id="mobile-report-01",
@@ -71,18 +87,21 @@ def test_report_identity_is_deterministic_and_bound_to_assessment_artifact_and_h
     artifact = _artifact(tmp_path)
     hunt = _hunt(verified=0, rejected=0, abstained=0)
     verification = _verification_summary(hunt)
+    review = _review_summary(hunt=hunt, verification=verification)
 
     first = _report_summary(
         job=job,
         artifact=artifact,
         hunt=hunt,
         verification=verification,
+        review=review,
     )
     second = _report_summary(
         job=job,
         artifact=artifact,
         hunt=hunt,
         verification=verification,
+        review=review,
     )
 
     assert first == second
@@ -92,3 +111,4 @@ def test_report_identity_is_deterministic_and_bound_to_assessment_artifact_and_h
     assert first["summary"]["assessment_id"] == job.run_id
     assert first["summary"]["artifact_sha256"] == artifact.sha256
     assert first["summary"]["hunt_receipt_sha256"] == hunt.receipt_sha256
+    assert first["summary"]["review_receipt_sha256"] == review["receipt_sha256"]

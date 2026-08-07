@@ -53,6 +53,7 @@ def _plan(*, execution_state: str = "queued") -> dict[str, object]:
         },
         "assessment_graph": {
             "graph_id": "mobile-aabbccddeeff00112233-graph",
+            "revision": 3,
             "workspace_id": "workspace-aabbccddeeff00112233",
             "assessment_kind": "apk",
             "authorization_id": "attachment-aabbccddeeff00112233",
@@ -130,6 +131,8 @@ def test_mobile_projection_exposes_one_id_for_every_assessment_surface():
     assert projection["graph_id"] == "mobile-aabbccddeeff00112233-graph"
     assert projection["workspace_id"] == "workspace-aabbccddeeff00112233"
     assert projection["selected"] is True
+    assert projection["projection_contract"] == "selected-assessment/v1"
+    assert projection["projection_revision"] == 3
     assert set(projection["surface_identity"]) == {
         "chat",
         "activity",
@@ -141,6 +144,7 @@ def test_mobile_projection_exposes_one_id_for_every_assessment_surface():
         "reports",
     }
     assert set(projection["surface_identity"].values()) == {"mobile-aabbccddeeff00112233"}
+    assert set(projection["result_identity"].values()) == {"mobile-aabbccddeeff00112233"}
     assert projection["subject"]["label"] == "Digi Volt.apk"
     assert projection["lifecycle"] == "collecting_evidence"
     assert projection["execution"]["state"] == "queued"
@@ -183,6 +187,13 @@ def test_mobile_projection_exposes_one_id_for_every_assessment_surface():
         "available": False,
         "scope": None,
         "user_action": None,
+    }
+    assert projection["task_card"]["activity_timeline_id"] == projection["graph_id"]
+    assert projection["task_card"]["progress"] == {
+        "measurement": "stage",
+        "completed": 3,
+        "total": 8,
+        "stage": "execution",
     }
     assert len(projection["stages"]) == 8
 
@@ -272,6 +283,12 @@ def test_retryable_failure_projects_exact_actionable_task_card_contract():
 
 def test_incomplete_legacy_plan_does_not_invent_an_active_assessment():
     assert mobile_assessment_projection({"artifact": {"artifact_id": "apk-one"}}) is None
+
+
+def test_projection_requires_persisted_graph_revision():
+    plan = _plan()
+    plan["assessment_graph"].pop("revision")
+    assert mobile_assessment_projection(plan) is None
 
 
 def test_projection_invariants_reject_subjectless_or_unbound_state():

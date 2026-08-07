@@ -255,6 +255,35 @@
     window.requestAnimationFrame(() => loginError.focus({ preventScroll: true }));
   }
 
+  const loadConversationContinuity = () => {
+    if (!document.querySelector("[data-conversation-workspace]")) return;
+    if (document.querySelector("script[data-conversation-premium-continuity]")) return;
+    const owner = [...document.scripts].find((script) => script.src.includes("premium-interaction.js"));
+    if (!owner?.src) return;
+    const scriptUrl = new URL(owner.src, window.location.href);
+    scriptUrl.pathname = scriptUrl.pathname.replace(
+      /premium-interaction\.js$/,
+      "conversation-premium-continuity.js",
+    );
+    scriptUrl.search = "?v=20260807-conversation1";
+    const styleUrl = new URL(scriptUrl.href);
+    styleUrl.pathname = styleUrl.pathname.replace(
+      /conversation-premium-continuity\.js$/,
+      "conversation-premium-continuity.css",
+    );
+    if (!document.querySelector("link[data-conversation-premium-continuity]")) {
+      const link = document.createElement("link");
+      link.rel = "stylesheet";
+      link.href = styleUrl.toString();
+      link.dataset.conversationPremiumContinuity = "true";
+      document.head.append(link);
+    }
+    const script = document.createElement("script");
+    script.src = scriptUrl.toString();
+    script.dataset.conversationPremiumContinuity = "true";
+    document.head.append(script);
+  };
+
   document.addEventListener("click", (event) => {
     if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
       return;
@@ -278,6 +307,7 @@
   query.addEventListener("change", applyMotionPreference);
   restoreShellNavigation();
   restoreLoginSubmit();
+  loadConversationContinuity();
 
   window.VulnHunterInteraction = Object.freeze({
     motion: Object.freeze({

@@ -48,7 +48,8 @@ def _projection(
             "assessment_id": assessment_id,
             "activity_timeline_id": f"activity-{assessment_id}",
             "state": state,
-            "terminal": state in {"blocked", "failed", "gated", "rejected", "completed", "cancelled"},
+            "terminal": state
+            in {"blocked", "failed", "gated", "rejected", "completed", "cancelled"},
             "progress": {
                 "measurement": "stage",
                 "completed": 8 if state == "completed" else 4,

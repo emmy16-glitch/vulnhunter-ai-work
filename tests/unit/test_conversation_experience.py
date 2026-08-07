@@ -139,15 +139,15 @@ def test_completed_apk_chat_uses_persisted_verification_and_report_truth():
 
 
 def test_contextual_inspector_keeps_report_bound_to_selected_assessment():
-    template = (
-        ROOT / "vulnhunter/web/templates/web/_mobile_analysis_inspector.html"
-    ).read_text(encoding="utf-8")
-    script = (
-        ROOT / "vulnhunter/web/static/web/conversation-mobile-inspector.js"
-    ).read_text(encoding="utf-8")
-    route = (
-        ROOT / "vulnhunter/web/static/web/conversation-mobile-inspector-route.js"
-    ).read_text(encoding="utf-8")
+    template = (ROOT / "vulnhunter/web/templates/web/_mobile_analysis_inspector.html").read_text(
+        encoding="utf-8"
+    )
+    script = (ROOT / "vulnhunter/web/static/web/conversation-mobile-inspector.js").read_text(
+        encoding="utf-8"
+    )
+    route = (ROOT / "vulnhunter/web/static/web/conversation-mobile-inspector-route.js").read_text(
+        encoding="utf-8"
+    )
 
     assert 'data-inspector-tab="reports"' in template
     assert 'data-inspector-panel="reports"' in template

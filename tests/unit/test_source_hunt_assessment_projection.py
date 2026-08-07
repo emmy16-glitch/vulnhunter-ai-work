@@ -25,7 +25,7 @@ def _plan(*, state: str = "running", report: dict[str, object] | None = None):
         },
         "execution": {
             "state": state,
-            "safe_error": "Provider unavailable." if state == "failed" else None,
+            "safe_error": "Provider unavailable." if state in {"failed", "unavailable"} else None,
             "created_at": "2026-08-04T07:00:00+00:00",
             "started_at": "2026-08-04T07:01:00+00:00",
             "completed_at": "2026-08-04T07:02:00+00:00" if state == "completed" else None,
@@ -33,6 +33,7 @@ def _plan(*, state: str = "running", report: dict[str, object] | None = None):
         "report": report,
         "assessment_graph": {
             "graph_id": "source-graph-1",
+            "revision": 5,
             "workspace_id": "workspace-1",
             "chat_stage": "analysis_running",
             "nodes": [
@@ -49,8 +50,11 @@ def test_source_hunt_projection_binds_every_surface_to_one_assessment():
     projection = source_hunt_assessment_projection(_plan())
     assert projection is not None
     assert projection["assessment_id"] == "source-job-1"
-    assert projection["assessment_kind"] == "source"
+    assert projection["assessment_kind"] == "source_hunt"
+    assert projection["projection_contract"] == "selected-assessment/v1"
+    assert projection["projection_revision"] == 5
     assert set(projection["surface_identity"].values()) == {"source-job-1"}
+    assert set(projection["result_identity"].values()) == {"source-job-1"}
     assert projection["subject"] == {
         "kind": "repository_snapshot",
         "label": "repo-1@abc123",
@@ -61,6 +65,13 @@ def test_source_hunt_projection_binds_every_surface_to_one_assessment():
         "permitted_paths": ["src", "tests"],
     }
     assert projection["task_card"]["assessment_id"] == "source-job-1"
+    assert projection["task_card"]["activity_timeline_id"] == "source-graph-1"
+    assert projection["task_card"]["progress"] == {
+        "measurement": "stage",
+        "completed": 2,
+        "total": 4,
+        "stage": "analysis",
+    }
     assert projection["task_card"]["byte_progress"] == {
         "received": 4096,
         "expected": 4096,
@@ -109,6 +120,7 @@ def test_source_hunt_failure_preserves_authority_and_never_invents_retry():
         "remote_processing_approval",
         "assessment_graph",
     ]
+    assert projection["task_card"]["failure"] == projection["execution"]["failure"]
     assert projection["task_card"]["retry"] == {
         "available": False,
         "scope": None,
@@ -117,9 +129,27 @@ def test_source_hunt_failure_preserves_authority_and_never_invents_retry():
     assert "request_retry" not in projection["allowed_actions"]
 
 
+def test_source_hunt_unavailable_maps_to_blocked_without_hiding_worker_health():
+    projection = source_hunt_assessment_projection(_plan(state="unavailable"))
+    assert projection is not None
+    assert projection["execution"]["state"] == "blocked"
+    assert projection["task_card"]["state"] == "blocked"
+    assert projection["health"] == {
+        "assessment": "attention_required",
+        "worker": "unavailable",
+        "provider": "not_evaluated",
+    }
+
+
 def test_source_hunt_projection_fails_closed_without_exact_snapshot_identity():
     plan = _plan()
     plan["repository"] = {"repository_id": "repo-1", "revision": "abc123"}
+    assert source_hunt_assessment_projection(plan) is None
+
+
+def test_source_hunt_projection_fails_closed_without_persisted_revision():
+    plan = _plan()
+    plan["assessment_graph"].pop("revision")
     assert source_hunt_assessment_projection(plan) is None
 
 

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
+from vulnhunter.web.workflow_projection_contract import finalize_workflow_projection
+
 _SURFACES = (
     "chat",
     "activity",
@@ -103,6 +105,8 @@ def source_hunt_assessment_projection(
     snapshot_sha256 = _text(repository.get("snapshot_sha256"))
     if not all((assessment_id, graph_id, repository_id, revision, snapshot_sha256)):
         return None
+    if _integer(graph.get("revision")) is None:
+        return None
 
     stages = _rows(graph.get("nodes"))
     state = _text(execution.get("state")) or "prepared"
@@ -112,7 +116,9 @@ def source_hunt_assessment_projection(
     surfaces_examined = _integer(report.get("surfaces_examined")) or 0
     report_status = _text(report.get("stage")) or "pending"
     report_ready = state == "completed" and bool(_text(report.get("report_id")))
-    completed_stages = sum(_text(item.get("status")) in {"completed", "skipped"} for item in stages)
+    completed_stages = sum(
+        _text(item.get("status")) in {"completed", "skipped"} for item in stages
+    )
     safe_error = _text(execution.get("safe_error") or report.get("safe_error"))
     latest_event = None
     completed_at = _text(execution.get("completed_at"))
@@ -129,11 +135,29 @@ def source_hunt_assessment_projection(
     if report_ready:
         allowed_actions.append("view_report")
 
+    failure = (
+        {
+            "category": "source_hunt_failure",
+            "stage": _text((_current_stage(stages) or {}).get("stage")),
+            "reason_code": state,
+            "message": safe_error,
+            "safe_retry": False,
+            "retry_scope": None,
+            "preserved": [
+                "repository_snapshot",
+                "remote_processing_approval",
+                "assessment_graph",
+            ],
+        }
+        if state in _FAILURE
+        else None
+    )
+
     projection = {
         "assessment_id": assessment_id,
         "graph_id": graph_id,
         "workspace_id": _text(graph.get("workspace_id")),
-        "assessment_kind": "source",
+        "assessment_kind": "source_hunt",
         "selected": True,
         "surface_identity": {surface: assessment_id for surface in _SURFACES},
         "subject": {
@@ -161,23 +185,7 @@ def source_hunt_assessment_projection(
             "terminal": state in _TERMINAL,
             "reason": safe_error,
             "job_id": assessment_id,
-            "failure": (
-                {
-                    "category": "source_hunt_failure",
-                    "stage": _text((_current_stage(stages) or {}).get("stage")),
-                    "reason_code": state,
-                    "message": safe_error,
-                    "safe_retry": False,
-                    "retry_scope": None,
-                    "preserved": [
-                        "repository_snapshot",
-                        "remote_processing_approval",
-                        "assessment_graph",
-                    ],
-                }
-                if state in _FAILURE
-                else None
-            ),
+            "failure": failure,
         },
         "stages": list(stages),
         "stage_summary": {
@@ -204,7 +212,7 @@ def source_hunt_assessment_projection(
                 "candidate_count": candidate_count,
                 "latest_event": latest_event,
             },
-            "failure": None,
+            "failure": failure,
             "retry": {"available": False, "scope": None, "user_action": None},
         },
         "activity": {
@@ -225,6 +233,12 @@ def source_hunt_assessment_projection(
         },
         "allowed_actions": allowed_actions,
     }
+    projection = finalize_workflow_projection(
+        projection,
+        graph=graph,
+        raw_state=state,
+        assessment_kind="source_hunt",
+    )
     assert_source_hunt_projection_invariants(projection)
     return projection
 

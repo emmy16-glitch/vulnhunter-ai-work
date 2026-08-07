@@ -163,4 +163,5 @@
       top: topOverlay,
     }),
   });
+  window.dispatchEvent(new CustomEvent("vh:interaction-ready"));
 })();

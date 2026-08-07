@@ -15,6 +15,7 @@ from vulnhunter.web.mobile_assessment_graph import (
 from vulnhunter.web.mobile_execution import mobile_static_status
 
 _SESSION_MOBILE_PLAN = "vulnhunter_conversation_mobile_plan"
+_FINAL_VERIFICATION = frozenset({"verified", "rejected", "abstained", "mixed"})
 
 
 def _supports_authoritative_graph(plan: dict[str, object]) -> bool:
@@ -120,6 +121,40 @@ def _tool_summary(plan: dict[str, object]) -> str:
     return f"The planner selected {planned}. The execution worker is currently gated."
 
 
+def _verified_results_summary(execution: dict[str, object]) -> str | None:
+    progress = execution.get("progress")
+    if not isinstance(progress, dict):
+        return None
+    summary = progress.get("result_summary")
+    if not isinstance(summary, dict):
+        return None
+    verification = summary.get("verification")
+    if not isinstance(verification, dict):
+        return None
+    status = str(verification.get("status") or "").casefold()
+    if status not in _FINAL_VERIFICATION:
+        return None
+    verified = int(verification.get("verified_count") or 0)
+    rejected = int(verification.get("rejected_count") or 0)
+    abstained = int(verification.get("abstained_count") or 0)
+    report = summary.get("report")
+    report_ready = isinstance(report, dict) and str(report.get("status") or "").casefold() in {
+        "ready",
+        "completed",
+    }
+    report_copy = " The evidence-backed report is ready." if report_ready else ""
+    if verified == rejected == abstained == 0:
+        return (
+            "Static inspection and deterministic verification completed without generating a "
+            f"candidate vulnerability.{report_copy}"
+        )
+    return (
+        "Static inspection and deterministic verification completed: "
+        f"{verified} evidence-backed condition(s) verified, {rejected} rejected and "
+        f"{abstained} abstained for insufficient evidence.{report_copy}"
+    )
+
+
 def _results_summary(plan: dict[str, object]) -> str:
     execution = plan.get("execution")
     if not isinstance(execution, dict):
@@ -133,6 +168,9 @@ def _results_summary(plan: dict[str, object]) -> str:
     receipt = execution.get("receipt")
     if state != "completed" or not isinstance(receipt, dict):
         return "The APK hunt is prepared, but no completed evidence receipt is available yet."
+    verified_copy = _verified_results_summary(execution)
+    if verified_copy:
+        return verified_copy
     captures = receipt.get("captures") if isinstance(receipt.get("captures"), list) else []
     observations = (
         receipt.get("candidate_observations")
@@ -145,8 +183,7 @@ def _results_summary(plan: dict[str, object]) -> str:
         return (
             f"Static inspection completed with {len(captures)} tool receipt(s) and "
             f"{len(observations)} candidate observation(s). The first is: {title}. "
-            "These remain candidates until the judge and verifier stages establish reachability "
-            "and impact."
+            "Verification is not complete yet, so no candidate is presented as a finding."
         )
     return (
         f"Static inspection completed with {len(captures)} tool receipt(s) and no candidate "
@@ -184,9 +221,14 @@ def mobile_chat_reply(
         if state in {"queued", "running"}:
             return "No action is required while the networkless static worker is running."
         if state == "completed":
+            verified_copy = (
+                _verified_results_summary(execution) if isinstance(execution, dict) else None
+            )
+            if verified_copy:
+                return "Open the findings, evidence or report for the completed assessment."
             return (
-                "Review the candidate observations, then let the judge and deterministic verifier "
-                "trace reachability and impact before confirming a vulnerability."
+                "Review the candidate observations while deterministic verification finishes; "
+                "unsupported candidates remain unconfirmed."
             )
         reason = str(execution.get("reason") or "") if isinstance(execution, dict) else ""
         return f"Activate or repair the governed static worker before retrying. {reason}".strip()

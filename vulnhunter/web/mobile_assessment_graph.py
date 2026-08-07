@@ -10,8 +10,12 @@ from uuid import UUID
 from django.conf import settings
 
 from vulnhunter.assessment_graph import MobileAssessmentGraphService
+from vulnhunter.assessment_graph.models import AssessmentStage
+from vulnhunter.taskgraph.models import NodeStatus
 
 _IDENTIFIER_SANITIZER = re.compile(r"[^a-z0-9._-]+")
+_FINAL_VERIFICATION = frozenset({"verified", "rejected", "abstained", "mixed"})
+_REPORT_STATUSES = frozenset({"ready", "completed"})
 
 
 def _service() -> MobileAssessmentGraphService:
@@ -29,6 +33,11 @@ def _owner_id(request: object) -> str:
     username = str(getattr(user, "username", "") or "chat-operator").casefold()
     normalized = _IDENTIFIER_SANITIZER.sub("-", username).strip("-._")
     return (normalized or "chat-operator")[:120]
+
+
+def _is_sha256(value: object) -> bool:
+    digest = str(value or "").strip().casefold()
+    return len(digest) == 64 and all(character in "0123456789abcdef" for character in digest)
 
 
 def _assert_existing_binding(
@@ -70,6 +79,89 @@ def _assert_existing_binding(
         for manifest in bundle.manifests
     ):
         raise RuntimeError("The existing APK assessment plan binding does not match this request.")
+
+
+def _complete_stage(
+    service: MobileAssessmentGraphService,
+    graph,
+    stage: AssessmentStage,
+):
+    node = service.core._stage_node(graph, stage)
+    if node.status == NodeStatus.COMPLETED:
+        return graph
+    if node.status == NodeStatus.PENDING:
+        graph = service.core._transition(
+            graph,
+            node_id=node.node_id,
+            status=NodeStatus.READY,
+            last_error=None,
+        )
+        node = service.core._stage_node(graph, stage)
+    if node.status == NodeStatus.READY:
+        graph = service.core._transition(
+            graph,
+            node_id=node.node_id,
+            status=NodeStatus.RUNNING,
+            last_error=None,
+        )
+        node = service.core._stage_node(graph, stage)
+    if node.status == NodeStatus.RUNNING:
+        graph = service.core._transition(
+            graph,
+            node_id=node.node_id,
+            status=NodeStatus.COMPLETED,
+            last_error=None,
+        )
+    return graph
+
+
+def _project_persisted_results(
+    service: MobileAssessmentGraphService,
+    *,
+    run_id: str,
+    execution: dict[str, object],
+) -> None:
+    """Advance downstream stages only from signed persisted worker result receipts."""
+
+    if str(execution.get("state") or "").casefold() != "completed":
+        return
+    progress = execution.get("progress")
+    if not isinstance(progress, dict):
+        return
+    summary = progress.get("result_summary")
+    if not isinstance(summary, dict):
+        return
+    verification = summary.get("verification")
+    review = summary.get("review")
+    report = summary.get("report")
+    if not all(isinstance(item, dict) for item in (verification, review, report)):
+        return
+    verification_status = str(verification.get("status") or "").casefold()
+    review_status = str(review.get("status") or "").casefold()
+    report_status = str(report.get("status") or "").casefold()
+    report_id = str(report.get("report_id") or "").strip()
+    if verification_status not in _FINAL_VERIFICATION:
+        return
+    if review_status != "completed" or not _is_sha256(review.get("receipt_sha256")):
+        return
+    report_is_valid = (
+        report_status in _REPORT_STATUSES and bool(report_id) and _is_sha256(report.get("digest"))
+    )
+    if not report_is_valid:
+        return
+
+    graph = service.core._load_optional(run_id)
+    if graph is None:
+        return
+    execution_node = service.core._stage_node(graph, AssessmentStage.EXECUTION)
+    evidence_node = service.core._stage_node(graph, AssessmentStage.EVIDENCE)
+    execution_complete = execution_node.status == NodeStatus.COMPLETED
+    evidence_complete = evidence_node.status == NodeStatus.COMPLETED
+    if not execution_complete or not evidence_complete:
+        return
+    graph = _complete_stage(service, graph, AssessmentStage.VERIFICATION)
+    graph = _complete_stage(service, graph, AssessmentStage.REVIEW)
+    _complete_stage(service, graph, AssessmentStage.REPORT)
 
 
 def bind_mobile_assessment_graph(
@@ -135,7 +227,7 @@ def bind_mobile_assessment_graph(
 
 
 def refresh_mobile_assessment_graph(plan: dict[str, object]) -> dict[str, object]:
-    """Project observed worker state into the persisted graph and refresh chat state."""
+    """Project observed worker state and signed results into the persisted graph."""
 
     run_id = str(plan.get("run_id") or "")
     if not run_id:
@@ -146,6 +238,7 @@ def refresh_mobile_assessment_graph(plan: dict[str, object]) -> dict[str, object
     reason = str(execution.get("reason") or "") or None
     service = _service()
     service.project_execution(run_id, state=state, reason=reason)
+    _project_persisted_results(service, run_id=run_id, execution=execution)
     graph = service.status_payload(run_id)
     if graph is None:
         return plan

@@ -5,9 +5,11 @@ from __future__ import annotations
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 
+from vulnhunter.actions.models import sha256_json
 from vulnhunter.hunt.mobile_graph import build_mobile_evidence_graph
-from vulnhunter.hunt.mobile_runtime import run_mobile_evidence_hunt
+from vulnhunter.hunt.mobile_runtime import MobileHuntExecutionReceipt, run_mobile_evidence_hunt
 from vulnhunter.mobile.artifacts import MobileArtifactIngestor
+from vulnhunter.mobile.models import MobileArtifactRecord
 from vulnhunter.mobile.static_progress import (
     MobileStaticProgressError,
     MobileStaticProgressStore,
@@ -23,6 +25,93 @@ from vulnhunter.mobile.static_worker import MobileStaticWorker, MobileStaticWork
 
 class MobileStaticQueueServiceError(RuntimeError):
     """Raised when queued mobile analysis cannot preserve its contracts."""
+
+
+def _verification_summary(hunt: MobileHuntExecutionReceipt) -> dict[str, object]:
+    verified = hunt.verified_count
+    rejected = hunt.rejected_count
+    abstained = hunt.evidence_required_count
+    non_zero = sum(value > 0 for value in (verified, rejected, abstained))
+    if non_zero > 1:
+        status = "mixed"
+    elif verified:
+        status = "verified"
+    elif rejected:
+        status = "rejected"
+    else:
+        status = "abstained"
+    if not hunt.candidates:
+        reason = "No candidate vulnerability was generated; verification completed without a claim."
+    elif abstained:
+        reason = (
+            "Candidates without sufficient deterministic evidence remain abstained rather than "
+            "being promoted to findings."
+        )
+    else:
+        reason = "Every candidate received a deterministic evidence-bound disposition."
+    return {
+        "status": status,
+        "verified_count": verified,
+        "rejected_count": rejected,
+        "abstained_count": abstained,
+        "reason": reason,
+    }
+
+
+def _review_summary(
+    *,
+    hunt: MobileHuntExecutionReceipt,
+    verification: dict[str, object],
+) -> dict[str, object]:
+    payload = {
+        "hunt_receipt_sha256": hunt.receipt_sha256,
+        "verification": verification,
+        "candidate_ids": [item.candidate_id for item in hunt.candidates],
+        "judge_receipts": sorted(
+            {receipt for item in hunt.candidates for receipt in item.judge_receipts}
+        ),
+        "scope": "deterministic_evidence_disposition",
+        "finding_confirmation": False,
+        "publication_authority": False,
+    }
+    return {
+        "status": "completed",
+        "receipt_sha256": sha256_json(payload),
+        "summary": payload,
+    }
+
+
+def _report_summary(
+    *,
+    job: SignedMobileStaticJob,
+    artifact: MobileArtifactRecord,
+    hunt: MobileHuntExecutionReceipt,
+    verification: dict[str, object],
+    review: dict[str, object],
+) -> dict[str, object]:
+    report_payload = {
+        "assessment_id": job.run_id,
+        "artifact_id": artifact.artifact_id,
+        "artifact_sha256": artifact.sha256,
+        "hunt_receipt_sha256": hunt.receipt_sha256,
+        "verification": verification,
+        "review_receipt_sha256": review["receipt_sha256"],
+        "candidate_ids": [item.candidate_id for item in hunt.candidates],
+        "evidence_receipts": sorted(
+            {
+                receipt
+                for item in hunt.candidates
+                for receipt in (*item.evidence_receipts, *item.judge_receipts)
+            }
+        ),
+    }
+    digest = sha256_json(report_payload)
+    return {
+        "status": "ready",
+        "report_id": f"{job.run_id}-report-{digest[:12]}",
+        "digest": digest,
+        "summary": report_payload,
+    }
 
 
 class MobileStaticQueueService:
@@ -80,6 +169,7 @@ class MobileStaticQueueService:
             )
             hunt = run_mobile_evidence_hunt(result)
             graph = build_mobile_evidence_graph(artifact=record, hunt=hunt)
+            success = result.state == "completed"
             summary = {
                 "captures": [
                     {
@@ -97,8 +187,19 @@ class MobileStaticQueueService:
                 "hunt": hunt.model_dump(mode="json"),
                 "graph": graph.model_dump(mode="json"),
             }
+            if success:
+                verification = _verification_summary(hunt)
+                review = _review_summary(hunt=hunt, verification=verification)
+                summary["verification"] = verification
+                summary["review"] = review
+                summary["report"] = _report_summary(
+                    job=job,
+                    artifact=record,
+                    hunt=hunt,
+                    verification=verification,
+                    review=review,
+                )
             receipt = MobileStaticJobReceipt.from_result(job=job, result=result)
-            success = result.state == "completed"
             self.spool.finish(
                 claimed,
                 receipt=receipt,

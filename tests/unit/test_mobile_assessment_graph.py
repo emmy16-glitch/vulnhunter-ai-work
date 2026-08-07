@@ -5,6 +5,7 @@ from types import SimpleNamespace
 from uuid import uuid4
 
 from vulnhunter.assessment_graph import MobileAssessmentGraphService
+from vulnhunter.web.mobile_assessment_graph import refresh_mobile_assessment_graph
 from vulnhunter.web.mobile_conversation_state import current_mobile_plan, remember_mobile_plan
 
 NOW = datetime(2026, 7, 31, 17, 30, tzinfo=UTC)
@@ -65,6 +66,75 @@ def test_completed_worker_projects_evidence_and_waits_for_verification(tmp_path)
     assert statuses["evidence"] == "completed"
     assert statuses["verification"] == "ready"
     assert statuses["review"] == "pending"
+
+
+def test_persisted_verification_and_report_complete_downstream_graph(settings, tmp_path):
+    settings.VULNHUNTER_TASK_GRAPH_ROOT = tmp_path / "graphs"
+    service = MobileAssessmentGraphService(settings.VULNHUNTER_TASK_GRAPH_ROOT, clock=lambda: NOW)
+    _create(service, run_id="mobile-authoritative-results", state="queued")
+    plan = {
+        "run_id": "mobile-authoritative-results",
+        "execution": {
+            "state": "completed",
+            "progress": {
+                "result_summary": {
+                    "verification": {
+                        "status": "mixed",
+                        "verified_count": 1,
+                        "rejected_count": 1,
+                        "abstained_count": 1,
+                    },
+                    "report": {
+                        "status": "ready",
+                        "report_id": "mobile-authoritative-results-report",
+                        "digest": "d" * 64,
+                    },
+                }
+            },
+        },
+    }
+
+    refreshed = refresh_mobile_assessment_graph(plan)
+
+    statuses = {
+        item["stage"]: item["status"] for item in refreshed["assessment_graph"]["nodes"]
+    }
+    assert statuses["execution"] == "completed"
+    assert statuses["evidence"] == "completed"
+    assert statuses["verification"] == "completed"
+    assert statuses["review"] == "completed"
+    assert statuses["report"] == "completed"
+
+
+def test_persisted_results_fail_closed_without_report_integrity(settings, tmp_path):
+    settings.VULNHUNTER_TASK_GRAPH_ROOT = tmp_path / "graphs"
+    service = MobileAssessmentGraphService(settings.VULNHUNTER_TASK_GRAPH_ROOT, clock=lambda: NOW)
+    _create(service, run_id="mobile-authoritative-invalid-report", state="queued")
+    plan = {
+        "run_id": "mobile-authoritative-invalid-report",
+        "execution": {
+            "state": "completed",
+            "progress": {
+                "result_summary": {
+                    "verification": {"status": "verified"},
+                    "report": {
+                        "status": "ready",
+                        "report_id": "report-one",
+                        "digest": "not-a-digest",
+                    },
+                }
+            },
+        },
+    }
+
+    refreshed = refresh_mobile_assessment_graph(plan)
+
+    statuses = {
+        item["stage"]: item["status"] for item in refreshed["assessment_graph"]["nodes"]
+    }
+    assert statuses["verification"] == "ready"
+    assert statuses["review"] == "pending"
+    assert statuses["report"] == "pending"
 
 
 def test_gated_worker_blocks_execution_and_cancels_downstream(tmp_path):

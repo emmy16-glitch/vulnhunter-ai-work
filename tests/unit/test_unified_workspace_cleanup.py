@@ -24,13 +24,15 @@ def test_legacy_mobile_url_serves_the_unified_workspace():
 
 def test_workspace_copy_and_shared_product_styles_are_final():
     conversation = _text(TEMPLATES / "conversation.html")
-    polish = _text(STATIC / "workspace-polish.css")
+    workspace = _text(STATIC / "workspace.css")
+    tokens = _text(STATIC / "tokens.css")
     assert "Ask a security question, paste an authorised target" not in conversation
     assert "AI conversation ready" not in conversation
     assert "Describe an authorised website, attach an APK, or ask about a finding" in conversation
-    assert ".vh-product-heading" in polish
-    assert '.vh-nav-list li:has(a[href$="/mobile-analysis/"])' not in polish
-    assert "--vh-final-sidebar: 264px" in polish
+    assert ".vh-product-heading" in workspace
+    assert '.vh-nav-list li:has(a[href$="/mobile-analysis/"])' not in workspace
+    assert "--vh-layout-sidebar: 264px" in tokens
+    assert "--vh-final-sidebar: var(--vh-layout-sidebar)" in tokens
 
 
 def test_workspace_non_json_failures_are_converted_to_json(settings):

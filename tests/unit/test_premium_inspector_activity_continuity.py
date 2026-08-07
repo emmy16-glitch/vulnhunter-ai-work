@@ -1,6 +1,5 @@
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[2]
 ACTIVITY_JS = ROOT / "vulnhunter/web/static/web/activity.js"
 ACTIVITY_CSS = ROOT / "vulnhunter/web/static/web/activity.css"

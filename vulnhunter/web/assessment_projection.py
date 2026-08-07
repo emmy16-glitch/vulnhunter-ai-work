@@ -214,9 +214,7 @@ def _task_card(
     expected_bytes = _integer(progress.get("expected_bytes"))
     if expected_bytes is not None and received_bytes is not None:
         received_bytes = min(received_bytes, expected_bytes)
-    completed_stages = sum(
-        _text(item.get("status")) in {"completed", "skipped"} for item in stages
-    )
+    completed_stages = sum(_text(item.get("status")) in {"completed", "skipped"} for item in stages)
     return {
         "task_id": f"{assessment_id}:mobile-assessment",
         "assessment_id": assessment_id,

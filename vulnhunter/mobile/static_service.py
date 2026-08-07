@@ -144,13 +144,7 @@ class MobileStaticQueueService:
             )
             hunt = run_mobile_evidence_hunt(result)
             graph = build_mobile_evidence_graph(artifact=record, hunt=hunt)
-            verification = _verification_summary(hunt)
-            report = _report_summary(
-                job=job,
-                artifact=record,
-                hunt=hunt,
-                verification=verification,
-            )
+            success = result.state == "completed"
             summary = {
                 "captures": [
                     {
@@ -167,11 +161,17 @@ class MobileStaticQueueService:
                 ],
                 "hunt": hunt.model_dump(mode="json"),
                 "graph": graph.model_dump(mode="json"),
-                "verification": verification,
-                "report": report,
             }
+            if success:
+                verification = _verification_summary(hunt)
+                summary["verification"] = verification
+                summary["report"] = _report_summary(
+                    job=job,
+                    artifact=record,
+                    hunt=hunt,
+                    verification=verification,
+                )
             receipt = MobileStaticJobReceipt.from_result(job=job, result=result)
-            success = result.state == "completed"
             self.spool.finish(
                 claimed,
                 receipt=receipt,

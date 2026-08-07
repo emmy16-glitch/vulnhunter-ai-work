@@ -50,12 +50,8 @@ def collect_inventory(root: Path = ROOT) -> dict[str, object]:
         "animation_frames": _count(r"\brequestAnimationFrame\s*\(", javascript),
         "native_dialog_opens": _count(r"\.showModal\s*\(", javascript),
         "event_streams": _count(r"\bEventSource\s*\(", javascript),
-        "loading_markers": _count(
-            r"\b(?:loading|spinner|busy)\b", javascript, flags=re.I
-        ),
-        "progress_markers": _count(
-            r"\bprogress\b", css + "\n" + javascript, flags=re.I
-        ),
+        "loading_markers": _count(r"\b(?:loading|spinner|busy)\b", javascript, flags=re.I),
+        "progress_markers": _count(r"\bprogress\b", css + "\n" + javascript, flags=re.I),
     }
     shell_owners = {name: (name in base) for name in _REQUIRED_SHELL_OWNERS}
     retired_loaded = [name for name in _RETIRED_OWNERS if name in base]
@@ -105,8 +101,7 @@ def validate_inventory(inventory: dict[str, object]) -> list[str]:
 def main() -> int:
     parser = argparse.ArgumentParser(
         description=(
-            "Measure the repository-owned web interaction surface without claiming "
-            "device evidence."
+            "Measure the repository-owned web interaction surface without claiming device evidence."
         )
     )
     parser.add_argument(

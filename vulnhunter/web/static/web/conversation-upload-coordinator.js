@@ -207,16 +207,33 @@
     await putRecord(record);
   };
 
+  const completeFromServerPayload = async (record, payload) => {
+    const upload = payload?.upload || payload;
+    const offset = Number(upload?.received_bytes);
+    const hasFinalResult = Boolean(payload?.attachment || payload?.auto_started || payload?.mobile_plan);
+    if (upload?.complete !== true || !hasFinalResult || offset !== record.size) return false;
+    record.state = "completed";
+    record.completedAt = Date.now();
+    record.offset = record.size;
+    record.error = "";
+    record.retryAt = 0;
+    await putRecord(record);
+    emit("vh:upload-complete", record);
+    return true;
+  };
+
   const reconcileOffset = async (record) => {
-    if (!record.uploadId || !record.statusUrl) return;
+    if (!record.uploadId || !record.statusUrl) return false;
     try {
       const payload = await request(record.statusUrl, { method: "GET" }, record.threadId);
-      const offset = Number(payload.received_bytes);
+      if (await completeFromServerPayload(record, payload)) return true;
+      const offset = Number(payload.received_bytes ?? payload.upload?.received_bytes);
       if (!Number.isFinite(offset) || offset < 0 || offset > record.size) {
         throw new Error("The server returned an invalid resumable upload offset.");
       }
       record.offset = offset;
       await putRecord(record);
+      return false;
     } catch (error) {
       if (error.status !== 404) throw error;
       record.uploadId = "";
@@ -225,6 +242,7 @@
       record.cancelUrl = "";
       record.offset = 0;
       await putRecord(record);
+      return false;
     }
   };
 
@@ -236,6 +254,7 @@
       body.append("thread_id", record.threadId);
       body.append("chunk", record.file.slice(record.offset, end), `${record.name}.part`);
       const payload = await request(record.chunkUrl, { method: "POST", body }, record.threadId);
+      if (await completeFromServerPayload(record, payload)) return;
       const nextOffset = Number(payload.received_bytes ?? payload.upload?.received_bytes);
       if (!Number.isFinite(nextOffset) || nextOffset <= record.offset || nextOffset > record.size) {
         throw new Error("The server returned an invalid APK upload offset.");
@@ -244,15 +263,6 @@
       record.state = record.offset === record.size ? "processing" : "uploading";
       record.error = "";
       await putRecord(record);
-      if (payload.attachment || payload.auto_started || payload.mobile_plan) {
-        record.state = "completed";
-        record.completedAt = Date.now();
-        record.offset = record.size;
-        record.error = "";
-        await putRecord(record);
-        emit("vh:upload-complete", record);
-        return;
-      }
     }
   };
 
@@ -271,7 +281,7 @@
         record.state = "uploading";
         record.error = "";
         await putRecord(record);
-        await reconcileOffset(record);
+        if (await reconcileOffset(record)) return;
         if (!record.uploadId) await startServerUpload(record);
         await uploadChunks(record);
       } catch (error) {

@@ -92,3 +92,15 @@ def test_conversation_ui_has_elapsed_thinking_and_contextual_answers():
     assert "run.current_step" in script
     assert "contextualReply" not in script
     assert "confirmedRuns" in script
+
+
+def test_background_upload_reconciles_timeout_after_server_success():
+    script = (ROOT / "vulnhunter/web/static/web/conversation-upload-coordinator.js").read_text(
+        encoding="utf-8"
+    )
+
+    assert "completeFromServerPayload" in script
+    assert "if (await completeFromServerPayload(record, payload)) return true" in script
+    assert "if (await reconcileOffset(record)) return" in script
+    assert 'emit("vh:upload-complete", record)' in script
+    assert "record.retryAt = 0" in script

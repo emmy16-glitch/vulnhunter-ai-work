@@ -5,6 +5,7 @@ ACTIVITY_JS = ROOT / "vulnhunter/web/static/web/activity.js"
 ACTIVITY_CSS = ROOT / "vulnhunter/web/static/web/activity.css"
 INSPECTOR_JS = ROOT / "vulnhunter/web/static/web/conversation-mobile-inspector.js"
 INSPECTOR_CSS = ROOT / "vulnhunter/web/static/web/conversation-mobile-inspector.css"
+PREMIUM_CSS = ROOT / "vulnhunter/web/static/web/premium-interaction.css"
 
 
 def _text(path: Path) -> str:
@@ -41,6 +42,17 @@ def test_inspector_preserves_backend_owned_measured_stage_progress() -> None:
     assert "persisted stages complete" in javascript
     assert "Math.round((completed / total) * 100)" in javascript
     assert "elapsed_seconds" not in javascript
+
+
+def test_contextual_inspector_panels_use_shared_motion_without_poll_reanimation() -> None:
+    css = _text(PREMIUM_CSS)
+
+    assert ".vh-analysis-panel:not([hidden])" in css
+    assert "vh-context-panel-enter" in css
+    assert "var(--vh-motion-duration-deliberate)" in css
+    reduced_motion = css.split("@media (prefers-reduced-motion: reduce)", maxsplit=1)[1]
+    assert ".vh-analysis-panel:not([hidden])" in reduced_motion
+    assert "animation: none" in reduced_motion
 
 
 def test_mobile_inspector_keeps_existing_back_focus_and_reduced_motion_contracts() -> None:

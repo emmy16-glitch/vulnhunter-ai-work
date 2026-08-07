@@ -29,6 +29,17 @@ _ACTIVE_STATES = frozenset({"prepared", "queued", "claimed", "running", "cancell
 _FAILURE_STATES = frozenset({"blocked", "failed", "gated", "rejected"})
 _TERMINAL_STATES = _FAILURE_STATES | {"completed", "cancelled"}
 _SUPPORTED_EXECUTION_STATES = _ACTIVE_STATES | _TERMINAL_STATES
+_STATE_ALIASES = {
+    "created": "prepared",
+    "pending": "prepared",
+    "executing": "running",
+    "evaluating": "running",
+    "execution_blocked": "blocked",
+    "readiness_blocked": "blocked",
+    "unavailable": "blocked",
+    "timed_out": "failed",
+    "denied": "rejected",
+}
 _EXPECTED_ASSESSMENT_HEALTH = {
     "completed": "completed",
     "cancelled": "cancelled",
@@ -51,6 +62,20 @@ def _non_negative_integer(value: object) -> int | None:
     if isinstance(value, bool) or not isinstance(value, int) or value < 0:
         return None
     return value
+
+
+def canonical_execution_state(value: object) -> str:
+    """Translate persisted workflow-specific labels into one product lifecycle state.
+
+    The alias table is deliberately small and explicit. Unknown values fail closed so
+    a new worker or queue state cannot silently become browser-owned lifecycle truth.
+    """
+
+    state = (_text(value) or "").casefold()
+    state = _STATE_ALIASES.get(state, state)
+    if state not in _SUPPORTED_EXECUTION_STATES:
+        raise ValueError("Selected assessment state requires one supported execution state.")
+    return state
 
 
 def _revision(projection: Mapping[str, object]) -> int:
@@ -191,6 +216,7 @@ def replace_selected_assessment(
 
 __all__ = [
     "assert_selected_assessment_invariants",
+    "canonical_execution_state",
     "replace_selected_assessment",
     "selected_assessment_projection",
 ]

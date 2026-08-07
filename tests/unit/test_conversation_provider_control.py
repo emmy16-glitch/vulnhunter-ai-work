@@ -3,7 +3,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "vulnhunter/web/static/web/conversation-provider-control.js"
 RUNTIME = ROOT / "vulnhunter/web/static/web/conversation-runtime-compat.js"
-STYLES = ROOT / "vulnhunter/web/static/web/workspace-final-fixes.css"
+STYLES = ROOT / "vulnhunter/web/static/web/workspace.css"
 UPLOAD_STYLES = ROOT / "vulnhunter/web/static/web/background-uploads.css"
 
 

@@ -40,6 +40,7 @@ def _plan() -> dict[str, object]:
         },
         "assessment_graph": {
             "graph_id": "mobile-task-one-graph",
+            "revision": 6,
             "workspace_id": "workspace-one",
             "assessment_kind": "apk",
             "authorization_id": "attachment-one",
@@ -66,11 +67,18 @@ def test_task_card_uses_persisted_stage_byte_and_activity_records():
     assert task == {
         "task_id": "mobile-task-one:mobile-assessment",
         "assessment_id": "mobile-task-one",
+        "activity_timeline_id": "mobile-task-one-graph",
         "state": "running",
         "terminal": False,
         "current_stage": {"stage": "execution", "status": "running"},
         "stage_progress": {"completed": 3, "total": 8},
         "byte_progress": {"received": 24, "expected": 100},
+        "progress": {
+            "measurement": "stage",
+            "completed": 3,
+            "total": 8,
+            "stage": "execution",
+        },
         "activity": {
             "event_count": 2,
             "receipt_count": 1,
@@ -85,6 +93,9 @@ def test_task_card_uses_persisted_stage_byte_and_activity_records():
         },
     }
     assert "percent" not in str(task).casefold()
+    assert projection["projection_revision"] == 6
+    assert projection["projection_contract"] == "selected-assessment/v1"
+    assert set(projection["result_identity"].values()) == {"mobile-task-one"}
 
 
 def test_task_card_clamps_measured_bytes_to_declared_total():
@@ -139,3 +150,9 @@ def test_task_card_invariant_rejects_foreign_assessment_identity():
 
     with pytest.raises(ValueError, match="task card must bind"):
         assert_mobile_projection_invariants(contradictory)
+
+
+def test_task_card_projection_fails_closed_without_graph_revision():
+    plan = _plan()
+    plan["assessment_graph"].pop("revision")
+    assert mobile_assessment_projection(plan) is None

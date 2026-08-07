@@ -3,8 +3,8 @@ from __future__ import annotations
 import argparse
 import json
 import re
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Iterable
 
 ROOT = Path(__file__).resolve().parents[1]
 STATIC = ROOT / "vulnhunter" / "web" / "static" / "web"
@@ -50,12 +50,14 @@ def collect_inventory(root: Path = ROOT) -> dict[str, object]:
         "animation_frames": _count(r"\brequestAnimationFrame\s*\(", javascript),
         "native_dialog_opens": _count(r"\.showModal\s*\(", javascript),
         "event_streams": _count(r"\bEventSource\s*\(", javascript),
-        "loading_markers": _count(r"\b(?:loading|spinner|busy)\b", javascript, flags=re.I),
-        "progress_markers": _count(r"\bprogress\b", css + "\n" + javascript, flags=re.I),
+        "loading_markers": _count(
+            r"\b(?:loading|spinner|busy)\b", javascript, flags=re.I
+        ),
+        "progress_markers": _count(
+            r"\bprogress\b", css + "\n" + javascript, flags=re.I
+        ),
     }
-    shell_owners = {
-        name: (name in base) for name in _REQUIRED_SHELL_OWNERS
-    }
+    shell_owners = {name: (name in base) for name in _REQUIRED_SHELL_OWNERS}
     retired_loaded = [name for name in _RETIRED_OWNERS if name in base]
     retired_present = [name for name in _RETIRED_OWNERS if (static / name).exists()]
 
@@ -66,9 +68,18 @@ def collect_inventory(root: Path = ROOT) -> dict[str, object]:
         "retired_loaded": retired_loaded,
         "retired_present": retired_present,
         "limitations": [
-            "Counts are static repository evidence, not frame-time or device-performance measurements.",
-            "Chromium automation does not prove physical Android performance or TalkBack behaviour.",
-            "Motion counts do not imply assessment progress, worker progress, provider health, or completion.",
+            (
+                "Counts are static repository evidence, not frame-time or "
+                "device-performance measurements."
+            ),
+            (
+                "Chromium automation does not prove physical Android performance "
+                "or TalkBack behaviour."
+            ),
+            (
+                "Motion counts do not imply assessment progress, worker progress, "
+                "provider health, or completion."
+            ),
         ],
     }
 
@@ -93,9 +104,16 @@ def validate_inventory(inventory: dict[str, object]) -> list[str]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Measure the repository-owned web interaction surface without claiming device evidence."
+        description=(
+            "Measure the repository-owned web interaction surface without claiming "
+            "device evidence."
+        )
     )
-    parser.add_argument("--check", action="store_true", help="fail when baseline ownership invariants regress")
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="fail when baseline ownership invariants regress",
+    )
     args = parser.parse_args()
 
     inventory = collect_inventory()

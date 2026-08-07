@@ -35,6 +35,11 @@ def _owner_id(request: object) -> str:
     return (normalized or "chat-operator")[:120]
 
 
+def _is_sha256(value: object) -> bool:
+    digest = str(value or "").strip().casefold()
+    return len(digest) == 64 and all(character in "0123456789abcdef" for character in digest)
+
+
 def _assert_existing_binding(
     service: MobileAssessmentGraphService,
     *,
@@ -116,7 +121,7 @@ def _project_persisted_results(
     run_id: str,
     execution: dict[str, object],
 ) -> None:
-    """Advance downstream stages only from the signed persisted worker result summary."""
+    """Advance downstream stages only from signed persisted worker result receipts."""
 
     if str(execution.get("state") or "").casefold() != "completed":
         return
@@ -127,18 +132,19 @@ def _project_persisted_results(
     if not isinstance(summary, dict):
         return
     verification = summary.get("verification")
+    review = summary.get("review")
     report = summary.get("report")
-    if not isinstance(verification, dict) or not isinstance(report, dict):
+    if not all(isinstance(item, dict) for item in (verification, review, report)):
         return
     verification_status = str(verification.get("status") or "").casefold()
+    review_status = str(review.get("status") or "").casefold()
     report_status = str(report.get("status") or "").casefold()
     report_id = str(report.get("report_id") or "").strip()
-    digest = str(report.get("digest") or "").strip().casefold()
     if verification_status not in _FINAL_VERIFICATION:
         return
-    if report_status not in _REPORT_STATUSES or not report_id:
+    if review_status != "completed" or not _is_sha256(review.get("receipt_sha256")):
         return
-    if len(digest) != 64 or any(character not in "0123456789abcdef" for character in digest):
+    if report_status not in _REPORT_STATUSES or not report_id or not _is_sha256(report.get("digest")):
         return
 
     graph = service.core._load_optional(run_id)

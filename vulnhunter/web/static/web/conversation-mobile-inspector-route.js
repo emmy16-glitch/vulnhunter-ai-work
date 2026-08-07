@@ -9,6 +9,8 @@
   const chatButton = workspace.querySelector('[data-mobile-workspace-view="chat"]');
   const closeButton = inspector.querySelector("[data-analysis-inspector-close]");
   const tabs = [...inspector.querySelectorAll("[data-inspector-tab]")];
+  const specialistButtons = [...workspace.querySelectorAll("[data-mobile-specialist-tab]")];
+  const navDestinations = [...workspace.querySelectorAll("[data-mobile-nav-destination]")];
   const allowedTabs = new Set(tabs.map((tab) => tab.dataset.inspectorTab).filter(Boolean));
   const routeKeys = ["assessment", "inspector"];
   const routeStateKey = "vhMobileInspector";
@@ -23,6 +25,20 @@
       assessmentId: url.searchParams.get("assessment") || "",
       tab: url.searchParams.get("inspector") || "",
     };
+  };
+
+  const destinationForTab = (tab) => {
+    if (tab === "activity") return "activity";
+    if (tab === "findings") return "findings";
+    return "more";
+  };
+
+  const activateNavigation = (destination) => {
+    navDestinations.forEach((item) => {
+      const selected = item.dataset.mobileNavDestination === destination;
+      item.classList.toggle("is-active", selected);
+      item.setAttribute("aria-current", selected ? "page" : "false");
+    });
   };
 
   const writeRoute = (
@@ -47,6 +63,7 @@
     "overview";
 
   const showChatWithoutPublishing = () => {
+    activateNavigation("chat");
     if (inspector.hidden) return;
     restoringRoute = true;
     chatButton?.click();
@@ -54,6 +71,7 @@
   };
 
   const clearRoute = () => {
+    activateNavigation("chat");
     if (restoringRoute) return;
     const current = route();
     if (!current.assessmentId && !current.tab) return;
@@ -66,10 +84,22 @@
 
   const publishCurrentRoute = () => {
     if (restoringRoute || !isMobile() || inspector.hidden || !selectedAssessmentId) return;
-    const next = { assessmentId: selectedAssessmentId, tab: activeTab() };
+    const tab = activeTab();
+    activateNavigation(destinationForTab(tab));
+    const next = { assessmentId: selectedAssessmentId, tab };
     const current = route();
     if (current.assessmentId === next.assessmentId && current.tab === next.tab) return;
     writeRoute(next, { mode: "push" });
+  };
+
+  const openSpecialist = (tab) => {
+    if (!allowedTabs.has(tab) || !selectedAssessmentId) return;
+    restoringRoute = true;
+    analysisButton?.click();
+    tabs.find((item) => item.dataset.inspectorTab === tab)?.click();
+    restoringRoute = false;
+    activateNavigation(destinationForTab(tab));
+    publishCurrentRoute();
   };
 
   const restoreRoute = () => {
@@ -93,6 +123,7 @@
     analysisButton?.click();
     tabs.find((tab) => tab.dataset.inspectorTab === current.tab)?.click();
     restoringRoute = false;
+    activateNavigation(destinationForTab(current.tab));
   };
 
   const applySelectedAssessment = (snapshot) => {
@@ -112,9 +143,22 @@
     applySelectedAssessment(store.getSnapshot());
   };
 
-  analysisButton?.addEventListener("click", () => window.queueMicrotask(publishCurrentRoute));
+  analysisButton?.addEventListener("click", () => {
+    if (restoringRoute) return;
+    const requestedTab = analysisButton.dataset.mobileSpecialistTab || "activity";
+    window.queueMicrotask(() => {
+      tabs.find((tab) => tab.dataset.inspectorTab === requestedTab)?.click();
+      activateNavigation(destinationForTab(requestedTab));
+      publishCurrentRoute();
+    });
+  });
   chatButton?.addEventListener("click", () => window.queueMicrotask(clearRoute));
   closeButton?.addEventListener("click", () => window.queueMicrotask(clearRoute));
+  specialistButtons
+    .filter((button) => button !== analysisButton)
+    .forEach((button) => {
+      button.addEventListener("click", () => openSpecialist(button.dataset.mobileSpecialistTab || "overview"));
+    });
   tabs.forEach((tab) => {
     tab.addEventListener("click", () => window.queueMicrotask(publishCurrentRoute));
   });
@@ -128,5 +172,6 @@
   });
   document.addEventListener("vh:selected-assessment-store-ready", (event) => bindStore(event.detail));
 
+  activateNavigation("chat");
   bindStore();
 })();

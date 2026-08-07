@@ -123,6 +123,10 @@ def _completed_plan() -> dict[str, object]:
     return plan
 
 
+def _report_base(report: dict[str, object]) -> dict[str, object]:
+    return {key: value for key, value in report.items() if key != "formats"}
+
+
 def test_mobile_projection_exposes_one_id_for_every_assessment_surface():
     projection = mobile_assessment_projection(_plan())
 
@@ -170,13 +174,15 @@ def test_mobile_projection_exposes_one_id_for_every_assessment_surface():
         "reason": None,
         "complete": False,
     }
-    assert projection["report"] == {
+    assert _report_base(projection["report"]) == {
         "status": "pending",
         "stage_status": "pending",
         "report_id": None,
         "digest": None,
         "ready": False,
     }
+    assert projection["report"]["formats"]["html"]["status"] == "unavailable"
+    assert projection["report"]["formats"]["json"]["status"] == "available"
     assert projection["allowed_actions"] == [
         "view_activity",
         "view_evidence",
@@ -217,13 +223,14 @@ def test_completed_projection_connects_evidence_verification_and_report_identity
         "reason": "One candidate needs dynamic confirmation.",
         "complete": True,
     }
-    assert projection["report"] == {
+    assert _report_base(projection["report"]) == {
         "status": "completed",
         "stage_status": "completed",
         "report_id": "report-aabbccddeeff00112233",
         "digest": "e" * 64,
         "ready": True,
     }
+    assert projection["report"]["formats"]["html"]["status"] == "available"
     assert projection["allowed_actions"][-1] == "view_report"
 
 

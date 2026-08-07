@@ -205,6 +205,57 @@
     if (selected) renderProgress(selected);
   });
 
+  const persistedStageProgress = /^\s*(\d+)\s+of\s+(\d+)\s+persisted stages complete\s*$/i;
+
+  const syncTaskStageProgress = (track) => {
+    if (!(track instanceof HTMLElement)) return;
+    const label = track.querySelector(".vh-run-stage-current small")?.textContent || "";
+    const meter = track.querySelector(".vh-run-progress-meter");
+    const fill = meter?.querySelector("span");
+    if (!(meter instanceof HTMLElement) || !(fill instanceof HTMLElement)) return;
+    const match = label.match(persistedStageProgress);
+    if (!match) {
+      meter.hidden = true;
+      meter.removeAttribute("role");
+      meter.removeAttribute("aria-valuenow");
+      meter.removeAttribute("aria-valuemax");
+      meter.removeAttribute("aria-label");
+      delete meter.dataset.progressMeasurement;
+      fill.style.removeProperty("width");
+      return;
+    }
+    const completed = Number(match[1]);
+    const total = Number(match[2]);
+    if (!Number.isInteger(completed) || !Number.isInteger(total) || total <= 0 || completed < 0 || completed > total) {
+      meter.hidden = true;
+      return;
+    }
+    meter.hidden = false;
+    meter.dataset.progressMeasurement = "stage";
+    meter.setAttribute("role", "progressbar");
+    meter.setAttribute("aria-valuenow", String(completed));
+    meter.setAttribute("aria-valuemax", String(total));
+    meter.setAttribute("aria-label", `${completed} of ${total} persisted stages complete`);
+    fill.style.width = `${(completed / total) * 100}%`;
+  };
+
+  const taskProgressObserver = new MutationObserver((mutations) => {
+    const tracks = new Set();
+    for (const mutation of mutations) {
+      const target = mutation.target instanceof Element ? mutation.target : mutation.target.parentElement;
+      const track = target?.closest?.("[data-run-stages]");
+      if (track) tracks.add(track);
+      for (const node of mutation.addedNodes) {
+        if (!(node instanceof Element)) continue;
+        if (node.matches("[data-run-stages]")) tracks.add(node);
+        node.querySelectorAll?.("[data-run-stages]").forEach((item) => tracks.add(item));
+      }
+    }
+    tracks.forEach(syncTaskStageProgress);
+  });
+  taskProgressObserver.observe(workspace, { childList: true, subtree: true, characterData: true });
+  workspace.querySelectorAll("[data-run-stages]").forEach(syncTaskStageProgress);
+
   const createButton = workspace.querySelector("[data-thread-create]");
   createButton?.addEventListener(
     "click",

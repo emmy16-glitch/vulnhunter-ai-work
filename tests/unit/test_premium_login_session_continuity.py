@@ -28,8 +28,8 @@ def test_login_template_uses_shared_interaction_and_preserves_return_destination
     assert 'data-route="login"' in template
     assert 'id="main-content"' in template
     assert 'data-login-form' in template
-    assert 'name="{{ redirect_field_name }}"' in template
-    assert 'value="{{ redirect_field_value }}"' in template
+    assert 'name="next"' in template
+    assert 'value="{{ next }}"' in template
     assert 'data-login-submit' in template
     assert 'data-login-error' in template
 

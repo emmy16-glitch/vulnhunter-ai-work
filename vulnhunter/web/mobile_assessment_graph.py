@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from uuid import UUID
 
 from django.conf import settings
 
@@ -30,12 +31,53 @@ def _owner_id(request: object) -> str:
     return (normalized or "chat-operator")[:120]
 
 
+def _assert_existing_binding(
+    service: MobileAssessmentGraphService,
+    *,
+    run_id: str,
+    workspace_id: str | None,
+    owner_id: str,
+    authorization_id: str,
+    artifact_id: str,
+    artifact_sha256: str,
+    profile: str,
+    plan_digest: str,
+) -> None:
+    """Fail closed unless an existing assessment is the exact requested binding."""
+
+    graph_id = service.core.graph_id_for_run(run_id)
+    bundle = service.core._load_bundle(graph_id)
+    parsed_workspace = UUID(workspace_id) if workspace_id else None
+    expected_targets = {
+        artifact_id,
+        f"apk-sha256:{artifact_sha256}",
+        f"plan-sha256:{plan_digest}",
+    }
+    if (
+        bundle.run_id != run_id
+        or bundle.assessment_kind.value != "apk"
+        or bundle.workspace_id != parsed_workspace
+        or bundle.owner_id != owner_id
+        or bundle.authorization_id != authorization_id
+        or bundle.target_reference != f"apk-sha256:{artifact_sha256}"
+    ):
+        raise RuntimeError("The existing APK assessment binding does not match this request.")
+    if not bundle.manifests or any(
+        manifest.operation != profile
+        or manifest.parent_manifest_sha256 != plan_digest
+        or set(manifest.target_references) != expected_targets
+        or tuple(manifest.authorization_references) != (authorization_id,)
+        for manifest in bundle.manifests
+    ):
+        raise RuntimeError("The existing APK assessment plan binding does not match this request.")
+
+
 def bind_mobile_assessment_graph(
     request: object,
     *,
     plan: dict[str, object],
 ) -> dict[str, object]:
-    """Persist the shared lifecycle graph and return the enriched plan projection."""
+    """Create or bind the shared lifecycle graph and return the enriched projection."""
 
     artifact = plan.get("artifact")
     if not isinstance(artifact, dict):
@@ -46,20 +88,41 @@ def bind_mobile_assessment_graph(
     reason = str(execution.get("reason") or "") or None
     run_id = str(plan["run_id"])
     legacy_graph_id = str(plan.get("task_graph_id") or "")
+    workspace_id = _workspace_id(request)
+    owner_id = _owner_id(request)
+    authorization_id = str(artifact["attachment_id"])
+    artifact_id = str(artifact["artifact_id"])
+    artifact_sha256 = str(artifact["artifact_sha256"])
+    profile = str(plan["profile"])
+    plan_digest = str(plan["plan_digest"])
     service = _service()
-    service.create(
-        run_id=run_id,
-        workspace_id=_workspace_id(request),
-        owner_id=_owner_id(request),
-        authorization_id=str(artifact["attachment_id"]),
-        artifact_id=str(artifact["artifact_id"]),
-        artifact_sha256=str(artifact["artifact_sha256"]),
-        expires_at=datetime.now(UTC) + timedelta(hours=2),
-        profile=str(plan["profile"]),
-        plan_digest=str(plan["plan_digest"]),
-        execution_state=state,
-        execution_reason=reason,
-    )
+    existing = service.status_payload(run_id)
+    if existing is None:
+        service.create(
+            run_id=run_id,
+            workspace_id=workspace_id,
+            owner_id=owner_id,
+            authorization_id=authorization_id,
+            artifact_id=artifact_id,
+            artifact_sha256=artifact_sha256,
+            expires_at=datetime.now(UTC) + timedelta(hours=2),
+            profile=profile,
+            plan_digest=plan_digest,
+            execution_state=state,
+            execution_reason=reason,
+        )
+    else:
+        _assert_existing_binding(
+            service,
+            run_id=run_id,
+            workspace_id=workspace_id,
+            owner_id=owner_id,
+            authorization_id=authorization_id,
+            artifact_id=artifact_id,
+            artifact_sha256=artifact_sha256,
+            profile=profile,
+            plan_digest=plan_digest,
+        )
     graph = service.status_payload(run_id)
     if graph is None:
         raise RuntimeError("The APK assessment graph was not persisted.")

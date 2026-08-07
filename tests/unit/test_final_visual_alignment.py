@@ -2,14 +2,16 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 BASE = ROOT / "vulnhunter" / "web" / "templates" / "web" / "base.html"
-CSS = ROOT / "vulnhunter" / "web" / "static" / "web" / "workspace-final-fixes.css"
+CSS = ROOT / "vulnhunter" / "web" / "static" / "web" / "workspace.css"
 
 
-def test_final_alignment_layer_loads_globally_once():
+def test_workspace_owner_loads_globally_once():
     base = BASE.read_text(encoding="utf-8")
 
-    assert base.count("workspace-final-fixes.css") == 1
-    assert base.index("workspace-final-fixes.css") > base.index("workspace-polish.css")
+    assert base.count("workspace.css") == 1
+    assert "workspace-polish.css" not in base
+    assert "workspace-final-fixes.css" not in base
+    assert base.index("tokens.css") < base.index("workspace.css")
 
 
 def test_workspace_status_cards_stack_label_and_value():

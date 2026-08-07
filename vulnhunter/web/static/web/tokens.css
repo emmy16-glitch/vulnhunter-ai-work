@@ -1,0 +1,82 @@
+:root {
+  --vh-color-accent: #4F8CFF;
+  --vh-color-accent-hover: #76A6FF;
+  --vh-color-background: #0B0F14;
+  --vh-color-border: #253041;
+  --vh-color-danger: #EF4444;
+  --vh-color-focus: #93C5FD;
+  --vh-color-info: #38BDF8;
+  --vh-color-success: #22C55E;
+  --vh-color-surface: #111827;
+  --vh-color-surface-elevated: #151D29;
+  --vh-color-text-primary: #F7F9FC;
+  --vh-color-text-secondary: #9CA3AF;
+  --vh-color-warning: #F59E0B;
+
+  --vh-layout-collapsed-sidebar: 80px;
+  --vh-layout-content-max: 1600px;
+  --vh-layout-sidebar: 264px;
+  --vh-layout-topbar: 64px;
+
+  --vh-radius-card: 12px;
+  --vh-radius-control: 8px;
+  --vh-radius-modal: 16px;
+  --vh-radius-pill: 999px;
+
+  --vh-space-1: 4px;
+  --vh-space-2: 8px;
+  --vh-space-3: 12px;
+  --vh-space-4: 16px;
+  --vh-space-6: 24px;
+  --vh-space-8: 32px;
+  --vh-space-10: 40px;
+  --vh-space-12: 48px;
+  --vh-space-16: 64px;
+
+  --vh-font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  --vh-font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  --vh-font-body-size: 14px;
+  --vh-font-body-line-height: 22px;
+  --vh-font-body-weight: 400;
+  --vh-font-display-size: 32px;
+  --vh-font-display-line-height: 40px;
+  --vh-font-display-weight: 700;
+  --vh-font-heading-1-size: 24px;
+  --vh-font-heading-1-line-height: 32px;
+  --vh-font-heading-1-weight: 700;
+  --vh-font-heading-2-size: 18px;
+  --vh-font-heading-2-line-height: 28px;
+  --vh-font-heading-2-weight: 650;
+  --vh-font-label-size: 12px;
+  --vh-font-label-line-height: 18px;
+  --vh-font-label-weight: 600;
+  --vh-font-mono-size: 12px;
+  --vh-font-mono-line-height: 18px;
+
+  --vh-shadow-focus: 0 0 0 3px rgba(147,197,253,0.35);
+  --vh-shadow-panel: 0 12px 32px rgba(0,0,0,0.28);
+
+  /* Compatibility aliases while feature styles migrate to semantic names. */
+  --vh-final-bg: var(--vh-color-background);
+  --vh-final-panel: var(--vh-color-surface);
+  --vh-final-surface: var(--vh-color-surface-elevated);
+  --vh-final-surface-2: color-mix(in srgb, var(--vh-color-surface-elevated) 90%, white);
+  --vh-final-surface-3: color-mix(in srgb, var(--vh-color-surface-elevated) 82%, white);
+  --vh-final-border: var(--vh-color-border);
+  --vh-final-border-soft: color-mix(in srgb, var(--vh-color-border) 72%, transparent);
+  --vh-final-text: var(--vh-color-text-primary);
+  --vh-final-muted: var(--vh-color-text-secondary);
+  --vh-final-tertiary: color-mix(in srgb, var(--vh-color-text-secondary) 76%, transparent);
+  --vh-final-brand: var(--vh-color-accent);
+  --vh-final-brand-soft: color-mix(in srgb, var(--vh-color-accent) 14%, transparent);
+  --vh-final-authorized: var(--vh-color-success);
+  --vh-final-pending: var(--vh-color-warning);
+  --vh-final-blocked: var(--vh-color-danger);
+  --vh-final-active: var(--vh-color-info);
+  --vh-final-sidebar: var(--vh-layout-sidebar);
+  --vh-final-topbar: var(--vh-layout-topbar);
+  --vh-final-radius-sm: var(--vh-radius-control);
+  --vh-final-radius: var(--vh-radius-card);
+  --vh-final-radius-lg: var(--vh-radius-modal);
+  --vh-final-focus: var(--vh-color-focus);
+}

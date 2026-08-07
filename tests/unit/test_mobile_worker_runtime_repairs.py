@@ -52,11 +52,11 @@ def test_assessment_creation_is_only_exposed_in_the_conversation_workspace():
 
 
 def test_scrollable_workspace_regions_have_visible_scrollbars():
-    polish = _text("vulnhunter/web/static/web/workspace-polish.css")
+    workspace = _text("vulnhunter/web/static/web/workspace.css")
 
-    assert ".vh-analysis-panel" in polish
-    assert "overflow-y: auto" in polish
-    assert "scrollbar-width: auto" in polish
-    assert ".vh-chat-feed::-webkit-scrollbar" in polish
-    assert "width: 11px" in polish
-    assert "min-height: 44px" in polish
+    assert ".vh-analysis-panel" in workspace
+    assert "overflow-y: auto" in workspace
+    assert "scrollbar-width: auto" in workspace
+    assert ".vh-chat-feed::-webkit-scrollbar" in workspace
+    assert "width: 11px" in workspace
+    assert "min-height: 44px" in workspace

@@ -15,7 +15,11 @@ from vulnhunter.mobile.static_progress import (
     MobileStaticProgressStore,
 )
 from vulnhunter.mobile.static_service import create_mobile_static_job
-from vulnhunter.mobile.static_spool import MobileStaticSpool, MobileStaticSpoolError, SignedMobileStaticJob
+from vulnhunter.mobile.static_spool import (
+    MobileStaticSpool,
+    MobileStaticSpoolError,
+    SignedMobileStaticJob,
+)
 from vulnhunter.mobile.static_worker import MobileStaticWorkerError, MobileStaticWorkerPolicy
 from vulnhunter.security_tools.worker_spool import WorkerSpoolError, load_worker_signing_key
 from vulnhunter.web.conversation_attachments import ConversationAttachment

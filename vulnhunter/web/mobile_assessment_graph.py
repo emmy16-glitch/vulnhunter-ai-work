@@ -91,7 +91,7 @@ def bind_mobile_assessment_graph(
     workspace_id = _workspace_id(request)
     owner_id = _owner_id(request)
     artifact_id = str(artifact["artifact_id"])
-    authorization_id = f"uploaded-artifact:{artifact_id}"
+    authorization_id = f"uploaded-artifact-{artifact_id}"
     artifact_sha256 = str(artifact["artifact_sha256"])
     profile = str(plan["profile"])
     plan_digest = str(plan["plan_digest"])

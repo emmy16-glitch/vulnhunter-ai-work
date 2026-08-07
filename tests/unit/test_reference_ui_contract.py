@@ -13,7 +13,9 @@ DETAIL = TEMPLATES / "agent_run_detail.html"
 CONVERSATION = TEMPLATES / "conversation.html"
 INSPECTOR = TEMPLATES / "_mobile_analysis_inspector.html"
 BASE = TEMPLATES / "base.html"
-CSS = STATIC / "workspace-polish.css"
+CSS = STATIC / "workspace.css"
+TOKENS = STATIC / "tokens.css"
+PREMIUM = STATIC / "premium-interaction.css"
 SCRIPT = STATIC / "workspace-state.js"
 BLUEPRINT_NAVIGATION = ROOT / "config" / "product_interface" / "navigation.json"
 BLUEPRINT_PAGES = ROOT / "config" / "product_interface" / "pages.json"
@@ -110,12 +112,12 @@ def test_canonical_routes_and_legacy_aliases_are_explicit():
 
 
 def test_final_tokens_shared_shell_and_responsive_breakpoints_are_present():
-    css = _text(CSS).lower()
+    css = "\n".join((_text(TOKENS), _text(CSS), _text(PREMIUM))).lower()
     for token in (
-        "--vh-final-bg: #0a0d13",
-        "--vh-final-sidebar: 264px",
-        "--vh-final-topbar: 64px",
-        "--vh-final-focus: #93c5fd",
+        "--vh-color-background: #0b0f14",
+        "--vh-layout-sidebar: 264px",
+        "--vh-layout-topbar: 64px",
+        "--vh-color-focus: #93c5fd",
         "grid-template-columns: minmax(0, 1fr) 380px",
         "@media (max-width: 1279px)",
         "@media (max-width: 767px)",

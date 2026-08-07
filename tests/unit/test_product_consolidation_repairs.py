@@ -316,13 +316,14 @@ def test_shared_shell_does_not_load_conversation_assets_globally():
 
 def test_final_workspace_contract_is_shared_and_responsive():
     root = Path(__file__).resolve().parents[2]
-    polish = (root / "vulnhunter/web/static/web/workspace-polish.css").read_text(encoding="utf-8")
+    workspace = (root / "vulnhunter/web/static/web/workspace.css").read_text(encoding="utf-8")
+    tokens = (root / "vulnhunter/web/static/web/tokens.css").read_text(encoding="utf-8")
     template = (root / "vulnhunter/web/templates/web/conversation.html").read_text(encoding="utf-8")
 
-    assert "--vh-final-sidebar: 264px" in polish
-    assert "grid-template-columns: minmax(0, 1fr) 380px" in polish
-    assert "@media (max-width: 1279px)" in polish
-    assert "@media (max-width: 767px)" in polish
+    assert "--vh-layout-sidebar: 264px" in tokens
+    assert "grid-template-columns: minmax(0, 1fr) 380px" in workspace
+    assert "@media (max-width: 1279px)" in workspace
+    assert "@media (max-width: 767px)" in workspace
     assert "data-state-authorization" in template
     assert "data-state-scope" in template
     assert "data-state-approval" in template

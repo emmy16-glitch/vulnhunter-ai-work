@@ -111,6 +111,9 @@ class UnifiedLoginView(LoginView):
     redirect_authenticated_user = True
 
     def get_success_url(self) -> str:
+        requested_destination = self.get_redirect_url()
+        if requested_destination:
+            return requested_destination
         can_decide_run_approval = _can(self.request.user, "settings.manage")
         can_create = _can(self.request.user, "scan.create")
         can_read_runs = _can(self.request.user, "scan.read", "audit.read", "scan.read_summary")

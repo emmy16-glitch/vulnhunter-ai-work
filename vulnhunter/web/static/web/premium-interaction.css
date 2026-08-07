@@ -162,6 +162,16 @@ html[data-shell-navigation="pending"] :where(.vh-sidebar, .vh-topbar, .vh-main) 
   animation: vh-overlay-backdrop-enter var(--vh-motion-duration-standard) var(--vh-motion-easing-standard) both;
 }
 
+/*
+ * Assessment-scoped specialist panels enter only when their tab becomes
+ * visible. Polling and projection refresh leave the visible panel mounted, so
+ * existing Findings, Evidence, Activity and Report content does not reanimate.
+ */
+.vh-analysis-panel:not([hidden]) {
+  animation: vh-context-panel-enter var(--vh-motion-duration-deliberate)
+    var(--vh-motion-easing-enter) both;
+}
+
 @keyframes vh-motion-enter {
   from {
     opacity: 0;
@@ -216,6 +226,17 @@ html[data-shell-navigation="pending"] :where(.vh-sidebar, .vh-topbar, .vh-main) 
   }
 }
 
+@keyframes vh-context-panel-enter {
+  from {
+    opacity: 0;
+    transform: translateY(var(--vh-motion-distance-xs));
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /*
  * Reduced motion is a semantic alternative: distance and scale collapse while
  * state, focus, loading labels and status changes remain visible. The final
@@ -244,6 +265,7 @@ html[data-shell-navigation="pending"] :where(.vh-sidebar, .vh-topbar, .vh-main) 
   .vh-motion-enter,
   .vh-motion-exit,
   .vh-motion-update,
+  .vh-analysis-panel:not([hidden]),
   :where(dialog[open]),
   :where(dialog)::backdrop {
     animation: none;

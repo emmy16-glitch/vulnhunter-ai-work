@@ -224,6 +224,37 @@
     window.requestAnimationFrame(() => main.focus({ preventScroll: true }));
   };
 
+  const loginForm = document.querySelector("[data-login-form]");
+  const loginSubmit = loginForm?.querySelector("[data-login-submit]");
+  const loginSubmitLabel = loginSubmit?.querySelector("[data-login-submit-label]");
+
+  const restoreLoginSubmit = () => {
+    if (!(loginSubmit instanceof HTMLButtonElement)) return;
+    loginSubmit.disabled = false;
+    loginSubmit.removeAttribute("aria-busy");
+    loginSubmit.dataset.interactionState = "idle";
+    if (loginSubmitLabel) {
+      loginSubmitLabel.textContent = loginSubmit.dataset.idleLabel || "Sign in securely";
+    }
+  };
+
+  loginForm?.addEventListener("submit", (event) => {
+    if (!(loginSubmit instanceof HTMLButtonElement)) return;
+    if (loginSubmit.getAttribute("aria-busy") === "true") {
+      event.preventDefault();
+      return;
+    }
+    loginSubmit.setAttribute("aria-busy", "true");
+    loginSubmit.dataset.interactionState = "loading";
+    loginSubmit.disabled = true;
+    if (loginSubmitLabel) loginSubmitLabel.textContent = "Signing in…";
+  });
+
+  const loginError = document.querySelector("[data-login-error]");
+  if (loginError instanceof HTMLElement) {
+    window.requestAnimationFrame(() => loginError.focus({ preventScroll: true }));
+  }
+
   document.addEventListener("click", (event) => {
     if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
       return;
@@ -232,7 +263,10 @@
     acknowledgeShellNavigation(link, event.detail === 0 ? "keyboard" : "pointer");
   });
 
-  window.addEventListener("pageshow", restoreShellNavigation);
+  window.addEventListener("pageshow", () => {
+    restoreShellNavigation();
+    restoreLoginSubmit();
+  });
 
   window.addEventListener("popstate", () => {
     const dialog = topOverlay();
@@ -245,6 +279,7 @@
   applyMotionPreference();
   query.addEventListener("change", applyMotionPreference);
   restoreShellNavigation();
+  restoreLoginSubmit();
 
   window.VulnHunterInteraction = Object.freeze({
     motion: Object.freeze({
@@ -259,6 +294,9 @@
     shell: Object.freeze({
       acknowledgeNavigation: acknowledgeShellNavigation,
       restoreNavigation: restoreShellNavigation,
+    }),
+    login: Object.freeze({
+      restoreSubmit: restoreLoginSubmit,
     }),
   });
   window.dispatchEvent(new CustomEvent("vh:interaction-ready"));

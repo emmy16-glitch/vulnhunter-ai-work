@@ -16,12 +16,12 @@ def test_workspace_upload_card_separates_upload_validation_and_ready_states() ->
     assert 'if (state === "uploading")' in javascript
     assert 'if (state === "processing")' in javascript
     assert 'if (state === "completed")' in javascript
-    assert 'title: `${name} uploaded`' in javascript
+    assert "title: `${name} uploaded`" in javascript
     assert (
         '"Upload bytes complete · validating the artifact and binding the assessment."'
         in javascript
     )
-    assert 'title: `${name} ready`' in javascript
+    assert "title: `${name} ready`" in javascript
     assert (
         '"Artifact validated · the server confirmed the assessment result for this upload."'
         in javascript
@@ -36,16 +36,15 @@ def test_byte_progress_is_exact_and_only_rendered_for_measurable_upload_states()
     javascript = _text(CLIENT)
 
     assert "const percent = Math.floor((offset / total) * 100)" in javascript
-    assert 'detail: `${percent}% · ${bytes}`' in javascript
+    assert "detail: `${percent}% · ${bytes}`" in javascript
     assert "if (presentation.measurable)" in javascript
     assert "progress.max = total" in javascript
     assert "progress.value = offset" in javascript
     assert (
         'progress.setAttribute("aria-label", '
-        '`Uploaded ${formatBytes(offset)} of ${formatBytes(total)}`)'
-        in javascript
+        "`Uploaded ${formatBytes(offset)} of ${formatBytes(total)}`)" in javascript
     )
-    assert 'measurable: false' in javascript
+    assert "measurable: false" in javascript
 
 
 def test_interrupted_upload_preserves_bytes_and_exposes_bounded_recovery() -> None:

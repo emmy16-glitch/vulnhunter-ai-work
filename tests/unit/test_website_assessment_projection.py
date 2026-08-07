@@ -71,11 +71,13 @@ def test_website_projection_uses_persisted_stage_activity_and_result_counts():
     assert projection["task_card"]["activity"]["event_count"] == 2
     assert projection["evidence"] == {"record_count": 1}
     assert projection["findings"] == {"candidate_count": 1}
-    assert projection["report"] == {
+    assert {key: value for key, value in projection["report"].items() if key != "formats"} == {
         "status": "not_available",
         "ready": False,
         "report_id": None,
     }
+    assert projection["report"]["formats"]["html"]["status"] == "unavailable"
+    assert projection["report"]["formats"]["json"]["status"] == "available"
 
 
 def test_website_failure_preserves_state_and_never_invents_retry():

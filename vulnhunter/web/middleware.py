@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import json
 import logging
+import re
 import sqlite3
 
 from django.conf import settings
@@ -11,6 +13,9 @@ from vulnhunter.web.observability import RequestCorrelationMiddleware, safe_rout
 logger = logging.getLogger(__name__)
 
 _SESSION_STATE = "vulnhunter_conversation_state"
+_SESSION_MESSAGE_RECEIPTS = "vulnhunter_conversation_message_receipts"
+_CLIENT_MESSAGE_ID = re.compile(r"^[A-Za-z0-9._:-]{8,128}$")
+_MAX_MESSAGE_RECEIPTS = 64
 _TERMINAL_STATES = {
     "completed",
     "failed",
@@ -139,6 +144,63 @@ def _refresh_specialist_workspaces(request) -> None:
         logger.exception("Governed retest workspace refresh failed safely")
 
 
+def _conversation_message_id(request) -> str | None:
+    if request.method != "POST" or request.path != "/workspace/message/":
+        return None
+    value = request.POST.get("client_message_id", "").strip()
+    if not value:
+        return None
+    if _CLIENT_MESSAGE_ID.fullmatch(value) is None:
+        raise ValueError("The conversation message receipt identifier is invalid.")
+    return value
+
+
+def _message_receipts(request) -> dict[str, dict[str, object]]:
+    raw = request.session.get(_SESSION_MESSAGE_RECEIPTS, {})
+    if not isinstance(raw, dict):
+        return {}
+    return {
+        str(key): dict(value)
+        for key, value in raw.items()
+        if isinstance(key, str) and isinstance(value, dict)
+    }
+
+
+def _replayed_message_response(request, message_id: str) -> JsonResponse | None:
+    receipt = _message_receipts(request).get(message_id)
+    if receipt is None:
+        return None
+    payload = receipt.get("payload")
+    status = receipt.get("status")
+    if not isinstance(payload, dict) or isinstance(status, bool) or not isinstance(status, int):
+        return None
+    response = JsonResponse(payload, status=status)
+    response["Cache-Control"] = "private, no-store, max-age=0"
+    response["X-VulnHunter-Message-Receipt"] = message_id
+    response["X-VulnHunter-Message-Replayed"] = "true"
+    return response
+
+
+def _store_message_receipt(request, message_id: str, response) -> None:
+    content_type = response.get("Content-Type", "")
+    if not content_type.startswith("application/json"):
+        return
+    try:
+        payload = json.loads(response.content.decode(response.charset or "utf-8"))
+    except (AttributeError, UnicodeDecodeError, json.JSONDecodeError):
+        return
+    if not isinstance(payload, dict):
+        return
+    receipts = _message_receipts(request)
+    receipts.pop(message_id, None)
+    receipts[message_id] = {"status": int(response.status_code), "payload": payload}
+    while len(receipts) > _MAX_MESSAGE_RECEIPTS:
+        receipts.pop(next(iter(receipts)))
+    request.session[_SESSION_MESSAGE_RECEIPTS] = receipts
+    request.session.modified = True
+    response["X-VulnHunter-Message-Receipt"] = message_id
+
+
 class ConversationThreadMiddleware:
     """Select a durable workspace and isolate its legacy session-backed state."""
 
@@ -187,7 +249,20 @@ class ConversationThreadMiddleware:
                 request.vulnhunter_thread = thread
                 request.session = ThreadSessionProxy(base_session, thread)
                 _refresh_specialist_workspaces(request)
-        return self.get_response(request)
+
+        try:
+            message_id = _conversation_message_id(request)
+        except ValueError as exc:
+            return JsonResponse({"detail": str(exc)}, status=400)
+        if message_id:
+            replayed = _replayed_message_response(request, message_id)
+            if replayed is not None:
+                return replayed
+
+        response = self.get_response(request)
+        if message_id:
+            _store_message_receipt(request, message_id, response)
+        return response
 
 
 class ContentSecurityPolicyMiddleware:

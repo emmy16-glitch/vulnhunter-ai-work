@@ -1,0 +1,56 @@
+.vh-chat-message.is-user[data-delivery-state] .vh-message-body {
+  min-width: min(100%, 12rem);
+}
+
+.vh-message-delivery {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--vh-space-2, 8px);
+  min-height: 24px;
+  margin-top: var(--vh-space-1, 4px);
+  color: var(--vh-color-text-secondary, #9ca3af);
+  font-size: var(--vh-font-label-size, 12px);
+  line-height: var(--vh-font-label-line-height, 18px);
+}
+
+.vh-chat-message.is-sending .vh-message-delivery::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: .72;
+}
+
+.vh-chat-message.is-send-accepted .vh-message-delivery {
+  color: var(--vh-color-success, #22c55e);
+}
+
+.vh-chat-message.is-send-failed .vh-message-delivery {
+  color: var(--vh-color-danger, #ef4444);
+}
+
+.vh-message-retry {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 var(--vh-space-3, 12px);
+  border: 1px solid currentColor;
+  border-radius: var(--vh-radius-control, 8px);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.vh-message-retry:focus-visible {
+  outline: 2px solid var(--vh-color-focus, #93c5fd);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vh-chat-message.is-sending .vh-message-delivery::before {
+    opacity: 1;
+  }
+}

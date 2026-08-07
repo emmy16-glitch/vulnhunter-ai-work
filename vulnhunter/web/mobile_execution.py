@@ -15,7 +15,11 @@ from vulnhunter.mobile.static_progress import (
     MobileStaticProgressStore,
 )
 from vulnhunter.mobile.static_service import create_mobile_static_job
-from vulnhunter.mobile.static_spool import MobileStaticSpool, MobileStaticSpoolError
+from vulnhunter.mobile.static_spool import (
+    MobileStaticSpool,
+    MobileStaticSpoolError,
+    SignedMobileStaticJob,
+)
 from vulnhunter.mobile.static_worker import MobileStaticWorkerError, MobileStaticWorkerPolicy
 from vulnhunter.security_tools.worker_spool import WorkerSpoolError, load_worker_signing_key
 from vulnhunter.web.conversation_attachments import ConversationAttachment
@@ -136,6 +140,24 @@ def _activation_failure(
     )
 
 
+def _same_job_binding(
+    job: SignedMobileStaticJob,
+    *,
+    run_id: str,
+    artifact: MobileArtifactRecord,
+    plan_digest: str,
+    requested_by: str,
+) -> bool:
+    return (
+        job.job_id == run_id
+        and job.run_id == run_id
+        and job.artifact_id == artifact.artifact_id
+        and job.artifact_sha256 == artifact.sha256
+        and job.hunt_plan_sha256 == plan_digest
+        and job.requested_by == requested_by
+    )
+
+
 def enqueue_mobile_static_if_ready(
     request: HttpRequest,
     *,
@@ -144,7 +166,7 @@ def enqueue_mobile_static_if_ready(
     artifact: MobileArtifactRecord,
     requested_by: str,
 ) -> dict[str, object]:
-    """Enqueue only when deployment policy, capacity, key and worker tools are activated."""
+    """Enqueue once, or recover the exact persisted job after timeout/reconnect."""
 
     if not _env_bool("VULNHUNTER_MOBILE_STATIC_ENQUEUE_ENABLED"):
         return _activation_failure(
@@ -167,6 +189,37 @@ def enqueue_mobile_static_if_ready(
                 message="Static APK analysis is disabled by the current worker policy.",
                 operator_action="Review and explicitly enable the mobile worker policy.",
             )
+        signing_key = load_worker_signing_key(_signing_key_path())
+        spool = MobileStaticSpool(_spool_root())
+        run_id = str(plan["run_id"])
+        plan_digest = str(plan["plan_digest"])
+        existing = spool.existing_job(run_id, key=signing_key)
+        if existing is not None:
+            if not _same_job_binding(
+                existing,
+                run_id=run_id,
+                artifact=artifact,
+                plan_digest=plan_digest,
+                requested_by=requested_by,
+            ):
+                return _activation_failure(
+                    plan=plan,
+                    category="policy_denied",
+                    reason_code="existing_job_binding_mismatch",
+                    message="The existing APK worker job does not match this assessment binding.",
+                    operator_action="Inspect the persisted signed mobile job before retrying.",
+                )
+            _remember_job(request, job_id=run_id, requested_by=requested_by)
+            status = spool.status(run_id) or {"state": "queued", "job_id": run_id}
+            return {
+                **status,
+                "artifact_id": attachment.artifact_id,
+                "worker_id": policy.worker_id,
+                "tools": list(policy.active_tools()),
+                "network_isolation": policy.network_isolation,
+                "reused": True,
+            }
+
         capacity_reason = _analysis_capacity_reason(policy, artifact)
         if capacity_reason is not None:
             return _activation_failure(
@@ -180,14 +233,11 @@ def enqueue_mobile_static_if_ready(
                 ),
                 safe_retry=True,
             )
-        signing_key = load_worker_signing_key(_signing_key_path())
-        spool = MobileStaticSpool(_spool_root())
-        run_id = str(plan["run_id"])
         job = create_mobile_static_job(
             run_id=run_id,
             artifact_id=artifact.artifact_id,
             artifact_sha256=artifact.sha256,
-            hunt_plan_sha256=str(plan["plan_digest"]),
+            hunt_plan_sha256=plan_digest,
             requested_by=requested_by,
             signing_key=signing_key,
         )
@@ -223,6 +273,7 @@ def enqueue_mobile_static_if_ready(
         "worker_id": policy.worker_id,
         "tools": list(policy.active_tools()),
         "network_isolation": policy.network_isolation,
+        "reused": False,
     }
 
 
@@ -232,15 +283,17 @@ def mobile_static_status(
     job_id: str,
     requested_by: str,
 ) -> dict[str, object] | None:
-    raw = request.session.get(_SESSION_MOBILE_JOBS, {})
-    if not isinstance(raw, dict) or raw.get(job_id) != requested_by:
-        return None
     try:
         root = _spool_root()
-        status = MobileStaticSpool(root).status(job_id)
+        spool = MobileStaticSpool(root)
+        signing_key = load_worker_signing_key(_signing_key_path())
+        job = spool.existing_job(job_id, key=signing_key)
+        if job is None or job.requested_by != requested_by:
+            return None
+        status = spool.status(job_id)
         if status is None:
             return None
-        signing_key = load_worker_signing_key(_signing_key_path())
+        _remember_job(request, job_id=job_id, requested_by=requested_by)
         progress = MobileStaticProgressStore(root).read(job_id=job_id, key=signing_key)
         if progress is not None:
             status["progress"] = progress.model_dump(mode="json", exclude={"signature"})

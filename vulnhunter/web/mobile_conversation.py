@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
 import re
-from uuid import uuid4
 
 from vulnhunter.hunt import build_mobile_hunt_plan
 from vulnhunter.mobile import (
@@ -54,6 +54,29 @@ def _profile_request(
     return static_profile, static_profile, False
 
 
+def _assessment_token(
+    *,
+    workspace_id: str | None,
+    requested_by: str,
+    artifact: MobileArtifactRecord,
+    requested_profile: MobileAnalysisProfile,
+) -> str:
+    """Return a stable create-or-bind key without exposing the artifact digest."""
+
+    scope = workspace_id or "unbound-workspace"
+    canonical = "\x1f".join(
+        (
+            "apk-assessment-v1",
+            scope,
+            _identifier(requested_by, fallback="chat-operator"),
+            artifact.artifact_id,
+            artifact.sha256,
+            requested_profile.value,
+        )
+    )
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:20]
+
+
 def _tool_projection(catalog, tool_id: str) -> dict[str, object]:
     definition = catalog.get(tool_id)
     if definition.connector_only:
@@ -91,11 +114,17 @@ def build_mobile_chat_plan(
     requested_by: str,
     attachment: ConversationAttachment,
     artifact: MobileArtifactRecord,
+    workspace_id: str | None = None,
 ) -> dict[str, object]:
     """Build an immutable task graph and multi-altitude hunt plan without executing tools."""
 
     requested_profile, effective_profile, dynamic_deferred = _profile_request(text, artifact)
-    token = uuid4().hex[:20]
+    token = _assessment_token(
+        workspace_id=workspace_id,
+        requested_by=requested_by,
+        artifact=artifact,
+        requested_profile=requested_profile,
+    )
     run_id = f"mobile-{token}"
     analysis_id = f"analysis-{token}"
     catalog = default_catalog()
@@ -108,7 +137,7 @@ def build_mobile_chat_plan(
         artifact_sha256=artifact.sha256,
         artifact_path=artifact.stored_path,
         profile=effective_profile,
-        authorization_references=(f"uploaded-artifact:{attachment.attachment_id}",),
+        authorization_references=(f"uploaded-artifact:{artifact.artifact_id}",),
     )
     manifests, graph = MobileAnalysisPlanner(catalog).build(request, artifact)
     selected_tool_ids = tuple(item.tool_id for item in manifests)

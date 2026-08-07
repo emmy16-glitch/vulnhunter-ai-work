@@ -54,7 +54,9 @@ def test_empty_candidate_set_abstains_instead_of_inventing_a_verified_finding():
         "verified_count": 0,
         "rejected_count": 0,
         "abstained_count": 0,
-        "reason": "No candidate vulnerability was generated; verification completed without a claim.",
+        "reason": (
+            "No candidate vulnerability was generated; verification completed without a claim."
+        ),
     }
 
 

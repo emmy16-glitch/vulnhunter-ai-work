@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
+from vulnhunter.web.workflow_projection_contract import finalize_workflow_projection
+
 _SURFACES = (
     "chat",
     "activity",
@@ -35,6 +37,12 @@ def _map(value: object) -> Mapping[str, object]:
 def _text(value: object) -> str | None:
     text = str(value or "").strip()
     return text or None
+
+
+def _integer(value: object) -> int | None:
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        return None
+    return value
 
 
 def _rows(value: object) -> tuple[dict[str, object], ...]:
@@ -108,13 +116,17 @@ def website_assessment_projection(
     )
     if not all((assessment_id, graph_id, target, authorization_id)):
         return None
+    if _integer(graph.get("revision")) is None:
+        return None
 
     state = _text(payload.get("state")) or "created"
     stages = _rows(graph.get("nodes"))
     findings = _rows(payload.get("findings"))
     artifacts = _rows(payload.get("artifacts"))
     events = _rows(payload.get("events"))
-    completed_stages = sum(_text(item.get("status")) in {"completed", "skipped"} for item in stages)
+    completed_stages = sum(
+        _text(item.get("status")) in {"completed", "skipped"} for item in stages
+    )
     blocked_stages = sum(
         _text(item.get("status")) in {"blocked", "failed", "rejected"} for item in stages
     )
@@ -201,6 +213,12 @@ def website_assessment_projection(
         "report": {"status": "not_available", "ready": False, "report_id": None},
         "allowed_actions": allowed_actions,
     }
+    projection = finalize_workflow_projection(
+        projection,
+        graph=graph,
+        raw_state=state,
+        assessment_kind="website",
+    )
     assert_website_projection_invariants(projection)
     return projection
 

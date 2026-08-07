@@ -124,8 +124,8 @@ def test_assessment_empty_states_are_compact_ordinary_language_statuses():
         "Select an assessment to view reviewed findings.",
         "Select an assessment to view saved evidence.",
         "No meaningful evidence relationships are available for this assessment.",
-        "The report appears here only when this selected assessment has a persisted "
-        "evidence-backed report receipt.",
+        "Format readiness is unavailable until the server provides the selected assessment "
+        "report contract.",
     ):
         assert copy in template
     assert template.count('role="status"') == 5

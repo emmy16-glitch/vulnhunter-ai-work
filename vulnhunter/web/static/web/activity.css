@@ -44,6 +44,11 @@
   overflow-wrap: anywhere;
 }
 
+.vh-activity-event.is-new {
+  animation: vh-activity-arrival var(--vh-motion-duration-standard, 180ms)
+    var(--vh-motion-easing-enter, ease-out) both;
+}
+
 .vh-activity-event:not(:last-child)::before {
   position: absolute;
   top: 12px;
@@ -74,7 +79,24 @@
 .vh-activity-controls button,
 .vh-activity-new-events { border: 1px solid var(--vh-border, #1c3042); background: #0a1a27; color: var(--vh-text, #eef4f8); }
 
+@keyframes vh-activity-arrival {
+  from {
+    opacity: .55;
+    transform: translateY(var(--vh-motion-distance-xs, 4px));
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @media (max-width: 640px) {
   .vh-activity-header { align-items: stretch; flex-direction: column; }
   .vh-activity-controls { justify-content: flex-start; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vh-activity-event.is-new {
+    animation: none;
+  }
 }

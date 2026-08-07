@@ -66,6 +66,10 @@
   display: none;
 }
 
+.vh-run-progress-meter:not([data-progress-measurement]) {
+  display: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .vh-apk-uploading,
   .vh-upload-actions button {

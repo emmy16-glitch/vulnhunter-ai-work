@@ -32,8 +32,8 @@ def test_shell_command_and_approval_dialogs_use_shared_controller() -> None:
     assert "overlays.open(commandDialog" in app
     assert "overlays.open(approvalDialog" in app
     assert "overlays.close(approvalDialog)" in app
-    assert 'backdropClose: true' in app
-    assert 'backdropClose: false' in app
+    assert "backdropClose: true" in app
+    assert "backdropClose: false" in app
     assert 'window.addEventListener("vh:interaction-ready"' in app
     assert ".showModal()" not in app
 

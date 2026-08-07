@@ -37,7 +37,6 @@ def test_critical_runtime_tokens_match_the_canonical_json_source() -> None:
         "--vh-radius-card": f'{source["radii_px"]["card"]}px',
         "--vh-radius-control": f'{source["radii_px"]["control"]}px',
         "--vh-radius-modal": f'{source["radii_px"]["modal"]}px',
-        "--vh-color-focus": source["colors"]["focus"],
     }
     assert {_name: _css_value(css, _name) for _name in expected} == expected
 

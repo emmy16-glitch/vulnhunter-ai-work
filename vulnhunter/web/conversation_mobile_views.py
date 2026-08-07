@@ -75,6 +75,12 @@ def _conversation_context(request: HttpRequest) -> tuple[tuple[str, str], ...]:
     )
 
 
+def _workspace_id(request: HttpRequest) -> str | None:
+    thread = getattr(request, "vulnhunter_thread", None)
+    thread_id = getattr(thread, "thread_id", None)
+    return str(thread_id) if thread_id is not None else None
+
+
 def _start_mobile_hunt(
     request: HttpRequest,
     *,
@@ -95,6 +101,7 @@ def _start_mobile_hunt(
         requested_by=requested_by,
         attachment=attachment,
         artifact=artifact,
+        workspace_id=_workspace_id(request),
     )
     execution = enqueue_mobile_static_if_ready(
         request,

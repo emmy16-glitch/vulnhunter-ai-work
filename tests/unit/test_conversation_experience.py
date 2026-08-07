@@ -126,7 +126,12 @@ def test_completed_apk_chat_uses_persisted_verification_and_report_truth():
         }
     }
 
-    reply = mobile_chat_reply(text="What are the results?", intent="results", plan=plan, fallback=None)
+    reply = mobile_chat_reply(
+        text="What are the results?",
+        intent="results",
+        plan=plan,
+        fallback=None,
+    )
 
     assert "verification completed without generating a candidate vulnerability" in reply
     assert "report is ready" in reply

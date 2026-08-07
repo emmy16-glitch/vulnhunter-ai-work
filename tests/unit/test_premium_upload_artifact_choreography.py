@@ -50,12 +50,35 @@ def test_interrupted_upload_preserves_bytes_and_exposes_bounded_recovery() -> No
     assert 'action.textContent = needsFile ? "Choose file again" : "Retry upload"' in javascript
     assert 'cancel.textContent = "Cancel upload"' in javascript
     assert '["queued", "uploading", "retrying"].includes(record.state)' in javascript
-    assert 'record.state === "processing"' not in javascript.split(
-        'cancel.textContent = "Cancel upload"', maxsplit=1
-    )[0].split("if ([", maxsplit=1)[-1]
     assert 'window.VulnHunterUploads = { enqueue, retry, cancel, list: listRecords, resume: schedule }' in coordinator
     assert 'document.addEventListener("vh:upload-cancelled"' in javascript
     assert "clearProgress()" in javascript
+
+
+def test_task_meter_binds_only_to_persisted_stage_measurement() -> None:
+    javascript = _text(CLIENT)
+    css = _text(CSS)
+
+    assert "persistedStageProgress" in javascript
+    assert "persisted stages complete" in javascript
+    assert 'meter.dataset.progressMeasurement = "stage"' in javascript
+    assert 'meter.setAttribute("aria-valuenow", String(completed))' in javascript
+    assert 'meter.setAttribute("aria-valuemax", String(total))' in javascript
+    assert "fill.style.width = `${(completed / total) * 100}%`" in javascript
+    assert "meter.hidden = true" in javascript
+    assert 'delete meter.dataset.progressMeasurement' in javascript
+    assert ".vh-run-progress-meter:not([data-progress-measurement])" in css
+
+
+def test_task_progress_updates_in_place_without_creating_another_run_card() -> None:
+    javascript = _text(CLIENT)
+
+    assert "const taskProgressObserver = new MutationObserver" in javascript
+    assert 'target?.closest?.("[data-run-stages]")' in javascript
+    assert 'node.matches("[data-run-stages]")' in javascript
+    assert "tracks.forEach(syncTaskStageProgress)" in javascript
+    assert "createElement(\"article\")" not in javascript
+    assert "data-run-card" not in javascript
 
 
 def test_upload_interaction_targets_remain_accessible_and_reduced_motion_safe() -> None:

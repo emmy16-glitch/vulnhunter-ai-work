@@ -8,6 +8,7 @@ from vulnhunter.web.conversation_service import (
     deterministic_intent,
     interpret_request,
 )
+from vulnhunter.web.mobile_conversation_state import mobile_chat_reply
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -104,3 +105,29 @@ def test_background_upload_reconciles_timeout_after_server_success():
     assert "if (await reconcileOffset(record)) return" in script
     assert 'emit("vh:upload-complete", record)' in script
     assert "record.retryAt = 0" in script
+
+
+def test_completed_apk_chat_uses_persisted_verification_and_report_truth():
+    plan = {
+        "execution": {
+            "state": "completed",
+            "receipt": {"captures": [], "candidate_observations": []},
+            "progress": {
+                "result_summary": {
+                    "verification": {
+                        "status": "abstained",
+                        "verified_count": 0,
+                        "rejected_count": 0,
+                        "abstained_count": 0,
+                    },
+                    "report": {"status": "ready", "report_id": "report-one"},
+                }
+            },
+        }
+    }
+
+    reply = mobile_chat_reply(text="What are the results?", intent="results", plan=plan, fallback=None)
+
+    assert "verification completed without generating a candidate vulnerability" in reply
+    assert "report is ready" in reply
+    assert "remain candidates" not in reply

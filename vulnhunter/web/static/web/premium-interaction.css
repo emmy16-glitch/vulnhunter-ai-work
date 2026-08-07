@@ -172,6 +172,55 @@ html[data-shell-navigation="pending"] :where(.vh-sidebar, .vh-topbar, .vh-main) 
     var(--vh-motion-easing-enter) both;
 }
 
+/*
+ * The mobile inspector is a task-attached full-screen sheet. Dynamic viewport
+ * units track the usable browser viewport as the Android keyboard opens, while
+ * safe-area padding prevents the close control, panel content and bottom
+ * navigation from colliding with device cut-outs or gesture areas.
+ */
+@media (max-width: 767px) {
+  html.vh-mobile-sheet-open {
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+
+  html.vh-mobile-sheet-open .vh-analysis-inspector {
+    top: 0;
+    bottom: auto;
+    width: 100vw;
+    height: 100dvh;
+    max-height: 100dvh;
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .vh-analysis-inspector-close,
+  .vh-mobile-workspace-nav button {
+    min-width: var(--vh-interaction-target-min);
+    min-height: var(--vh-interaction-target-min);
+  }
+
+  .vh-analysis-panel {
+    scroll-padding-bottom: calc(var(--vh-interaction-target-min) + env(safe-area-inset-bottom) + 28px);
+  }
+
+  .vh-mobile-workspace-nav {
+    bottom: max(10px, env(safe-area-inset-bottom));
+  }
+}
+
+@media (max-width: 767px) and (max-height: 520px) and (orientation: landscape) {
+  .vh-analysis-inspector-header {
+    gap: 8px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+
+  .vh-analysis-panel {
+    padding-top: 10px;
+  }
+}
+
 @keyframes vh-motion-enter {
   from {
     opacity: 0;

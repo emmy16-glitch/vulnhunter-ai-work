@@ -124,9 +124,7 @@ def website_assessment_projection(
     findings = _rows(payload.get("findings"))
     artifacts = _rows(payload.get("artifacts"))
     events = _rows(payload.get("events"))
-    completed_stages = sum(
-        _text(item.get("status")) in {"completed", "skipped"} for item in stages
-    )
+    completed_stages = sum(_text(item.get("status")) in {"completed", "skipped"} for item in stages)
     blocked_stages = sum(
         _text(item.get("status")) in {"blocked", "failed", "rejected"} for item in stages
     )

@@ -165,7 +165,10 @@ def _report_formats(projection: Mapping[str, object]) -> dict[str, dict[str, str
         "json": json,
         "sarif": _format("unavailable", sarif_reason),
         "evidence_zip": _format("unavailable", evidence_reason),
-        "pdf": _format("unavailable", "PDF rendering is not configured for selected assessments."),
+        "pdf": _format(
+            "unavailable",
+            "PDF rendering is not configured for selected assessments.",
+        ),
     }
 
 
@@ -173,10 +176,14 @@ def _assert_report_formats(projection: Mapping[str, object]) -> None:
     report = _map(projection.get("report"))
     formats = _map(report.get("formats"))
     if tuple(formats) != _REPORT_FORMATS:
-        raise ValueError("Selected assessment reports require every canonical format readiness row.")
+        raise ValueError(
+            "Selected assessment reports require every canonical format readiness row."
+        )
     for name in _REPORT_FORMATS:
         item = _map(formats.get(name))
-        if _text(item.get("status")) not in _REPORT_FORMAT_STATES or _text(item.get("reason")) is None:
+        status = _text(item.get("status"))
+        reason = _text(item.get("reason"))
+        if status not in _REPORT_FORMAT_STATES or reason is None:
             raise ValueError("Every report format requires an explicit readiness state and reason.")
     if report.get("ready") is True and _map(formats.get("html")).get("status") != "available":
         raise ValueError("A ready assessment report must expose its contextual HTML view.")

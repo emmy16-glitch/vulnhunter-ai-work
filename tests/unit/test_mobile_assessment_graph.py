@@ -100,9 +100,7 @@ def test_persisted_verification_review_and_report_complete_downstream_graph(sett
 
     refreshed = refresh_mobile_assessment_graph(plan)
 
-    statuses = {
-        item["stage"]: item["status"] for item in refreshed["assessment_graph"]["nodes"]
-    }
+    statuses = {item["stage"]: item["status"] for item in refreshed["assessment_graph"]["nodes"]}
     assert statuses["execution"] == "completed"
     assert statuses["evidence"] == "completed"
     assert statuses["verification"] == "completed"
@@ -134,9 +132,7 @@ def test_persisted_results_fail_closed_without_review_integrity(settings, tmp_pa
 
     refreshed = refresh_mobile_assessment_graph(plan)
 
-    statuses = {
-        item["stage"]: item["status"] for item in refreshed["assessment_graph"]["nodes"]
-    }
+    statuses = {item["stage"]: item["status"] for item in refreshed["assessment_graph"]["nodes"]}
     assert statuses["verification"] == "ready"
     assert statuses["review"] == "pending"
     assert statuses["report"] == "pending"
@@ -166,9 +162,7 @@ def test_persisted_results_fail_closed_without_report_integrity(settings, tmp_pa
 
     refreshed = refresh_mobile_assessment_graph(plan)
 
-    statuses = {
-        item["stage"]: item["status"] for item in refreshed["assessment_graph"]["nodes"]
-    }
+    statuses = {item["stage"]: item["status"] for item in refreshed["assessment_graph"]["nodes"]}
     assert statuses["verification"] == "ready"
     assert statuses["review"] == "pending"
     assert statuses["report"] == "pending"

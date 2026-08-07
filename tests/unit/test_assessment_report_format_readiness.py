@@ -31,9 +31,7 @@ def _projection(
             "reports",
         )
     }
-    result_identity = {
-        name: assessment_id for name in ("evidence", "findings", "graph", "reports")
-    }
+    result_identity = {name: assessment_id for name in ("evidence", "findings", "graph", "reports")}
     return {
         "assessment_id": assessment_id,
         "assessment_kind": kind,

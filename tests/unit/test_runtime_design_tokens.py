@@ -32,11 +32,11 @@ def test_critical_runtime_tokens_match_the_canonical_json_source() -> None:
         "--vh-color-text-primary": source["colors"]["text_primary"],
         "--vh-color-text-secondary": source["colors"]["text_secondary"],
         "--vh-color-warning": source["colors"]["warning"],
-        "--vh-layout-sidebar": f'{source["layout"]["sidebar_width_px"]}px',
-        "--vh-layout-topbar": f'{source["layout"]["topbar_height_px"]}px',
-        "--vh-radius-card": f'{source["radii_px"]["card"]}px',
-        "--vh-radius-control": f'{source["radii_px"]["control"]}px',
-        "--vh-radius-modal": f'{source["radii_px"]["modal"]}px',
+        "--vh-layout-sidebar": f"{source['layout']['sidebar_width_px']}px",
+        "--vh-layout-topbar": f"{source['layout']['topbar_height_px']}px",
+        "--vh-radius-card": f"{source['radii_px']['card']}px",
+        "--vh-radius-control": f"{source['radii_px']['control']}px",
+        "--vh-radius-modal": f"{source['radii_px']['modal']}px",
     }
     assert {_name: _css_value(css, _name) for _name in expected} == expected
 

@@ -26,6 +26,10 @@ from vulnhunter.web.conversation_threads import (
     thread_preferences,
 )
 from vulnhunter.web.conversation_tools import build_safe_tool_context
+from vulnhunter.web.conversation_upload_receipts import (
+    get_apk_upload_completion,
+    remember_apk_upload_completion,
+)
 from vulnhunter.web.conversation_uploads import (
     ConversationUploadError,
     append_apk_chunk,
@@ -203,6 +207,10 @@ def upload_chunk_view(request: HttpRequest, upload_id: str) -> JsonResponse:
     except WebPermissionDenied as exc:
         return JsonResponse({"detail": str(exc)}, status=403)
 
+    completion = get_apk_upload_completion(request, upload_id=upload_id)
+    if completion is not None:
+        return JsonResponse(completion)
+
     uploaded = request.FILES.get("chunk")
     if uploaded is None:
         return JsonResponse({"detail": "The APK upload chunk is missing."}, status=400)
@@ -251,6 +259,7 @@ def upload_chunk_view(request: HttpRequest, upload_id: str) -> JsonResponse:
         "expected_bytes": staged.expected_bytes,
         "complete": True,
     }
+    payload = remember_apk_upload_completion(request, upload_id=upload_id, payload=payload)
     return JsonResponse(payload)
 
 
@@ -262,6 +271,9 @@ def upload_status_view(request: HttpRequest, upload_id: str) -> JsonResponse:
         _actor(request, "scan.create")
     except WebPermissionDenied as exc:
         return JsonResponse({"detail": str(exc)}, status=403)
+    completion = get_apk_upload_completion(request, upload_id=upload_id)
+    if completion is not None:
+        return JsonResponse(completion)
     try:
         staged = get_apk_upload(request, upload_id=upload_id)
     except ConversationUploadError as exc:

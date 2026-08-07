@@ -7,6 +7,7 @@
   const threadId = String(workspace.dataset.threadId || form.dataset.threadId || "");
   const originalFetch = window.fetch.bind(window);
   const csrfToken = form.querySelector("input[name='csrfmiddlewaretoken']")?.value || "";
+  const fileInput = workspace.querySelector("[data-conversation-file]");
 
   const withThread = (input, init = {}) => {
     const request = input instanceof Request ? input : null;
@@ -29,32 +30,124 @@
     return originalFetch(nextInput, nextInit);
   };
 
+  const formatBytes = (value) => {
+    const bytes = Math.max(0, Number(value) || 0);
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  const uploadPresentation = (record) => {
+    const total = Math.max(1, Number(record.size) || 1);
+    const offset = Math.min(total, Math.max(0, Number(record.offset) || 0));
+    const percent = Math.floor((offset / total) * 100);
+    const name = String(record.name || "Android application.apk");
+    const bytes = `${formatBytes(offset)} of ${formatBytes(total)}`;
+    const state = String(record.state || "queued");
+    if (state === "uploading") {
+      return {
+        title: `Uploading ${name}`,
+        detail: `${percent}% · ${bytes}`,
+        measurable: true,
+      };
+    }
+    if (state === "retrying") {
+      return {
+        title: `Upload paused for ${name}`,
+        detail: record.error
+          ? `${record.error} ${bytes} preserved; retrying safely.`
+          : `Connection interrupted · ${bytes} preserved; retrying safely.`,
+        measurable: true,
+      };
+    }
+    if (state === "processing") {
+      return {
+        title: `${name} uploaded`,
+        detail: "Upload bytes complete · validating the artifact and binding the assessment.",
+        measurable: false,
+      };
+    }
+    if (state === "completed") {
+      return {
+        title: `${name} ready`,
+        detail: "Artifact validated · the server confirmed the assessment result for this upload.",
+        measurable: false,
+      };
+    }
+    if (state === "failed") {
+      return {
+        title: `${name} needs attention`,
+        detail: record.error || "The upload stopped before the artifact was ready.",
+        measurable: false,
+      };
+    }
+    return {
+      title: `${name} queued`,
+      detail: `${formatBytes(total)} selected · waiting for the upload worker.`,
+      measurable: true,
+    };
+  };
+
+  const clearProgress = () => {
+    const tray = workspace.querySelector("[data-attachment-tray]");
+    if (!tray) return;
+    tray.replaceChildren();
+    tray.hidden = true;
+  };
+
   const renderProgress = (record) => {
     if (record.threadId !== threadId) return;
     const tray = workspace.querySelector("[data-attachment-tray]");
     if (!tray) return;
     const total = Math.max(1, Number(record.size) || 1);
-    const offset = Math.max(0, Number(record.offset) || 0);
-    const percent = Math.floor((offset / total) * 100);
+    const offset = Math.min(total, Math.max(0, Number(record.offset) || 0));
+    const presentation = uploadPresentation(record);
     tray.hidden = false;
-    tray.innerHTML = "";
+    tray.replaceChildren();
     const card = document.createElement("div");
     card.className = `vh-apk-uploading is-${record.state}`;
+    card.dataset.uploadState = String(record.state || "queued");
+    card.setAttribute("role", "status");
     const marker = document.createElement("span");
+    marker.setAttribute("aria-hidden", "true");
     const copy = document.createElement("div");
     const title = document.createElement("strong");
     const detail = document.createElement("small");
-    const progress = document.createElement("progress");
-    title.textContent = record.state === "completed" ? `${record.name} uploaded` : `Uploading ${record.name}`;
-    detail.textContent = record.error || `${percent}% · This continues while you browse other pages.`;
-    progress.max = total;
-    progress.value = offset;
-    copy.append(title, detail, progress);
+    title.textContent = presentation.title;
+    detail.textContent = presentation.detail;
+    copy.append(title, detail);
+    if (presentation.measurable) {
+      const progress = document.createElement("progress");
+      progress.max = total;
+      progress.value = offset;
+      progress.setAttribute("aria-label", `Uploaded ${formatBytes(offset)} of ${formatBytes(total)}`);
+      copy.append(progress);
+    }
+    const actions = document.createElement("div");
+    actions.className = "vh-upload-actions";
+    if (record.state === "failed") {
+      const needsFile = /choose the file again/i.test(String(record.error || ""));
+      const action = document.createElement("button");
+      action.type = "button";
+      action.textContent = needsFile ? "Choose file again" : "Retry upload";
+      action.addEventListener("click", () => {
+        if (needsFile) fileInput?.click();
+        else window.VulnHunterUploads?.retry(record.localId);
+      });
+      actions.append(action);
+    }
+    if (["queued", "uploading", "retrying"].includes(record.state)) {
+      const cancel = document.createElement("button");
+      cancel.type = "button";
+      cancel.textContent = "Cancel upload";
+      cancel.addEventListener("click", () => window.VulnHunterUploads?.cancel(record.localId));
+      actions.append(cancel);
+    }
+    if (actions.childElementCount) copy.append(actions);
     card.append(marker, copy);
     tray.append(card);
   };
 
-  const fileInput = workspace.querySelector("[data-conversation-file]");
   fileInput?.addEventListener(
     "change",
     async (event) => {
@@ -81,7 +174,13 @@
     true,
   );
 
-  for (const name of ["vh:upload-enqueued", "vh:upload-progress", "vh:upload-paused", "vh:upload-error", "vh:upload-complete"]) {
+  for (const name of [
+    "vh:upload-enqueued",
+    "vh:upload-progress",
+    "vh:upload-paused",
+    "vh:upload-error",
+    "vh:upload-complete",
+  ]) {
     document.addEventListener(name, (event) => {
       const record = event.detail || {};
       renderProgress(record);
@@ -95,6 +194,9 @@
       }
     });
   }
+  document.addEventListener("vh:upload-cancelled", (event) => {
+    if (event.detail?.threadId === threadId) clearProgress();
+  });
 
   window.VulnHunterUploads?.list().then((records) => {
     const selected = records

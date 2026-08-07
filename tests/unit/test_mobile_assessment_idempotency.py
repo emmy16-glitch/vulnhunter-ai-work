@@ -87,12 +87,13 @@ def test_same_workspace_artifact_and_workflow_reuse_assessment_identity(tmp_path
 def test_workspace_or_intended_workflow_changes_assessment_identity(tmp_path):
     artifact = _artifact(tmp_path)
     attachment = _attachment("attachment-11111111111111111111")
+    workspace = str(uuid4())
     first = build_mobile_chat_plan(
         text="Test this APK",
         requested_by="reviewer-one",
         attachment=attachment,
         artifact=artifact,
-        workspace_id=str(uuid4()),
+        workspace_id=workspace,
     )
     other_workspace = build_mobile_chat_plan(
         text="Test this APK",
@@ -106,7 +107,7 @@ def test_workspace_or_intended_workflow_changes_assessment_identity(tmp_path):
         requested_by="reviewer-one",
         attachment=attachment,
         artifact=artifact,
-        workspace_id=first["run_id"],
+        workspace_id=workspace,
     )
 
     assert other_workspace["run_id"] != first["run_id"]
@@ -138,9 +139,11 @@ def test_graph_create_or_bind_survives_recreated_attachment(settings, tmp_path):
     second["execution"] = {"state": "queued"}
     second_bound = bind_mobile_assessment_graph(request, plan=second)
 
+    first_graph = first_bound["assessment_graph"]
+    second_graph = second_bound["assessment_graph"]
     assert second_bound["run_id"] == first_bound["run_id"]
-    assert second_bound["assessment_graph"]["graph_id"] == first_bound["assessment_graph"]["graph_id"]
-    assert second_bound["assessment_graph"]["revision"] == first_bound["assessment_graph"]["revision"]
+    assert second_graph["graph_id"] == first_graph["graph_id"]
+    assert second_graph["revision"] == first_graph["revision"]
 
 
 def test_duplicate_queue_submission_reuses_exact_signed_job(settings, tmp_path):

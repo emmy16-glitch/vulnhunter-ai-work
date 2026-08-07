@@ -2,13 +2,13 @@
   "use strict";
 
   const root = document.documentElement;
-  const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+  const query = window.matchMedia("(prefers-reduced-motion: reduce)");
   const overlayStack = [];
   const overlayConfigs = new WeakMap();
   let overlaySequence = 0;
 
   const applyMotionPreference = () => {
-    const motion = motionQuery.matches ? "reduced" : "full";
+    const motion = query.matches ? "reduced" : "full";
     if (root.dataset.motion === motion) return;
     root.dataset.motion = motion;
     window.dispatchEvent(
@@ -150,11 +150,11 @@
   });
 
   applyMotionPreference();
-  motionQuery.addEventListener("change", applyMotionPreference);
+  query.addEventListener("change", applyMotionPreference);
 
   window.VulnHunterInteraction = Object.freeze({
     motion: Object.freeze({
-      reduced: () => motionQuery.matches,
+      reduced: () => query.matches,
     }),
     overlays: Object.freeze({
       register: registerOverlay,

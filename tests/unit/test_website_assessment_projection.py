@@ -23,6 +23,7 @@ def _payload(*, state: str = "running") -> dict[str, object]:
         "artifacts": [{"filename": "receipt.json"}],
         "task_graph": {
             "graph_id": "graph-1",
+            "revision": 4,
             "workspace_id": "workspace-1",
             "authorization_id": "authorization-1",
             "chat_stage": "analysis_running",
@@ -41,10 +42,20 @@ def test_website_projection_binds_every_surface_and_graph_authorization():
     assert projection is not None
     assert projection["assessment_id"] == "assessment-1"
     assert projection["assessment_kind"] == "website"
+    assert projection["projection_contract"] == "selected-assessment/v1"
+    assert projection["projection_revision"] == 4
     assert set(projection["surface_identity"].values()) == {"assessment-1"}
+    assert set(projection["result_identity"].values()) == {"assessment-1"}
     assert projection["authority"]["authorization_id"] == "authorization-1"
     assert projection["subject"]["target"] == "http://192.168.1.25:8080/app"
     assert projection["task_card"]["assessment_id"] == "assessment-1"
+    assert projection["task_card"]["activity_timeline_id"] == "graph-1"
+    assert projection["task_card"]["progress"] == {
+        "measurement": "stage",
+        "completed": 2,
+        "total": 4,
+        "stage": "scanner",
+    }
 
 
 def test_website_projection_uses_persisted_stage_activity_and_result_counts():
@@ -89,9 +100,24 @@ def test_website_failure_preserves_state_and_never_invents_retry():
     assert "request_retry" not in projection["allowed_actions"]
 
 
+def test_website_workflow_alias_is_canonical_before_browser_projection():
+    payload = _payload(state="evaluating")
+    payload["task_graph"]["nodes"][2]["status"] = "running"
+    projection = website_assessment_projection(payload)
+    assert projection is not None
+    assert projection["execution"]["state"] == "running"
+    assert projection["task_card"]["state"] == "running"
+
+
 def test_website_projection_fails_closed_without_graph_authority():
     payload = _payload()
-    payload["task_graph"] = {"graph_id": "graph-1", "nodes": []}
+    payload["task_graph"] = {"graph_id": "graph-1", "revision": 1, "nodes": []}
+    assert website_assessment_projection(payload) is None
+
+
+def test_website_projection_fails_closed_without_persisted_revision():
+    payload = _payload()
+    payload["task_graph"].pop("revision")
     assert website_assessment_projection(payload) is None
 
 

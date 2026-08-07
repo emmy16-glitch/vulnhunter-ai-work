@@ -27,11 +27,11 @@ def test_login_template_uses_shared_interaction_and_preserves_return_destination
     assert "premium-interaction.js" in template
     assert 'data-route="login"' in template
     assert 'id="main-content"' in template
-    assert 'data-login-form' in template
+    assert "data-login-form" in template
     assert 'name="next"' in template
     assert 'value="{{ next }}"' in template
-    assert 'data-login-submit' in template
-    assert 'data-login-error' in template
+    assert "data-login-submit" in template
+    assert "data-login-error" in template
 
 
 def test_login_interaction_blocks_duplicate_submit_and_recovers_from_bfcache() -> None:
@@ -141,7 +141,7 @@ def test_invalid_login_preserves_username_but_never_password() -> None:
     content = response.content.decode("utf-8")
     assert "invalid-login" in content
     assert secret not in content
-    assert 'data-login-error' in content
+    assert "data-login-error" in content
     assert 'value="/health/"' in content
 
 

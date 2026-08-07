@@ -116,9 +116,7 @@ def source_hunt_assessment_projection(
     surfaces_examined = _integer(report.get("surfaces_examined")) or 0
     report_status = _text(report.get("stage")) or "pending"
     report_ready = state == "completed" and bool(_text(report.get("report_id")))
-    completed_stages = sum(
-        _text(item.get("status")) in {"completed", "skipped"} for item in stages
-    )
+    completed_stages = sum(_text(item.get("status")) in {"completed", "skipped"} for item in stages)
     safe_error = _text(execution.get("safe_error") or report.get("safe_error"))
     latest_event = None
     completed_at = _text(execution.get("completed_at"))

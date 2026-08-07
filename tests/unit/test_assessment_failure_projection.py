@@ -46,6 +46,7 @@ def _plan(*, safe_retry: bool, retry_scope: str | None) -> dict[str, object]:
         },
         "assessment_graph": {
             "graph_id": "mobile-failure-one-graph",
+            "revision": 7,
             "workspace_id": "workspace-one",
             "assessment_kind": "apk",
             "authorization_id": "attachment-one",
@@ -94,6 +95,8 @@ def test_projection_exposes_typed_failure_without_raw_operation_identifier():
         "worker": "unavailable",
         "provider": "not_evaluated",
     }
+    assert projection["projection_revision"] == 7
+    assert projection["task_card"]["activity_timeline_id"] == "mobile-failure-one-graph"
 
 
 def test_retry_action_requires_persisted_safe_retry_and_exact_scope():

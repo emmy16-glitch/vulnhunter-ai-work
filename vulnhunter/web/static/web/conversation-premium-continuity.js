@@ -217,6 +217,10 @@
           const copy = article.querySelector(".vh-message-copy");
           if (!(copy instanceof HTMLElement)) continue;
           const expected = stableAssistantMessages.shift();
+          if (copy.childElementCount > 0) {
+            stableCopies.delete(copy);
+            continue;
+          }
           stableCopies.set(copy, expected);
           copy.textContent = expected;
           article.classList.add("vh-motion-enter");
@@ -226,6 +230,10 @@
       if (!(target instanceof HTMLElement)) continue;
       const copy = target.closest?.(".vh-message-copy") || (target.matches?.(".vh-message-copy") ? target : null);
       if (!(copy instanceof HTMLElement)) continue;
+      if (copy.childElementCount > 0) {
+        stableCopies.delete(copy);
+        continue;
+      }
       const expected = stableCopies.get(copy);
       if (expected !== undefined && copy.textContent !== expected) copy.textContent = expected;
     }

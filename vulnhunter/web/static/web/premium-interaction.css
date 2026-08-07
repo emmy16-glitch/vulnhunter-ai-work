@@ -1,0 +1,208 @@
+:root {
+  --vh-motion-duration-instant: 60ms;
+  --vh-motion-duration-fast: 120ms;
+  --vh-motion-duration-standard: 180ms;
+  --vh-motion-duration-deliberate: 240ms;
+  --vh-motion-duration-large: 320ms;
+  --vh-motion-easing-standard: cubic-bezier(.2, 0, 0, 1);
+  --vh-motion-easing-enter: cubic-bezier(.16, 1, .3, 1);
+  --vh-motion-easing-exit: cubic-bezier(.4, 0, 1, 1);
+  --vh-motion-easing-emphasized: cubic-bezier(.2, .8, .2, 1);
+  --vh-motion-distance-xs: 4px;
+  --vh-motion-distance-sm: 8px;
+  --vh-motion-distance-md: 12px;
+  --vh-motion-distance-lg: 16px;
+  --vh-motion-scale-press: .985;
+  --vh-motion-scale-enter: .995;
+  --vh-motion-opacity-muted: .72;
+  --vh-motion-opacity-disabled: .48;
+  --vh-interaction-target-min: 44px;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+/*
+ * Programme 2 interaction foundation.
+ *
+ * This layer is loaded after the historical product CSS so shared component
+ * behaviour has one semantic timing/state owner while legacy declarations are
+ * migrated in later bounded slices. State selectors never infer backend state;
+ * they style only state already supplied by markup or an authoritative client.
+ */
+:where(
+  button,
+  .vh-button-link,
+  .vh-button-primary,
+  .vh-button-secondary,
+  .vh-button-danger,
+  .vh-icon-control,
+  .vh-search-trigger,
+  .vh-nav-toggle,
+  summary
+) {
+  min-height: var(--vh-interaction-target-min);
+  transition-property: color, background-color, border-color, box-shadow, opacity, transform;
+  transition-duration: var(--vh-motion-duration-fast);
+  transition-timing-function: var(--vh-motion-easing-standard);
+  -webkit-tap-highlight-color: transparent;
+}
+
+:where(
+  button,
+  .vh-button-link,
+  .vh-button-primary,
+  .vh-button-secondary,
+  .vh-button-danger,
+  .vh-icon-control,
+  .vh-search-trigger,
+  .vh-nav-toggle,
+  summary
+):active:not(:disabled):not([aria-disabled="true"]) {
+  transform: scale(var(--vh-motion-scale-press));
+}
+
+:where(a, button, summary, input, select, textarea):focus-visible {
+  transition-duration: var(--vh-motion-duration-instant);
+}
+
+:where(input, select, textarea) {
+  transition-property: color, background-color, border-color, box-shadow, opacity;
+  transition-duration: var(--vh-motion-duration-fast);
+  transition-timing-function: var(--vh-motion-easing-standard);
+}
+
+:where(button, input, select, textarea):disabled,
+:where(button, a, summary, input, select, textarea)[aria-disabled="true"],
+[data-interaction-state="disabled"],
+[data-interaction-state="unavailable"],
+[data-interaction-state="locked"] {
+  opacity: var(--vh-motion-opacity-disabled);
+  cursor: not-allowed;
+}
+
+:where(button, a, summary)[aria-disabled="true"] {
+  pointer-events: none;
+}
+
+:where(button, .vh-button-link, .vh-button-primary, .vh-button-secondary, .vh-button-danger)[aria-busy="true"],
+[data-interaction-state="loading"] {
+  cursor: progress;
+}
+
+:where(button, .vh-button-link, .vh-button-primary, .vh-button-secondary, .vh-button-danger)[aria-busy="true"] {
+  pointer-events: none;
+}
+
+[data-interaction-state="selected"],
+[data-interaction-state="active"] {
+  outline-color: currentColor;
+}
+
+[data-interaction-state="success"] {
+  border-color: color-mix(in srgb, var(--vh-success) 62%, var(--vh-border));
+}
+
+[data-interaction-state="warning"] {
+  border-color: color-mix(in srgb, var(--vh-warning) 62%, var(--vh-border));
+}
+
+[data-interaction-state="failure"] {
+  border-color: color-mix(in srgb, var(--vh-danger) 62%, var(--vh-border));
+}
+
+[data-interaction-state="loading"],
+[data-interaction-state="success"],
+[data-interaction-state="warning"],
+[data-interaction-state="failure"] {
+  transition-property: color, background-color, border-color, box-shadow, opacity, transform;
+  transition-duration: var(--vh-motion-duration-standard);
+  transition-timing-function: var(--vh-motion-easing-standard);
+}
+
+.vh-motion-enter {
+  animation: vh-motion-enter var(--vh-motion-duration-standard) var(--vh-motion-easing-enter) both;
+}
+
+.vh-motion-exit {
+  animation: vh-motion-exit var(--vh-motion-duration-fast) var(--vh-motion-easing-exit) both;
+}
+
+.vh-motion-update {
+  animation: vh-motion-update var(--vh-motion-duration-deliberate) var(--vh-motion-easing-standard) both;
+}
+
+@keyframes vh-motion-enter {
+  from {
+    opacity: 0;
+    transform: translateY(var(--vh-motion-distance-xs)) scale(var(--vh-motion-scale-enter));
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes vh-motion-exit {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(calc(var(--vh-motion-distance-xs) * -1));
+  }
+}
+
+@keyframes vh-motion-update {
+  0% {
+    box-shadow: var(--vh-shadow-border);
+  }
+  45% {
+    box-shadow: var(--vh-shadow-hover);
+  }
+  100% {
+    box-shadow: var(--vh-shadow-border);
+  }
+}
+
+/*
+ * Reduced motion is a semantic alternative: distance and scale collapse while
+ * state, focus, loading labels and status changes remain visible. The final
+ * animation guard prevents a legacy looping keyframe from surviving while its
+ * owning stylesheet is migrated to these tokens.
+ */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --vh-motion-duration-instant: 1ms;
+    --vh-motion-duration-fast: 1ms;
+    --vh-motion-duration-standard: 1ms;
+    --vh-motion-duration-deliberate: 1ms;
+    --vh-motion-duration-large: 1ms;
+    --vh-motion-distance-xs: 0px;
+    --vh-motion-distance-sm: 0px;
+    --vh-motion-distance-md: 0px;
+    --vh-motion-distance-lg: 0px;
+    --vh-motion-scale-press: 1;
+    --vh-motion-scale-enter: 1;
+  }
+
+  html {
+    scroll-behavior: auto;
+  }
+
+  .vh-motion-enter,
+  .vh-motion-exit,
+  .vh-motion-update {
+    animation: none;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+}

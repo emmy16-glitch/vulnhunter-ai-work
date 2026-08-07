@@ -26,7 +26,7 @@ def test_only_new_activity_rows_receive_arrival_emphasis() -> None:
     javascript = _text(ACTIVITY_JS)
     css = _text(ACTIVITY_CSS)
 
-    assert 'eventNode(event, { isNew: true })' in javascript
+    assert "eventNode(event, { isNew: true })" in javascript
     assert 'node.classList.remove("is-new")' in javascript
     assert ".vh-activity-event.is-new" in css
     assert "vh-activity-arrival" in css

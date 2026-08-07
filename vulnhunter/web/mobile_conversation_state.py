@@ -221,7 +221,9 @@ def mobile_chat_reply(
         if state in {"queued", "running"}:
             return "No action is required while the networkless static worker is running."
         if state == "completed":
-            verified_copy = _verified_results_summary(execution) if isinstance(execution, dict) else None
+            verified_copy = (
+                _verified_results_summary(execution) if isinstance(execution, dict) else None
+            )
             if verified_copy:
                 return "Open the findings, evidence or report for the completed assessment."
             return (

@@ -145,9 +145,7 @@ def _project_persisted_results(
     if review_status != "completed" or not _is_sha256(review.get("receipt_sha256")):
         return
     report_is_valid = (
-        report_status in _REPORT_STATUSES
-        and bool(report_id)
-        and _is_sha256(report.get("digest"))
+        report_status in _REPORT_STATUSES and bool(report_id) and _is_sha256(report.get("digest"))
     )
     if not report_is_valid:
         return

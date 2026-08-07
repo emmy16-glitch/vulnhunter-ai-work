@@ -46,6 +46,7 @@ def _plan() -> dict[str, object]:
         },
         "assessment_graph": {
             "graph_id": "graph-one",
+            "revision": 2,
             "workspace_id": "workspace-one",
             "assessment_kind": "apk",
             "chat_stage": "executing",

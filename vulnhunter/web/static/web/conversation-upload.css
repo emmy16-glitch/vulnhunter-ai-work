@@ -40,3 +40,40 @@
   border-radius: 999px;
   background: linear-gradient(90deg, #548eff, #70a4ff);
 }
+
+.vh-upload-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .4rem;
+  padding-top: .2rem;
+}
+
+.vh-upload-actions button {
+  min-width: 44px;
+  min-height: 44px;
+  border: 1px solid color-mix(in srgb, var(--vh-color-border) 82%, transparent);
+  border-radius: var(--vh-radius-control);
+  padding: .45rem .7rem;
+  background: color-mix(in srgb, var(--vh-color-surface-elevated) 92%, transparent);
+  color: var(--vh-color-text-primary);
+  font: inherit;
+  cursor: pointer;
+}
+
+.vh-apk-uploading.is-processing progress,
+.vh-apk-uploading.is-completed progress,
+.vh-apk-uploading.is-failed progress {
+  display: none;
+}
+
+.vh-run-progress-meter:not([data-progress-measurement]) {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vh-apk-uploading,
+  .vh-upload-actions button {
+    animation: none !important;
+    transition: none !important;
+  }
+}

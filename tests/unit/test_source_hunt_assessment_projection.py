@@ -99,11 +99,12 @@ def test_source_hunt_projection_uses_persisted_report_counts_and_abstention():
         "rejected_count": 2,
         "abstained_count": 1,
     }
-    assert projection["report"] == {
+    assert {key: value for key, value in projection["report"].items() if key != "formats"} == {
         "status": "completed",
         "ready": True,
         "report_id": "report-1",
     }
+    assert projection["report"]["formats"]["html"]["status"] == "available"
     assert "view_report" in projection["allowed_actions"]
 
 

@@ -388,32 +388,62 @@
     elements.graph.append(summary);
   };
 
+  const reportFormats = [
+    ["html", "HTML"],
+    ["json", "JSON"],
+    ["sarif", "SARIF"],
+    ["evidence_zip", "Evidence ZIP"],
+    ["pdf", "PDF"],
+  ];
+
   const updateReports = () => {
     elements.reports.replaceChildren();
-    const projected = state.projection?.report || {};
-    const persisted = resultSummary().report || {};
-    const report = Object.keys(projected).length ? projected : persisted;
-    const status = text(report.status).toLowerCase();
-    const reportId = text(report.report_id);
-    const digest = text(report.digest);
-    const ready = report.ready === true || (reportId && ["ready", "completed"].includes(status));
-    elements.reportsCount.textContent = ready ? "1" : "0";
-    elements.emptyReports.hidden = ready;
-    if (!ready) return;
+    const report = state.projection?.report || {};
+    const formats = report.formats && typeof report.formats === "object" ? report.formats : null;
+    const rows = formats
+      ? reportFormats.map(([id, label]) => ({ id, label, value: formats[id] })).filter(
+          (row) => row.value && typeof row.value === "object",
+        )
+      : [];
+    const available = rows.filter((row) => text(row.value.status).toLowerCase() === "available");
+    elements.reportsCount.textContent = rows.length === reportFormats.length ? String(available.length) : "—";
+    elements.emptyReports.hidden = rows.length === reportFormats.length;
+    if (rows.length !== reportFormats.length) return;
 
-    const item = document.createElement("article");
-    item.className = "is-success";
-    const title = document.createElement("strong");
-    title.textContent = "Evidence-backed assessment report";
-    const meta = document.createElement("small");
-    meta.textContent = reportId;
-    const receipt = document.createElement("code");
-    receipt.textContent = digest ? `Report ${digest.slice(0, 24)}…` : "Persisted report receipt";
-    const verification = state.projection?.verification || resultSummary().verification || {};
-    const summary = document.createElement("p");
-    summary.textContent = `Verification ${pretty(verification.status || "completed")} · bound to assessment ${selectedAssessmentId()}`;
-    item.append(title, meta, receipt, summary);
-    elements.reports.append(item);
+    const identity = document.createElement("article");
+    identity.className = "vh-inspector-report-identity";
+    const identityTitle = document.createElement("strong");
+    identityTitle.textContent = text(state.projection?.subject?.label || "Selected assessment");
+    const identityMeta = document.createElement("small");
+    identityMeta.textContent = `${selectedAssessmentId()} · ${pretty(
+      state.projection?.execution?.state || state.projection?.lifecycle || "unavailable",
+    )}`;
+    identity.append(identityTitle, identityMeta);
+    elements.reports.append(identity);
+
+    rows.forEach((row) => {
+      const status = text(row.value.status).toLowerCase();
+      const item = document.createElement("article");
+      item.className = status === "available" ? "is-success" : "is-failed";
+      const header = document.createElement("header");
+      const title = document.createElement("strong");
+      title.textContent = row.label;
+      const stateLabel = document.createElement("b");
+      stateLabel.textContent = pretty(status || "unavailable");
+      header.append(title, stateLabel);
+      const reason = document.createElement("p");
+      reason.textContent = text(row.value.reason || "Readiness reason unavailable.");
+      item.append(header, reason);
+      if (row.id === "html" && status === "available" && report.report_id) {
+        const receipt = document.createElement("code");
+        const digest = text(report.digest);
+        receipt.textContent = digest
+          ? `${text(report.report_id)} · ${digest.slice(0, 24)}…`
+          : text(report.report_id);
+        item.append(receipt);
+      }
+      elements.reports.append(item);
+    });
   };
 
   const updateProgress = () => {

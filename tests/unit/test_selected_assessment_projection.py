@@ -4,6 +4,7 @@ import pytest
 
 from vulnhunter.web.selected_assessment_projection import (
     assert_selected_assessment_invariants,
+    canonical_execution_state,
     replace_selected_assessment,
     selected_assessment_projection,
 )
@@ -81,6 +82,32 @@ def test_selected_projection_accepts_every_supported_workflow(kind: str):
     assert projection is not None
     assert projection["assessment_kind"] == kind
     assert projection["projection_contract"] == "selected-assessment/v1"
+
+
+@pytest.mark.parametrize(
+    ("workflow_state", "canonical"),
+    [
+        ("created", "prepared"),
+        ("pending", "prepared"),
+        ("executing", "running"),
+        ("evaluating", "running"),
+        ("execution_blocked", "blocked"),
+        ("readiness_blocked", "blocked"),
+        ("unavailable", "blocked"),
+        ("timed_out", "failed"),
+        ("denied", "rejected"),
+    ],
+)
+def test_workflow_state_aliases_converge_before_browser_projection(
+    workflow_state: str,
+    canonical: str,
+):
+    assert canonical_execution_state(workflow_state) == canonical
+
+
+def test_unknown_workflow_state_fails_closed():
+    with pytest.raises(ValueError, match="supported execution state"):
+        canonical_execution_state("almost-finished")
 
 
 def test_selected_projection_returns_a_defensive_snapshot():

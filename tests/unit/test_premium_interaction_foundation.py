@@ -53,8 +53,8 @@ def test_motion_tokens_have_one_shared_semantic_vocabulary() -> None:
 def test_shared_primitive_states_preserve_truthful_authoritative_state() -> None:
     css = _text(CSS)
 
-    assert '--vh-interaction-target-min: 44px' in css
-    assert 'min-height: var(--vh-interaction-target-min)' in css
+    assert "--vh-interaction-target-min: 44px" in css
+    assert "min-height: var(--vh-interaction-target-min)" in css
     assert '[aria-busy="true"]' in css
     assert '[aria-disabled="true"]' in css
     for state in (
@@ -88,6 +88,6 @@ def test_reduced_motion_is_a_complete_semantic_alternative() -> None:
     assert "transition: none" not in css
 
     assert 'matchMedia("(prefers-reduced-motion: reduce)")' in javascript
-    assert 'root.dataset.motion = motion' in javascript
-    assert 'vh:motion-preference-change' in javascript
+    assert "root.dataset.motion = motion" in javascript
+    assert "vh:motion-preference-change" in javascript
     assert 'query.addEventListener("change", applyMotionPreference)' in javascript

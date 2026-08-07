@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from django.contrib.auth.decorators import login_required
-from django.http import HttpRequest, HttpResponse
+from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import render
 from django.views.decorators.cache import cache_control
 from django.views.decorators.http import require_GET
@@ -19,7 +19,7 @@ from vulnhunter.web.services import (
 @login_required
 @require_GET
 def findings_overview_view(request: HttpRequest) -> HttpResponse:
-    """List only findings backed by persisted assessment evidence."""
+    """List persisted findings globally or for one readable selected assessment."""
 
     try:
         actor = authorized_actor(
@@ -38,13 +38,37 @@ def findings_overview_view(request: HttpRequest) -> HttpResponse:
             status=403,
         )
 
+    requested_assessment = str(request.GET.get("assessment") or "").strip() or None
+    selected_assessment: dict[str, str] | None = None
     findings: list[dict[str, object]] = []
     error_message = None
     try:
         service = product_service()
-        runs = tuple(run for run in service.list_agent_runs() if run_readable_to_actor(run, actor))
-        for summary in runs:
+        readable_runs = tuple(
+            run for run in service.list_agent_runs() if run_readable_to_actor(run, actor)
+        )
+        if requested_assessment is not None:
+            matched = next(
+                (
+                    run
+                    for run in readable_runs
+                    if str(getattr(run, "run_id", "")) == requested_assessment
+                ),
+                None,
+            )
+            if matched is None:
+                # Preserve the private-not-found boundary: an unknown assessment and an
+                # existing assessment the current actor cannot read are indistinguishable.
+                raise Http404("Assessment not found.")
+            readable_runs = (matched,)
+
+        for summary in readable_runs:
             detail = service.get_agent_run(summary.run_id)
+            if requested_assessment is not None:
+                selected_assessment = {
+                    "run_id": str(detail.run_id),
+                    "label": str(getattr(detail, "objective", "") or detail.run_id),
+                }
             for finding in detail.findings:
                 findings.append(
                     {
@@ -68,5 +92,6 @@ def findings_overview_view(request: HttpRequest) -> HttpResponse:
             "current_route": "web-findings-overview",
             "findings": tuple(findings),
             "error_message": error_message,
+            "selected_assessment": selected_assessment,
         },
     )

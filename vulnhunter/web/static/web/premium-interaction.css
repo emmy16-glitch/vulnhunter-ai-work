@@ -133,6 +133,20 @@ html {
   animation: vh-motion-update var(--vh-motion-duration-deliberate) var(--vh-motion-easing-standard) both;
 }
 
+.vh-overlay-open {
+  overflow: hidden;
+  overscroll-behavior: contain;
+}
+
+:where(dialog[open]) {
+  animation: vh-overlay-enter var(--vh-motion-duration-deliberate) var(--vh-motion-easing-enter) both;
+}
+
+:where(dialog)::backdrop {
+  background: rgb(0 0 0 / .58);
+  animation: vh-overlay-backdrop-enter var(--vh-motion-duration-standard) var(--vh-motion-easing-standard) both;
+}
+
 @keyframes vh-motion-enter {
   from {
     opacity: 0;
@@ -167,6 +181,26 @@ html {
   }
 }
 
+@keyframes vh-overlay-enter {
+  from {
+    opacity: 0;
+    transform: translateY(var(--vh-motion-distance-sm)) scale(var(--vh-motion-scale-enter));
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes vh-overlay-backdrop-enter {
+  from {
+    background: rgb(0 0 0 / 0);
+  }
+  to {
+    background: rgb(0 0 0 / .58);
+  }
+}
+
 /*
  * Reduced motion is a semantic alternative: distance and scale collapse while
  * state, focus, loading labels and status changes remain visible. The final
@@ -194,7 +228,9 @@ html {
 
   .vh-motion-enter,
   .vh-motion-exit,
-  .vh-motion-update {
+  .vh-motion-update,
+  :where(dialog[open]),
+  :where(dialog)::backdrop {
     animation: none;
   }
 

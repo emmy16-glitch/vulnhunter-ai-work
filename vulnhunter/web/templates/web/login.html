@@ -9,9 +9,11 @@
   <title>Sign In | VulnHunter</title>
   <link rel="stylesheet" href="{% static 'web/app.css' %}?v=20260722-console">
   <link rel="stylesheet" href="{% static 'web/console.css' %}?v=20260722-console">
+  <link rel="stylesheet" href="{% static 'web/tokens.css' %}?v=20260807-tokens1">
+  <link rel="stylesheet" href="{% static 'web/premium-interaction.css' %}?v=20260807-login1">
 </head>
-<body class="vh-login-body">
-  <main class="vh-login-main">
+<body class="vh-login-body" data-route="login">
+  <main class="vh-login-main" id="main-content" tabindex="-1">
     <section class="vh-login-card" aria-labelledby="login-title">
       <div class="vh-login-brand">
         <span class="vh-login-brand-mark" aria-hidden="true">V</span>
@@ -21,10 +23,13 @@
         </div>
       </div>
       <p>Authorized, laboratory-only and evidence-driven security operations. Sign in with the local account mapped to your governed identity.</p>
-      <form method="post" novalidate>
+      <form method="post" novalidate data-login-form>
         {% csrf_token %}
+        {% if redirect_field_value %}
+          <input type="hidden" name="{{ redirect_field_name }}" value="{{ redirect_field_value }}">
+        {% endif %}
         {% if form.non_field_errors %}
-          <div class="vh-panel vh-panel-danger" role="alert">{{ form.non_field_errors }}</div>
+          <div class="vh-panel vh-panel-danger" role="alert" tabindex="-1" data-login-error>{{ form.non_field_errors }}</div>
         {% endif %}
         <div class="vh-form-field">
           {{ form.username.label_tag }}
@@ -36,10 +41,13 @@
           {{ form.password }}
           {{ form.password.errors }}
         </div>
-        <button type="submit">Sign in securely</button>
+        <button type="submit" data-login-submit data-idle-label="Sign in securely">
+          <span data-login-submit-label>Sign in securely</span>
+        </button>
       </form>
       <p class="vh-login-note">Advisory analysis may propose. Authorization, policy, deterministic verification and human decisions remain authoritative.</p>
     </section>
   </main>
+  <script src="{% static 'web/premium-interaction.js' %}?v=20260807-login1"></script>
 </body>
 </html>

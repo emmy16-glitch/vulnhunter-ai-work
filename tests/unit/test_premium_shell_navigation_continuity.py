@@ -52,7 +52,10 @@ def test_shell_navigation_storage_failure_is_non_blocking() -> None:
     javascript = _text(INTERACTION)
 
     assert "Navigation remains functional when session storage is unavailable." in javascript
-    assert "Immediate visual acknowledgement still works without persisted continuity." in javascript
+    assert (
+        "Immediate visual acknowledgement still works without persisted continuity."
+        in javascript
+    )
     assert "window.sessionStorage.setItem" in javascript
     assert "window.sessionStorage.removeItem" in javascript
 

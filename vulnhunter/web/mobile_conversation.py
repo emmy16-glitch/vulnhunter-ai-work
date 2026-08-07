@@ -137,7 +137,7 @@ def build_mobile_chat_plan(
         artifact_sha256=artifact.sha256,
         artifact_path=artifact.stored_path,
         profile=effective_profile,
-        authorization_references=(f"uploaded-artifact:{attachment.attachment_id}",),
+        authorization_references=(f"uploaded-artifact:{artifact.artifact_id}",),
     )
     manifests, graph = MobileAnalysisPlanner(catalog).build(request, artifact)
     selected_tool_ids = tuple(item.tool_id for item in manifests)

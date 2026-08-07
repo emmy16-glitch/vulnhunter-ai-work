@@ -241,6 +241,7 @@
   const loadWorkspaceBridges = () => {
     bindSourceHuntLinks();
     bindProviderRuntime();
+    loadScript("conversation-upload-recovery.js", "data-upload-recovery-loader");
     loadScript("conversation-provider-control.js", "data-provider-control-loader");
     loadScript("conversation-response-controls.js", "data-response-controls-loader");
     loadScript("workspace-state.js", "data-workspace-state-loader");

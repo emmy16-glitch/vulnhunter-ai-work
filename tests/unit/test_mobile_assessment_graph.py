@@ -68,7 +68,7 @@ def test_completed_worker_projects_evidence_and_waits_for_verification(tmp_path)
     assert statuses["review"] == "pending"
 
 
-def test_persisted_verification_and_report_complete_downstream_graph(settings, tmp_path):
+def test_persisted_verification_review_and_report_complete_downstream_graph(settings, tmp_path):
     settings.VULNHUNTER_TASK_GRAPH_ROOT = tmp_path / "graphs"
     service = MobileAssessmentGraphService(settings.VULNHUNTER_TASK_GRAPH_ROOT, clock=lambda: NOW)
     _create(service, run_id="mobile-authoritative-results", state="queued")
@@ -83,6 +83,10 @@ def test_persisted_verification_and_report_complete_downstream_graph(settings, t
                         "verified_count": 1,
                         "rejected_count": 1,
                         "abstained_count": 1,
+                    },
+                    "review": {
+                        "status": "completed",
+                        "receipt_sha256": "c" * 64,
                     },
                     "report": {
                         "status": "ready",
@@ -106,6 +110,38 @@ def test_persisted_verification_and_report_complete_downstream_graph(settings, t
     assert statuses["report"] == "completed"
 
 
+def test_persisted_results_fail_closed_without_review_integrity(settings, tmp_path):
+    settings.VULNHUNTER_TASK_GRAPH_ROOT = tmp_path / "graphs"
+    service = MobileAssessmentGraphService(settings.VULNHUNTER_TASK_GRAPH_ROOT, clock=lambda: NOW)
+    _create(service, run_id="mobile-authoritative-invalid-review", state="queued")
+    plan = {
+        "run_id": "mobile-authoritative-invalid-review",
+        "execution": {
+            "state": "completed",
+            "progress": {
+                "result_summary": {
+                    "verification": {"status": "verified"},
+                    "review": {"status": "completed", "receipt_sha256": "not-a-digest"},
+                    "report": {
+                        "status": "ready",
+                        "report_id": "report-one",
+                        "digest": "d" * 64,
+                    },
+                }
+            },
+        },
+    }
+
+    refreshed = refresh_mobile_assessment_graph(plan)
+
+    statuses = {
+        item["stage"]: item["status"] for item in refreshed["assessment_graph"]["nodes"]
+    }
+    assert statuses["verification"] == "ready"
+    assert statuses["review"] == "pending"
+    assert statuses["report"] == "pending"
+
+
 def test_persisted_results_fail_closed_without_report_integrity(settings, tmp_path):
     settings.VULNHUNTER_TASK_GRAPH_ROOT = tmp_path / "graphs"
     service = MobileAssessmentGraphService(settings.VULNHUNTER_TASK_GRAPH_ROOT, clock=lambda: NOW)
@@ -117,6 +153,7 @@ def test_persisted_results_fail_closed_without_report_integrity(settings, tmp_pa
             "progress": {
                 "result_summary": {
                     "verification": {"status": "verified"},
+                    "review": {"status": "completed", "receipt_sha256": "c" * 64},
                     "report": {
                         "status": "ready",
                         "report_id": "report-one",

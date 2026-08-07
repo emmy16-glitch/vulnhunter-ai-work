@@ -5,6 +5,7 @@
   const query = window.matchMedia("(prefers-reduced-motion: reduce)");
   const overlayStack = [];
   const overlayConfigs = new WeakMap();
+  const shellNavigationStorageKey = "vh:shell-navigation";
   let overlaySequence = 0;
 
   const applyMotionPreference = () => {
@@ -141,6 +142,98 @@
     return true;
   };
 
+  const currentLocationKey = () => `${window.location.pathname}${window.location.search}`;
+
+  const readShellNavigation = () => {
+    try {
+      const raw = window.sessionStorage.getItem(shellNavigationStorageKey);
+      if (!raw) return null;
+      const value = JSON.parse(raw);
+      if (!value || typeof value !== "object" || typeof value.destination !== "string") return null;
+      return value;
+    } catch (_error) {
+      return null;
+    }
+  };
+
+  const clearShellNavigation = () => {
+    try {
+      window.sessionStorage.removeItem(shellNavigationStorageKey);
+    } catch (_error) {
+      // Navigation remains functional when session storage is unavailable.
+    }
+    root.dataset.shellNavigation = "ready";
+    document.querySelectorAll("[data-shell-navigation-pending]").forEach((link) => {
+      link.removeAttribute("data-shell-navigation-pending");
+      link.removeAttribute("aria-busy");
+    });
+  };
+
+  const writeShellNavigation = (navigation) => {
+    try {
+      window.sessionStorage.setItem(shellNavigationStorageKey, JSON.stringify(navigation));
+    } catch (_error) {
+      // Immediate visual acknowledgement still works without persisted continuity.
+    }
+  };
+
+  const isShellNavigationLink = (link) => {
+    if (!(link instanceof HTMLAnchorElement)) return false;
+    if (!link.matches(".vh-brand, [data-sidebar] a, .vh-topbar a")) return false;
+    if (link.target && link.target !== "_self") return false;
+    if (link.hasAttribute("download")) return false;
+    const destination = new URL(link.href, window.location.href);
+    if (destination.origin !== window.location.origin) return false;
+    if (destination.pathname === window.location.pathname && destination.search === window.location.search) {
+      return destination.hash !== window.location.hash;
+    }
+    return true;
+  };
+
+  const acknowledgeShellNavigation = (link, input) => {
+    if (!isShellNavigationLink(link)) return;
+    const destination = new URL(link.href, window.location.href);
+    const destinationKey = `${destination.pathname}${destination.search}`;
+    writeShellNavigation({
+      destination: destinationKey,
+      input,
+      sourceRoute: document.body?.dataset.route || "page",
+    });
+    root.dataset.shellNavigation = "pending";
+    link.setAttribute("data-shell-navigation-pending", "true");
+    link.setAttribute("aria-busy", "true");
+    window.dispatchEvent(
+      new CustomEvent("vh:shell-navigation-start", {
+        detail: Object.freeze({ destination: destinationKey }),
+      }),
+    );
+  };
+
+  const restoreShellNavigation = () => {
+    const navigation = readShellNavigation();
+    clearShellNavigation();
+    if (!navigation || navigation.destination !== currentLocationKey()) return;
+    window.dispatchEvent(
+      new CustomEvent("vh:shell-navigation-ready", {
+        detail: Object.freeze({ destination: navigation.destination }),
+      }),
+    );
+    if (navigation.input !== "keyboard") return;
+    const main = document.querySelector("#main-content");
+    if (!(main instanceof HTMLElement)) return;
+    window.requestAnimationFrame(() => main.focus({ preventScroll: true }));
+  };
+
+  document.addEventListener("click", (event) => {
+    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+      return;
+    }
+    const link = event.target instanceof Element ? event.target.closest("a") : null;
+    acknowledgeShellNavigation(link, event.detail === 0 ? "keyboard" : "pointer");
+  });
+
+  window.addEventListener("pageshow", restoreShellNavigation);
+
   window.addEventListener("popstate", () => {
     const dialog = topOverlay();
     if (!(dialog instanceof HTMLDialogElement) || !dialog.open) return;
@@ -151,6 +244,7 @@
 
   applyMotionPreference();
   query.addEventListener("change", applyMotionPreference);
+  restoreShellNavigation();
 
   window.VulnHunterInteraction = Object.freeze({
     motion: Object.freeze({
@@ -161,6 +255,10 @@
       open: openOverlay,
       close: requestClose,
       top: topOverlay,
+    }),
+    shell: Object.freeze({
+      acknowledgeNavigation: acknowledgeShellNavigation,
+      restoreNavigation: restoreShellNavigation,
     }),
   });
   window.dispatchEvent(new CustomEvent("vh:interaction-ready"));

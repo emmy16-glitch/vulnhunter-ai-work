@@ -121,6 +121,21 @@ html {
   transition-timing-function: var(--vh-motion-easing-standard);
 }
 
+/*
+ * Shell navigation acknowledgement stays on the activated control only. The
+ * existing aria-current marker is intentionally left untouched until the server
+ * renders the destination, so a failed navigation never makes the old page lie.
+ */
+:where(.vh-brand, [data-sidebar] a, .vh-topbar a)[data-shell-navigation-pending="true"] {
+  opacity: var(--vh-motion-opacity-muted);
+  box-shadow: inset 0 -2px 0 currentColor;
+  transition-duration: var(--vh-motion-duration-instant);
+}
+
+html[data-shell-navigation="pending"] :where(.vh-sidebar, .vh-topbar, .vh-main) {
+  contain: layout style;
+}
+
 .vh-motion-enter {
   animation: vh-motion-enter var(--vh-motion-duration-standard) var(--vh-motion-easing-enter) both;
 }

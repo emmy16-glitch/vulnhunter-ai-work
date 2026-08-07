@@ -151,7 +151,8 @@ def test_contextual_inspector_keeps_report_bound_to_selected_assessment():
 
     assert 'data-inspector-tab="reports"' in template
     assert 'data-inspector-panel="reports"' in template
-    assert "persisted evidence-backed report receipt" in template
+    assert "Format readiness is unavailable until the server provides" in template
+    assert "data-inspector-reports" in template
     assert 'reports: select("reports")' in script
     assert "const updateReports = () =>" in script
     assert "state.projection?.report" in script

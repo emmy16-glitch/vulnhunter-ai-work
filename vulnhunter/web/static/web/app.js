@@ -59,23 +59,59 @@
   const searchToggle = document.querySelector("[data-search-toggle]");
   const commandInput = document.querySelector("[data-command-input]");
   const commandItems = [...document.querySelectorAll("[data-command-results] li")];
+  let openSearch = () => {};
 
-  function openSearch() {
-    if (!(commandDialog instanceof HTMLDialogElement)) {
-      return;
+  function configureShellOverlays() {
+    const overlays = window.VulnHunterInteraction?.overlays;
+    if (!overlays) return;
+
+    openSearch = () => {
+      if (!(commandDialog instanceof HTMLDialogElement)) return;
+      const opened = overlays.open(commandDialog, {
+        trigger: searchToggle,
+        initialFocus: commandInput,
+        backdropClose: true,
+      });
+      if (opened) searchToggle?.setAttribute("aria-expanded", "true");
+    };
+
+    searchToggle?.addEventListener("click", openSearch);
+    commandDialog?.addEventListener("close", () => {
+      searchToggle?.setAttribute("aria-expanded", "false");
+      if (commandInput) commandInput.value = "";
+      commandItems.forEach((item) => {
+        item.hidden = false;
+      });
+    });
+
+    const approvalDialog = document.querySelector("[data-approval-dialog]");
+    const approvalOpeners = [...document.querySelectorAll("[data-approval-open]")];
+    const approvalCloser = document.querySelector("[data-approval-close]");
+
+    const openApprovalDialog = (trigger = approvalOpeners[0]) => {
+      if (!(approvalDialog instanceof HTMLDialogElement)) return;
+      overlays.open(approvalDialog, {
+        trigger,
+        initialFocus: approvalDialog.querySelector("textarea, button, a"),
+        backdropClose: false,
+      });
+    };
+
+    approvalOpeners.forEach((button) => {
+      button.addEventListener("click", () => openApprovalDialog(button));
+    });
+    approvalCloser?.addEventListener("click", () => overlays.close(approvalDialog));
+    if (approvalDialog?.dataset.autoOpen === "true") {
+      window.requestAnimationFrame(() => openApprovalDialog());
     }
-    commandDialog.showModal();
-    searchToggle?.setAttribute("aria-expanded", "true");
-    window.requestAnimationFrame(() => commandInput?.focus());
   }
 
-  searchToggle?.addEventListener("click", openSearch);
-  commandDialog?.addEventListener("close", () => {
-    searchToggle?.setAttribute("aria-expanded", "false");
-    commandInput.value = "";
-    commandItems.forEach((item) => { item.hidden = false; });
-    searchToggle?.focus({ preventScroll: true });
-  });
+  if (window.VulnHunterInteraction?.overlays) {
+    configureShellOverlays();
+  } else {
+    window.addEventListener("vh:interaction-ready", configureShellOverlays, { once: true });
+  }
+
   commandInput?.addEventListener("input", () => {
     const query = commandInput.value.trim().toLocaleLowerCase();
     commandItems.forEach((item) => {
@@ -92,7 +128,9 @@
       setNavigation(false);
     }
     if (event.key === "Escape") {
-      contextMenus.forEach((menu) => { menu.open = false; });
+      contextMenus.forEach((menu) => {
+        menu.open = false;
+      });
     }
   });
 
@@ -167,30 +205,6 @@
     nodes.forEach((node) => node.addEventListener("click", () => selectNode(node)));
     if (nodes[0]) selectNode(nodes[0]);
   });
-
-  const approvalDialog = document.querySelector("[data-approval-dialog]");
-  const approvalOpeners = [...document.querySelectorAll("[data-approval-open]")];
-  const approvalCloser = document.querySelector("[data-approval-close]");
-
-  function openApprovalDialog() {
-    if (!(approvalDialog instanceof HTMLDialogElement) || approvalDialog.open) return;
-    approvalDialog.showModal();
-    window.requestAnimationFrame(() => {
-      approvalDialog.querySelector("textarea, button, a")?.focus();
-    });
-  }
-
-  approvalOpeners.forEach((button) => button.addEventListener("click", openApprovalDialog));
-  approvalCloser?.addEventListener("click", () => approvalDialog?.close());
-  approvalDialog?.addEventListener("click", (event) => {
-    if (event.target === approvalDialog) approvalDialog.close();
-  });
-  approvalDialog?.addEventListener("cancel", () => {
-    approvalOpeners[0]?.focus({ preventScroll: true });
-  });
-  if (approvalDialog?.dataset.autoOpen === "true") {
-    window.requestAnimationFrame(openApprovalDialog);
-  }
 
   const disclosureRoute = document.body.dataset.route || "page";
   const disclosures = [...document.querySelectorAll(".vh-stage-disclosure, [data-persist-disclosure]")];

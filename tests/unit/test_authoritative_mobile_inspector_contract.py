@@ -60,14 +60,17 @@ def test_inspector_never_invents_prepared_progress():
     assert '"Progress unavailable"' in script
 
 
-def test_mobile_inspector_has_one_consolidated_entry_and_internal_specialist_tabs():
+def test_mobile_inspector_has_one_primary_navigation_and_contextual_specialist_tabs():
     template = _text(TEMPLATE)
     assert template.count('data-mobile-workspace-view="chat"') == 1
     assert template.count('data-mobile-workspace-view="analysis"') == 1
+    assert template.count("data-mobile-nav-destination=") == 4
     assert 'data-mobile-workspace-view="findings"' not in template
     assert 'data-mobile-workspace-view="graph"' not in template
-    for tab in ("overview", "findings", "artifacts", "graph", "reports"):
+    for tab in ("overview", "activity", "findings", "artifacts", "reports"):
         assert f'data-inspector-tab="{tab}"' in template
+    assert 'data-inspector-tab="graph"' not in template
+    assert "Evidence relationships" in template
 
 
 def test_mobile_sheet_supports_focus_escape_and_android_back_semantics():
@@ -120,7 +123,7 @@ def test_assessment_empty_states_are_compact_ordinary_language_statuses():
         "Select an assessment to view its analysis status.",
         "Select an assessment to view reviewed findings.",
         "Select an assessment to view saved evidence.",
-        "Select an assessment to view evidence links.",
+        "No meaningful evidence relationships are available for this assessment.",
         "The report appears here only when this selected assessment has a persisted "
         "evidence-backed report receipt.",
     ):

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
+
 from django.contrib.auth.decorators import login_required
 from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import render
@@ -14,12 +16,27 @@ from vulnhunter.web.services import (
     run_readable_to_actor,
 )
 
+_CONVERSATION_STATE_SESSION_KEY = "vulnhunter_conversation_state"
+
+
+def _requested_assessment(request: HttpRequest) -> str | None:
+    if str(request.GET.get("scope") or "").casefold() == "all":
+        return None
+    explicit = str(request.GET.get("assessment") or "").strip()
+    if explicit:
+        return explicit
+    state = request.session.get(_CONVERSATION_STATE_SESSION_KEY, {})
+    if not isinstance(state, Mapping):
+        return None
+    selected = str(state.get("run_id") or "").strip()
+    return selected or None
+
 
 @cache_control(private=True, no_store=True)
 @login_required
 @require_GET
 def findings_overview_view(request: HttpRequest) -> HttpResponse:
-    """List persisted findings globally or for one readable selected assessment."""
+    """List persisted findings for the selected assessment or explicit global scope."""
 
     try:
         actor = authorized_actor(
@@ -38,7 +55,7 @@ def findings_overview_view(request: HttpRequest) -> HttpResponse:
             status=403,
         )
 
-    requested_assessment = str(request.GET.get("assessment") or "").strip() or None
+    requested_assessment = _requested_assessment(request)
     selected_assessment: dict[str, str] | None = None
     findings: list[dict[str, object]] = []
     error_message = None

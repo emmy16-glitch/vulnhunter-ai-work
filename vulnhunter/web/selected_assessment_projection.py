@@ -47,6 +47,8 @@ _EXPECTED_ASSESSMENT_HEALTH = {
     **{state: "in_progress" for state in _ACTIVE_STATES},
 }
 _PROGRESS_MEASUREMENTS = frozenset({"none", "bytes", "stage"})
+_REPORT_FORMATS = ("html", "json", "sarif", "evidence_zip", "pdf")
+_REPORT_FORMAT_STATES = frozenset({"available", "unavailable"})
 
 
 def _map(value: object) -> Mapping[str, object]:
@@ -116,6 +118,70 @@ def _assert_measured_progress(task_card: Mapping[str, object]) -> None:
         raise ValueError("Task progress may expose only its canonical measured fields.")
 
 
+def _format(status: str, reason: str) -> dict[str, str]:
+    return {"status": status, "reason": reason}
+
+
+def _report_formats(projection: Mapping[str, object]) -> dict[str, dict[str, str]]:
+    """Expose truthful readiness for every required contextual report format.
+
+    HTML is the persisted contextual report view, JSON is the persisted selected-
+    assessment projection, and the other export renderers are not implemented in the
+    selected-assessment runtime. Missing renderers remain explicitly unavailable even
+    when evidence or verified findings exist.
+    """
+
+    report = _map(projection.get("report"))
+    findings = _map(projection.get("findings"))
+    evidence = _map(projection.get("evidence"))
+    report_ready = report.get("ready") is True
+    verified = _non_negative_integer(findings.get("verified_count")) or 0
+    evidence_count = _non_negative_integer(evidence.get("record_count")) or 0
+
+    html = _format(
+        "available" if report_ready else "unavailable",
+        (
+            "Persisted evidence-backed assessment report is ready."
+            if report_ready
+            else "Assessment report receipt is not ready."
+        ),
+    )
+    json = _format(
+        "available",
+        "Persisted selected-assessment metadata and current result state are available.",
+    )
+    sarif_reason = (
+        "SARIF export is not implemented for selected assessments."
+        if verified
+        else "No verified findings are available and SARIF export is not implemented."
+    )
+    evidence_reason = (
+        "Preserved evidence exists, but Evidence ZIP packaging is not implemented."
+        if evidence_count
+        else "No preserved evidence is available and Evidence ZIP packaging is not implemented."
+    )
+    return {
+        "html": html,
+        "json": json,
+        "sarif": _format("unavailable", sarif_reason),
+        "evidence_zip": _format("unavailable", evidence_reason),
+        "pdf": _format("unavailable", "PDF rendering is not configured for selected assessments."),
+    }
+
+
+def _assert_report_formats(projection: Mapping[str, object]) -> None:
+    report = _map(projection.get("report"))
+    formats = _map(report.get("formats"))
+    if tuple(formats) != _REPORT_FORMATS:
+        raise ValueError("Selected assessment reports require every canonical format readiness row.")
+    for name in _REPORT_FORMATS:
+        item = _map(formats.get(name))
+        if _text(item.get("status")) not in _REPORT_FORMAT_STATES or _text(item.get("reason")) is None:
+            raise ValueError("Every report format requires an explicit readiness state and reason.")
+    if report.get("ready") is True and _map(formats.get("html")).get("status") != "available":
+        raise ValueError("A ready assessment report must expose its contextual HTML view.")
+
+
 def _payload_without_contract(projection: Mapping[str, object]) -> dict[str, object]:
     payload = deepcopy(dict(projection))
     payload.pop("projection_contract", None)
@@ -165,6 +231,8 @@ def assert_selected_assessment_invariants(projection: Mapping[str, object]) -> N
             raise ValueError("Assessment, provider, and worker health must remain separate.")
     if _text(health.get("assessment")) != _EXPECTED_ASSESSMENT_HEALTH[execution_state]:
         raise ValueError("Assessment health must agree with the authoritative execution state.")
+    if "formats" in _map(projection.get("report")):
+        _assert_report_formats(projection)
 
 
 def selected_assessment_projection(
@@ -176,6 +244,10 @@ def selected_assessment_projection(
         return None
     assert_selected_assessment_invariants(projection)
     result = deepcopy(dict(projection))
+    report = dict(_map(result.get("report")))
+    report["formats"] = _report_formats(result)
+    result["report"] = report
+    _assert_report_formats(result)
     result["projection_contract"] = "selected-assessment/v1"
     return result
 

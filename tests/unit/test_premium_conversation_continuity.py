@@ -13,7 +13,9 @@ ROOT = Path(__file__).resolve().parents[2]
 MIDDLEWARE = ROOT / "vulnhunter" / "web" / "middleware.py"
 INTERACTION = ROOT / "vulnhunter" / "web" / "static" / "web" / "premium-interaction.js"
 CONTINUITY = ROOT / "vulnhunter" / "web" / "static" / "web" / "conversation-premium-continuity.js"
-CONTINUITY_CSS = ROOT / "vulnhunter" / "web" / "static" / "web" / "conversation-premium-continuity.css"
+CONTINUITY_CSS = (
+    ROOT / "vulnhunter" / "web" / "static" / "web" / "conversation-premium-continuity.css"
+)
 AUTOSCROLL = ROOT / "vulnhunter" / "web" / "static" / "web" / "conversation-autoscroll.js"
 
 
@@ -178,10 +180,15 @@ def test_autoscroll_remains_reader_controlled_with_jump_to_latest() -> None:
 
     assert "followingLatest = distanceFromBottom() <= bottomThreshold" in javascript
     assert "if (!force && !followingLatest) return false" in javascript
-    assert 'jump.textContent = unreadMessages > 0 ? `↓ ${unreadMessages} new` : "↓ Latest"' in javascript
+    assert (
+        'jump.textContent = unreadMessages > 0 ? `↓ ${unreadMessages} new` : "↓ Latest"'
+        in javascript
+    )
     assert 'feed.addEventListener("wheel", pauseFollowing' in javascript
     assert 'feed.addEventListener("touchstart", pauseFollowing' in javascript
-    assert "if (!followingLatest && addedMessages > 0) unreadMessages += addedMessages" in javascript
+    assert (
+        "if (!followingLatest && addedMessages > 0) unreadMessages += addedMessages" in javascript
+    )
 
 
 def test_delivery_states_have_accessible_reduced_motion_safe_targets() -> None:

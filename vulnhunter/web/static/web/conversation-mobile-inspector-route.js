@@ -63,12 +63,11 @@
     "overview";
 
   const showChatWithoutPublishing = () => {
-    if (!inspector.hidden) {
-      restoringRoute = true;
-      chatButton?.click();
-      restoringRoute = false;
-    }
     activateNavigation("chat");
+    if (inspector.hidden) return;
+    restoringRoute = true;
+    chatButton?.click();
+    restoringRoute = false;
   };
 
   const clearRoute = () => {

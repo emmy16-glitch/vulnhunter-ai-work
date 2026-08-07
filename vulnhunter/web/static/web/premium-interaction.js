@@ -263,10 +263,8 @@
     acknowledgeShellNavigation(link, event.detail === 0 ? "keyboard" : "pointer");
   });
 
-  window.addEventListener("pageshow", () => {
-    restoreShellNavigation();
-    restoreLoginSubmit();
-  });
+  window.addEventListener("pageshow", restoreShellNavigation);
+  window.addEventListener("pageshow", restoreLoginSubmit);
 
   window.addEventListener("popstate", () => {
     const dialog = topOverlay();

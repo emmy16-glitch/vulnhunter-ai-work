@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import time
+from collections.abc import Mapping
 from copy import deepcopy
-from typing import Mapping
 
 from django.conf import settings
 from django.db import DatabaseError, transaction

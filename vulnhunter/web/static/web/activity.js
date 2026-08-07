@@ -42,9 +42,10 @@
     return details;
   }
 
-  function eventNode(event) {
+  function eventNode(event, { isNew = false } = {}) {
     const item = document.createElement("li");
     item.className = "vh-activity-event";
+    if (isNew) item.classList.add("is-new");
     item.dataset.sequence = String(event.sequence);
     item.dataset.eventId = String(event.event_id);
 
@@ -87,36 +88,6 @@
     return `${hours}:${minutes}:${seconds}`;
   }
 
-  function progressFor(payload) {
-    if (payload.run_state === "completed") return 100;
-    const workflowProgress = {
-      authorization_required: 12,
-      scope_validated: 28,
-      readiness_checked: 38,
-      plan_generated: 48,
-      awaiting_approval: 52,
-      approved: 60,
-      queued: 68,
-      running: 74,
-      executing: 78,
-      evaluating: 88,
-      completed: 100,
-      failed: 100,
-      timed_out: 100,
-      cancelled: 100,
-      execution_blocked: 60,
-      readiness_blocked: 35,
-      denied: 52,
-    };
-    if (payload.workflow_state in workflowProgress) return workflowProgress[payload.workflow_state];
-    if (["completed", "succeeded", "tool_executed"].includes(payload.execution_state)) {
-      return 100;
-    }
-    if (["running", "queued"].includes(payload.execution_state)) return 78;
-    if (payload.approval_state === "pending") return 52;
-    return 35;
-  }
-
   function updateAssessmentChrome(payload) {
     document.querySelectorAll("[data-run-clock]").forEach((clock) => {
       clock.textContent = formatDuration(payload.elapsed_seconds);
@@ -126,14 +97,6 @@
     if (runState && payload.run_state) {
       runState.textContent = String(payload.run_state).replaceAll("_", " ");
     }
-
-    const progress = progressFor(payload);
-    const progressValue = document.querySelector(".vh-inspector-heading .vh-tabular");
-    const progressBar = document.querySelector(".vh-progress");
-    const progressFill = progressBar?.querySelector("i");
-    if (progressValue) progressValue.textContent = `${progress}%`;
-    if (progressBar) progressBar.setAttribute("aria-valuenow", String(progress));
-    if (progressFill) progressFill.style.width = `${progress}%`;
 
     const approvalValue = document.querySelector(".vh-inspector-grid section:first-child strong");
     if (approvalValue && payload.approval_state) {
@@ -199,7 +162,9 @@
           continue;
         }
         seen.add(String(event.event_id));
-        eventList.append(eventNode(event));
+        const node = eventNode(event, { isNew: true });
+        eventList.append(node);
+        window.setTimeout(() => node.classList.remove("is-new"), 900);
         afterSequence = Math.max(afterSequence, Number(event.sequence));
         appended += 1;
       }

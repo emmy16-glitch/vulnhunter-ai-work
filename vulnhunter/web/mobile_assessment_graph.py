@@ -144,7 +144,12 @@ def _project_persisted_results(
         return
     if review_status != "completed" or not _is_sha256(review.get("receipt_sha256")):
         return
-    if report_status not in _REPORT_STATUSES or not report_id or not _is_sha256(report.get("digest")):
+    report_is_valid = (
+        report_status in _REPORT_STATUSES
+        and bool(report_id)
+        and _is_sha256(report.get("digest"))
+    )
+    if not report_is_valid:
         return
 
     graph = service.core._load_optional(run_id)
@@ -152,7 +157,9 @@ def _project_persisted_results(
         return
     execution_node = service.core._stage_node(graph, AssessmentStage.EXECUTION)
     evidence_node = service.core._stage_node(graph, AssessmentStage.EVIDENCE)
-    if execution_node.status != NodeStatus.COMPLETED or evidence_node.status != NodeStatus.COMPLETED:
+    execution_complete = execution_node.status == NodeStatus.COMPLETED
+    evidence_complete = evidence_node.status == NodeStatus.COMPLETED
+    if not execution_complete or not evidence_complete:
         return
     graph = _complete_stage(service, graph, AssessmentStage.VERIFICATION)
     graph = _complete_stage(service, graph, AssessmentStage.REVIEW)

@@ -23,9 +23,12 @@
     artifactsCount: select("artifacts-count"),
     graph: select("graph"),
     graphCount: select("graph-count"),
+    reports: select("reports"),
+    reportsCount: select("reports-count"),
     emptyFindings: select("empty-findings"),
     emptyArtifacts: select("empty-artifacts"),
     emptyGraph: select("empty-graph"),
+    emptyReports: select("empty-reports"),
   };
   const tabs = [...inspector.querySelectorAll("[data-inspector-tab]")];
   const panels = [...inspector.querySelectorAll("[data-inspector-panel]")];
@@ -342,6 +345,34 @@
     elements.graph.append(summary);
   };
 
+  const updateReports = () => {
+    elements.reports.replaceChildren();
+    const projected = state.projection?.report || {};
+    const persisted = resultSummary().report || {};
+    const report = Object.keys(projected).length ? projected : persisted;
+    const status = text(report.status).toLowerCase();
+    const reportId = text(report.report_id);
+    const digest = text(report.digest);
+    const ready = report.ready === true || (reportId && ["ready", "completed"].includes(status));
+    elements.reportsCount.textContent = ready ? "1" : "0";
+    elements.emptyReports.hidden = ready;
+    if (!ready) return;
+
+    const item = document.createElement("article");
+    item.className = "is-success";
+    const title = document.createElement("strong");
+    title.textContent = "Evidence-backed assessment report";
+    const meta = document.createElement("small");
+    meta.textContent = reportId;
+    const receipt = document.createElement("code");
+    receipt.textContent = digest ? `Report ${digest.slice(0, 24)}…` : "Persisted report receipt";
+    const verification = state.projection?.verification || resultSummary().verification || {};
+    const summary = document.createElement("p");
+    summary.textContent = `Verification ${pretty(verification.status || "completed")} · bound to assessment ${selectedAssessmentId()}`;
+    item.append(title, meta, receipt, summary);
+    elements.reports.append(item);
+  };
+
   const updateProgress = () => {
     const projection = state.projection || {};
     const taskCard = state.taskCard || {};
@@ -377,6 +408,7 @@
     updateFindings();
     updateArtifacts();
     updateGraph();
+    updateReports();
   };
 
   const applySelectedAssessment = (snapshot) => {

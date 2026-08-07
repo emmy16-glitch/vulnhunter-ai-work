@@ -136,3 +136,26 @@ def test_completed_apk_chat_uses_persisted_verification_and_report_truth():
     assert "verification completed without generating a candidate vulnerability" in reply
     assert "report is ready" in reply
     assert "remain candidates" not in reply
+
+
+def test_contextual_inspector_keeps_report_bound_to_selected_assessment():
+    template = (ROOT / "vulnhunter/web/templates/web/_mobile_analysis_inspector.html").read_text(
+        encoding="utf-8"
+    )
+    script = (ROOT / "vulnhunter/web/static/web/conversation-mobile-inspector.js").read_text(
+        encoding="utf-8"
+    )
+    route = (ROOT / "vulnhunter/web/static/web/conversation-mobile-inspector-route.js").read_text(
+        encoding="utf-8"
+    )
+
+    assert 'data-inspector-tab="reports"' in template
+    assert 'data-inspector-panel="reports"' in template
+    assert "persisted evidence-backed report receipt" in template
+    assert 'reports: select("reports")' in script
+    assert "const updateReports = () =>" in script
+    assert "state.projection?.report" in script
+    assert "selectedAssessmentId()" in script
+    assert "updateReports();" in script
+    assert "allowedTabs" in route
+    assert "data-inspector-tab" in route

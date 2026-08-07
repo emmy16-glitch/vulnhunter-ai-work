@@ -25,6 +25,7 @@
       <button type="button" role="tab" data-inspector-tab="findings" aria-selected="false" aria-controls="vh-inspector-findings" tabindex="-1">Findings <b data-inspector-findings-count aria-label="Finding count unavailable">—</b></button>
       <button type="button" role="tab" data-inspector-tab="artifacts" aria-selected="false" aria-controls="vh-inspector-artifacts" tabindex="-1">Evidence <b data-inspector-artifacts-count aria-label="Evidence count unavailable">—</b></button>
       <button type="button" role="tab" data-inspector-tab="graph" aria-selected="false" aria-controls="vh-inspector-graph" tabindex="-1">Graph <b data-inspector-graph-count aria-label="Evidence-link count unavailable">—</b></button>
+      <button type="button" role="tab" data-inspector-tab="reports" aria-selected="false" aria-controls="vh-inspector-reports" tabindex="-1">Report <b data-inspector-reports-count aria-label="Report readiness unavailable">—</b></button>
     </div>
 
     <div class="vh-analysis-panels">
@@ -58,6 +59,11 @@
         <p class="vh-inspector-empty" data-inspector-empty-graph role="status" aria-live="polite">Select an assessment to view evidence links.</p>
         <div data-inspector-graph></div>
       </section>
+
+      <section id="vh-inspector-reports" class="vh-analysis-panel" data-inspector-panel="reports" role="tabpanel" aria-label="Assessment report" hidden>
+        <p class="vh-inspector-empty" data-inspector-empty-reports role="status" aria-live="polite">The report appears here only when this selected assessment has a persisted evidence-backed report receipt.</p>
+        <div class="vh-inspector-artifact-list" data-inspector-reports></div>
+      </section>
     </div>
   </div>
 </aside>
@@ -66,4 +72,4 @@
   <button type="button" class="is-active" data-mobile-workspace-view="chat" aria-current="page">Chat</button>
   <button type="button" data-mobile-workspace-view="analysis" aria-current="false">Assessment</button>
 </nav>
-<script src="{% static 'web/conversation-mobile-inspector-route.js' %}?v=20260806-assessment-route1" defer></script>
+<script src="{% static 'web/conversation-mobile-inspector-route.js' %}?v=20260807-contextual-results1" defer></script>

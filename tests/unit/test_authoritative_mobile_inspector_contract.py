@@ -66,7 +66,7 @@ def test_mobile_inspector_has_one_consolidated_entry_and_internal_specialist_tab
     assert template.count('data-mobile-workspace-view="analysis"') == 1
     assert 'data-mobile-workspace-view="findings"' not in template
     assert 'data-mobile-workspace-view="graph"' not in template
-    for tab in ("overview", "findings", "artifacts", "graph"):
+    for tab in ("overview", "findings", "artifacts", "graph", "reports"):
         assert f'data-inspector-tab="{tab}"' in template
 
 
@@ -111,7 +111,7 @@ def test_inspector_tabs_have_keyboard_roving_focus():
     for key in ("ArrowLeft", "ArrowRight", "Home", "End"):
         assert key in script
     assert "tab.tabIndex = selected ? 0 : -1" in script
-    assert template.count('tabindex="-1"') == 3
+    assert template.count('tabindex="-1"') == 4
 
 
 def test_assessment_empty_states_are_compact_ordinary_language_statuses():
@@ -121,10 +121,12 @@ def test_assessment_empty_states_are_compact_ordinary_language_statuses():
         "Select an assessment to view reviewed findings.",
         "Select an assessment to view saved evidence.",
         "Select an assessment to view evidence links.",
+        "The report appears here only when this selected assessment has a persisted "
+        "evidence-backed report receipt.",
     ):
         assert copy in template
-    assert template.count('role="status"') == 4
-    assert template.count('aria-live="polite"') == 3
+    assert template.count('role="status"') == 5
+    assert template.count('aria-live="polite"') == 4
     assert "until a real worker observation has been persisted and judged" not in template
     assert "The graph is created only from real target" not in template
 

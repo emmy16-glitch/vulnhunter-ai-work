@@ -206,6 +206,27 @@ class MobileStaticSpool:
         self._write_exclusive(path, job.model_dump_json(indent=2) + "\n")
         return path
 
+    def existing_job(self, job_id: str, *, key: bytes) -> SignedMobileStaticJob | None:
+        """Load an already persisted exact job without treating browser session as authority."""
+
+        for directory in (self.pending, self.processing, self.completed, self.failed):
+            path = directory / f"{job_id}.json"
+            if not path.exists():
+                continue
+            if path.is_symlink() or not path.is_file():
+                raise MobileStaticSpoolError("mobile worker job path is unsafe")
+            try:
+                job = SignedMobileStaticJob.model_validate_json(path.read_text(encoding="utf-8"))
+            except (OSError, ValueError) as exc:
+                raise MobileStaticSpoolError("mobile worker job is invalid") from exc
+            if job.job_id != job_id or not hmac.compare_digest(
+                job.signature,
+                job.expected_signature(key),
+            ):
+                raise MobileStaticSpoolError("mobile worker job signature is invalid")
+            return job
+        return None
+
     def claim_next(self) -> Path | None:
         for source in sorted(self.pending.glob("*.json")):
             if source.is_symlink():

@@ -89,24 +89,26 @@ scanner execution, finding verification, severity and publication.
 
 ### AI-first assessment workspace reconciliation — 2026-08-07
 
-The complete **Programme 1 AI-first assessment workspace runtime scope is implemented and automatically verified** for the repository-supported website, APK and Source Hunt workflows. The August 2 product review remains the historical motivating baseline; the defects it identified must no longer be used as the current implementation classification.
+The complete **Programme 1 AI-first assessment workspace repository-supported runtime scope is implemented and automatically verified** for website, APK and Source Hunt workflows. This completion statement supersedes the earlier reconciliation that stopped at PR #115; subsequent owner-document review identified and closed the remaining result-disposition, report-format and cross-assessment Findings continuity gaps before this final classification.
 
 The implemented runtime now provides:
 
-- one workflow-neutral selected-assessment projection that binds chat, Activity, inspector, history, Findings, Evidence, contextual evidence relationships and Report to the same durable assessment identity;
+- one workflow-neutral selected-assessment projection binding chat, Activity, inspector, history, Findings, Evidence, contextual evidence relationships and Report to the same durable assessment identity;
 - monotonic persisted projection revisions and one read-only frontend selected-assessment store, with stale reconnect responses and faulty subscribers unable to create a competing lifecycle source;
 - one canonical assessment lifecycle with independent assessment, worker and advisory-provider health, typed actionable failures and scoped idempotent retry behaviour;
 - one persisted task card and durable activity timeline using measured byte/stage progress or explicit unmeasured state, with fabricated percentages rejected;
-- an idempotent APK finalisation path from resumable upload through immutable artifact creation, durable assessment create-or-bind, plan/task graph, queue/worker recovery, persisted partial evidence, deterministic verification/abstention, bounded review receipt and evidence-backed report readiness;
+- an idempotent APK finalisation path from resumable upload through immutable artifact creation, durable assessment create-or-bind, plan/task graph, approval, queue/worker recovery, persisted partial evidence, deterministic verification/abstention, bounded review receipt and evidence-backed report readiness;
 - durable APK completion receipts and browser reconciliation for timeout-after-success, refresh, cleared local state and device-switch recovery without duplicate finalisation or queue work;
-- contextual desktop assessment inspection and a mobile route/sheet that preserves selected assessment and specialist context across refresh and Back navigation;
-- consolidated mobile navigation around Chat, Activity, Findings and More, with Summary, Activity, Findings, Evidence and Report kept as assessment-scoped specialist views and Graph retired as a competing primary destination;
+- contextual desktop assessment inspection and a mobile route/sheet preserving selected assessment and specialist context across refresh and Back navigation;
+- consolidated mobile navigation around Chat, Activity, Findings and More, with Summary, Activity, Findings, Evidence and Report kept as assessment-scoped specialist views and Graph retained only as contextual Evidence relationships when meaningful persisted relationships exist;
 - a simplified composer whose provider and answer-detail controls remain behind Advanced settings while deterministic workflows remain available without optional providers;
 - website and Source Hunt flows routed through the same selected-assessment contract while retaining their existing authorisation, private-target, source-processing and worker restrictions;
 - role-based entry, compact accessible empty states and ordinary-language assessment copy;
-- assessment-scoped report continuity and truthful unavailable states rather than seeded, unrelated or fabricated current-task results.
+- persisted verified/rejected/abstained result disposition truth without browser-invented finding counts or attack relationships;
+- one server-owned report-format readiness contract for HTML, JSON, SARIF, Evidence ZIP and PDF: contextual HTML becomes available only when the persisted report receipt is ready, JSON exposes persisted selected-assessment state, and unimplemented SARIF, Evidence ZIP and PDF renderers remain explicitly unavailable with reasons;
+- server-selected Findings continuity across navigation and refresh, explicit assessment deep links that replace stale selection, deliberate account-wide Findings only through explicit global scope, and private-not-found behaviour for unknown or unreadable assessment selection.
 
-The final navigation-consolidation change was merged as PR #115 at commit `5464bb1d83d4d55e524dcc47777c6f07e41e785c`. Its exact head passed the repository's Python 3.11 and 3.12 verification, Ruff lint/format, compile, scanner-compatibility, restricted-worker, full-test, repository-audit, conversational-browser lifecycle, responsive UI, phone-acceptance and genuine RFC1918 Nuclei gates. Earlier dependency-ordered Programme 1 changes were likewise merged only after their required gates passed.
+The final runtime reconciliation was merged in dependency order through PR #117, PR #119 and PR #121. PR #119 merged as `491144f99a2e9f4eff956242e7fe582bc8eb7f59`; its exact head `6ae81ead0585eebd97b0e78ff9a54c1eafa90fb3` passed VulnHunter quality gates #1689, Conversational workspace quality #1194 and Phone acceptance #648, including Python 3.11/3.12 verification, Ruff lint/format, compile, scanner compatibility, restricted-worker checks, full tests, repository audit, conversational browser lifecycle, responsive UI and genuine RFC1918 Nuclei acceptance. PR #121 merged as `ef1bb60df42fd0bd0a4229e86626c340bd9a1110`; its exact head `d89d9cf725b5718cdb36ce569c8fe9a40a2a4222` passed VulnHunter quality gates #1691, Conversational workspace quality #1195 and Phone acceptance #650 with the same repository-required gate family.
 
 This automated completion claim is deliberately narrower than physical-device acceptance. **No new physical Android performance, TalkBack, bright-environment contrast or non-technical usability evidence was collected in this reconciliation.** Those remain manual evidence categories and must not be inferred from Chromium phone acceptance or responsive-browser automation. Real-data collection and external-holdout evidence are also separate from this product-runtime programme.
 
@@ -123,12 +125,13 @@ DESKTOP CONTEXTUAL INSPECTOR                  IMPLEMENTED
 PHONE-FIRST RESPONSIVE WORKSPACE              IMPLEMENTED — AUTOMATED ACCEPTANCE
 CONSOLIDATED NAVIGATION                       IMPLEMENTED
 ASSESSMENT-SCOPED FINDINGS/EVIDENCE/REPORTS   IMPLEMENTED
+REPORT FORMAT READINESS                       IMPLEMENTED — TRUTHFUL AVAILABILITY CONTRACT
 AI-FIRST PRODUCT EXPERIENCE                   IMPLEMENTED — PROGRAMME 1 AUTOMATED SCOPE
 PHYSICAL ANDROID/TALKBACK/USABILITY EVIDENCE  MANUAL — NOT RECOLLECTED IN THIS RECONCILIATION
-PREMIUM INTERACTION/MOTION SYSTEM             DOCUMENTED, NOT YET COMPLETE
+PREMIUM INTERACTION/MOTION SYSTEM             IN PROGRESS — FOUNDATION MERGED IN PR #118
 ```
 
-The next product implementation programme is the premium interaction, motion and conversation standard. It may improve interaction quality only on top of the authoritative Programme 1 state, lifecycle, navigation and security boundaries; it must not introduce a second state owner or use motion to imply progress, authority or success.
+Programme 2 is now the active product programme. Premium interaction work may improve motion, primitive states, overlay ownership, session continuity, send/stream/retry/autoscroll behaviour, mobile direct manipulation and accessibility only on top of the authoritative Programme 1 state, lifecycle, navigation and security boundaries; it must not introduce a second state owner or use motion to imply progress, authority or success.
 
 ## Current ML and Hugging Face architecture review — 2026-08-02
 
@@ -245,7 +248,7 @@ The binding order is:
 4. execute the ML and Hugging Face programme in `ML_AND_HUGGING_FACE_PRODUCTION_ARCHITECTURE.md`;
 5. continue remaining scanner, isolation, dataset-acquisition and production-deployment milestones.
 
-The AI-first assessment workspace programme is now complete in its automated repository-supported runtime scope. Programme 2 is therefore the active product programme. Do not begin Programme 3 ML/Hugging Face implementation until Programme 2 is also complete and accurately reconciled here.
+The AI-first assessment workspace programme is complete in its automated repository-supported runtime scope. Programme 2 is therefore the active product programme. Do not begin Programme 3 ML/Hugging Face implementation until Programme 2 is also complete and accurately reconciled here.
 
 ## Real-world performance prerequisites
 

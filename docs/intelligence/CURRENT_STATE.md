@@ -76,36 +76,45 @@ PHYSICAL ANDROID/TALKBACK/USABILITY EVIDENCE  MANUAL — NOT CLAIMED
 
 ## Programme 3 — ML and Hugging Face production architecture
 
-**Status: ACTIVE. P3.1 is merged; P3.2 is implemented on the active bounded PR pending repository gates.**
-
-PR #133 merged as `8f7b912197f6804cb56cdcda77e1d2cf17fea7a9` and reconciled Programme 2 completion before activating Programme 3. It also stabilized two fixed-time remediation web fixtures by injecting their declared clocks only in test code; production expiry validation remains unchanged and fail-closed.
+**Status: ACTIVE. P3.1 and P3.2 are merged; P3.3 is implemented on PR #135 and requires green exact-head repository gates before merge.**
 
 The existing ML foundation remains a responsible research baseline: human-reviewed labels, duplicate/conflict gates, scan-group splitting, training-only candidate selection, deterministic privacy-conscious features, Multinomial/Bernoulli Naive Bayes candidates, explicit thresholds, bounded JSON artifacts, provenance, locked diagnostics, optional Groq/Hugging Face advisory providers and provider-neutral readiness verification are implemented.
 
+### P3.1 current-state reconciliation
+
+PR #133 merged as `8f7b912197f6804cb56cdcda77e1d2cf17fea7a9` and reconciled Programme 2 completion before activating Programme 3. It did not claim any new production ML capability.
+
 ### P3.2 governed release-to-training boundary
 
-The active P3.2 implementation adds a production-only boundary on top of, rather than in place of, the research baseline:
+PR #134 merged as `467b72bd0ea12cae796ba74af3a6367292bd5f67` after exact head `d3c2fde14999c402edcae8840f8c578f67133821` passed VulnHunter quality gates #1753, Conversational workspace quality #1243 and Phone acceptance #712.
 
-- one owner-private append-only hash-chained training-eligibility ledger for exact governed release packages;
-- authenticated campaign-administrator registration bound to the current immutable release ID, release-manifest digest and release-package digest;
-- terminal withdrawal and revocation states that immediately prevent new production package derivation and training;
-- supersession that requires a separately active successor release and preserves the old immutable lineage while blocking it from future production training;
-- a deterministic content-addressed production training package containing canonical redacted examples, release/campaign/application/authorisation lineage, review/adjudication attestation digests, duplicate exclusions, explicit policy versions, permitted tasks, retention policy and exact source commit;
-- hashed source references in the ML package so owner-local scan-database paths are not exposed as training metadata;
-- production baseline/tuned entry points that revalidate package integrity and source-release eligibility immediately before fitting, while the existing direct `train_baseline` and `train_tuned` APIs remain research-mode foundations;
-- a governed candidate wrapper binding the resulting baseline artifact to the exact production training-package and release provenance without giving the model label, severity, review, scanner or publication authority;
-- a fail-closed guard when legacy integer scan or observation identities overlap across released applications, because P3.3 must establish hierarchical stable identity rather than silently inventing or collapsing groups.
+The merged P3.2 runtime adds an owner-private append-only training-eligibility ledger, exact governed-release registration, withdrawal/revocation/supersession blocking, deterministic content-addressed production training packages, redacted release/review lineage, package-integrity revalidation immediately before training and governed candidate provenance. It intentionally fails closed when legacy integer scan or observation identities overlap across applications because hierarchical identity belongs to P3.3.
 
-This P3.2 boundary does **not** establish application-family external holdout, calibration, OOD, registry activation, shadow inference, monitoring, Hugging Face production capability or real-world classifier performance. It also does not make a production-candidate artifact equivalent to an approved or active model.
+P3.2 does not establish application-family external holdout, calibration, OOD, model registry activation, shadow inference, monitoring, Hugging Face production capability or real-world classifier performance.
 
-The complete production ML/Hugging Face programme continues in the binding order from `ML_AND_HUGGING_FACE_PRODUCTION_ARCHITECTURE.md`:
+### P3.3 hierarchical application identity and group isolation
+
+PR #135 implements the next bounded boundary and remains subject to its exact-head gates and merge:
+
+- stable application-family, application-instance and deployment-environment identities derived from governed release metadata rather than integer scan IDs;
+- one owner-private append-only hash-chained partition registry that freezes a whole application family to development training, development calibration or external holdout for one evaluation programme;
+- explicit partition-programme reset lineage instead of silently moving a family between partitions;
+- hierarchical scan and observation keys that preserve source lineage when legacy integer IDs overlap across applications;
+- deterministic collision-checked compatibility IDs only at the legacy Naive Bayes training boundary;
+- repeated releases of the same application family reusing the same frozen partition assignment;
+- external-validation availability reported only when development-training, development-calibration and external-holdout families all actually exist;
+- partitioned production-training entry points that consume development-training families only and leave calibration/external-holdout families untouched.
+
+This P3.3 implementation does not claim that a diverse external holdout already exists. It does not evaluate or expose external performance, and it does not implement P3.4 label/task expansion, calibration, OOD, model activation, shadowing or Hugging Face production features.
+
+The remaining production ML/Hugging Face programme continues in the binding order from `ML_AND_HUGGING_FACE_PRODUCTION_ARCHITECTURE.md`:
 
 1. current-state reconciliation — **MERGED in PR #133**;
-2. governed release-to-training boundary — **IMPLEMENTED on PR #134; merge requires green exact-head gates**;
-3. hierarchical application identity and group isolation — **NEXT**;
-4. richer label and task contracts;
+2. governed release-to-training boundary — **MERGED in PR #134**;
+3. hierarchical application identity and group isolation — **IMPLEMENTED on PR #135; exact-head gates and merge required**;
+4. richer label and task contracts — **NEXT after P3.3 merges**;
 5. pluggable feature-extractor interface;
-6. leakage and ablation evaluation;
+6. expanded leakage and ablation evaluation;
 7. calibration, abstention and OOD handling;
 8. complete evaluation and uncertainty reporting;
 9. model registry, signing, activation and rollback;
@@ -120,11 +129,13 @@ The complete production ML/Hugging Face programme continues in the binding order
 ### ML capability classification
 
 ```text
-GOVERNED RELEASE-BOUND TRAINING PACKAGE          IMPLEMENTED ON ACTIVE P3.2 PR — GATES REQUIRED
-WITHDRAWAL/REVOCATION/SUPERSESSION TRAINING GATE IMPLEMENTED ON ACTIVE P3.2 PR — GATES REQUIRED
+GOVERNED RELEASE-BOUND TRAINING PACKAGE          IMPLEMENTED — PR #134 MERGED
+WITHDRAWAL/REVOCATION/SUPERSESSION TRAINING GATE IMPLEMENTED — PR #134 MERGED
 RESEARCH NAIVE BAYES BASELINE                    IMPLEMENTED
-HIERARCHICAL APPLICATION/GROUP IDENTITY          NOT COMPLETE — P3.3 NEXT
-APPLICATION-FAMILY EXTERNAL HOLDOUT              NOT COMPLETE
+HIERARCHICAL APPLICATION/GROUP IDENTITY          IMPLEMENTED ON PR #135 — GATES/MERGE REQUIRED
+FAMILY-LEVEL PARTITION REGISTRY                  IMPLEMENTED ON PR #135 — GATES/MERGE REQUIRED
+APPLICATION-FAMILY EXTERNAL HOLDOUT              CAPABILITY BOUNDARY ON PR #135; REAL HOLDOUT NOT ESTABLISHED
+RICH LABEL/TASK CONTRACTS                        NOT COMPLETE — P3.4 NEXT
 CALIBRATION                                      NOT COMPLETE
 OOD DETECTION                                    NOT COMPLETE
 EXPLICIT CLASSIFIER ABSTENTION                   NOT COMPLETE
@@ -171,7 +182,7 @@ python manage.py vh_publication_recover --help
 python manage.py vh_campaign_release_package --help
 ```
 
-The new P3.2 interfaces are Python contracts on the active bounded PR, not new CLI commands. Commands proposed in architecture documents are not operational until they are implemented and exposed by the help surfaces above.
+P3.2 and P3.3 are Python contracts, not new CLI commands. Commands proposed in architecture documents are not operational until they are implemented and exposed by the help surfaces above.
 
 ## Repository health
 

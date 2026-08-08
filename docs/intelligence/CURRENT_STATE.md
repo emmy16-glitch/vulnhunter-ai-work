@@ -76,15 +76,33 @@ PHYSICAL ANDROID/TALKBACK/USABILITY EVIDENCE  MANUAL — NOT CLAIMED
 
 ## Programme 3 — ML and Hugging Face production architecture
 
-**Status: ACTIVE.**
+**Status: ACTIVE. P3.1 is merged; P3.2 is implemented on the active bounded PR pending repository gates.**
+
+PR #133 merged as `8f7b912197f6804cb56cdcda77e1d2cf17fea7a9` and reconciled Programme 2 completion before activating Programme 3. It also stabilized two fixed-time remediation web fixtures by injecting their declared clocks only in test code; production expiry validation remains unchanged and fail-closed.
 
 The existing ML foundation remains a responsible research baseline: human-reviewed labels, duplicate/conflict gates, scan-group splitting, training-only candidate selection, deterministic privacy-conscious features, Multinomial/Bernoulli Naive Bayes candidates, explicit thresholds, bounded JSON artifacts, provenance, locked diagnostics, optional Groq/Hugging Face advisory providers and provider-neutral readiness verification are implemented.
 
-The complete production ML/Hugging Face programme is not yet implemented. Work must proceed in the binding order from `ML_AND_HUGGING_FACE_PRODUCTION_ARCHITECTURE.md`:
+### P3.2 governed release-to-training boundary
 
-1. current-state reconciliation — this document;
-2. governed release-to-training boundary;
-3. hierarchical application identity and group isolation;
+The active P3.2 implementation adds a production-only boundary on top of, rather than in place of, the research baseline:
+
+- one owner-private append-only hash-chained training-eligibility ledger for exact governed release packages;
+- authenticated campaign-administrator registration bound to the current immutable release ID, release-manifest digest and release-package digest;
+- terminal withdrawal and revocation states that immediately prevent new production package derivation and training;
+- supersession that requires a separately active successor release and preserves the old immutable lineage while blocking it from future production training;
+- a deterministic content-addressed production training package containing canonical redacted examples, release/campaign/application/authorisation lineage, review/adjudication attestation digests, duplicate exclusions, explicit policy versions, permitted tasks, retention policy and exact source commit;
+- hashed source references in the ML package so owner-local scan-database paths are not exposed as training metadata;
+- production baseline/tuned entry points that revalidate package integrity and source-release eligibility immediately before fitting, while the existing direct `train_baseline` and `train_tuned` APIs remain research-mode foundations;
+- a governed candidate wrapper binding the resulting baseline artifact to the exact production training-package and release provenance without giving the model label, severity, review, scanner or publication authority;
+- a fail-closed guard when legacy integer scan or observation identities overlap across released applications, because P3.3 must establish hierarchical stable identity rather than silently inventing or collapsing groups.
+
+This P3.2 boundary does **not** establish application-family external holdout, calibration, OOD, registry activation, shadow inference, monitoring, Hugging Face production capability or real-world classifier performance. It also does not make a production-candidate artifact equivalent to an approved or active model.
+
+The complete production ML/Hugging Face programme continues in the binding order from `ML_AND_HUGGING_FACE_PRODUCTION_ARCHITECTURE.md`:
+
+1. current-state reconciliation — **MERGED in PR #133**;
+2. governed release-to-training boundary — **IMPLEMENTED on PR #134; merge requires green exact-head gates**;
+3. hierarchical application identity and group isolation — **NEXT**;
 4. richer label and task contracts;
 5. pluggable feature-extractor interface;
 6. leakage and ablation evaluation;
@@ -99,10 +117,13 @@ The complete production ML/Hugging Face programme is not yet implemented. Work m
 15. evidence-grounded conversational retrieval;
 16. full cross-workflow production acceptance and cleanup.
 
-### ML capabilities still not complete
+### ML capability classification
 
 ```text
-GOVERNED RELEASE-BOUND PRODUCTION TRAINING       NOT COMPLETE
+GOVERNED RELEASE-BOUND TRAINING PACKAGE          IMPLEMENTED ON ACTIVE P3.2 PR — GATES REQUIRED
+WITHDRAWAL/REVOCATION/SUPERSESSION TRAINING GATE IMPLEMENTED ON ACTIVE P3.2 PR — GATES REQUIRED
+RESEARCH NAIVE BAYES BASELINE                    IMPLEMENTED
+HIERARCHICAL APPLICATION/GROUP IDENTITY          NOT COMPLETE — P3.3 NEXT
 APPLICATION-FAMILY EXTERNAL HOLDOUT              NOT COMPLETE
 CALIBRATION                                      NOT COMPLETE
 OOD DETECTION                                    NOT COMPLETE
@@ -116,7 +137,7 @@ ASSESSMENT-SCOPED RETRIEVAL AND CITATIONS        NOT COMPLETE
 PRODUCTION VULNERABILITY CLASSIFIER              NOT ESTABLISHED
 ```
 
-The current Naive Bayes model must remain an honest comparison baseline. Controlled benchmark performance is not real-application performance; raw posterior values are not calibrated real-world probabilities; and no production registry, shadow, rollback or drift lifecycle exists yet.
+The current Naive Bayes model remains the honest comparison baseline. Controlled benchmark performance is not real-application performance; raw posterior values are not calibrated real-world probabilities; and no production registry, activation, shadow, rollback or drift lifecycle exists yet.
 
 ## Real-world performance prerequisites
 
@@ -150,7 +171,7 @@ python manage.py vh_publication_recover --help
 python manage.py vh_campaign_release_package --help
 ```
 
-Commands proposed in architecture documents are not operational until they are implemented and exposed by these help surfaces.
+The new P3.2 interfaces are Python contracts on the active bounded PR, not new CLI commands. Commands proposed in architecture documents are not operational until they are implemented and exposed by the help surfaces above.
 
 ## Repository health
 

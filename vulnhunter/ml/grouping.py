@@ -17,11 +17,9 @@ from vulnhunter.governance.release_package import CampaignReleasePackage
 from vulnhunter.ml.dataset import dataset_sha256
 from vulnhunter.ml.models import ModelArtifact, TrainingExample
 from vulnhunter.ml.release_training import (
-    GovernedModelCandidate,
     ProductionTrainingPackage,
     ReleaseTrainingBoundaryError,
     TrainingReleaseLedger,
-    governed_model_candidate_sha256,
     production_training_package_sha256,
 )
 from vulnhunter.ml.training import train_baseline, train_tuned
@@ -45,7 +43,7 @@ def _stable_id(namespace: str, value: str) -> str:
     normalized = " ".join(redact_text(value).strip().lower().split())
     if not normalized:
         raise GroupingBoundaryError(f"{namespace} identity must be explicit")
-    digest = hashlib.sha256(f"{namespace}\0{normalized}".encode("utf-8")).hexdigest()
+    digest = hashlib.sha256(f"{namespace}\0{normalized}".encode()).hexdigest()
     return f"{namespace}-{digest[:24]}"
 
 
@@ -200,7 +198,9 @@ class PartitionRegistry:
             if partition_event_sha256(event) != event.event_sha256:
                 raise GroupingBoundaryError("partition registry event integrity failed")
             if event.application_family_id in families:
-                raise GroupingBoundaryError("application family appears more than once in a programme")
+                raise GroupingBoundaryError(
+                    "application family appears more than once in a programme"
+                )
             families.add(event.application_family_id)
             if policy is None:
                 policy = event.grouping_policy_version
@@ -341,11 +341,13 @@ def partitioned_dataset_sha256(
 
 
 def _surrogate(namespace: str, key: str) -> int:
-    digest = hashlib.sha256(f"{namespace}\0{key}".encode("utf-8")).digest()
+    digest = hashlib.sha256(f"{namespace}\0{key}".encode()).digest()
     return int.from_bytes(digest[:8], "big") % _MAX_SURROGATE_ID + 1
 
 
-def _training_projection(items: tuple[PartitionedTrainingExample, ...]) -> tuple[TrainingExample, ...]:
+def _training_projection(
+    items: tuple[PartitionedTrainingExample, ...],
+) -> tuple[TrainingExample, ...]:
     projected: list[TrainingExample] = []
     scan_ids: dict[int, str] = {}
     observation_ids: dict[int, str] = {}
@@ -354,7 +356,10 @@ def _training_projection(items: tuple[PartitionedTrainingExample, ...]) -> tuple
         observation_id = _surrogate("observation", item.identity.observation_key)
         if scan_id in scan_ids and scan_ids[scan_id] != item.identity.scan_key:
             raise GroupingBoundaryError("hierarchical scan surrogate collision detected")
-        if observation_id in observation_ids and observation_ids[observation_id] != item.identity.observation_key:
+        if (
+            observation_id in observation_ids
+            and observation_ids[observation_id] != item.identity.observation_key
+        ):
             raise GroupingBoundaryError("hierarchical observation surrogate collision detected")
         scan_ids[scan_id] = item.identity.scan_key
         observation_ids[observation_id] = item.identity.observation_key

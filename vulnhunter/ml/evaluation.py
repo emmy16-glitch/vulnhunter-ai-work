@@ -53,7 +53,12 @@ class CoreClassificationMetrics(BaseModel):
 
     @model_validator(mode="after")
     def counts_match(self):
-        covered = self.true_positive + self.false_positive + self.true_negative + self.false_negative
+        covered = (
+            self.true_positive
+            + self.false_positive
+            + self.true_negative
+            + self.false_negative
+        )
         if covered != self.covered_samples:
             raise ValueError("confusion-matrix counts must equal covered samples")
         if self.covered_samples + self.abstained_samples != self.samples:
@@ -375,7 +380,9 @@ def grouped_bootstrap_interval(
 
     families = sorted({item.application_family_id for item in samples})
     if len(families) < 2:
-        raise EvaluationBoundaryError("grouped bootstrap requires at least two application families")
+        raise EvaluationBoundaryError(
+            "grouped bootstrap requires at least two application families"
+        )
     if iterations < 100 or iterations > 10_000:
         raise EvaluationBoundaryError("bootstrap iterations must be between 100 and 10000")
     estimate = _metric_value(classification_metrics(samples, threshold=threshold), metric)
@@ -484,9 +491,15 @@ def build_complete_evaluation_report(
         family_bootstrap=bootstrap,
         repeated_seed_summary=repeated_seed_summary,
         limitations=(
-            "Development-only evaluation; locked external holdout is not accessible through this API.",
+            (
+                "Development-only evaluation; locked external holdout is not "
+                "accessible through this API."
+            ),
             "Reviewer time saved is not reported without measurements from real review tasks.",
-            "Bootstrap uncertainty resamples whole application families and does not establish real-world performance.",
+            (
+                "Bootstrap uncertainty resamples whole application families and does not "
+                "establish real-world performance."
+            ),
         ),
     )
 

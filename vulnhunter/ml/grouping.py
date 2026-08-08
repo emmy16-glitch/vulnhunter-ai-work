@@ -364,9 +364,7 @@ def _training_projection(
         scan_ids[scan_id] = item.identity.scan_key
         observation_ids[observation_id] = item.identity.observation_key
         projected.append(
-            item.example.model_copy(
-                update={"scan_id": scan_id, "observation_id": observation_id}
-            )
+            item.example.model_copy(update={"scan_id": scan_id, "observation_id": observation_id})
         )
     return tuple(sorted(projected, key=lambda current: (current.scan_id, current.observation_id)))
 

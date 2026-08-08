@@ -97,12 +97,17 @@ _FIXED_METADATA: Mapping[str, FeatureMetadata] = {
     name: FeatureMetadata(
         name=name,
         source_field=("url" if name.startswith("url:") else "evidence"),
-        transformation="Deterministic bounded numeric or boolean transformation defined by features.py.",
+        transformation=(
+            "Deterministic bounded numeric or boolean transformation defined by features.py."
+        ),
         privacy_classification="derived_numeric",
-        missing_value_behavior="Missing source values produce the documented zero/default representation.",
-        expected_range=("non-negative bounded count or binary indicator"),
+        missing_value_behavior=(
+            "Missing source values produce the documented zero/default representation."
+        ),
+        expected_range="non-negative bounded count or binary indicator",
         leakage_risk=(
-            "May encode detector or evidence-source behaviour; must be covered by leakage ablations."
+            "May encode detector or evidence-source behaviour; must be covered by "
+            "leakage ablations."
         ),
         stability="stable",
     )
@@ -166,7 +171,10 @@ class DeterministicObservationFeatureExtractor:
                         privacy_classification="redacted_metadata",
                         missing_value_behavior="Severity is required by ObservationInput.",
                         expected_range="0 or 1",
-                        leakage_risk="May reproduce scanner-assigned severity; evaluate no-severity ablation.",
+                        leakage_risk=(
+                            "May reproduce scanner-assigned severity; evaluate no-severity "
+                            "ablation."
+                        ),
                         stability="stable",
                     )
                 )
@@ -177,9 +185,14 @@ class DeterministicObservationFeatureExtractor:
                         source_field="category",
                         transformation="Training-vocabulary one-hot category.",
                         privacy_classification="redacted_metadata",
-                        missing_value_behavior="Unknown categories emit zero for every trained category.",
+                        missing_value_behavior=(
+                            "Unknown categories emit zero for every trained category."
+                        ),
                         expected_range="0 or 1",
-                        leakage_risk="May reproduce detector category; evaluate no-category and leave-category-out ablations.",
+                        leakage_risk=(
+                            "May reproduce detector category; evaluate no-category and "
+                            "leave-category-out ablations."
+                        ),
                         stability="vocabulary_bound",
                     )
                 )
@@ -188,11 +201,16 @@ class DeterministicObservationFeatureExtractor:
                     FeatureMetadata(
                         name=name,
                         source_field="title+description",
-                        transformation="Presence of one bounded token selected from redacted training text.",
+                        transformation=(
+                            "Presence of one bounded token selected from redacted training text."
+                        ),
                         privacy_classification="redacted_text",
                         missing_value_behavior="Absent or unseen token emits zero.",
                         expected_range="0 or 1",
-                        leakage_risk="Detector-generated wording may leak labels; evaluate no-text and no-detector-text ablations.",
+                        leakage_risk=(
+                            "Detector-generated wording may leak labels; evaluate no-text "
+                            "and no-detector-text ablations."
+                        ),
                         stability="vocabulary_bound",
                     )
                 )

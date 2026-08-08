@@ -1,5 +1,15 @@
 """Reviewed-dataset and leakage-resistant local ML pipeline."""
 
+from vulnhunter.ml.ablation import (
+    AblationEvaluationError,
+    FeatureAblationResult,
+    GroupAblationReport,
+    GroupHoldoutSlice,
+    LeakageAblationReport,
+    build_leakage_ablation_report,
+    evaluate_feature_ablations,
+    evaluate_leave_one_group_out,
+)
 from vulnhunter.ml.dataset import (
     build_dataset,
     dataset_sha256,
@@ -73,19 +83,24 @@ from vulnhunter.ml.tuning import (
 )
 
 __all__ = [
+    "AblationEvaluationError",
     "BenchmarkProvenance",
     "DatasetQualityReport",
     "DiagnosticCase",
     "DiagnosticReport",
     "DiagnosticSlice",
     "EvaluationMetrics",
+    "FeatureAblationResult",
     "FeatureExtraction",
     "FeatureExtractor",
     "FeatureExtractorDescriptor",
     "FeatureMetadata",
     "FeatureSchema",
     "GovernedModelCandidate",
+    "GroupAblationReport",
     "GroupFold",
+    "GroupHoldoutSlice",
+    "LeakageAblationReport",
     "ModelArtifact",
     "ModelType",
     "ObservationInput",
@@ -105,11 +120,14 @@ __all__ = [
     "assess_dataset_quality",
     "build_dataset",
     "build_feature_schema",
+    "build_leakage_ablation_report",
     "build_production_training_package",
     "build_two_fold_group_cv",
     "dataset_sha256",
     "default_feature_extractor",
     "diagnose_holdout",
+    "evaluate_feature_ablations",
+    "evaluate_leave_one_group_out",
     "export_jsonl",
     "get_feature_extractor",
     "governed_model_candidate_sha256",

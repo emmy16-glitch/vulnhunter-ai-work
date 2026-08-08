@@ -54,10 +54,7 @@ class CoreClassificationMetrics(BaseModel):
     @model_validator(mode="after")
     def counts_match(self):
         covered = (
-            self.true_positive
-            + self.false_positive
-            + self.true_negative
-            + self.false_negative
+            self.true_positive + self.false_positive + self.true_negative + self.false_negative
         )
         if covered != self.covered_samples:
             raise ValueError("confusion-matrix counts must equal covered samples")

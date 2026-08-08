@@ -259,9 +259,7 @@ class ModelRegistry:
         self.events_root = self.root / "events"
         self.active_root = self.root / "active"
         self.signing_key = bytes(signing_key)
-        self.authority_secrets = {
-            role: bytes(secret) for role, secret in authority_secrets.items()
-        }
+        self.authority_secrets = {role: bytes(secret) for role, secret in authority_secrets.items()}
         for directory in (self.root, self.packages_root, self.events_root, self.active_root):
             directory.mkdir(parents=True, exist_ok=True)
             os.chmod(directory, 0o700)
@@ -376,9 +374,7 @@ class ModelRegistry:
             raise ModelRegistryBoundaryError(
                 "active model pointer does not reference an active lifecycle"
             )
-        activation_events = {
-            event.event_sha256 for event in self.events(pointer.model_ref)
-        }
+        activation_events = {event.event_sha256 for event in self.events(pointer.model_ref)}
         if pointer.activation_event_sha256 not in activation_events:
             raise ModelRegistryBoundaryError("active model pointer activation event is unknown")
         return pointer
@@ -482,9 +478,7 @@ class ModelRegistry:
         clear_active = False
         if state in {"retired", "revoked"}:
             active_before = self.active(package.task)
-            clear_active = (
-                active_before is not None and active_before.model_ref == model_ref
-            )
+            clear_active = active_before is not None and active_before.model_ref == model_ref
 
         event_type: ModelEventType = {
             "validated": "validated",
@@ -617,9 +611,7 @@ class ModelRegistry:
             raise ModelRegistryBoundaryError("rollback target belongs to a different model task")
         target_current = self.current(target_ref)
         if target_current is None or target_current.state != "retired":
-            raise ModelRegistryBoundaryError(
-                "rollback target is not the preserved retired package"
-            )
+            raise ModelRegistryBoundaryError("rollback target is not the preserved retired package")
         restored = self._append_event(
             target,
             event_type="rollback_restored",
@@ -718,18 +710,3 @@ class ModelRegistry:
             if path.is_symlink():
                 raise ModelRegistryBoundaryError("active model pointer is an unsafe symlink")
             path.unlink()
-
-
-__all__ = [
-    "ActiveModelPointer",
-    "DETERMINISTIC_FALLBACK_REF",
-    "LifecycleTransition",
-    "ModelAuthorityRole",
-    "ModelRegistry",
-    "ModelRegistryBoundaryError",
-    "ModelRegistryEvent",
-    "ModelRegistryPackage",
-    "ModelState",
-    "model_registry_event_sha256",
-    "model_registry_package_sha256",
-]

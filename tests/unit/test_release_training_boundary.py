@@ -121,9 +121,11 @@ def _release_package(
             observation_id = app_index * 4 + offset + 1
             scan_id = offset + 1 if overlap_scan_ids else app_index * 4 + offset + 1
             label = "confirmed" if offset % 2 == 0 else "false_positive"
-            seed = "f" if duplicate_fingerprint and observation_id in {1, 5} else hex(
-                observation_id
-            )[-1]
+            seed = (
+                "f"
+                if duplicate_fingerprint and observation_id in {1, 5}
+                else hex(observation_id)[-1]
+            )
             observation = _observation(
                 observation_id,
                 scan_id,

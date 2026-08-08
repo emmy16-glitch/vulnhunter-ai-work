@@ -12,6 +12,15 @@ from vulnhunter.ml.diagnostics import (
     DiagnosticSlice,
     diagnose_holdout,
 )
+from vulnhunter.ml.feature_extractors import (
+    FeatureExtraction,
+    FeatureExtractor,
+    FeatureExtractorDescriptor,
+    FeatureMetadata,
+    default_feature_extractor,
+    get_feature_extractor,
+    registered_feature_extractors,
+)
 from vulnhunter.ml.features import build_feature_schema, vectorize
 from vulnhunter.ml.models import (
     BenchmarkProvenance,
@@ -70,6 +79,10 @@ __all__ = [
     "DiagnosticReport",
     "DiagnosticSlice",
     "EvaluationMetrics",
+    "FeatureExtraction",
+    "FeatureExtractor",
+    "FeatureExtractorDescriptor",
+    "FeatureMetadata",
     "FeatureSchema",
     "GovernedModelCandidate",
     "GroupFold",
@@ -95,13 +108,16 @@ __all__ = [
     "build_production_training_package",
     "build_two_fold_group_cv",
     "dataset_sha256",
+    "default_feature_extractor",
     "diagnose_holdout",
     "export_jsonl",
+    "get_feature_extractor",
     "governed_model_candidate_sha256",
     "load_model",
     "predict",
     "production_training_package_sha256",
     "register_training_release",
+    "registered_feature_extractors",
     "save_model",
     "split_by_scan_groups",
     "to_model_input",

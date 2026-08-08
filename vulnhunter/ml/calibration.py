@@ -129,8 +129,7 @@ def calibration_metrics(
     labels = tuple(1.0 if item.label == "confirmed" else 0.0 for item in examples)
     bounded = tuple(_bounded_probability(value) for value in probabilities)
     brier = sum(
-        (probability - label) ** 2
-        for probability, label in zip(bounded, labels, strict=True)
+        (probability - label) ** 2 for probability, label in zip(bounded, labels, strict=True)
     )
     log_loss = -sum(
         label * math.log(probability) + (1.0 - label) * math.log(1.0 - probability)
@@ -206,13 +205,16 @@ def fit_platt_calibrator(
     count = len(examples)
     for _ in range(iterations):
         outputs = tuple(_sigmoid(slope * value + intercept) for value in features)
-        slope_gradient = sum(
-            (output - label) * value
-            for output, label, value in zip(outputs, labels, features, strict=True)
-        ) / count
-        intercept_gradient = sum(
-            output - label for output, label in zip(outputs, labels, strict=True)
-        ) / count
+        slope_gradient = (
+            sum(
+                (output - label) * value
+                for output, label, value in zip(outputs, labels, features, strict=True)
+            )
+            / count
+        )
+        intercept_gradient = (
+            sum(output - label for output, label in zip(outputs, labels, strict=True)) / count
+        )
         slope -= learning_rate * slope_gradient
         intercept -= learning_rate * intercept_gradient
 

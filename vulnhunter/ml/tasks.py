@@ -55,7 +55,10 @@ class ReviewLabelContract(BaseModel):
             raise ValueError("non-terminal review state cannot expose a terminal review label")
         if self.review_state in {"withdrawn", "corrected"} and self.correction_reference is None:
             raise ValueError("withdrawn or corrected review state requires provenance")
-        if self.review_state not in {"withdrawn", "corrected"} and self.correction_reference is not None:
+        if (
+            self.review_state not in {"withdrawn", "corrected"}
+            and self.correction_reference is not None
+        ):
             raise ValueError("correction provenance is valid only for withdrawn or corrected state")
         return self
 
@@ -110,7 +113,9 @@ TASK_CONTRACTS: dict[MLTaskName, MLTaskContract] = {
         target="reviewer-facing severity assistance",
         metrics=("macro_f1", "weighted_kappa"),
         requires_terminal_review_label=True,
-        output_semantics="Advisory severity assistance; never changes persisted severity authority.",
+        output_semantics=(
+            "Advisory severity assistance; never changes persisted severity authority."
+        ),
     ),
     "related_finding_retrieval": MLTaskContract(
         task="related_finding_retrieval",
@@ -152,7 +157,9 @@ TASK_CONTRACTS: dict[MLTaskName, MLTaskContract] = {
         schema_version="report-drafting-v1",
         target="evidence-grounded report draft",
         metrics=("citation_coverage", "human_acceptance_rate"),
-        output_semantics="Draft report text only; publication and review authority remain separate.",
+        output_semantics=(
+            "Draft report text only; publication and review authority remain separate."
+        ),
     ),
 }
 
@@ -175,7 +182,9 @@ class AdvisoryTaskResult(BaseModel):
     def task_schema_matches_registry(self) -> Self:
         contract = TASK_CONTRACTS[self.task]
         if self.task_schema_version != contract.schema_version:
-            raise ValueError("advisory result task schema does not match the governed task contract")
+            raise ValueError(
+                "advisory result task schema does not match the governed task contract"
+            )
         forbidden = {
             "review_label",
             "effective_label",
@@ -184,7 +193,9 @@ class AdvisoryTaskResult(BaseModel):
             "out_of_distribution_score",
         }
         if forbidden.intersection(self.output):
-            raise ValueError("advisory result cannot claim human labels or unimplemented P3.7 fields")
+            raise ValueError(
+                "advisory result cannot claim human labels or unimplemented P3.7 fields"
+            )
         if self.created_at.tzinfo is None or self.created_at.utcoffset() is None:
             raise ValueError("advisory result timestamp must include a timezone")
         return self.model_copy(update={"created_at": self.created_at.astimezone(UTC)})
@@ -197,9 +208,13 @@ def require_binary_training_label(
     """Allow the binary task to consume only matching eligible terminal human labels."""
 
     if not review.eligible_for_binary_training or review.review_label is None:
-        raise TaskContractError("binary production training requires an eligible terminal human label")
+        raise TaskContractError(
+            "binary production training requires an eligible terminal human label"
+        )
     if example.label != review.review_label:
-        raise TaskContractError("training example label does not match authoritative human review label")
+        raise TaskContractError(
+            "training example label does not match authoritative human review label"
+        )
     return example
 
 

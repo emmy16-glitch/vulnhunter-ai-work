@@ -8,7 +8,11 @@ from vulnhunter.ml.feature_extractors import (
 from vulnhunter.ml.models import FeatureSchema, TrainingExample
 
 
-def _example(*, category: str = "headers", title: str = "Missing security header") -> TrainingExample:
+def _example(
+    *,
+    category: str = "headers",
+    title: str = "Missing security header",
+) -> TrainingExample:
     return TrainingExample(
         observation_id=1,
         scan_id=1,

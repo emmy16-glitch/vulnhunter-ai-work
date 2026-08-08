@@ -47,6 +47,15 @@ ModelEventType = Literal[
     "rejected",
     "rollback_restored",
 ]
+LifecycleTransition = Literal[
+    "validated",
+    "approved",
+    "shadow",
+    "degraded",
+    "retired",
+    "revoked",
+    "rejected",
+]
 
 _IDENTIFIER = re.compile(r"^[a-z0-9][a-z0-9._-]{1,127}$")
 _COMMIT = re.compile(r"^(?:[0-9a-f]{40}|[0-9a-f]{64})$")
@@ -88,7 +97,13 @@ class ModelRegistryPackage(BaseModel):
     training_operator_id: str = Field(min_length=2, max_length=64)
     package_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
 
-    @field_validator("model_id", "version", "task", "partition_programme_id", "monitoring_policy_id")
+    @field_validator(
+        "model_id",
+        "version",
+        "task",
+        "partition_programme_id",
+        "monitoring_policy_id",
+    )
     @classmethod
     def stable_identifiers(cls, value: str) -> str:
         if _IDENTIFIER.fullmatch(value) is None:
@@ -236,13 +251,17 @@ class ModelRegistry:
         if missing:
             raise ModelRegistryBoundaryError("all model governance authority secrets are required")
         if any(len(secret) < 16 for secret in authority_secrets.values()):
-            raise ModelRegistryBoundaryError("model authority secrets must contain at least 16 bytes")
+            raise ModelRegistryBoundaryError(
+                "model authority secrets must contain at least 16 bytes"
+            )
         self.root = root.expanduser().resolve()
         self.packages_root = self.root / "packages"
         self.events_root = self.root / "events"
         self.active_root = self.root / "active"
         self.signing_key = bytes(signing_key)
-        self.authority_secrets = {role: bytes(secret) for role, secret in authority_secrets.items()}
+        self.authority_secrets = {
+            role: bytes(secret) for role, secret in authority_secrets.items()
+        }
         for directory in (self.root, self.packages_root, self.events_root, self.active_root):
             directory.mkdir(parents=True, exist_ok=True)
             os.chmod(directory, 0o700)
@@ -303,13 +322,17 @@ class ModelRegistry:
                 if line
             )
         except (OSError, ValidationError) as exc:
-            raise ModelRegistryBoundaryError("model registry ledger is unavailable or invalid") from exc
+            raise ModelRegistryBoundaryError(
+                "model registry ledger is unavailable or invalid"
+            ) from exc
 
         package = self.package(model_ref)
         previous = _ZERO_HASH
         for index, event in enumerate(events, start=1):
             if event.sequence != index or event.model_ref != model_ref:
-                raise ModelRegistryBoundaryError("model registry ledger sequence or identity is invalid")
+                raise ModelRegistryBoundaryError(
+                    "model registry ledger sequence or identity is invalid"
+                )
             if event.package_sha256 != package.package_sha256:
                 raise ModelRegistryBoundaryError("model package identity changed inside its ledger")
             if event.previous_event_sha256 != previous:
@@ -321,7 +344,9 @@ class ModelRegistry:
                 raise ModelRegistryBoundaryError("model registry event signature is invalid")
             if index == 1:
                 if event.event_type != "registered" or event.from_state is not None:
-                    raise ModelRegistryBoundaryError("model registry ledger must begin with registration")
+                    raise ModelRegistryBoundaryError(
+                        "model registry ledger must begin with registration"
+                    )
             elif event.from_state != events[index - 2].state:
                 raise ModelRegistryBoundaryError("model registry lifecycle state chain is invalid")
             previous = event.event_sha256
@@ -348,8 +373,13 @@ class ModelRegistry:
             raise ModelRegistryBoundaryError("active model pointer package digest does not match")
         current = self.current(pointer.model_ref)
         if current is None or current.state not in {"active", "degraded"}:
-            raise ModelRegistryBoundaryError("active model pointer does not reference an active lifecycle")
-        if pointer.activation_event_sha256 not in {event.event_sha256 for event in self.events(pointer.model_ref)}:
+            raise ModelRegistryBoundaryError(
+                "active model pointer does not reference an active lifecycle"
+            )
+        activation_events = {
+            event.event_sha256 for event in self.events(pointer.model_ref)
+        }
+        if pointer.activation_event_sha256 not in activation_events:
             raise ModelRegistryBoundaryError("active model pointer activation event is unknown")
         return pointer
 
@@ -364,7 +394,9 @@ class ModelRegistry:
     ) -> ModelRegistryEvent:
         self._authorize("training_operator", actor_secret)
         if actor_id != package.training_operator_id:
-            raise ModelRegistryBoundaryError("candidate must be registered by its training operator")
+            raise ModelRegistryBoundaryError(
+                "candidate must be registered by its training operator"
+            )
         expected = model_registry_package_sha256(package)
         if expected != package.package_sha256:
             raise ModelRegistryBoundaryError("model package digest does not match its content")
@@ -393,7 +425,7 @@ class ModelRegistry:
         self,
         model_ref: str,
         *,
-        state: Literal["validated", "approved", "shadow", "degraded", "retired", "revoked", "rejected"],
+        state: LifecycleTransition,
         actor_id: str,
         actor_role: ModelAuthorityRole,
         actor_secret: bytes,
@@ -435,13 +467,24 @@ class ModelRegistry:
             raise ModelRegistryBoundaryError("training operator cannot self-validate a candidate")
         if state == "approved":
             validator = next(
-                (event.actor_id for event in reversed(self.events(model_ref)) if event.state == "validated"),
+                (
+                    event.actor_id
+                    for event in reversed(self.events(model_ref))
+                    if event.state == "validated"
+                ),
                 None,
             )
             if actor_id in {package.training_operator_id, validator}:
                 raise ModelRegistryBoundaryError(
                     "promotion authority must be independent of training and evaluation"
                 )
+
+        clear_active = False
+        if state in {"retired", "revoked"}:
+            active_before = self.active(package.task)
+            clear_active = (
+                active_before is not None and active_before.model_ref == model_ref
+            )
 
         event_type: ModelEventType = {
             "validated": "validated",
@@ -461,10 +504,8 @@ class ModelRegistry:
             reason=reason,
             occurred_at=_now(now),
         )
-        if state in {"retired", "revoked"}:
-            active = self.active(package.task)
-            if active is not None and active.model_ref == model_ref:
-                self._clear_active(package.task)
+        if clear_active:
+            self._clear_active(package.task)
         return event
 
     def activate(
@@ -493,7 +534,9 @@ class ModelRegistry:
                 )
         else:
             if rollback_target_ref != existing_active.model_ref:
-                raise ModelRegistryBoundaryError("rollback target must be the exact current active model")
+                raise ModelRegistryBoundaryError(
+                    "rollback target must be the exact current active model"
+                )
             previous = self.package(existing_active.model_ref)
             self._append_event(
                 previous,
@@ -564,14 +607,19 @@ class ModelRegistry:
         target_ref = activation.rollback_target_ref
         if target_ref == DETERMINISTIC_FALLBACK_REF:
             self._clear_active(task)
-            return self.current(active.model_ref)  # type: ignore[return-value]
+            current_event = self.current(active.model_ref)
+            if current_event is None:
+                raise ModelRegistryBoundaryError("rollback source lifecycle disappeared")
+            return current_event
 
         target = self.package(target_ref)
         if target.task != task:
             raise ModelRegistryBoundaryError("rollback target belongs to a different model task")
         target_current = self.current(target_ref)
         if target_current is None or target_current.state != "retired":
-            raise ModelRegistryBoundaryError("rollback target is not the preserved retired package")
+            raise ModelRegistryBoundaryError(
+                "rollback target is not the preserved retired package"
+            )
         restored = self._append_event(
             target,
             event_type="rollback_restored",
@@ -625,7 +673,10 @@ class ModelRegistry:
             "signature_hmac_sha256": _ZERO_HASH,
         }
         data["event_sha256"] = model_registry_event_sha256(data)
-        data["signature_hmac_sha256"] = _sign_event(str(data["event_sha256"]), self.signing_key)
+        data["signature_hmac_sha256"] = _sign_event(
+            str(data["event_sha256"]),
+            self.signing_key,
+        )
         event = ModelRegistryEvent.model_validate(data)
         path = self._events_path(package.reference)
         if path.exists() and path.is_symlink():
@@ -672,6 +723,7 @@ class ModelRegistry:
 __all__ = [
     "ActiveModelPointer",
     "DETERMINISTIC_FALLBACK_REF",
+    "LifecycleTransition",
     "ModelAuthorityRole",
     "ModelRegistry",
     "ModelRegistryBoundaryError",

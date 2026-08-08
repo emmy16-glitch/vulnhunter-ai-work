@@ -15,15 +15,16 @@ def freeze_remediation_graph_clock_for_fixed_time_web_fixtures(request, monkeypa
 
     from django.conf import settings
 
-    from vulnhunter.assessment_graph import RemediationAssessmentGraphService
     import vulnhunter.web.remediation_assessment_graph as graph_module
+    from vulnhunter.assessment_graph import RemediationAssessmentGraphService
 
-    clock = lambda: request.module.NOW
-    monkeypatch.setattr(
-        graph_module,
-        "_service",
-        lambda: RemediationAssessmentGraphService(
+    def clock():
+        return request.module.NOW
+
+    def service():
+        return RemediationAssessmentGraphService(
             Path(settings.VULNHUNTER_TASK_GRAPH_ROOT),
             clock=clock,
-        ),
-    )
+        )
+
+    monkeypatch.setattr(graph_module, "_service", service)

@@ -128,7 +128,9 @@ def _evaluate(
     schema = extractor.build_schema(training, maximum_tokens=maximum_tokens)
     names = schema.feature_names
     indices = _indices(names, ablation)
-    train_vectors = tuple(_subset(extractor.extract(item, schema).vector, indices) for item in training)
+    train_vectors = tuple(
+        _subset(extractor.extract(item, schema).vector, indices) for item in training
+    )
     validation_vectors = tuple(
         _subset(extractor.extract(item, schema).vector, indices) for item in validation
     )

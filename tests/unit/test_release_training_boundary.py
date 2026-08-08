@@ -272,7 +272,8 @@ def test_superseding_release_blocks_old_lineage_and_keeps_successor_active(
     with pytest.raises(ReleaseTrainingBoundaryError, match="superseded"):
         ledger.require_active(old)
     assert ledger.require_active(successor).state == "active"
-    assert _build(successor, ledger, successor_repositories).source_release_id == successor.release_id
+    successor_package = _build(successor, ledger, successor_repositories)
+    assert successor_package.source_release_id == successor.release_id
 
 
 def test_production_training_candidate_carries_exact_package_provenance(monkeypatch, tmp_path):

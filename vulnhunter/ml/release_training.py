@@ -73,18 +73,14 @@ class TrainingReleaseEvent(BaseModel):
     @classmethod
     def stable_identifiers(cls, value: str | None) -> str | None:
         if value is not None and _IDENTIFIER.fullmatch(value) is None:
-            raise ValueError(
-                "release-training identifiers must be stable and path-safe"
-            )
+            raise ValueError("release-training identifiers must be stable and path-safe")
         return value
 
     @field_validator("occurred_at")
     @classmethod
     def timezone_required(cls, value: datetime) -> datetime:
         if value.tzinfo is None or value.utcoffset() is None:
-            raise ValueError(
-                "release-training event timestamps must include a timezone"
-            )
+            raise ValueError("release-training event timestamps must include a timezone")
         return value.astimezone(UTC)
 
     @model_validator(mode="after")
@@ -96,9 +92,7 @@ class TrainingReleaseEvent(BaseModel):
             successor_missing = not self.superseded_by_release_id
             successor_same = self.superseded_by_release_id == self.release_id
             if successor_missing or successor_same:
-                raise ValueError(
-                    "superseded releases require a distinct successor release"
-                )
+                raise ValueError("superseded releases require a distinct successor release")
         elif self.superseded_by_release_id is not None:
             raise ValueError("only superseded releases may identify a successor")
         return self
@@ -120,9 +114,7 @@ class TrainingReleaseLedger:
 
     def _path(self, release_id: str) -> Path:
         if _IDENTIFIER.fullmatch(release_id) is None:
-            raise ReleaseTrainingBoundaryError(
-                "release ID is not a safe stable identifier"
-            )
+            raise ReleaseTrainingBoundaryError("release ID is not a safe stable identifier")
         return self.root / f"{release_id}.jsonl"
 
     def events(self, release_id: str) -> tuple[TrainingReleaseEvent, ...]:
@@ -130,16 +122,10 @@ class TrainingReleaseLedger:
         if not path.exists():
             return ()
         if path.is_symlink():
-            raise ReleaseTrainingBoundaryError(
-                "release-training ledger path is an unsafe symlink"
-            )
+            raise ReleaseTrainingBoundaryError("release-training ledger path is an unsafe symlink")
         try:
             lines = path.read_text(encoding="utf-8").splitlines()
-            events = tuple(
-                TrainingReleaseEvent.model_validate_json(line)
-                for line in lines
-                if line
-            )
+            events = tuple(TrainingReleaseEvent.model_validate_json(line) for line in lines if line)
         except (OSError, ValidationError) as exc:
             raise ReleaseTrainingBoundaryError(
                 "release-training ledger is unavailable or invalid"
@@ -149,21 +135,13 @@ class TrainingReleaseLedger:
         package_sha256: str | None = None
         for index, event in enumerate(events, start=1):
             if event.sequence != index:
-                raise ReleaseTrainingBoundaryError(
-                    "release-training ledger sequence is invalid"
-                )
+                raise ReleaseTrainingBoundaryError("release-training ledger sequence is invalid")
             if event.release_id != release_id:
-                raise ReleaseTrainingBoundaryError(
-                    "release-training ledger key does not match"
-                )
+                raise ReleaseTrainingBoundaryError("release-training ledger key does not match")
             if event.previous_event_sha256 != previous:
-                raise ReleaseTrainingBoundaryError(
-                    "release-training ledger hash chain is invalid"
-                )
+                raise ReleaseTrainingBoundaryError("release-training ledger hash chain is invalid")
             if training_release_event_sha256(event) != event.event_sha256:
-                raise ReleaseTrainingBoundaryError(
-                    "release-training ledger event integrity failed"
-                )
+                raise ReleaseTrainingBoundaryError("release-training ledger event integrity failed")
             if package_sha256 is None:
                 package_sha256 = event.release_package_sha256
             elif event.release_package_sha256 != package_sha256:
@@ -197,13 +175,9 @@ class TrainingReleaseLedger:
                 "governed release is not registered for production training"
             )
         if current.release_package_sha256 != package.package_sha256:
-            raise ReleaseTrainingBoundaryError(
-                "registered release package digest does not match"
-            )
+            raise ReleaseTrainingBoundaryError("registered release package digest does not match")
         if current.release_manifest_sha256 != package.release_manifest_sha256:
-            raise ReleaseTrainingBoundaryError(
-                "registered release manifest digest does not match"
-            )
+            raise ReleaseTrainingBoundaryError("registered release manifest digest does not match")
         if current.state != "active":
             raise ReleaseTrainingBoundaryError(
                 f"governed release is {current.state} and is not eligible "
@@ -237,18 +211,14 @@ class TrainingReleaseLedger:
                     "terminal release-training state cannot transition"
                 )
             if state == "active":
-                raise ReleaseTrainingBoundaryError(
-                    "release is already registered active"
-                )
+                raise ReleaseTrainingBoundaryError("release is already registered active")
             event_type = state
             previous = existing[-1].event_sha256
             sequence = existing[-1].sequence + 1
 
         safe_reason = redact_text(reason).strip()[:2_000]
         if not safe_reason:
-            raise ReleaseTrainingBoundaryError(
-                "release-training transition requires a reason"
-            )
+            raise ReleaseTrainingBoundaryError("release-training transition requires a reason")
         data: dict[str, object] = {
             "schema_version": 1,
             "sequence": sequence,
@@ -274,9 +244,7 @@ class TrainingReleaseLedger:
     def _write(self, event: TrainingReleaseEvent) -> None:
         path = self._path(event.release_id)
         if path.exists() and path.is_symlink():
-            raise ReleaseTrainingBoundaryError(
-                "release-training ledger path is an unsafe symlink"
-            )
+            raise ReleaseTrainingBoundaryError("release-training ledger path is an unsafe symlink")
         encoded = json.dumps(
             event.model_dump(mode="json"),
             sort_keys=True,
@@ -294,18 +262,14 @@ class TrainingReleaseLedger:
 def _now(value: datetime | None) -> datetime:
     current = value or datetime.now(UTC)
     if current.tzinfo is None or current.utcoffset() is None:
-        raise ReleaseTrainingBoundaryError(
-            "release-training timestamps must include a timezone"
-        )
+        raise ReleaseTrainingBoundaryError("release-training timestamps must include a timezone")
     return current.astimezone(UTC)
 
 
 def _verify_release_package_integrity(package: CampaignReleasePackage) -> None:
     expected = campaign_release_package_sha256(package)
     if expected != package.package_sha256:
-        raise ReleaseTrainingBoundaryError(
-            "campaign release package failed integrity verification"
-        )
+        raise ReleaseTrainingBoundaryError("campaign release package failed integrity verification")
 
 
 def register_training_release(
@@ -315,9 +279,7 @@ def register_training_release(
     *,
     actor_id: str,
     actor_secret: str,
-    reason: str = (
-        "Approved governed release registered for production training eligibility."
-    ),
+    reason: str = ("Approved governed release registered for production training eligibility."),
     now: datetime | None = None,
 ) -> TrainingReleaseEvent:
     """Register the exact current governed release for production training."""
@@ -332,13 +294,9 @@ def register_training_release(
     release = governance_store.get_release(package.campaign_id)
     _verify_release_package_integrity(package)
     if release.release_id != package.release_id:
-        raise ReleaseTrainingBoundaryError(
-            "release package does not match the governed release ID"
-        )
+        raise ReleaseTrainingBoundaryError("release package does not match the governed release ID")
     if release.manifest_sha256 != package.release_manifest_sha256:
-        raise ReleaseTrainingBoundaryError(
-            "release package does not match the governed manifest"
-        )
+        raise ReleaseTrainingBoundaryError("release package does not match the governed manifest")
     return ledger.append(
         package,
         state="active",
@@ -372,19 +330,13 @@ def transition_training_release(
     successor_id = None
     if state == "superseded":
         if successor is None:
-            raise ReleaseTrainingBoundaryError(
-                "superseding a release requires its successor"
-            )
+            raise ReleaseTrainingBoundaryError("superseding a release requires its successor")
         ledger.require_active(successor)
         if successor.release_id == package.release_id:
-            raise ReleaseTrainingBoundaryError(
-                "successor release must be distinct"
-            )
+            raise ReleaseTrainingBoundaryError("successor release must be distinct")
         successor_id = successor.release_id
     elif successor is not None:
-        raise ReleaseTrainingBoundaryError(
-            "only superseded state accepts a successor release"
-        )
+        raise ReleaseTrainingBoundaryError("only superseded state accepts a successor release")
     return ledger.append(
         package,
         state=state,
@@ -450,9 +402,7 @@ class ProductionTrainingPackage(BaseModel):
     dataset_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     label_ontology_version: str = Field(min_length=1, max_length=100)
     redaction_policy_version: str = Field(min_length=1, max_length=100)
-    privacy_classification: Literal["owner_private_redacted"] = (
-        "owner_private_redacted"
-    )
+    privacy_classification: Literal["owner_private_redacted"] = "owner_private_redacted"
     permitted_tasks: tuple[str, ...] = Field(min_length=1)
     retention_policy: str = Field(min_length=1, max_length=500)
     generator_version: str
@@ -463,9 +413,7 @@ class ProductionTrainingPackage(BaseModel):
     @classmethod
     def commit_digest(cls, value: str) -> str:
         if _COMMIT.fullmatch(value) is None:
-            raise ValueError(
-                "source_commit must be an exact SHA-1 or SHA-256 commit digest"
-            )
+            raise ValueError("source_commit must be an exact SHA-1 or SHA-256 commit digest")
         return value
 
     @model_validator(mode="after")
@@ -496,19 +444,13 @@ def _reference_sha256(reference: str) -> str:
 def _parse_reference(reference: str) -> tuple[str, int]:
     database, marker, raw_id = reference.rpartition("#")
     if not marker or not database:
-        raise ReleaseTrainingBoundaryError(
-            "released observation reference is malformed"
-        )
+        raise ReleaseTrainingBoundaryError("released observation reference is malformed")
     try:
         observation_id = int(raw_id)
     except ValueError as exc:
-        raise ReleaseTrainingBoundaryError(
-            "released observation reference has invalid ID"
-        ) from exc
+        raise ReleaseTrainingBoundaryError("released observation reference has invalid ID") from exc
     if observation_id < 1:
-        raise ReleaseTrainingBoundaryError(
-            "released observation reference has invalid ID"
-        )
+        raise ReleaseTrainingBoundaryError("released observation reference has invalid ID")
     return database, observation_id
 
 
@@ -521,28 +463,18 @@ def _resolved_example(
     try:
         case = repository.get_review_case(observation_id)
     except ValueError as exc:
-        raise ReleaseTrainingBoundaryError(
-            "released observation is unavailable"
-        ) from exc
+        raise ReleaseTrainingBoundaryError("released observation is unavailable") from exc
     if case.state != review.resolution_state:
-        raise ReleaseTrainingBoundaryError(
-            "released review resolution changed after release"
-        )
+        raise ReleaseTrainingBoundaryError("released review resolution changed after release")
     if case.effective_label != review.effective_label:
-        raise ReleaseTrainingBoundaryError(
-            "released review label changed after release"
-        )
+        raise ReleaseTrainingBoundaryError("released review label changed after release")
     try:
         example = to_training_example(case.observation)
     except ValueError as exc:
-        raise ReleaseTrainingBoundaryError(
-            "released observation is not training eligible"
-        ) from exc
+        raise ReleaseTrainingBoundaryError("released observation is not training eligible") from exc
     attestation_hashes = tuple(review.primary_attestation_record_sha256s)
     if review.adjudication_attestation_record_sha256 is not None:
-        attestation_hashes += (
-            review.adjudication_attestation_record_sha256,
-        )
+        attestation_hashes += (review.adjudication_attestation_record_sha256,)
     return TrainingPackageExample(
         example=example,
         example_sha256=_example_sha256(example),
@@ -613,23 +545,16 @@ def build_production_training_package(
     """Derive canonical examples from one currently active governed release."""
 
     ledger.require_active(release_package)
-    application_by_id = {
-        item.application_id: item
-        for item in release_package.applications
-    }
+    application_by_id = {item.application_id: item for item in release_package.applications}
     resolved: list[TrainingPackageExample] = []
     for review in release_package.reviews:
         application = application_by_id.get(review.application_id)
         if application is None:
-            raise ReleaseTrainingBoundaryError(
-                "released review references an unknown application"
-            )
+            raise ReleaseTrainingBoundaryError("released review references an unknown application")
         database, _ = _parse_reference(review.observation_reference)
         repository = repositories.get(database)
         if repository is None:
-            raise ReleaseTrainingBoundaryError(
-                "released observation repository is unavailable"
-            )
+            raise ReleaseTrainingBoundaryError("released observation repository is unavailable")
         resolved.append(_resolved_example(review, application, repository))
 
     examples, excluded = _canonicalize(resolved)
@@ -639,13 +564,7 @@ def build_production_training_package(
         )
 
     safe_tasks = tuple(
-        sorted(
-            {
-                redact_text(item).strip()
-                for item in permitted_tasks
-                if item.strip()
-            }
-        )
+        sorted({redact_text(item).strip() for item in permitted_tasks if item.strip()})
     )
     safe_retention = redact_text(retention_policy).strip()[:500]
     safe_label_version = redact_text(label_ontology_version).strip()[:100]
@@ -658,13 +577,9 @@ def build_production_training_package(
             safe_redaction_version,
         )
     ):
-        raise ReleaseTrainingBoundaryError(
-            "training package policy fields must be explicit"
-        )
+        raise ReleaseTrainingBoundaryError("training package policy fields must be explicit")
     if _COMMIT.fullmatch(source_commit) is None:
-        raise ReleaseTrainingBoundaryError(
-            "source_commit must be an exact SHA-1 or SHA-256 digest"
-        )
+        raise ReleaseTrainingBoundaryError("source_commit must be an exact SHA-1 or SHA-256 digest")
 
     applications = tuple(
         TrainingPackageApplication(
@@ -684,16 +599,12 @@ def build_production_training_package(
     base: dict[str, object] = {
         "schema_version": 1,
         "source_release_id": release_package.release_id,
-        "source_release_manifest_sha256": (
-            release_package.release_manifest_sha256
-        ),
+        "source_release_manifest_sha256": (release_package.release_manifest_sha256),
         "source_release_package_sha256": release_package.package_sha256,
         "campaign_id": release_package.campaign_id,
         "applications": [item.model_dump(mode="json") for item in applications],
         "examples": [item.model_dump(mode="json") for item in examples],
-        "excluded_records": [
-            item.model_dump(mode="json") for item in excluded
-        ],
+        "excluded_records": [item.model_dump(mode="json") for item in excluded],
         "dataset_sha256": dataset_sha256(canonical_examples),
         "label_ontology_version": safe_label_version,
         "redaction_policy_version": safe_redaction_version,
@@ -734,9 +645,7 @@ def _require_legacy_scan_identity_safety(
     scan_apps: dict[int, set[str]] = {}
     observation_refs: dict[int, set[str]] = {}
     for item in package.examples:
-        scan_apps.setdefault(item.example.scan_id, set()).add(
-            item.application_id
-        )
+        scan_apps.setdefault(item.example.scan_id, set()).add(item.application_id)
         observation_refs.setdefault(item.example.observation_id, set()).add(
             item.source_reference_sha256
         )
@@ -787,9 +696,7 @@ def _candidate(
         "training_package_id": package.package_id,
         "training_package_sha256": package.package_sha256,
         "source_release_id": package.source_release_id,
-        "source_release_manifest_sha256": (
-            package.source_release_manifest_sha256
-        ),
+        "source_release_manifest_sha256": (package.source_release_manifest_sha256),
         "model": artifact,
         "candidate_sha256": _ZERO_HASH,
     }
@@ -804,13 +711,9 @@ def _validate_training_source(
 ) -> None:
     _verify_training_package(package)
     if package.source_release_id != release_package.release_id:
-        raise ReleaseTrainingBoundaryError(
-            "training package release identity does not match"
-        )
+        raise ReleaseTrainingBoundaryError("training package release identity does not match")
     if package.source_release_package_sha256 != release_package.package_sha256:
-        raise ReleaseTrainingBoundaryError(
-            "training package release digest does not match"
-        )
+        raise ReleaseTrainingBoundaryError("training package release digest does not match")
     ledger.require_active(release_package)
     _require_legacy_scan_identity_safety(package)
 

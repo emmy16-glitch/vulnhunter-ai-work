@@ -5,10 +5,10 @@ from pydantic import ValidationError
 
 from vulnhunter.ml.models import TrainingExample
 from vulnhunter.ml.tasks import (
+    TASK_CONTRACTS,
     AdvisoryTaskResult,
     MLTaskContract,
     ReviewLabelContract,
-    TASK_CONTRACTS,
     TaskContractError,
     require_binary_training_label,
     task_contract,
@@ -34,7 +34,12 @@ def _example(label="confirmed"):
 
 @pytest.mark.parametrize(
     "state",
-    ["unreviewed", "awaiting_second_review", "review_disagreement", "awaiting_adjudication"],
+    [
+        "unreviewed",
+        "awaiting_second_review",
+        "review_disagreement",
+        "awaiting_adjudication",
+    ],
 )
 def test_non_terminal_review_states_never_become_training_labels(state):
     review = ReviewLabelContract(review_state=state)
@@ -62,7 +67,10 @@ def test_binary_training_rejects_stale_label_disagreement():
 def test_withdrawn_and_corrected_states_require_provenance(state):
     with pytest.raises(ValidationError, match="requires provenance"):
         ReviewLabelContract(review_state=state)
-    review = ReviewLabelContract(review_state=state, correction_reference="correction-2026-08")
+    review = ReviewLabelContract(
+        review_state=state,
+        correction_reference="correction-2026-08",
+    )
     assert review.eligible_for_binary_training is False
 
 
@@ -84,7 +92,8 @@ def test_all_binding_tasks_have_separate_contracts_and_metrics():
         "report_drafting",
     }
     assert set(TASK_CONTRACTS) == expected
-    assert len({contract.schema_version for contract in TASK_CONTRACTS.values()}) == len(expected)
+    versions = {contract.schema_version for contract in TASK_CONTRACTS.values()}
+    assert len(versions) == len(expected)
     assert all(contract.metrics for contract in TASK_CONTRACTS.values())
     assert all(contract.advisory_only is True for contract in TASK_CONTRACTS.values())
     assert task_contract("review_priority").requires_terminal_review_label is True

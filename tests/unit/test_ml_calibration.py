@@ -45,9 +45,7 @@ def _calibration_set():
         _example(5, "confirmed", "headers"),
         _example(6, "false_positive", "headers"),
     )
-    predictions = tuple(
-        _prediction(value) for value in (0.65, 0.42, 0.74, 0.31, 0.61, 0.36)
-    )
+    predictions = tuple(_prediction(value) for value in (0.65, 0.42, 0.74, 0.31, 0.61, 0.36))
     return examples, predictions
 
 

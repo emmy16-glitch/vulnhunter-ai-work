@@ -1,332 +1,222 @@
 # VulnHunter Chat-First Workspace Contract
 
-## 1. Product rule
+**Status:** Binding product workflow contract  
+**Visual contract:** `docs/design/VULNHUNTER_UI_CONTRACT.md`
+
+## 1. Permanent product rule
 
 VulnHunter is a **chat-first security assessment product**.
 
-The authenticated conversation workspace is the primary place where an operator starts, controls, understands, and continues every supported VulnHunter workflow.
+> The user talks to VulnHunter. VulnHunter converts the request into a typed, governed operation. The backend — not chat text — authorizes, executes, verifies, persists and reports the result.
 
-This applies to all current and future product capabilities, including:
+The authenticated conversation/task workspace is the primary place where an operator starts, controls, understands and continues supported VulnHunter work.
 
-- website assessment;
-- source-repository assessment;
-- APK upload and mobile analysis;
-- binary or native-library analysis;
-- target authorisation requests that are permitted from chat;
-- immutable plan review and confirmation;
-- approval requests and approval status;
-- assessment progress and blockers;
-- cancellation, pause, resume, and retry requests where the backend permits them;
-- evidence and candidate-finding explanation;
-- machine verification and controlled active validation requests;
-- independent review and adjudication status;
-- remediation planning;
-- retesting;
-- report generation and export requests;
-- governed learning and model-status questions;
-- deployment, worker, provider, and tool-readiness questions.
+This includes website assessment, repository Source Hunt, APK/mobile analysis, authorization requests that policy permits, plan confirmation, independent approval, progress/blockers, cancellation, evidence, findings, verification, controlled active validation, review/adjudication status, remediation, retest and report generation.
 
-A separate page may exist for detailed inspection, identity-bound decisions, large evidence views, settings, or specialist operations, but it must remain a supporting surface opened from or reflected back into the conversation. It must not become a second independent workflow or a competing source of state.
+A separate page may exist for a large evidence view, step-up authentication, independent identity-bound decisions, settings or specialist administration. It remains a **deep view of the same authoritative workspace state** and must project its result back into the conversation.
 
-Permanent product rule:
+## 2. Chat is not authority
 
-> The user talks to VulnHunter. VulnHunter converts the request into a typed, governed operation. The backend—not the chat text—authorises, executes, verifies, persists, and reports the result.
+A user message must never directly become:
 
----
+- a shell command;
+- unrestricted scanner arguments;
+- repository/file authority;
+- target authorization;
+- approval;
+- a review/adjudication decision;
+- finding verification;
+- severity authority;
+- merge/release/publication authority.
 
-## 2. What the chat interface is responsible for
-
-The conversation workspace must allow natural requests such as:
+Every action follows:
 
 ```text
-Scan this authorised website.
-Upload and analyse this APK.
-Review this repository for attacker-reachable vulnerabilities.
-What is happening with my assessment?
-Why is this task blocked?
-Show the evidence for finding VH-204.
-Stop this assessment.
-Request active validation for this finding.
-Prepare a remediation plan.
-Retest the fix.
-Generate the final report.
+message / upload
+→ workspace ownership/session validation
+→ intent + entity resolution
+→ typed command proposal
+→ policy/role/scope/authorization/state validation
+→ required confirmation or independent approval
+→ immutable action/plan identity
+→ persisted task graph / bounded service
+→ receipts + evidence + audit persistence
+→ contextual conversation event/card
 ```
 
-The chat layer must translate these messages into a structured intent. A message is not itself authority and must never directly become a shell command, scanner argument, repository path, target permission, approval, review decision, or publication instruction.
+The UI may explain or request a decision; backend services enforce the decision boundary.
 
-The chat response should combine ordinary language with persisted product state, including:
+## 3. One conversation, one durable workspace
 
-- what VulnHunter understood;
-- what exact target, repository, artifact, assessment, or finding is involved;
-- what is already authorised;
-- what still requires confirmation or independent approval;
-- which task-graph stage is active;
-- which worker or tool is expected;
-- what evidence has been produced;
-- what failed, abstained, or is unavailable;
-- what the user may do next.
+Each assessment conversation binds to a durable owner-scoped workspace containing the relevant:
 
-The interface must never invent progress percentages, findings, evidence, approvals, worker readiness, model availability, or completion states.
-
----
-
-## 3. Chat-to-operation architecture
-
-Every chat action must follow this path:
-
-```text
-User message or uploaded artifact
-        ↓
-Conversation ownership and session validation
-        ↓
-Intent classification and entity resolution
-        ↓
-Typed command proposal
-        ↓
-Policy, role, scope, authorisation, and state validation
-        ↓
-Exact confirmation or independent approval when required
-        ↓
-Immutable action manifest and authoritative task graph
-        ↓
-Restricted worker or deterministic service
-        ↓
-Receipt, evidence, finding, and audit persistence
-        ↓
-Conversation event and contextual result card
-        ↓
-User may continue naturally in the same chat
-```
-
-The conversation service may propose one of these outcomes:
-
-- `ANSWER` — explain existing persisted information;
-- `REQUEST_INPUT` — ask for one concrete missing value;
-- `REQUEST_UPLOAD` — request an allowed artifact;
-- `PROPOSE_ACTION` — show the exact bounded operation before execution;
-- `REQUEST_CONFIRMATION` — require the owner to confirm an immutable low-risk plan;
-- `REQUEST_APPROVAL` — route a higher-risk operation to the Approval Centre;
-- `STARTED` — report that a persisted task graph or worker job has started;
-- `STATUS` — report genuine persisted progress or blockers;
-- `COMPLETED` — summarize a terminal persisted result;
-- `ABSTAINED` — explain why the system cannot support the claim or action;
-- `DENIED` — explain the exact policy or authority boundary;
-- `FAILED` — report a bounded operational failure without fabricating success.
-
----
-
-## 4. One conversation, one durable workspace
-
-Each assessment conversation must bind to a durable user-owned workspace containing:
-
-- workspace ID;
-- owner identity;
-- conversation messages;
-- uploaded artifact references;
-- resolved targets and repositories;
-- authorisation references;
+- workspace/conversation identity;
+- messages and uploads;
+- resolved targets/repositories/artifacts;
+- authorization references;
 - assessment IDs;
-- immutable plan digests;
+- immutable plan/action digests;
 - approval references;
-- task-graph IDs;
+- task-graph/worker state;
 - activity events;
-- evidence and finding references;
-- review and adjudication status;
-- report and export references;
-- cancellation and recovery state.
+- evidence/finding references;
+- review/adjudication/remediation/retest state;
+- report/export references;
+- cancellation/recovery state.
 
-The browser may disconnect, refresh, close, or move from phone to desktop without destroying long-running work. Workers continue through persisted queues and task graphs. Returning to the conversation must reconstruct state from authoritative stores rather than from browser memory.
+The browser may refresh, disconnect, close or move from phone to desktop without becoming the owner of execution. Long-running work continues through persisted backend queues/task state. Returning to the conversation reconstructs current state from authoritative stores, not browser memory.
 
-Multiple conversations may run concurrently, but their state, uploads, plans, evidence, findings, and messages must remain isolated by owner and workspace.
+Multiple conversations may run concurrently, but state and artifacts remain isolated by owner/workspace.
 
----
+## 4. Contextual surfaces first
 
-## 5. Contextual cards and specialist views
+The conversation should render structured cards/panels when prose alone is insufficient, including:
 
-The chat transcript should render structured cards or panels for information that is difficult to understand as prose alone, including:
-
-- target and authorisation summary;
-- proposed immutable plan;
-- approval request;
-- task-graph stage and blocker;
-- upload progress and artifact integrity;
+- authorization summary/requirement;
+- immutable plan/confirmation;
+- approval request and outcome;
+- task stage and blocker;
+- upload/integrity state;
 - tool receipts;
-- evidence references;
-- candidate finding;
-- verification and active-validation state;
-- review assignment;
-- remediation and retest comparison;
-- report and export readiness.
+- evidence summary;
+- finding summary;
+- verification/controlled-validation state;
+- review assignment/status;
+- remediation/retest comparison;
+- report/export readiness;
+- worker recovery/failure.
 
-A card is a view of backend state. It does not own security decisions.
+The card is a projection of backend state. It never owns the security decision.
 
-Specialist pages may be opened for:
+Large or identity-bound actions may open a specialist view. After the user acts there, the persisted result returns to the original conversation.
 
-- password re-authentication;
-- independent approval;
-- primary review;
-- adjudication;
-- large evidence inspection;
-- detailed source paths;
-- administrator settings;
-- readiness and audit inspection.
+## 5. Running-task behaviour
 
-After a decision or inspection, the result must appear back in the conversation as a persisted event. The specialist page must not maintain a separate hidden state machine.
+While a task is running:
 
----
+1. the message composer remains enabled;
+2. the user may submit a follow-up instruction;
+3. a follow-up that cannot execute yet is persisted and visibly marked **Queued**;
+4. the active task continues independently of the browser connection;
+5. Refresh/reconnect reconstructs state and must **not restart** the task;
+6. navigation away from the conversation does not imply cancellation;
+7. Cancel is offered only when the backend contract allows safe cancellation;
+8. a browser-only timer/progress value must never pretend to be authoritative worker progress.
 
-## 6. Chat-first rules for every assessment type
+### Pause rule
 
-### Website assessment
+**There is no generic operator Pause control unless/until the backend implements an explicit pause/resume contract.**
+
+Documentation, visual references or agents must not infer Pause from another product. If a workflow is blocked waiting for approval/authorization/input, represent the true blocked state rather than calling it a user pause.
+
+## 6. Core workflow shape
+
+### Website
 
 ```text
-User provides or selects an authorised target in chat
-→ VulnHunter resolves authorisation and exact scope
-→ chat displays the immutable passive plan
-→ owner confirms or approval is requested
-→ signed worker job and task graph execute
-→ activity, evidence, candidates, verification, review, and report return to chat
+authorized target selected/provided in chat
+→ authorization + exact scope resolved
+→ immutable plan shown
+→ required confirmation/approval
+→ persisted task graph/worker execution
+→ activity/evidence/findings/review/report reflected in chat
 ```
 
 ### Source Hunt
 
 ```text
-User selects an approved repository in chat
-→ VulnHunter builds the exact revision and snapshot
-→ chat displays the remote-source-processing boundary when applicable
-→ approval is completed through the governed decision surface
-→ the Source Hunt worker runs outside the HTTP request
-→ hypotheses, falsification, capability filtering, evidence, and remediation return to chat
+approved repository intent in chat
+→ exact root/revision/snapshot/path boundary
+→ remote-source-processing approval when required
+→ queued worker outside the HTTP request
+→ hypotheses/falsification/capability filtering/evidence/remediation reflected in chat
 ```
 
-### APK and mobile assessment
+A specialist Source Hunt page may exist for exact setup/detail but is not a competing primary product.
+
+### APK/mobile
 
 ```text
-User attaches an APK in chat
-→ resumable upload and integrity validation
-→ chat displays the artifact identity and proposed analysis profile
-→ static/native/dynamic nodes run through approved workers
-→ tool failures, evidence, findings, and blockers return to chat
+APK attached in chat
+→ resumable upload + integrity validation
+→ artifact identity + analysis profile
+→ static/native/dynamic nodes only where policy/worker support exists
+→ tool failures/evidence/findings/blockers reflected in chat
 ```
 
 Uploading an APK never means executing it.
 
-### Active validation
+### Controlled active validation
 
 ```text
-User asks in chat to validate a persisted finding
-→ chat explains the controlled scenario and exact limits
-→ requester and independent approver complete required step-up authentication
-→ bounded generated-data trials run in the controlled worker
-→ evidence, cleanup, abstention, and result return to the original conversation
+persisted finding selected
+→ controlled scenario/limits explained
+→ required step-up + independent approval
+→ bounded generated-data trials
+→ cleanup/evidence/abstention/result reflected in original conversation
 ```
 
-### Remediation and retest
+### Remediation/retest/report
 
-```text
-User asks for a fix in chat
-→ VulnHunter prepares an evidence-bound remediation proposal
-→ controlled engineering orchestration may create a bounded patch task
-→ independent deterministic verification runs
-→ human-controlled merge remains separate
-→ user asks for retest in the same conversation
-→ before/after evidence and final status return to chat
-```
+The user should be able to request remediation, retest and report generation naturally in the same conversation. Engineering orchestration, deterministic verification, human merge/review and publication remain governed by their existing backend contracts.
 
----
+## 7. User-facing task states
 
-## 7. Safety boundary
-
-The chat interface must never:
-
-- infer target authorisation from a URL or user statement;
-- turn natural-language text into arbitrary shell execution;
-- allow a model to select unrestricted arguments;
-- grant roles, scope, approval, verification, review, severity, merge, release, or publication authority;
-- hide a required human decision behind conversational wording;
-- send prohibited private material to a remote provider;
-- treat a model answer as evidence;
-- claim that a queued task is running or complete without persisted backend evidence;
-- fabricate progress when a worker, tool, provider, or environment is unavailable;
-- continue a cancelled, expired, revoked, or terminal task;
-- expose another user's workspace through conversation history or guessed identifiers.
-
-The same backend service contracts must support chat, CLI, and future API clients. The chat interface is the primary experience, but it is not a security boundary by itself.
-
----
-
-## 8. Requirement for the unified task-graph milestone
-
-The next assessment-orchestration implementation must be explicitly chat-first.
-
-Website, APK, Source Hunt, Active Validation, remediation, retest, and report tasks must share:
-
-- one workspace binding;
-- one typed intent-to-command layer;
-- one immutable plan and action-manifest contract;
-- one authoritative task graph;
-- one approval and confirmation model;
-- one worker lease and receipt envelope;
-- one persisted activity stream;
-- one cancellation and recovery model;
-- one evidence/finding linkage model;
-- one chat event projection.
-
-The task graph must not be exposed as technical noise by default. The user should see understandable stages such as:
+Default task language should be understandable and stable:
 
 ```text
 Understanding request
-Checking authorisation
+Checking authorization
 Waiting for confirmation
+Waiting for approval
 Queued for analysis
 Collecting evidence
-Analysing evidence
+Analyzing evidence
 Verification required
 Waiting for independent review
 Preparing remediation
 Retesting
 Report ready
+Recovering
 Blocked
 Cancelled
 Failed safely
 ```
 
-Technical node details remain available when the user asks for them.
+Technical node names, queue envelopes, provider/model identifiers, hashes and worker diagnostics remain available under details/activity/evidence/settings when useful. Do not turn internal task-graph noise into the default conversation.
 
----
+## 8. Safety/truth rules
+
+The chat interface must never:
+
+- infer target authorization from a URL or user claim;
+- turn natural language into arbitrary execution;
+- let an AI model grant scope/roles/approval/verification/review/merge/release/publication authority;
+- hide a required human decision behind conversational wording;
+- send prohibited material to a remote provider;
+- treat a model answer as evidence;
+- claim queued/running/completed status without persisted evidence;
+- invent percentages, findings, evidence, readiness or tool availability;
+- continue a cancelled, revoked, expired or terminal task;
+- expose another user's workspace through history or guessed identifiers.
+
+Deterministic-only operation must remain possible when the AI provider is unavailable where the underlying workflow supports it.
 
 ## 9. Acceptance criteria
 
-The chat-first contract is satisfied only when all of the following are true:
+A chat-first feature is complete only when:
 
-1. A user can start every supported assessment type from the conversation workspace.
-2. The user can attach an APK and select an approved repository or website without moving to a separate primary creation form.
-3. Every proposed action is resolved into a typed backend command.
-4. Required confirmation, approval, re-authentication, or review is shown clearly and cannot be bypassed through chat.
-5. Every long-running action is represented by persisted workspace and task-graph state.
-6. Browser disconnection does not stop worker execution or lose conversation state.
-7. Returning to the chat reconstructs the exact current status.
-8. The user can ask naturally for status, evidence, blockers, cancellation, remediation, retest, and reports.
-9. Structured cards display backend state without inventing data.
-10. Supporting specialist pages return their decisions and results to the original conversation.
-11. Multiple user workspaces remain isolated.
-12. Deterministic-only operation remains possible when the AI provider is unavailable.
-13. The model cannot authorise, execute, verify, approve, review, merge, publish, or change policy.
-14. End-to-end tests cover phone and desktop conversation flows, restart recovery, duplicate submissions, stale CSRF/session state, cancellation, failure, and denied operations.
+1. the supported operation can be started/requested from the conversation;
+2. intent becomes a typed policy-checked backend command;
+3. required authorization/confirmation/approval/re-authentication/review cannot be bypassed through chat;
+4. long-running work is persisted independently of the browser;
+5. disconnect/reconnect restores exact current state;
+6. task execution has truthful loading, blocked, recovery, failure, cancellation and completion states;
+7. follow-up instructions can be queued while supported work is running;
+8. evidence/findings/reports remain bound to the owning assessment/workspace;
+9. specialist decisions project their result back to the originating conversation;
+10. desktop and mobile render the same product semantics;
+11. multi-user/workspace isolation is preserved;
+12. UI visuals comply with `docs/design/VULNHUNTER_UI_CONTRACT.md`.
 
----
-
-## 10. Definition of done
-
-A new feature is not complete merely because its backend service or standalone page works.
-
-For VulnHunter, a product feature is complete only when:
-
-- it can be started or requested from chat;
-- it produces a typed, policy-checked backend operation;
-- it persists its authoritative state;
-- it reports genuine progress, blockers, results, and next actions back into chat;
-- required specialist decisions are connected back to the conversation;
-- mobile and desktop behaviour is accepted;
-- failure, cancellation, recovery, and unavailable states are tested;
-- documentation and the master architecture remain consistent.
+A standalone page or backend service alone does not satisfy the product contract.

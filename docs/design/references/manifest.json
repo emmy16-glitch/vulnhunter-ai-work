@@ -87,6 +87,145 @@
         "sample task names",
         "reference-product status-bar content"
       ]
+    },
+    {
+      "id": "VH-REF-005",
+      "name": "approval-required",
+      "file": "docs/design/references/approval-required.jpg",
+      "status": "CANONICAL",
+      "use_for": [
+        "inline approval-required card",
+        "blocked task state",
+        "review-plan action hierarchy",
+        "approve and deny control spacing"
+      ],
+      "ignore": [
+        "sample target names",
+        "sample timestamps",
+        "sample user names",
+        "any approval action not supported by the backend"
+      ]
+    },
+    {
+      "id": "VH-REF-006",
+      "name": "authorization-required",
+      "file": "docs/design/references/authorization-required.jpg",
+      "status": "CANONICAL",
+      "use_for": [
+        "inline authorization-required card",
+        "blocked assessment state",
+        "authorization summary hierarchy",
+        "existing-authorization selection pattern"
+      ],
+      "ignore": [
+        "sample domains",
+        "sample requester names",
+        "public-target conversational authorization where repository policy forbids it"
+      ]
+    },
+    {
+      "id": "VH-REF-007",
+      "name": "task-dropdown-menu",
+      "file": "docs/design/references/task-dropdown-menu.jpg",
+      "status": "PARTIAL_REFERENCE",
+      "use_for": [
+        "task ellipsis menu geometry",
+        "menu spacing",
+        "menu border and hard shadow",
+        "destructive-action separation"
+      ],
+      "ignore": [
+        "menu items that are not repository-backed",
+        "Move to history if no matching action exists",
+        "Generate report unless the current state permits it"
+      ]
+    },
+    {
+      "id": "VH-REF-008",
+      "name": "cancel-confirmation",
+      "file": "docs/design/references/cancel-confirmation.jpg",
+      "status": "CANONICAL",
+      "use_for": [
+        "cancel confirmation modal",
+        "overlay geometry",
+        "confirmation action hierarchy",
+        "background dimming"
+      ],
+      "ignore": [
+        "sample runtime values",
+        "claims about partial-result behavior unless confirmed by backend state"
+      ]
+    },
+    {
+      "id": "VH-REF-009",
+      "name": "cancelled-task-state",
+      "file": "docs/design/references/cancelled-task-state.jpg",
+      "status": "PARTIAL_REFERENCE",
+      "use_for": [
+        "terminal cancelled state",
+        "preserved timeline after cancellation",
+        "post-cancellation composer behavior",
+        "cancelled status card"
+      ],
+      "ignore": [
+        "sample task names",
+        "sample user names",
+        "sample timestamps",
+        "any cancellation detail not persisted by the backend"
+      ]
+    },
+    {
+      "id": "VH-REF-010",
+      "name": "worker-recovery",
+      "file": "docs/design/references/worker-recovery.jpg",
+      "status": "CANONICAL",
+      "use_for": [
+        "worker interruption state",
+        "automatic recovery state",
+        "persisted-task reassurance",
+        "recovery timeline continuity"
+      ],
+      "ignore": [
+        "fabricated progress percentages",
+        "worker internals not exposed by persisted state",
+        "claims of recovery before the backend confirms recovery"
+      ]
+    },
+    {
+      "id": "VH-REF-011",
+      "name": "apk-upload-flow",
+      "file": "docs/design/references/apk-upload-flow.jpg",
+      "status": "CANONICAL",
+      "use_for": [
+        "APK attachment card",
+        "upload progress layout",
+        "hash-verification stage",
+        "static-analysis preparation stage"
+      ],
+      "ignore": [
+        "sample APK filename",
+        "sample file size",
+        "invented package metadata",
+        "progress values not provided by the backend"
+      ]
+    },
+    {
+      "id": "VH-REF-012",
+      "name": "findings-in-chat",
+      "file": "docs/design/references/findings-in-chat.jpg",
+      "status": "PARTIAL_REFERENCE",
+      "use_for": [
+        "findings surfaced inside the conversation",
+        "finding card hierarchy",
+        "severity presentation",
+        "open-full-findings deep-view relationship"
+      ],
+      "ignore": [
+        "sample finding names",
+        "sample severity counts",
+        "sample evidence counts",
+        "any finding or confidence value not persisted by VulnHunter"
+      ]
     }
   ]
 }

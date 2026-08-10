@@ -1,18 +1,18 @@
 {
   "colors": {
-    "accent": "#4F8CFF",
-    "accent_hover": "#76A6FF",
-    "background": "#0B0F14",
-    "border": "#253041",
-    "danger": "#EF4444",
-    "focus": "#93C5FD",
-    "info": "#38BDF8",
-    "success": "#22C55E",
-    "surface": "#111827",
-    "surface_elevated": "#151D29",
-    "text_primary": "#F7F9FC",
-    "text_secondary": "#9CA3AF",
-    "warning": "#F59E0B"
+    "accent": "#d99a9f",
+    "accent_hover": "#c9828a",
+    "background": "#f5f2ec",
+    "border": "rgba(23, 23, 27, 0.22)",
+    "danger": "#a6535b",
+    "focus": "#17171b",
+    "info": "#6b6a72",
+    "success": "#3f8c63",
+    "surface": "#fbf9f4",
+    "surface_elevated": "#ffffff",
+    "text_primary": "#17171b",
+    "text_secondary": "#626169",
+    "warning": "#a66e63"
   },
   "layout": {
     "collapsed_sidebar_width_px": 80,
@@ -27,14 +27,14 @@
     "fail-closed-actions-visible"
   ],
   "radii_px": {
-    "card": 12,
-    "control": 8,
-    "modal": 16,
+    "card": 0,
+    "control": 0,
+    "modal": 0,
     "pill": 999
   },
   "shadows": {
-    "focus": "0 0 0 3px rgba(147,197,253,0.35)",
-    "panel": "0 12px 32px rgba(0,0,0,0.28)"
+    "focus": "0 0 0 3px rgba(217,154,159,0.5)",
+    "panel": "4px 4px 0 0 rgba(23,23,27,0.9)"
   },
   "spacing_px": [
     4,
@@ -47,7 +47,7 @@
     48,
     64
   ],
-  "theme": "dark-professional-security",
+  "theme": "cream-dotted-editorial",
   "typography": {
     "body": {
       "line_height_px": 22,
@@ -59,7 +59,7 @@
       "size_px": 32,
       "weight": 700
     },
-    "font_family": "Inter, ui-sans-serif, system-ui, sans-serif",
+    "font_family": "\"Helvetica Neue\", Helvetica, \"Segoe UI\", Arial, \"Liberation Sans\", ui-sans-serif, system-ui, sans-serif",
     "heading_1": {
       "line_height_px": 32,
       "size_px": 24,
@@ -76,7 +76,7 @@
       "weight": 600
     },
     "mono": {
-      "font_family": "ui-monospace, SFMono-Regular, Menlo, monospace",
+      "font_family": "\"SFMono-Regular\", ui-monospace, \"Cascadia Code\", \"JetBrains Mono\", Menlo, Consolas, monospace",
       "line_height_px": 18,
       "size_px": 12
     }

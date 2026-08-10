@@ -1,38 +1,6 @@
-:root {
-  --vh-bg: #0b0f14;
-  --vh-bg-soft: #0e141d;
-  --vh-sidebar: #0b1119;
-  --vh-panel: #111827;
-  --vh-panel-2: #151d29;
-  --vh-panel-3: #182231;
-  --vh-terminal: #020d18;
-  --vh-surface-soft: #081723;
-  --vh-border: #253041;
-  --vh-border-strong: #334155;
-  --vh-text: #f7f9fc;
-  --vh-muted: #9ca3af;
-  --vh-faint: #667085;
-  --vh-accent: #4f8cff;
-  --vh-accent-hover: #76a6ff;
-  --vh-info: #38bdf8;
-  --vh-teal: var(--vh-accent);
-  --vh-teal-soft: #356dcc;
-  --vh-cyan: var(--vh-info);
-  --vh-warning: #f59e0b;
-  --vh-danger: #ef4444;
-  --vh-success: #22c55e;
-  --vh-sidebar-width: 264px;
-  --vh-header-height: 64px;
-  --vh-inspector-width: 352px;
-  --vh-content-max-width: 1600px;
-  --vh-radius: 7px;
-  --vh-radius-sm: 4px;
-  --vh-shadow-border: 0 0 0 1px rgba(255, 255, 255, .075);
-  --vh-shadow-hover: 0 0 0 1px rgba(255, 255, 255, .12);
-  --vh-shadow-panel: 0 12px 28px rgba(0, 4, 10, .22);
-}
-
-/* Milestone 30 assessment integration extends the existing operations system. */
+/* Milestone 30 assessment integration extends the existing operations system.
+   Theme tokens are owned centrally by tokens.css (locked VulnHunter UI contract);
+   do not redefine the semantic palette here. */
 .vh-assessment-zero-state {
   margin-bottom: 20px;
   min-height: 220px;
@@ -166,7 +134,7 @@
 
 * { box-sizing: border-box; }
 html { min-height: 100%; background: var(--vh-bg); color-scheme: dark; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
-body { min-width: 320px; min-height: 100%; margin: 0; overflow-wrap: anywhere; background: radial-gradient(circle at 78% -18%, rgba(12, 75, 105, .18), transparent 38rem), var(--vh-bg); color: var(--vh-text); font: 400 13px/1.45 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+body { min-width: 320px; min-height: 100%; margin: 0; overflow-wrap: anywhere; background: var(--vh-bg); color: var(--vh-text); font: 400 13px/1.45 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
 button, input, select, textarea { font: inherit; }
 button { color: inherit; }
 a { color: var(--vh-teal); }

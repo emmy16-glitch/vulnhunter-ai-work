@@ -861,3 +861,47 @@ pre::-webkit-scrollbar-thumb {
     max-width: 8.75rem;
   }
 }
+
+/* ---- Locked contract visual foundation (docs/design/VULNHUNTER_UI_CONTRACT.md) ----
+   Cream dotted working canvas + compact dark task sidebar.
+   Token values are owned by tokens.css; these rules only apply the contract motifs. */
+.vh-main,
+.vh-conversation-body .vh-main {
+  background-color: var(--vh-canvas);
+  background-image: var(--vh-surface-dotted);
+  background-size: 22px 22px;
+}
+
+/* Compact dark task sidebar. */
+.vh-sidebar {
+  background: var(--vh-sidebar);
+  color: rgba(238, 241, 245, 0.9);
+}
+.vh-sidebar .vh-brand,
+.vh-sidebar .vh-brand small,
+.vh-sidebar .vh-nav-section-label,
+.vh-sidebar .vh-nav-list a,
+.vh-sidebar .vh-sidebar-footer,
+.vh-sidebar .vh-nav-toggle {
+  color: rgba(238, 241, 245, 0.72);
+}
+.vh-sidebar .vh-nav-list a:hover,
+.vh-sidebar .vh-nav-list a:focus-visible,
+.vh-sidebar .vh-nav-list a[aria-current="page"] {
+  background: var(--vh-sidebar-surface);
+  color: #ffffff;
+}
+.vh-sidebar .vh-nav-list a[aria-current="page"] {
+  box-shadow: inset 3px 0 0 var(--vh-pink);
+}
+.vh-sidebar .vh-nav-list a[aria-current="page"] .vh-nav-icon,
+.vh-sidebar .vh-brand-mark,
+.vh-sidebar .vh-organisation-mark {
+  color: var(--vh-pink);
+}
+/* Solid dusty-pink brand mark; no gradients per locked contract. */
+.vh-brand-mark,
+.vh-organisation-mark {
+  background: var(--vh-pink);
+  box-shadow: none;
+}

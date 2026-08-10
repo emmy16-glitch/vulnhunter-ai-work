@@ -1,48 +1,15 @@
 /* VulnHunter operational console refinement.
    Visual direction adapted from the approved standalone prototype while
-   preserving server-rendered, backend-authoritative behaviour. */
-
-:root {
-  --vh-bg: #0b0f14;
-  --vh-bg-soft: #0d131c;
-  --vh-sidebar: #111827;
-  --vh-panel: #111827;
-  --vh-panel-2: #151d29;
-  --vh-panel-3: #1a2432;
-  --vh-terminal: #080d13;
-  --vh-surface-soft: #101927;
-  --vh-border: #253041;
-  --vh-border-strong: #344154;
-  --vh-text: #f7f9fc;
-  --vh-muted: #9ca3af;
-  --vh-faint: #667085;
-  --vh-accent: #4f8cff;
-  --vh-accent-hover: #6aa0ff;
-  --vh-info: #38bdf8;
-  --vh-warning: #f59e0b;
-  --vh-danger: #ef4444;
-  --vh-success: #22c55e;
-  --vh-focus: #93c5fd;
-  --vh-sidebar-width: 264px;
-  --vh-header-height: 64px;
-  --vh-content-max-width: 1600px;
-  --vh-radius: 12px;
-  --vh-radius-sm: 8px;
-  --vh-radius-modal: 16px;
-  --vh-shadow-border: 0 0 0 1px rgba(255, 255, 255, .065);
-  --vh-shadow-hover: 0 0 0 1px rgba(255, 255, 255, .11);
-  --vh-shadow-panel: 0 1px 2px rgba(0, 0, 0, .42), 0 8px 24px rgba(0, 0, 0, .24);
-  --vh-shadow-elevated: 0 2px 4px rgba(0, 0, 0, .48), 0 16px 40px rgba(0, 0, 0, .34);
-}
+   preserving server-rendered, backend-authoritative behaviour.
+   Theme tokens are owned centrally by tokens.css (locked VulnHunter UI contract);
+   the legacy :root theme block was removed to keep one source of truth. */
 
 html {
-  scrollbar-color: #2a3547 transparent;
+  scrollbar-color: rgba(23, 23, 27, 0.5) transparent;
 }
 
 body {
-  background:
-    radial-gradient(70rem 32rem at 50% -14%, rgba(31, 62, 112, .28), transparent 58%),
-    var(--vh-bg);
+  background: var(--vh-bg);
   font-size: 14px;
   line-height: 1.55;
   text-rendering: optimizeLegibility;

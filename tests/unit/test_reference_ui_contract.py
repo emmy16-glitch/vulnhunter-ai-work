@@ -114,10 +114,10 @@ def test_canonical_routes_and_legacy_aliases_are_explicit():
 def test_final_tokens_shared_shell_and_responsive_breakpoints_are_present():
     css = "\n".join((_text(TOKENS), _text(CSS), _text(PREMIUM))).lower()
     for token in (
-        "--vh-color-background: #0b0f14",
+        "--vh-color-background: #f5f2ec",
         "--vh-layout-sidebar: 264px",
         "--vh-layout-topbar: 64px",
-        "--vh-color-focus: #93c5fd",
+        "--vh-color-focus: #17171b",
         "grid-template-columns: minmax(0, 1fr) 380px",
         "@media (max-width: 1279px)",
         "@media (max-width: 767px)",

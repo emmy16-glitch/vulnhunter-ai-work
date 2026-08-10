@@ -1,0 +1,276 @@
+/* VulnHunter chat-first application shell.
+   Source of truth: docs/design/VULNHUNTER_UI_CONTRACT.md and
+   docs/product/INFORMATION_ARCHITECTURE.md.
+   This layered stylesheet (loaded after workspace.css) applies the compact
+   task/conversation sidebar composition: VulnHunter branding, + New assessment,
+   Chats/Tasks (current running task + previous conversations), Task history,
+   collapsed Manage, Settings and the user+role footer. The responsive mobile
+   drawer behaviour is owned by app.css ([data-sidebar], .vh-sidebar.is-open)
+   and is preserved; this file only styles the compact shell composition. */
+
+/* Shell: brand pinned, footer pinned, middle scrolls. */
+.vh-chat-shell {
+  display: flex;
+  flex-direction: column;
+}
+
+.vh-chat-shell .vh-brand {
+  flex: 0 0 auto;
+}
+
+.vh-chat-shell-scroll {
+  min-height: 0;
+  flex: 1;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.vh-chat-shell .vh-sidebar-footer {
+  flex: 0 0 auto;
+  margin-top: auto;
+}
+
+.vh-chat-shell .vh-sidebar-footer .vh-organisation {
+  border-radius: var(--vh-radius-sm);
+}
+
+/* ---- + New assessment ---- */
+.vh-new-assessment {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 10px 6px;
+  padding: 8px 12px;
+  color: #17171b;
+  border: 1px solid var(--vh-ink);
+  border-radius: var(--vh-radius-sm);
+  background: var(--vh-pink);
+  box-shadow: var(--vh-shadow-panel);
+  text-decoration: none;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.vh-new-assessment svg {
+  width: 18px;
+  height: 18px;
+  stroke-width: 2;
+}
+
+.vh-new-assessment:hover,
+.vh-new-assessment:focus-visible {
+  background: var(--vh-pink-soft);
+  color: var(--vh-ink);
+  outline: 2px solid var(--vh-ink);
+  outline-offset: 2px;
+}
+
+/* ---- Chats / Tasks ---- */
+.vh-chat-section {
+  padding: 6px 10px 2px;
+}
+
+.vh-chat-section .vh-nav-section-label {
+  display: block;
+  margin: 12px 2px 6px;
+}
+
+.vh-chat-tasks .vh-nav-section-label:first-child {
+  margin-top: 8px;
+}
+
+.vh-chat-task-list {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.vh-chat-task-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2px;
+  min-height: 44px;
+  align-content: center;
+  padding: 7px 10px;
+  border-radius: var(--vh-radius-sm);
+  color: rgba(238, 241, 245, 0.72);
+  text-decoration: none;
+}
+
+.vh-chat-task-row:hover,
+.vh-chat-task-row:focus-visible {
+  background: var(--vh-sidebar-surface);
+  color: #ffffff;
+  outline: none;
+}
+
+.vh-chat-task-row[aria-current="true"] {
+  background: var(--vh-sidebar-surface);
+  color: #ffffff;
+  box-shadow: inset 3px 0 0 var(--vh-pink);
+}
+
+.vh-chat-task-title {
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vh-chat-task-row small,
+.vh-chat-task-state {
+  overflow: hidden;
+  font-size: 11px;
+  line-height: 1.3;
+  color: rgba(238, 241, 245, 0.55);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vh-chat-task-state {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.vh-chat-task-row.vh-is-running {
+  border-left: 0;
+}
+
+.vh-chat-task-row.vh-is-running .vh-chat-task-state {
+  color: var(--vh-pink);
+  text-transform: capitalize;
+}
+
+.vh-chat-task-row.vh-is-current .vh-chat-task-state {
+  text-transform: capitalize;
+}
+
+/* Restrained live status dot for the current non-terminal task only. */
+.vh-live-dot {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  border-radius: 1px;
+  background: var(--vh-pink);
+  animation: vh-live-dot-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes vh-live-dot-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+/* ---- Task history ---- */
+.vh-chat-history .vh-nav-list {
+  display: grid;
+  gap: 4px;
+}
+
+.vh-chat-history .vh-nav-list a {
+  min-height: 44px;
+}
+
+/* ---- Manage (collapsed, progressive disclosure) ---- */
+.vh-manage {
+  margin: 10px 0 2px;
+  padding: 0 10px;
+  border-top: 1px solid rgba(238, 241, 245, 0.14);
+}
+
+.vh-manage summary {
+  display: flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 2px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.vh-manage summary::-webkit-details-marker {
+  display: none;
+}
+
+.vh-manage summary .vh-nav-section-label {
+  margin: 0;
+}
+
+.vh-manage summary svg {
+  width: 15px;
+  height: 15px;
+  color: rgba(238, 241, 245, 0.5);
+  transition: transform 160ms ease-out;
+}
+
+.vh-manage[open] summary svg {
+  transform: rotate(180deg);
+}
+
+.vh-manage[open] summary {
+  color: #ffffff;
+}
+
+.vh-manage .vh-nav {
+  flex: 0 0 auto;
+  overflow: visible;
+  padding-top: 2px;
+}
+
+.vh-manage .vh-nav-list {
+  display: grid;
+  gap: 3px;
+  padding-bottom: 4px;
+}
+
+/* ---- Settings ---- */
+.vh-chat-settings {
+  padding-bottom: 8px;
+}
+
+.vh-chat-settings .vh-nav-list {
+  display: grid;
+  gap: 3px;
+}
+
+/* ---- User + role footer ---- */
+.vh-shell-footer {
+  border-top: 1px solid rgba(238, 241, 245, 0.14);
+  padding: 10px;
+}
+
+.vh-shell-footer .vh-organisation {
+  box-shadow: none;
+}
+
+/* Respect reduced-motion for the live dot. */
+@media (prefers-reduced-motion: reduce) {
+  .vh-live-dot {
+    animation: none;
+  }
+
+  .vh-manage summary svg {
+    transition: none;
+  }
+}
+
+/* Mobile drawer: keep the compact shell readable and the drawer full of the
+   compact layout (drawer geometry itself remains app.css-owned). */
+@media (max-width: 767px) {
+  .vh-chat-shell .vh-new-assessment {
+    margin-inline: 12px;
+  }
+
+  .vh-chat-section,
+  .vh-manage {
+    padding-inline: 12px;
+  }
+}

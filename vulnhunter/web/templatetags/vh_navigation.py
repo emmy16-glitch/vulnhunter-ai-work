@@ -159,3 +159,51 @@ def canonical_navigation(user: Any) -> tuple[dict[str, object], ...]:
         )
         items.insert(insert_at, source_item)
     return tuple(items)
+
+
+@register.simple_tag
+def chat_shell_navigation(navigation: object, current_route: str = "") -> dict[str, object]:
+    """Split the role-gated navigation into a chat/task-first shell.
+
+    The everyday authenticated shell is conversation/task first, not an admin
+    dashboard. Repository-backed routes and role filtering stay authoritative;
+    this helper only rearranges the same items into the Information-Architecture
+    buckets (primary workspace, task history, Settings, and collapsed Manage)
+    so the UI does not permanently promote every backend capability.
+    """
+
+    primary_label = "Assessment Workspace"
+    history_label = "Assessment History"
+    settings_label = "Settings"
+
+    primary: list[dict[str, object]] = []
+    history: list[dict[str, object]] = []
+    settings: list[dict[str, object]] = []
+    manage: list[dict[str, object]] = []
+    for raw_item in navigation if isinstance(navigation, (list, tuple)) else ():
+        item = dict(raw_item) if isinstance(raw_item, dict) else {"label": str(raw_item)}
+        label = str(item.get("label", ""))
+        if label == primary_label:
+            primary.append(item)
+        elif label == history_label:
+            history.append(item)
+        elif label == settings_label:
+            settings.append(item)
+        else:
+            manage.append(item)
+
+    manage_routes = {
+        route
+        for item in manage
+        for route in (item.get("active_routes") or ())
+        if isinstance(item.get("active_routes"), (list, tuple))
+    }
+    current = str(current_route or "")
+    return {
+        "primary": tuple(primary),
+        "history": tuple(history),
+        "settings": tuple(settings),
+        "manage": tuple(manage),
+        "can_new_assessment": bool(primary),
+        "manage_active": bool(current in manage_routes),
+    }

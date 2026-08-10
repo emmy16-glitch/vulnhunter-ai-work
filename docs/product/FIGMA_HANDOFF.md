@@ -1,25 +1,45 @@
 # Figma Handoff
 
-The installed Figma integrations are useful at the design stage, but they do not
-become product runtime connectors. ChatGPT's Figma integration can create and refine
-the editable design file from `config/product_interface/figma_handoff.json`. Codex's
-Figma integration should be used later to compare implemented screens and component
-behavior against the approved design system.
+Figma is a design and review surface, not a runtime connector and not a competing design authority.
+
+Before creating or changing any VulnHunter Figma screen, read:
+
+1. `docs/design/VULNHUNTER_UI_CONTRACT.md`;
+2. `docs/design/references/manifest.json`;
+3. `docs/product/CHAT_FIRST_WORKSPACE.md`;
+4. the repository-backed route/action/state contract for the affected workflow.
+
+## Source-of-truth rule
+
+The locked UI contract owns visual language, spacing, typography, shadows, geometry, sidebar hierarchy and chat-first interaction rules. Figma must express those rules; it must not redefine them.
+
+Visual references never grant product functionality. Do not copy sample branding, account tiers, model names, project concepts, buttons or workflows from a reference unless VulnHunter already supports them.
 
 ## File organization
 
-Use the ten numbered Figma pages declared in the handoff specification. Build
-foundations and reusable component sets before full screens. All screens use Auto
-Layout, named variables, semantic layers, and component variants.
+Build foundations and reusable component/state sets before full screens. Use Auto Layout, named variables, semantic layers and component variants. Maintain desktop and mobile states for the same component family rather than creating unrelated visual systems.
 
-## Visual direction
+## Locked visual direction
 
-Use a restrained dark security-operations theme with clear hierarchy, generous
-spacing, readable evidence, and status semantics. Avoid neon overload, gratuitous
-terminal styling, oversized charts without operational meaning, and generic admin
-template layouts.
+VulnHunter uses:
+
+- a warm cream/off-white dotted working surface;
+- a compact dark task/chat sidebar;
+- dusty pink active/primary accents;
+- near-black typography and technical borders;
+- bold grotesk headings;
+- monospace/typewriter technical UI text;
+- editorial italic serif only for rare expressive statements;
+- square/nearly square cards and controls;
+- hard black zero-blur offset shadows;
+- generous whitespace and progressive disclosure.
+
+Avoid gradients, glassmorphism, glow, generic blue/white SaaS styling, soft floating-card shadows, excessive rounding, neon cyberpunk styling and dashboard KPI walls.
+
+## Interaction direction
+
+The primary screen is the conversation/task workspace. Findings, reports, approvals, authorization requirements, Source Hunt setup, APK upload state, worker recovery/failure and queued follow-ups are represented contextually in that workspace first. Dedicated pages are deep views when more room or a governed identity-bound action requires them.
 
 ## Approval boundary
 
-Figma represents approved interaction and visual behavior. It does not define
-backend permissions, release eligibility, scan scope, or review independence.
+Figma and screenshots define approved composition and behaviour only. They do not define backend permission, authorization, scope, review independence, worker truth, finding verification, release eligibility or publication authority.

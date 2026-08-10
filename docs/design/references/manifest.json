@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "contract": "docs/design/VULNHUNTER_UI_CONTRACT.md",
+  "rules": {
+    "repository_functionality_is_authoritative": true,
+    "reference_branding_is_never_authoritative": true,
+    "monkeycode_means_interaction_reference_only": true,
+    "cream_dotted_editorial_means_visual_reference_only": true,
+    "partial_reference_ignore_rules_are_binding": true
+  },
+  "references": [
+    {
+      "id": "VH-REF-001",
+      "name": "running-assessment-desktop",
+      "file": "docs/design/references/running-assessment-desktop.jpg",
+      "status": "CANONICAL",
+      "use_for": [
+        "desktop workspace composition",
+        "chat/task-first sidebar proportions",
+        "running task timeline",
+        "persistent composer",
+        "cream dotted canvas",
+        "dusty pink active state",
+        "hard offset shadows"
+      ],
+      "ignore": [
+        "sample task names",
+        "sample usernames",
+        "any text not backed by the repository"
+      ]
+    },
+    {
+      "id": "VH-REF-002",
+      "name": "approval-completed",
+      "file": "docs/design/references/approval-completed.jpg",
+      "status": "PARTIAL_REFERENCE",
+      "use_for": [
+        "inline plan approval composition",
+        "approval completion state",
+        "automatic task continuation",
+        "timeline continuity"
+      ],
+      "ignore": [
+        "MonkeyCode branding",
+        "Projects navigation",
+        "Basic or Pro account tiers",
+        "sample provider or model text",
+        "sample DataHub-specific content"
+      ]
+    },
+    {
+      "id": "VH-REF-003",
+      "name": "evidence-drawer",
+      "file": "docs/design/references/evidence-drawer.jpg",
+      "status": "PARTIAL_REFERENCE",
+      "use_for": [
+        "finding card to evidence deep-view relationship",
+        "desktop contextual side drawer",
+        "request-response evidence layout",
+        "file-line evidence layout",
+        "provenance and evidence timeline"
+      ],
+      "ignore": [
+        "MonkeyCode branding",
+        "Projects concepts",
+        "fictional engine or account labels",
+        "sample finding data",
+        "any unsupported action"
+      ]
+    },
+    {
+      "id": "VH-REF-004",
+      "name": "mobile-running-queued",
+      "file": "docs/design/references/mobile-running-queued.jpg",
+      "status": "PARTIAL_REFERENCE",
+      "use_for": [
+        "mobile task timeline",
+        "queued follow-up instruction",
+        "mobile composer",
+        "square controls and hard shadows",
+        "mobile spacing rhythm"
+      ],
+      "ignore": [
+        "MonkeyCode attribution",
+        "fictional model selector",
+        "bottom-tab navigation unless repository architecture explicitly adopts it",
+        "sample task names",
+        "reference-product status-bar content"
+      ]
+    }
+  ]
+}

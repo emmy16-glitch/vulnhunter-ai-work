@@ -1,189 +1,238 @@
 # VulnHunter
 
-VulnHunter is an authorised, laboratory-only security assessment and verification platform. It combines deterministic tools, evidence provenance, human authority and a conversational workspace without granting Groq execution, approval, verification or publication power.
+VulnHunter is an **authorised security-assessment and verification platform** built around deterministic scope/authorization controls, bounded security tools, persisted evidence, human authority and a conversation/task-first workspace.
 
-## Current product state
+VulnHunter supports private/laboratory targets today and defines **authorised public-target assessment as a first-class product requirement**. Public Internet access is never equivalent to permission: public execution must remain bound to an exact authorization record, target, profile, transport policy and worker capability.
 
-The repository currently provides:
+## Product principles
 
-- one responsive assessment workspace for authorised website, APK and source-repository work;
-- exact target, protocol, port, address and profile authorization;
-- immutable Nuclei plans with digest-bound confirmation or approval;
-- a signed manager-to-worker spool with replay and expiry protection;
-- a passive-only private-lab Nuclei worker pilot;
-- a restricted SSH bridge for an operator-owned worker host;
-- bounded timeout, cancellation, redaction and restart recovery;
-- evidence normalization into candidate findings;
-- deterministic verification and proof capsules;
-- one finding lifecycle with independent review, adjudication and release gates;
-- Groq as the only AI reasoning provider, disabled by default and always non-authoritative;
-- an attacker-first Python Source Hunt path with exact source-processing approval, falsification and capability filtering;
-- evidence-backed remediation plans and a separate read-only fix verifier;
-- resumable APK upload and a networkless, read-only mobile static-analysis worker;
-- a controlled synthetic Active Validation workspace;
-- shared desktop, tablet and mobile product styling;
-- automated Python, browser, conversational and genuine private-lab acceptance checks.
+- authorization and scope are backend decisions, never chat/model decisions;
+- a URL alone never grants testing permission;
+- public and private targets are both explicit target classes;
+- public-target execution must prevent DNS/redirect pivots into private, loopback, link-local or metadata networks;
+- worker capability is explicit and cannot be toggled by browser input;
+- long-running work must expose persisted live activity in the original workspace;
+- scanner/model output is evidence or a candidate, not automatic vulnerability proof;
+- deterministic verification and human review remain authoritative;
+- AI providers are advisory and non-authoritative;
+- hidden chain-of-thought is never rendered.
 
-The canonical website-assessment path is:
+## Current runtime state
+
+The repository currently provides, among other capabilities:
+
+- authenticated conversation/task workspace for website, APK and source-repository work;
+- exact target/protocol/port/address/profile authorization records;
+- immutable Nuclei plans with digest-bound human decision;
+- signed manager-to-worker spool with expiry/replay protection;
+- a reviewed **private-target passive Nuclei worker path**;
+- bounded timeout/cancellation/redaction/recovery controls;
+- evidence normalization and deterministic verification;
+- finding/review/adjudication/release governance;
+- Python-first Source Hunt with exact repository snapshot and source-processing approval;
+- resumable APK upload and bounded static-analysis tooling;
+- optional advisory provider routing under `docs/product/AI_ROUTING.md`;
+- responsive browser/UI foundations and canonical design governance.
+
+### Important current limitation
+
+**The current passive Nuclei worker is still private-target-only.** The product contract for safe authorised public-target execution is now defined in `docs/product/PUBLIC_TARGET_ASSESSMENT.md`, but public runtime execution must not be claimed complete until the worker implements and verifies the required public-host transport containment, including connection-time address control and original Host/TLS identity preservation.
+
+Do not weaken the private worker simply to make a public URL run.
+
+## Canonical website flow
+
+Target-class-neutral product flow:
 
 ```text
-Pre-existing authorization or self-controlled private-lab authorization
-→ immutable passive plan
-→ exact plan confirmation
+URL supplied
+→ normalize and classify target
+→ resolve exact authorization
+→ verify owner/approver/evidence/scope/expiry
+→ verify worker capability for target class
+→ prepare immutable bounded plan
+→ required confirmation / independent approval
 → signed worker job
-→ passive private-lab scan
-→ bounded evidence
-→ candidate finding
+→ persisted live execution activity
+→ evidence
+→ candidate findings
 → deterministic verification
-→ optional controlled active validation
+→ optional separately governed active validation
 → human review
-→ governed release
+→ report / governed release
 ```
 
-The canonical source-code path is:
+For **private** targets, the current passive worker path may be used when configured and authorized.
+
+For **public** targets, use the contract in `docs/product/PUBLIC_TARGET_ASSESSMENT.md`. Public runtime support remains incomplete until the public-capable worker boundary is implemented and accepted.
+
+## Canonical Source Hunt flow
 
 ```text
-operator-approved repository root
+repository intent
+→ operator-approved repository root
+→ preflight eligible files/bytes
 → exact revision and content snapshot
-→ repository, revision, snapshot-hash and path-bound Groq approval
-→ deterministic Python entry-point and sink mapping
-→ Groq reconnaissance and attack-path hunt
-→ separate Groq falsification
-→ Groq capability filter
-→ evidence-bound remediation and RED test proposal
-→ developer-led isolated fix
-→ read-only deterministic fix verification
-→ human review and controlled merge
+→ exact repository/revision/snapshot/path-bound processing approval
+→ non-secret queued worker job
+→ deterministic Python inventory and attack-surface mapping
+→ model-assisted reconnaissance/hypothesis generation
+→ independent falsification
+→ capability filtering
+→ evidence-bound remediation proposal
+→ deterministic verification / developer-led fix flow
+→ human review
+→ conversation projection
 ```
 
-Exact passive-plan confirmation is limited to the immutable, authorised passive plan displayed to the run owner. Higher-risk actions, public-target authorization, remote source processing, active validation, review, adjudication and publication retain separate human-control requirements.
+Source Hunt must not become a black box after queueing. See `docs/product/LIVE_EXECUTION_ACTIVITY.md`.
 
-Scanner observations, deterministic verification, optional controlled validation and Groq analysis are consolidated into governed evidence and finding records. Tool and provider details remain provenance and audit metadata rather than separate competing findings.
+## Live execution
+
+Queued/running work must project meaningful persisted activity into the same conversation/task workspace.
+
+The user should be able to see, when real backend state exists:
+
+- current stage;
+- completed/next stages;
+- active worker/tool;
+- safe current target/file/artifact;
+- receipts/evidence/candidate counts;
+- failures/recovery/preserved work;
+- supported next action.
+
+A generic “backend is running it; check another page” response is not sufficient.
+
+The binding contract is `docs/product/LIVE_EXECUTION_ACTIVITY.md`.
 
 ## Authorization boundary
 
-Conversational authorization creation is restricted to self-controlled private-network laboratory targets. Public targets cannot be authorised from chat. They must already be covered by an exact, independently approved authorization record before VulnHunter can prepare a plan.
+Authorization records are explicit, time-limited and integrity-bound.
 
-The default passive worker accepts a reviewed literal RFC1918 target and reviewed passive template with rate limit `1`, concurrency `1`, no redirects, no public OAST, no cloud upload, no automatic updates, no headless execution, and no code or file templates.
+Supported authorization bases may include:
 
-Source Hunt accepts only regular files inside operator-approved repository roots. Private or public source excerpts are transmitted to Groq only after an exact, time-limited approval bound to the repository identifier, revision, eligible-file snapshot hash and permitted repository-relative paths. Customer data, credentials, cookies, authorization records and private keys remain prohibited.
+- owner-controlled target self-attestation where product policy permits it;
+- client/third-party written testing approval;
+- contract/ticket/statement-of-work authorization;
+- bug-bounty or VDP scope references.
 
-Public Internet scanning and destructive testing remain prohibited.
+Public targets must never be authorized merely because they are public. Client/third-party/bounty scope must remain equal to or narrower than the external authorization.
 
-## Default safety state
+## Public-target transport boundary
 
-A normal repository checkout does not automatically:
+Public execution must preserve all of the following before it can be classified as implemented:
 
-- install, enable or start a Nuclei worker;
-- contact a target;
-- create authorization for a public target;
-- transmit source code to Groq;
-- provision a signing key or SSH identity;
-- alter `authorized_keys`;
-- activate Groq or store its key;
-- execute an uploaded APK;
-- start MobSF, an emulator, ADB or Frida;
-- enable controlled learning;
-- enable the controlled validation worker in production;
-- deploy PostgreSQL, TLS, DNS or a reverse proxy;
-- apply or merge a source-code fix;
-- publish a finding without human review.
+- exact hostname/scheme/port/path authorization;
+- public/private address classification;
+- connection-time DNS/address revalidation;
+- approved-address pinning or equivalent containment;
+- original hostname for HTTP Host, TLS SNI and certificate validation;
+- every redirect independently revalidated;
+- no mixed public/private resolution;
+- no pivot to localhost/loopback/link-local/metadata/private space;
+- explicit public capability in worker policy;
+- bounded passive profile/rate/concurrency/templates.
 
-The manager remains fail-closed. A browser request cannot install a scanner, enable a worker, change reviewed template trust, expand scope or grant itself authority. The Codespaces devcontainer is an explicit operator-selected private-lab environment that prepares local prerequisites outside the browser.
+See `docs/product/PUBLIC_TARGET_ASSESSMENT.md`.
 
-## Unified web workspace
+## Browser product
 
-Assessment-capable accounts enter the conversational workspace at `/`. Website and APK work begin there, and assessment operators can open **Source Hunt** for an exact repository workflow. The former standalone New Assessment route redirects to the workspace, while the historical Mobile APK Analysis URL remains only as a compatibility alias that renders the same workspace, navigation and backend flow.
+The Assessment Workspace is the product centre of gravity.
 
-The shared authenticated shell provides:
+Canonical structure:
 
-- role-aware navigation;
-- exact authorization, scope, approval and active-state visibility;
-- chat-based planning and status requests;
-- exact passive-plan confirmation;
-- assessment history;
-- a website/APK assessment inspector;
-- an exact Groq source-processing form and persisted source-hunt reports;
-- evidence, findings, verification and remediation disclosures;
-- responsive desktop, tablet and mobile behaviour.
+```text
+compact task/chat sidebar or mobile drawer
+→ conversation + persisted task timeline
+→ persistent composer
+→ optional contextual evidence/finding/activity detail
+```
 
-The interface must display persisted values only. Unknown progress, unavailable tools, empty evidence and blockers are shown explicitly rather than replaced with fabricated counts or percentages.
+The UI source of truth is:
 
-Follow [`docs/product/WEB_APPLICATION.md`](docs/product/WEB_APPLICATION.md) for local startup and web architecture, and [`docs/product/SOURCE_HUNT.md`](docs/product/SOURCE_HUNT.md) for source analysis.
+1. `AGENTS.md`;
+2. `vulnhunter/web/AGENTS.md`;
+3. `docs/design/VULNHUNTER_UI_CONTRACT.md`;
+4. `docs/design/AI_AGENT_UI_IMPLEMENTATION_STANDARD.md`;
+5. `docs/design/references/manifest.json`;
+6. `docs/design/DEPRECATIONS.md`;
+7. `docs/product/CHAT_FIRST_WORKSPACE.md`;
+8. `docs/product/LIVE_EXECUTION_ACTIVITY.md`;
+9. `docs/product/UI_ACCEPTANCE_CRITERIA.md`;
+10. `docs/product/RESPONSIVE_AND_ACCESSIBILITY.md`.
 
-## Phone-only private laboratory with Codespaces
+MonkeyCode supplies task/workspace interaction structure only. Beautiful UI supplies AI-native component/microinteraction references only. VulnHunter owns functionality, terminology, security authority and the warm cream/off-white dotted + dusty-pink + compact-dark-sidebar visual system.
 
-A private GitHub Codespace can prepare the complete passive private-lab path for an authenticated phone browser. The environment checksum-verifies the pinned Nuclei release, prepares the reviewed template set, owner-private signing key, signed spool, separate worker process, deliberate RFC1918 test target and real evidence pipeline. Termux is used only to control the private Codespace; no desktop is required.
+## Source Hunt
 
-Follow [`docs/setup/PHONE_ONLY_PRIVATE_LAB.md`](docs/setup/PHONE_ONLY_PRIVATE_LAB.md) and [`docs/setup/CODESPACES_PHONE.md`](docs/setup/CODESPACES_PHONE.md).
+Source Hunt is Python-first and deliberately bounded.
 
-## Worker architecture
+It requires:
 
-The manager/worker architecture is documented in:
+- approved repository root;
+- exact revision/snapshot;
+- file/byte limits;
+- exact permitted paths;
+- password re-authentication where required;
+- source-processing approval;
+- provider/data-retention attestations;
+- deterministic file/hash/line verification.
 
-- `docs/product/SCANNER_ARCHITECTURE.md`
-- `docs/product/SCANNER_COMPATIBILITY.md`
-- `docs/setup/NUCLEI_WORKER_PILOT.md`
-- `docs/setup/REMOTE_NUCLEI_WORKER.md`
-- `config/security_tools/nuclei_worker_pilot.example.json`
-- `config/security_tools/remote_nuclei_worker.example.json`
-- `config/security_tools/remote_nuclei_host.example.json`
-- `deploy/scanner-worker/`
+The browser should preflight predictable size/file-limit failures and project the running hunt into the originating workspace.
 
-The operator must provide the pinned executable, reviewed policy, owner-private signing key, restricted transport identity when remote transport is used, and an authorised private-laboratory target before activation.
+See `docs/product/SOURCE_HUNT.md`.
 
 ## Mobile analysis
 
-APK upload is resumable, validates the final archive and SHA-256 digest, and stores the artifact without executing it. The static worker can run fixed, bounded, read-only tools against a private copy when its worker policy is enabled.
+APK upload is resumable and integrity-validated. Uploading does not execute the APK.
 
-The worker records each tool receipt independently. A single tool failure does not create a finding and does not automatically stop later tools; integrity and resource-boundary failures stop the assessment safely.
+Static analysis may run fixed bounded read-only tools when configured. Dynamic execution remains a separate, explicitly governed environment capability.
 
-Large-APK support includes staging quotas, free-disk preflight, abandoned-upload cleanup and explicit storage-full failures. A full medium or large APK acceptance run is still required before claiming that every configured mobile tool completes successfully in a particular Codespace.
+Partial tool failure must preserve existing evidence and remain truthful.
 
-MobSF and dynamic APK execution remain separate private-service and disposable-emulator prerequisites. ADB and Frida remain gated until an authorised runtime identity is registered.
+## AI routing
 
-See `docs/product/MOBILE_APPLICATION_SECURITY.md`.
+Models are optional advisory services.
 
-## Controlled learning
+Provider inventory and routing policy are defined by `docs/product/AI_ROUTING.md` and current code. Do not reintroduce stale global wording that claims Groq is the only provider everywhere when other approved advisory provider families exist.
 
-Controlled learning is disabled by default. New memory candidates always enter as `pending_review`; promoted retrieval requires a real promotion record after human review and deterministic evaluation. Learning records remain advisory and cannot authorize, execute, verify, change severity or publish.
+Source Hunt may remain Groq-specific under its own contract.
 
-Do not enable learning in an environment that has not completed its governance identity, retention, metadata-redaction and database-recovery review.
+Models cannot grant authorization, expand scope, execute scans, verify findings, set final severity, change human review state, merge fixes or publish results.
 
-## Controlled active validation
+## Current-state truth
 
-A persisted finding can open a nested Active Validation workspace. The built-in worker uses reviewed synthetic scenarios, generated test data, no network egress, independent approval, password re-authentication, clean-snapshot retries, a hard maximum of ten trials, evidence hashes, cancellation checkpoints and verified cleanup.
+Implementation status is owned by:
 
-The workspace displays genuine persisted activity such as policy checks, snapshot restoration, trial state, evidence processing and cleanup. It does not display hidden reasoning or fabricated progress.
+- `docs/intelligence/CURRENT_STATE.md`;
+- `docs/intelligence/ROADMAP.md`;
+- `docs/intelligence/KNOWN_FAILURES.md`.
 
-See `docs/product/ACTIVE_VALIDATION.md`.
-
-## Groq reasoning
-
-Groq is the only AI/model provider in the production architecture. It is disabled by default, has no direct tools, cannot grant authorization, expand scope, execute scans, verify findings, set final severity, apply fixes, merge code or publish results.
-
-Sanitized advisory evidence may be routed under the normal privacy gate. Source-code analysis requires a distinct exact source-processing approval. Every Groq source reference is checked against the supplied file path, SHA-256 and line range. An invented or stale reference is rejected.
-
-Deterministic workflows and human review continue when Groq is disabled or unavailable. See `docs/product/AI_ROUTING.md` and `docs/product/SOURCE_HUNT.md`.
+Those documents must distinguish product contract from runtime implementation and may not claim public-target or live-activity completion before the runtime and acceptance evidence exist.
 
 ## Verification expectations
 
-A green CI run proves only the behaviours exercised by that run. The repository quality gates cover Python 3.11 and 3.12, linting, formatting, repository policy, responsive browser behaviour, conversational workflows and a genuine private-lab Nuclei acceptance.
+Before claiming a substantial change complete, follow `AGENTS.md` and run the required repository gates plus workflow-specific browser/phone/worker tests.
 
-Before production or public use, complete additional acceptance for the intended deployment, including:
+Public-target work requires the full containment acceptance matrix in `docs/product/PUBLIC_TARGET_ASSESSMENT.md`.
 
-- the actual medium or large APK and complete configured static toolchain;
-- private MobSF when enabled;
-- disposable emulator, ADB and Frida when enabled;
-- real authorised repository evaluations across supported Python frameworks;
-- Groq source-processing terms, retention and privacy review;
-- public-authorization independence;
-- database backup and restore;
-- TLS, DNS, PostgreSQL, monitoring and incident response;
-- an independent security review.
+Live-execution work requires persisted-event/reconnect/deduplication acceptance in `docs/product/LIVE_EXECUTION_ACTIVITY.md`.
+
+A green test that does not exercise the relevant trust boundary is not proof of that boundary.
 
 ## Production preparation
 
-`deploy/production/compose.example.yaml` is a reviewed deployment example, not an active deployment. It keeps the web service on loopback, uses an internal database network, mounted secret files, a read-only application filesystem, dropped capabilities and resource limits. Controlled validation remains disabled and networkless in the example.
+Production deployment still requires explicit environment acceptance for at least:
 
-Complete `docs/setup/DEPLOYMENT_READINESS.md` before production use.
+- TLS/proxy headers;
+- PostgreSQL/data migration;
+- backups/restore;
+- worker isolation;
+- evidence retention;
+- provider secret management;
+- monitoring/incident response;
+- rollback;
+- public-target transport safety when enabled;
+- independent security review.
+
+Deployment examples are examples, not proof of production readiness.

@@ -26,6 +26,8 @@
   const historyClose = workspace.querySelector("[data-history-close]");
   const messageTemplate = document.getElementById("vh-message-template");
   const runTemplate = document.getElementById("vh-run-template");
+  const cancelDialog = document.querySelector("[data-cancel-dialog]");
+  let cancelTarget = "";
   const csrfToken = () => {
     const cookie = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
     if (cookie) return decodeURIComponent(cookie[1]);
@@ -734,10 +736,22 @@
 
   const cancelRun = async (card) => {
     const target = card.querySelector("[data-run-target]")?.textContent || "this assessment";
-    input.value = `Cancel the current assessment for ${target}`;
+    cancelTarget = target;
+    const copy = cancelDialog?.querySelector("[data-cancel-dialog-copy]");
+    if (copy) copy.textContent = `Cancel ${target}? No additional scanner work will be started.`;
+    if (cancelDialog?.showModal) cancelDialog.showModal();
+  };
+
+  cancelDialog?.querySelector("[data-cancel-dialog-close]")?.addEventListener("click", () => {
+    cancelDialog.close();
+  });
+  cancelDialog?.querySelector("[data-cancel-dialog-confirm]")?.addEventListener("click", () => {
+    if (!cancelTarget) return;
+    input.value = `Cancel the current assessment for ${cancelTarget}`;
+    cancelDialog.close();
     resizeInput();
     form.requestSubmit();
-  };
+  });
 
   const bindRunControls = (card) => {
     card.querySelector("[data-approval-confirm]")?.addEventListener("click", () => approveRun(card));

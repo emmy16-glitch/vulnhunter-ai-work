@@ -53,3 +53,13 @@ def test_governed_conversation_cards_require_backend_metadata() -> None:
     assert '"state": "verified"' in views
     assert '"state": "completed"' in approvals
     assert '"source_hunt_setup"' in source_hunt
+
+
+def test_cancellation_requires_an_explicit_dialog_confirmation() -> None:
+    template = (WEB / "templates" / "web" / "conversation.html").read_text(encoding="utf-8")
+    script = (WEB / "static" / "web" / "conversation.js").read_text(encoding="utf-8")
+
+    assert "data-cancel-dialog" in template
+    assert "data-cancel-dialog-confirm" in template
+    assert "cancelDialog.showModal" in script
+    assert "data-cancel-dialog-confirm" in script

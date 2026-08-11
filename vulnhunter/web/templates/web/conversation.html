@@ -242,4 +242,15 @@
 </template>
 
 {{ conversation|json_script:"vh-conversation-data" }}
+<dialog class="vh-cancel-dialog" data-cancel-dialog aria-labelledby="vh-cancel-dialog-title">
+  <form method="dialog">
+    <p class="vh-eyebrow">Cancellation confirmation</p>
+    <h2 id="vh-cancel-dialog-title">Cancel this assessment?</h2>
+    <p data-cancel-dialog-copy>Cancellation is sent to the persisted assessment worker.</p>
+    <div class="vh-cancel-dialog-actions">
+      <button type="button" class="vh-button-secondary" data-cancel-dialog-close>Keep running</button>
+      <button type="button" class="vh-button-primary" data-cancel-dialog-confirm>Cancel assessment</button>
+    </div>
+  </form>
+</dialog>
 {% endblock %}

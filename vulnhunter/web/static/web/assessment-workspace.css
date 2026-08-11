@@ -70,6 +70,13 @@
 .vh-governed-message-card.is-verified { border-left: 5px solid var(--vh-success); }
 .vh-governed-message-card .vh-button-primary { width: fit-content; background: var(--vh-pink); color: var(--vh-ink); border: 1px solid var(--vh-ink); box-shadow: 3px 3px 0 var(--vh-ink); }
 
+.vh-cancel-dialog { width: min(440px, calc(100vw - 32px)); padding: 24px; border: 1px solid var(--vh-ink); background: var(--vh-surface); color: var(--vh-ink); box-shadow: 6px 6px 0 var(--vh-ink); }
+.vh-cancel-dialog::backdrop { background: rgba(23, 23, 27, .48); }
+.vh-cancel-dialog form { display: grid; gap: 16px; }
+.vh-cancel-dialog h2, .vh-cancel-dialog p { margin: 0; }
+.vh-cancel-dialog-actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: flex-end; }
+.vh-cancel-dialog .vh-button-primary { background: var(--vh-pink); color: var(--vh-ink); border: 1px solid var(--vh-ink); box-shadow: 3px 3px 0 var(--vh-ink); }
+
 @media (max-width: 640px) {
   .vh-assessment-timeline-row { grid-template-columns: 24px minmax(0, 1fr); padding: 12px; }
   .vh-assessment-timeline-row time { grid-column: 2; }

@@ -126,6 +126,12 @@
   .vh-chat-workspace .vh-mobile-hunt-card { max-width: 100%; width: 100%; }
   .vh-chat-workspace .vh-apk-attachment-card { align-items: flex-start; }
   .vh-chat-workspace .vh-apk-attachment-remove { min-width: 44px; min-height: 44px; color: var(--vh-ink); }
+  .vh-governed-message-card { padding: 16px; }
+  .vh-governed-message-card .vh-button-primary { display: grid; width: 100%; min-height: 44px; place-items: center; }
+  .vh-cancel-dialog { width: calc(100vw - 20px); max-width: none; padding: 20px; }
+  .vh-cancel-dialog-actions { display: grid; grid-template-columns: 1fr; }
+  .vh-cancel-dialog-actions button { width: 100%; min-height: 44px; }
+  .vh-execution-state { padding: 16px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

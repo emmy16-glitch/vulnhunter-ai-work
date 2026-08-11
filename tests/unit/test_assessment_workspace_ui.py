@@ -84,3 +84,12 @@ def test_apk_chat_cards_use_the_shared_workspace_tokens_and_preserve_long_hashes
     assert "white-space: normal" in css
     assert "overflow-wrap: anywhere" in css
     assert "@media (prefers-reduced-motion: reduce)" in css
+
+
+def test_workspace_overlays_and_governed_cards_remain_touch_usable_on_mobile() -> None:
+    css = (WEB / "static" / "web" / "assessment-workspace.css").read_text(encoding="utf-8")
+
+    mobile = css.split("@media (max-width: 640px)", maxsplit=1)[1]
+    assert ".vh-cancel-dialog" in mobile
+    assert "min-height: 44px" in mobile
+    assert ".vh-governed-message-card" in mobile

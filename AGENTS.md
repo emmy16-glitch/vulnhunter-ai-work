@@ -203,7 +203,6 @@ Raw response bodies may exist only as bounded, short-lived in-memory values. The
 - Never describe a perfect controlled-benchmark score as real-world accuracy.
 - A low honest score is preferable to a contaminated impressive score.
 
-
 ## 9. Bounded agent-loop rules
 
 Substantial AI-assisted changes must use the orchestration contract where practical:
@@ -216,7 +215,6 @@ Substantial AI-assisted changes must use the orchestration contract where practi
 6. record changed files, commands, hashes, findings, decisions, limitations, and learning;
 7. never execute arbitrary shell commands from a loop specification;
 8. never treat orchestration approval as target authorization or vulnerability confirmation.
-
 
 ## 10. Transactional autoresearch rules
 
@@ -350,6 +348,44 @@ A milestone is done only when:
 - Git contains one focused commit;
 - no temporary or sensitive artifacts are tracked;
 - claims are supported by evidence.
+
+## 18. Browser UI and product-design governance
+
+Any task that changes or reviews VulnHunter browser UI, templates, CSS, JavaScript, navigation, responsive behavior, accessibility, conversation rendering, UI tests, screenshots, component architecture or presentation copy must read and obey this additional chain before editing:
+
+1. `vulnhunter/web/AGENTS.md`;
+2. `docs/design/VULNHUNTER_UI_CONTRACT.md`;
+3. `docs/design/AI_AGENT_UI_IMPLEMENTATION_STANDARD.md`;
+4. `docs/design/references/manifest.json`;
+5. `docs/design/DEPRECATIONS.md`;
+6. `docs/product/CHAT_FIRST_WORKSPACE.md`;
+7. `docs/product/UI_ACCEPTANCE_CRITERIA.md`;
+8. `docs/product/RESPONSIVE_AND_ACCESSIBILITY.md`.
+
+This requirement applies to Codex, Cline, Claude Code, Copilot, Cursor, ChatGPT coding agents, local agents and humans.
+
+The UI reference hierarchy is fixed:
+
+- **MonkeyCode** supplies task/workspace structure and interaction behavior only;
+- **Beautiful UI** supplies AI-native component and microinteraction patterns only;
+- **VulnHunter** supplies actual functionality, security authority, terminology, branding and the warm cream/off-white dotted + dusty-pink + compact-dark-sidebar visual identity.
+
+The current implementation is not design authority. Existing templates, selectors, screenshots or tests may encode explicitly documented presentation debt. When they conflict with the locked UI contract, preserve security/backend behavior and replace the presentation rather than weakening the contract.
+
+UI-specific hard rules include:
+
+- the everyday product remains conversation/task-first rather than dashboard-first;
+- desktop uses a compact task/chat sidebar, main conversation/task flow, persistent composer and optional contextual detail only when opened;
+- mobile is a one-column task workspace with an overlay drawer, not desktop squeezed into a phone;
+- no essential phone horizontal overflow or clipped primary controls;
+- no generic blue/white SaaS, neon cyberpunk, glassmorphism, soft floating-card system or large-radius default;
+- no hidden chain-of-thought/private reasoning display;
+- no reference-derived unsupported provider/model/Fine-tune/dictation/Pause/SSO/account-tier controls;
+- no fabricated progress, evidence, findings, readiness or approval state;
+- no additional global CSS patch layer created merely to override earlier contradictory presentation;
+- real browser desktop and phone evidence is required for meaningful UI completion.
+
+A functionally correct UI that violates the locked product design is a regression and is not complete.
 
 ## graphify
 

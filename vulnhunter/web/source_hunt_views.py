@@ -172,6 +172,7 @@ def _source_chat_bridge(request: HttpRequest) -> JsonResponse:
     response: dict[str, object] = {"message": message, "handled": True}
     if redirect_url:
         response["redirect_url"] = redirect_url
+        message["metadata"]["source_hunt_setup"] = {"url": redirect_url}
     return JsonResponse(response)
 
 

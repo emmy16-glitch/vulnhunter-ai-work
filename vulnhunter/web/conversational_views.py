@@ -801,7 +801,7 @@ def message_view(request: HttpRequest) -> JsonResponse:
                 "suggestions": [
                     {"label": value, "message": f"Scan {value} using the passive profile"}
                     for value in suggestions[:4]
-                ]
+                ],
             },
         )
         return JsonResponse({"message": message})
@@ -874,6 +874,7 @@ def message_view(request: HttpRequest) -> JsonResponse:
                 kind="authorization_required",
                 content=str(exc),
                 metadata={
+                    "authorization": {"state": "required", "target": canonical},
                     "suggestions": [
                         {
                             "label": "Add authorization evidence",
@@ -882,7 +883,7 @@ def message_view(request: HttpRequest) -> JsonResponse:
                                 "<contract, ticket, or bug-bounty scope reference>"
                             ),
                         }
-                    ]
+                    ],
                 },
             )
             return JsonResponse({"message": message})
@@ -914,6 +915,11 @@ def message_view(request: HttpRequest) -> JsonResponse:
                 "Public websites require a contract, ticket or bug-bounty scope reference."
             ),
             metadata={
+                "authorization": {
+                    "state": "required",
+                    "target": canonical,
+                    "port": requested_port,
+                },
                 "suggestions": [
                     {
                         "label": "Authorize this target",
@@ -1018,7 +1024,15 @@ def message_view(request: HttpRequest) -> JsonResponse:
             "Building the exact passive Nuclei plan… completed.\n\n"
             "Review and confirm the plan below. No scanner traffic starts before confirmation."
         ),
-        metadata={"run_id": result.task.task_id},
+        metadata={
+            "run_id": result.task.task_id,
+            "authorization": {
+                "state": "verified",
+                "authorization_id": matched.authorization_id,
+                "target": canonical,
+                "port": port,
+            },
+        },
     )
     return JsonResponse({"message": message, "run": _run_payload(run)}, status=201)
 

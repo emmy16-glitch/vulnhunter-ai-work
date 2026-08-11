@@ -53,6 +53,23 @@
   box-shadow: 3px 3px 0 var(--vh-ink);
 }
 
+.vh-governed-message-card {
+  display: grid;
+  gap: 8px;
+  margin: 16px 0 0;
+  padding: 20px;
+  border: 1px solid var(--vh-ink);
+  background: var(--vh-surface);
+  box-shadow: 4px 4px 0 var(--vh-ink);
+  font-family: var(--vh-font-mono);
+}
+.vh-governed-message-card small { color: var(--vh-muted); text-transform: uppercase; }
+.vh-governed-message-card strong { color: var(--vh-ink); }
+.vh-governed-message-card p { margin: 0; color: var(--vh-muted); }
+.vh-governed-message-card.is-required { border-left: 5px solid var(--vh-warning); }
+.vh-governed-message-card.is-verified { border-left: 5px solid var(--vh-success); }
+.vh-governed-message-card .vh-button-primary { width: fit-content; background: var(--vh-pink); color: var(--vh-ink); border: 1px solid var(--vh-ink); box-shadow: 3px 3px 0 var(--vh-ink); }
+
 @media (max-width: 640px) {
   .vh-assessment-timeline-row { grid-template-columns: 24px minmax(0, 1fr); padding: 12px; }
   .vh-assessment-timeline-row time { grid-column: 2; }

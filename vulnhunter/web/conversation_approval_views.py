@@ -127,6 +127,9 @@ def approve_view(request: HttpRequest) -> JsonResponse:
         role="assistant",
         kind="status",
         content=_confirmation_copy(refreshed),
-        metadata={"run_id": str(refreshed.run_id)},
+        metadata={
+            "run_id": str(refreshed.run_id),
+            "approval": {"state": "completed", "plan_digest": plan_digest},
+        },
     )
     return JsonResponse({"message": message, "run": _run_payload(refreshed)})

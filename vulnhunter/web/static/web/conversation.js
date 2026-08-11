@@ -158,6 +158,43 @@
     }
 
     const metadata = message.metadata && typeof message.metadata === "object" ? message.metadata : {};
+    const authorization = metadata.authorization && typeof metadata.authorization === "object" ? metadata.authorization : null;
+    const approval = metadata.approval && typeof metadata.approval === "object" ? metadata.approval : null;
+    const sourceHuntSetup = metadata.source_hunt_setup && typeof metadata.source_hunt_setup === "object" ? metadata.source_hunt_setup : null;
+    if (authorization || approval || sourceHuntSetup) {
+      const governed = document.createElement("section");
+      governed.className = "vh-governed-message-card";
+      const label = document.createElement("small");
+      const title = document.createElement("strong");
+      const detail = document.createElement("p");
+      if (authorization) {
+        const verified = authorization.state === "verified";
+        governed.classList.add(verified ? "is-verified" : "is-required");
+        label.textContent = verified ? "Authorization verified" : "Authorization required";
+        title.textContent = text(authorization.target || "Exact target required");
+        detail.textContent = verified
+          ? `Authorization ${text(authorization.authorization_id || "selected")} covers port ${text(authorization.port)}.`
+          : `No active authorization covers port ${text(authorization.port)}. Use the governed conversation action below.`;
+      } else if (approval) {
+        governed.classList.add("is-verified");
+        label.textContent = "Approval completed";
+        title.textContent = "Exact passive plan confirmed";
+        detail.textContent = `Recorded plan identity: ${text(approval.plan_digest).slice(0, 16)}…`;
+      } else {
+        label.textContent = "Source Hunt setup";
+        title.textContent = "Protected repository setup required";
+        detail.textContent = "Repository snapshot, re-authentication and remote-processing approval are completed in the protected setup.";
+      }
+      governed.append(label, title, detail);
+      if (sourceHuntSetup?.url) {
+        const link = document.createElement("a");
+        link.className = "vh-button-primary";
+        link.href = text(sourceHuntSetup.url);
+        link.textContent = "Open protected setup";
+        governed.append(link);
+      }
+      body.append(governed);
+    }
     const attachment = metadata.attachment && typeof metadata.attachment === "object" ? metadata.attachment : null;
     if (attachment) {
       const attached = document.createElement("div");

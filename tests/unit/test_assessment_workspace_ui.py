@@ -38,3 +38,18 @@ def test_assessment_workspace_does_not_run_a_browser_owned_elapsed_clock() -> No
 
     assert "data-run-stage-elapsed" not in script
     assert "window.setInterval(() => {\n    if (!runCard || !activeRun)" not in script
+
+
+def test_governed_conversation_cards_require_backend_metadata() -> None:
+    script = (WEB / "static" / "web" / "conversation.js").read_text(encoding="utf-8")
+    views = (WEB / "conversational_views.py").read_text(encoding="utf-8")
+    approvals = (WEB / "conversation_approval_views.py").read_text(encoding="utf-8")
+    source_hunt = (WEB / "source_hunt_views.py").read_text(encoding="utf-8")
+
+    assert "metadata.authorization" in script
+    assert "metadata.approval" in script
+    assert "metadata.source_hunt_setup" in script
+    assert '"state": "required"' in views
+    assert '"state": "verified"' in views
+    assert '"state": "completed"' in approvals
+    assert '"source_hunt_setup"' in source_hunt

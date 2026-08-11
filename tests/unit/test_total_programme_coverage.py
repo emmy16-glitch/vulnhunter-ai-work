@@ -6,11 +6,10 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "scripts" / "generate_total_programme_coverage.py"
-ROADMAP = ROOT / "docs" / "intelligence" / "VULNHUNTER_FUTURE_MASTER_PLAN.md"
 
 
-def _load_generator():
-    spec = importlib.util.spec_from_file_location("total_programme_coverage", SCRIPT)
+def _load_audit_module():
+    spec = importlib.util.spec_from_file_location("programme_authority_audit", SCRIPT)
     assert spec is not None
     assert spec.loader is not None
     module = importlib.util.module_from_spec(spec)
@@ -19,39 +18,54 @@ def _load_generator():
     return module
 
 
-def test_canonical_roadmap_has_complete_explicit_coverage() -> None:
-    generator = _load_generator()
+def test_current_document_authority_chain_is_reconciled() -> None:
+    audit_module = _load_audit_module()
 
-    requirements = generator.parse_requirements(ROADMAP)
-    rendered = generator.render(ROADMAP.relative_to(ROOT), requirements)
+    results = audit_module.audit(ROOT)
+    assert results
+    assert all(result.ok for result in results), [
+        (result.path, result.detail) for result in results if not result.ok
+    ]
 
-    assert len(requirements) == 608
-    assert len({item.section for item in requirements if item.section}) == 26
-    assert sum(item.phase is not None for item in requirements) == 25
-    assert all(
-        generator.meta_for(item).classification in generator.ALLOWED_CLASSIFICATIONS
-        for item in requirements
+    rendered = audit_module.render(results)
+    assert "Transition gate: `PASS`" in rendered
+    assert "Failed checks: `0`" in rendered
+    assert "PUBLIC_TARGET_ASSESSMENT.md" in rendered
+    assert "LIVE_EXECUTION_ACTIVITY.md" in rendered
+
+
+def test_retired_future_plan_is_not_current_roadmap() -> None:
+    future = (ROOT / "docs/intelligence/VULNHUNTER_FUTURE_MASTER_PLAN.md").read_text(
+        encoding="utf-8"
     )
-    assert "- UNMAPPED: `0`" in rendered
-    assert "- Transition gate: `PASS`" in rendered
+    roadmap = (ROOT / "docs/intelligence/ROADMAP.md").read_text(encoding="utf-8")
+    current = (ROOT / "docs/intelligence/CURRENT_STATE.md").read_text(encoding="utf-8")
+
+    assert "RETIRED AS AN AUTHORITY SOURCE" in future
+    assert "Authorised public-target passive execution" in roadmap
+    assert "Persisted live execution activity" in roadmap
+    assert "PUBLIC-TARGET WORKER EXECUTION" in current
+    assert "NOT COMPLETE" in current
 
 
-def test_graphify_order_and_exclusions_remain_explicit() -> None:
-    generator = _load_generator()
-    requirements = generator.parse_requirements(ROADMAP)
-
-    graphify = [item for item in requirements if item.section == 16]
-    capabilities = "\n".join(item.capability for item in graphify)
-    assert capabilities.index("Graphify CLI adapter first") < capabilities.index("Learning period")
-    assert capabilities.index("Learning period") < capabilities.index(
-        "Build the VulnHunter-native graph"
+def test_public_target_programme_preserves_authorization_and_transport_boundaries() -> None:
+    public_contract = (ROOT / "docs/product/PUBLIC_TARGET_ASSESSMENT.md").read_text(
+        encoding="utf-8"
     )
-    assert capabilities.index("Build the VulnHunter-native graph") < capabilities.index(
-        "Restricted MCP service"
-    )
+    agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
 
-    exclusions = [item for item in requirements if item.section == 24]
-    assert exclusions
-    assert all(
-        generator.meta_for(item).classification == "INTENTIONALLY_EXCLUDED" for item in exclusions
-    )
+    assert "A public address is not permission" in public_contract
+    assert "Connection-time revalidation" in public_contract
+    assert "Host and TLS identity preservation" in public_contract
+    assert "Do not implement public support by globally setting `allow_public=True`" in agents
+    assert "private-only worker continues to reject public jobs" in agents
+
+
+def test_live_execution_contract_requires_persisted_operational_activity() -> None:
+    live = (ROOT / "docs/product/LIVE_EXECUTION_ACTIVITY.md").read_text(encoding="utf-8")
+
+    assert "operational telemetry" in live
+    assert "One persisted activity stream" in live
+    assert "hidden chain-of-thought" in live
+    assert "reconnect" in live.casefold()
+    assert "deduplicate" in live.casefold()

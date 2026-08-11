@@ -63,3 +63,13 @@ def test_cancellation_requires_an_explicit_dialog_confirmation() -> None:
     assert "data-cancel-dialog-confirm" in template
     assert "cancelDialog.showModal" in script
     assert "data-cancel-dialog-confirm" in script
+
+
+def test_execution_state_card_uses_persisted_failure_contract() -> None:
+    script = (WEB / "static" / "web" / "conversation.js").read_text(encoding="utf-8")
+    template = (WEB / "templates" / "web" / "conversation.html").read_text(encoding="utf-8")
+
+    assert "taskCard.failure || execution.failure" in script
+    assert "Worker interrupted — recovering task" in script
+    assert "failure?.preserved" in script
+    assert "data-execution-state" in template

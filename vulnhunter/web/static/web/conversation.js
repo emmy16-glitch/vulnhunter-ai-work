@@ -375,6 +375,34 @@
     body.append(grid);
   };
 
+  const renderExecutionState = (card, run) => {
+    const container = card.querySelector("[data-execution-state]");
+    if (!container) return;
+    const projection = run.assessment_projection || {};
+    const execution = projection.execution || {};
+    const taskCard = projection.task_card || {};
+    const failure = taskCard.failure || execution.failure;
+    const state = text(execution.state || run.state).toLowerCase();
+    container.replaceChildren();
+    container.hidden = !["recovering", "failed", "blocked", "cancelled"].includes(state);
+    if (container.hidden) return;
+    container.className = `vh-execution-state is-${state}`;
+    const title = document.createElement("strong");
+    const detail = document.createElement("p");
+    title.textContent = state === "recovering" ? "Worker interrupted — recovering task" : prettyState(state);
+    detail.textContent = text(
+      failure?.message || execution.reason ||
+        (state === "recovering" ? "Persisted state preserved. Restoring execution context…" : "Persisted assessment state is retained."),
+    );
+    container.append(title, detail);
+    const preserved = Array.isArray(failure?.preserved) ? failure.preserved : [];
+    if (preserved.length) {
+      const kept = document.createElement("small");
+      kept.textContent = `Preserved: ${preserved.join(", ")}`;
+      container.append(kept);
+    }
+  };
+
   const renderEvents = (card, run) => {
     const list = card.querySelector("[data-event-list]");
     const events = Array.isArray(run.events) ? run.events : [];
@@ -591,6 +619,7 @@
     if (cancel) cancel.hidden = !allowed.includes("request_cancel");
     renderApproval(card, run);
     renderStages(card, run);
+    renderExecutionState(card, run);
     renderSummary(card, run);
     renderEvents(card, run);
     renderFindings(card, run);

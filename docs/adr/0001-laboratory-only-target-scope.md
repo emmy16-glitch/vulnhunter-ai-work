@@ -1,25 +1,45 @@
-# ADR-0001: Laboratory-only target scope
+# ADR-0001: Initial Laboratory-only Target Scope
 
-- Status: Accepted
-- Decision date: 2026-07-09
+- **Status:** Superseded for product target classes by ADR 0021; retained as historical safety rationale
+- **Decision date:** 2026-07-09
+- **Superseded:** 2026-08-11
 
 ## Context
 
-The platform performs security-related network collection. A permissive target model would create legal, ethical, and technical risk.
+VulnHunter began with security-related network collection while the scope and transport architecture was still immature. A permissive target model would have created legal, ethical and technical risk.
 
-## Decision
+## Original decision
 
-Restrict initial targets to approved loopback/private laboratory address space. Revalidate every derived URL and redirect against immutable scheme, hostname, port, path, and address boundaries.
+Restrict initial website targets to approved loopback/private laboratory address space and revalidate every derived URL/redirect against immutable scheme, hostname, port, path and address boundaries.
 
-## Consequences
+This was intentionally conservative and enabled deterministic scope/transport work before public-host execution.
 
-Benefits:
+## What remains valid
 
-- safer default behaviour;
-- testable deterministic scope rules;
-- reduced SSRF-style destination drift.
+The safety reasoning remains binding:
 
-Costs:
+- a URL is not permission;
+- exact scheme/hostname/port/path boundaries matter;
+- redirects must not escape scope;
+- DNS/address changes must not escape the authorization decision;
+- special-use/metadata/link-local/loopback behavior must fail closed according to worker context;
+- browser/model input must not grant network authority;
+- connection-level containment is required.
 
-- public bug-bounty targets are not supported by the current product boundary;
-- hostname transport still needs stronger connection-level pinning.
+## What is superseded
+
+The statement that VulnHunter's finished product must reject all public Internet targets is superseded by **ADR 0021 — Authorised Public Targets and Transport Containment**.
+
+The current product supports the concept of explicitly authorised `public` targets in addition to `private` targets.
+
+Public does **not** mean unrestricted. Public execution requires the exact authorization and transport boundary defined in:
+
+- `docs/adr/0021-authorised-public-targets-and-transport-containment.md`;
+- `docs/product/PUBLIC_TARGET_ASSESSMENT.md`;
+- `docs/product/NUCLEI_INTEGRATION.md`.
+
+## Current runtime note
+
+The current passive Nuclei worker remains private-target-only until a reviewed public-capable transport path is implemented and accepted.
+
+Do not use this historical ADR to prohibit authorised public-target product work, and do not use ADR 0021 to justify weakening the current private worker before the public transport boundary exists.

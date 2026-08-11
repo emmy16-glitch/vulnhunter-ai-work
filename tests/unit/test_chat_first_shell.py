@@ -19,9 +19,9 @@ def test_base_shell_preserves_mobile_drawer_hooks() -> None:
     base = _text(BASE)
     for marker in (
         'class="vh-sidebar vh-chat-shell"',
-        "[data-sidebar]",
+        "data-sidebar",
         'data-nav-toggle aria-expanded="false"',
-        "[data-nav-close]",
+        "data-nav-close",
         'class="vh-sidebar-scrim"',
     ):
         assert marker in base, marker

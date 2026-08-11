@@ -1,0 +1,63 @@
+/* Batch 3: a compact, persisted assessment timeline.  Data attributes are
+   populated from the selected-assessment projection only. */
+.vh-assessment-timeline {
+  display: grid;
+  gap: 0;
+  margin: 20px 0;
+  border: 1px solid var(--vh-line);
+  background: var(--vh-surface);
+}
+
+.vh-assessment-timeline-row {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+  min-height: 56px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--vh-line);
+  font-family: var(--vh-font-mono);
+}
+
+.vh-assessment-timeline-row:last-child { border-bottom: 0; }
+
+.vh-assessment-timeline-state {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  border: 1px solid var(--vh-ink);
+  color: var(--vh-ink);
+  font-size: 13px;
+  line-height: 1;
+}
+
+.vh-assessment-timeline-row strong,
+.vh-assessment-timeline-row small { display: block; }
+.vh-assessment-timeline-row strong { color: var(--vh-ink); font-size: 12px; }
+.vh-assessment-timeline-row small { margin-top: 3px; color: var(--vh-muted); font-size: 11px; }
+.vh-assessment-timeline-row time { color: var(--vh-muted); font-size: 11px; white-space: nowrap; }
+
+.vh-assessment-timeline-row.is-running .vh-assessment-timeline-state,
+.vh-assessment-timeline-row.is-queued .vh-assessment-timeline-state { background: var(--vh-pink); }
+.vh-assessment-timeline-row.is-blocked .vh-assessment-timeline-state,
+.vh-assessment-timeline-row.is-failed .vh-assessment-timeline-state { background: var(--vh-danger); color: var(--vh-surface); }
+.vh-assessment-timeline-row.is-recovering .vh-assessment-timeline-state { background: var(--vh-warning); }
+.vh-assessment-timeline-row.is-completed .vh-assessment-timeline-state { background: var(--vh-success); color: var(--vh-surface); }
+.vh-assessment-timeline-row.is-cancelled .vh-assessment-timeline-state { color: var(--vh-muted); }
+
+.vh-run-card-footer [data-run-cancel] {
+  border: 1px solid var(--vh-ink);
+  background: var(--vh-pink-soft);
+  color: var(--vh-ink);
+  box-shadow: 3px 3px 0 var(--vh-ink);
+}
+
+@media (max-width: 640px) {
+  .vh-assessment-timeline-row { grid-template-columns: 24px minmax(0, 1fr); padding: 12px; }
+  .vh-assessment-timeline-row time { grid-column: 2; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vh-assessment-timeline-row { transition: none; }
+}

@@ -299,6 +299,7 @@
   };
 
   const renderStages = (card, run) => {
+    if (window.VulnHunterAssessmentWorkspace?.renderTimeline?.(card, run)) return;
     const track = card.querySelector("[data-run-stages]");
     track.replaceChildren();
     const row = document.createElement("div");
@@ -316,14 +317,9 @@
     body.append(eyebrow, strong, paragraph);
     const duration = document.createElement("time");
     duration.dataset.runStageElapsed = "true";
-    duration.textContent = text(run.elapsed_label || formatDuration(elapsedFrom(run.created_at)));
+    duration.textContent = text(run.elapsed_label || "Duration not recorded");
     row.append(marker, body, duration);
-    const meter = document.createElement("div");
-    meter.className = "vh-run-progress-meter";
-    const fill = document.createElement("span");
-    fill.style.width = `${Math.max(4, Number(run.progress_percent || 0))}%`;
-    meter.append(fill);
-    track.append(row, meter);
+    track.append(row);
   };
 
   const renderSummary = (card, run) => {
@@ -336,6 +332,7 @@
     appendFact(grid, "Scanner", run.scanner || "Nuclei");
     appendFact(grid, "Execution", prettyState(run.execution_state));
     if (run.blocking_reason) appendFact(grid, "Current note", run.blocking_reason);
+    if (run.analysis_note) appendFact(grid, "Persisted analysis summary", run.analysis_note);
     body.append(grid);
   };
 
@@ -535,7 +532,9 @@
     card.querySelector("[data-run-target]").textContent = text(run.target || "Assessment");
     card.querySelector("[data-run-profile]").textContent = prettyState(run.profile);
     card.querySelector("[data-run-scanner]").textContent = text(run.scanner || "Nuclei");
-    card.querySelector("[data-run-elapsed]").textContent = formatDuration(elapsedFrom(run.created_at));
+    card.querySelector("[data-run-elapsed]").textContent = text(
+      run.elapsed_label || "Duration not recorded",
+    );
     const latest = latestEvent(run);
     const liveCopy = card.querySelector("[data-run-live-copy]");
     if (liveCopy) liveCopy.textContent = text(run.current_step || eventSummary(latest));
@@ -546,6 +545,11 @@
     const findingsLink = card.querySelector("[data-findings-link]");
     detailLink.href = text(run.detail_url || "#");
     findingsLink.href = text(run.findings_url || "#");
+    const cancel = card.querySelector("[data-run-cancel]");
+    const allowed = Array.isArray(run.assessment_projection?.allowed_actions)
+      ? run.assessment_projection.allowed_actions
+      : [];
+    if (cancel) cancel.hidden = !allowed.includes("request_cancel");
     renderApproval(card, run);
     renderStages(card, run);
     renderSummary(card, run);
@@ -586,6 +590,7 @@
       current_step: run.current_step,
       final_message: run.final_message,
       terminal: run.terminal,
+      projection_revision: run.assessment_projection?.projection_revision,
     });
   };
 
@@ -700,6 +705,7 @@
   const bindRunControls = (card) => {
     card.querySelector("[data-approval-confirm]")?.addEventListener("click", () => approveRun(card));
     card.querySelector("[data-approval-cancel]")?.addEventListener("click", () => cancelRun(card));
+    card.querySelector("[data-run-cancel]")?.addEventListener("click", () => cancelRun(card));
     card.querySelectorAll("details").forEach((detail) => {
       detail.addEventListener("toggle", () => {
         if (!detail.open) return;
@@ -877,12 +883,4 @@
   input.focus({ preventScroll: true });
   scrollFeed({ behavior: "auto", force: true });
 
-  window.setInterval(() => {
-    if (!runCard || !activeRun) return;
-    const duration = formatDuration(elapsedFrom(activeRun.created_at));
-    const elapsed = runCard.querySelector("[data-run-elapsed]");
-    const stageElapsed = runCard.querySelector("[data-run-stage-elapsed]");
-    if (elapsed) elapsed.textContent = duration;
-    if (stageElapsed) stageElapsed.textContent = duration;
-  }, 1000);
 })();

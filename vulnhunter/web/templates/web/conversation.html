@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="{% static 'web/conversation-mobile-inspector.css' %}?v=20260727-phone-acceptance1">
   <link rel="stylesheet" href="{% static 'web/conversation-mobile-deferred-tools.css' %}?v=20260727-phone-acceptance1">
   <link rel="stylesheet" href="{% static 'web/conversation-threads.css' %}?v=20260727-phone-acceptance1">
+  <link rel="stylesheet" href="{% static 'web/assessment-workspace.css' %}?v=20260811-batch3-structure1">
 {% endblock %}
 
 {% block extra_scripts %}
@@ -22,6 +23,7 @@
   <script src="{% static 'web/conversation-mobile-context.js' %}?v=20260727-phone-acceptance1" defer></script>
   <script src="{% static 'web/conversation-mobile-inspector.js' %}?v=20260727-phone-acceptance1" defer></script>
   <script src="{% static 'web/conversation-mobile-deferred-tools.js' %}?v=20260727-phone-acceptance1" defer></script>
+  <script src="{% static 'web/assessment-workspace.js' %}?v=20260811-batch3-structure1" defer></script>
 {% endblock %}
 
 {% block content %}
@@ -218,10 +220,10 @@
       <p class="vh-inline-approval-risk" data-approval-risk></p>
     </section>
 
-    <div class="vh-run-stage-track" data-run-stages aria-label="Current assessment progress" aria-live="polite"></div>
+    <section class="vh-assessment-timeline" data-run-stages aria-label="Persisted assessment timeline" aria-live="polite"></section>
 
     <div class="vh-run-disclosures">
-      <details data-section="summary"><summary><span><svg aria-hidden="true"><use href="#vh-i-assessment"></use></svg><strong>Summary</strong></span><b data-section-summary-state>Preparing</b></summary><div class="vh-disclosure-body" data-summary-body></div></details>
+      <details data-section="summary"><summary><span><svg aria-hidden="true"><use href="#vh-i-assessment"></use></svg><strong>Analysis summary</strong></span><b data-section-summary-state>Preparing</b></summary><div class="vh-disclosure-body" data-summary-body></div></details>
       <details data-section="progress"><summary><span><svg aria-hidden="true"><use href="#vh-i-activity"></use></svg><strong>Activity</strong></span><b data-progress-count aria-label="Activity count unavailable">—</b></summary><div class="vh-disclosure-body"><ol class="vh-run-event-list" data-event-list></ol></div></details>
       <details data-section="findings"><summary><span><svg aria-hidden="true"><use href="#vh-i-finding"></use></svg><strong>Findings</strong></span><b data-findings-count aria-label="Finding count unavailable">—</b></summary><div class="vh-disclosure-body" data-findings-list></div></details>
       <details data-section="evidence"><summary><span><svg aria-hidden="true"><use href="#vh-i-checkdoc"></use></svg><strong>Evidence</strong></span><b data-evidence-count aria-label="Evidence count unavailable">—</b></summary><div class="vh-disclosure-body" data-evidence-list></div></details>
@@ -231,6 +233,7 @@
     </div>
 
     <footer class="vh-run-card-footer">
+      <button type="button" data-run-cancel hidden>Cancel assessment</button>
       <button type="button" data-analysis-inspector-open>View in inspector</button>
       <a data-findings-link>View findings</a>
       <a data-run-detail-link>View details</a>

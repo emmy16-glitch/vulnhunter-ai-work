@@ -1,77 +1,234 @@
 # Explicit Target Authorization
 
-## Purpose
+**Status:** BINDING AUTHORIZATION CONCEPT  
+**Public-target execution contract:** `docs/product/PUBLIC_TARGET_ASSESSMENT.md`
 
-Technical scope validation proves that a URL belongs to the configured laboratory address space. It does not prove that the operator has permission to test that target.
+## 1. Purpose
 
-Milestone 12 adds a separate authorization boundary that must succeed before `vulnhunter scan run` performs any network request.
+Technical target validation answers questions such as:
 
-## Record contents
+- is this a syntactically supported URL?;
+- what hostname, scheme, port and path does it identify?;
+- does it resolve to a supported private/public address class?;
+- does the current resolution remain inside the intended technical boundary?
 
-Each authorization records:
+It does **not** prove that the operator has permission to test the target.
 
-- a unique authorization ID;
-- normalized target origin and path boundary;
-- the resolved-address snapshot approved at issuance;
-- target owner and person granting permission;
-- the specific testing purpose;
-- optional reference to supporting permission evidence;
-- issuance, activation, and expiry timestamps;
-- maximum pages, depth, requests, and fastest permitted request rate;
-- active or revoked status;
-- revocation reason and timestamp;
-- deterministic SHA-256 integrity hash.
+Authorization is a separate persisted, time-limited, integrity-bound decision that must succeed before any executable website assessment job is created.
 
-## Validation order
+This applies to both private and public targets.
+
+## 2. Core rule
+
+```text
+reachable target
+≠ authorized target
+```
+
+A URL, DNS resolution, browser checkbox, chat message, model answer or user claim does not itself create execution authority.
+
+The backend authorization service owns the authorization record and validation decision.
+
+## 3. Target classes
+
+Authorization may cover an exact target whose addresses are classified as:
+
+- `private` — private/laboratory target;
+- `public` — globally routable public Internet target.
+
+The target class does not replace authorization.
+
+Mixed public/private, localhost/loopback, link-local, metadata and unsupported special-use conditions remain fail-closed according to the active transport/worker contract.
+
+## 4. Authorization bases
+
+### Owner-controlled target
+
+When product policy permits it, the actual owner/controller may use a bounded self-attestation flow.
+
+Record:
+
+- owner/controller identity;
+- approving identity;
+- why that actor may authorize testing;
+- exact target;
+- purpose;
+- evidence reference;
+- profile/limits;
+- expiry.
+
+Self-attestation is a specific authorization basis, not a general bypass.
+
+### Client / third-party target
+
+Use a real written authorization basis such as:
+
+- contract;
+- statement of work;
+- ticket;
+- security-testing approval;
+- customer instruction from an authorized contact.
+
+Store a safe reference, not confidential/secret-bearing content.
+
+### Bug bounty / VDP target
+
+Record the exact programme and in-scope asset reference.
+
+VulnHunter's effective scope/profile/limits must be equal to or narrower than the programme rules. Prohibited test categories remain prohibited.
+
+## 5. Record contents
+
+Each authorization should bind, directly or through immutable linked records:
+
+- unique authorization ID;
+- normalized target URL;
+- hostname;
+- scheme/protocol;
+- effective port;
+- segment-aware path boundary;
+- approved address snapshot/policy;
+- target class;
+- owner/controller;
+- approving person/identity;
+- authorization basis;
+- testing purpose;
+- safe evidence reference;
+- issuance/activation/expiry timestamps;
+- approved scan profile(s);
+- maximum pages/depth/requests and minimum delay where applicable;
+- active/revoked status;
+- revocation reason/time;
+- deterministic integrity digest;
+- append-only audit history.
+
+## 6. Website assessment validation order
+
+Conceptually:
 
 ```text
 Raw target URL
-    -> laboratory scope validation
-    -> load authorization by ID
-    -> verify stored-record integrity
-    -> verify active time window
-    -> verify not revoked
-    -> verify origin and path containment
-    -> verify current addresses are within the approval snapshot
-    -> verify requested scan limits
-    -> append audit event
-    -> permit scan creation
+→ normalize target
+→ classify current addresses
+→ load exact authorization by ID / exact active match
+→ verify record integrity
+→ verify active time window
+→ verify not revoked
+→ verify actor may use authorization
+→ verify exact scheme / host / port / path boundary
+→ verify requested profile and limits
+→ verify current DNS/address state remains permitted
+→ verify worker supports target class
+→ build immutable plan
+→ required confirmation / approval
+→ create signed worker job
 ```
 
-No scan row is created when authorization validation fails.
+No executable worker job is created when authorization/scope/capability validation fails.
 
-## Audit lifecycle
+## 7. Public-target validation
 
-The authorization registry preserves append-only events for:
+Public authorization is not complete execution support by itself.
+
+Before public network execution, the runtime must also satisfy `PUBLIC_TARGET_ASSESSMENT.md`, including:
+
+- explicit public worker capability;
+- connection-time DNS/address containment;
+- no public-to-private/metadata rebinding;
+- Host/TLS SNI/certificate identity preservation;
+- redirect revalidation;
+- bounded passive scanner policy.
+
+The current private-only worker must truthfully reject public jobs until that execution path exists.
+
+## 8. Private-target validation
+
+Private authorization continues to require the relevant private-network approval/worker capability and exact address/target containment.
+
+Public support does not remove existing private-target protections.
+
+## 9. Path containment
+
+Path boundaries are segment-aware.
+
+For example:
+
+```text
+authorized: /app
+allowed:    /app
+allowed:    /app/login
+not allowed:/application
+```
+
+Encoded traversal, dot segments, backslash ambiguity and other malformed boundary escapes remain rejected.
+
+## 10. DNS/address lifecycle
+
+Authorization issuance may bind a resolved-address snapshot or approved address policy, but execution must not assume DNS can never change.
+
+The actual network transport must revalidate according to the target-class transport contract.
+
+For public execution in particular, DNS changes must never allow a public hostname to pivot to private/metadata space.
+
+## 11. Audit lifecycle
+
+The authorization registry preserves append-only events for relevant lifecycle actions such as:
 
 - creation;
-- successful validation;
-- rejected validation;
-- scan start;
-- scan completion;
-- scan failure;
+- validation accepted/rejected;
+- scanner activation binding;
+- plan/run start;
+- completion/failure;
 - revocation.
 
 Event details are redacted before persistence.
 
-`scan_completed` events include the authorization ID, normalized scan database
-path, scan ID, normalized target URL, and the deterministic persisted scan
-snapshot hash. Governed campaign linking requires that exact completion tuple to
-match the scan-start evidence and the current scan repository row.
+Where governed campaign/release correlation requires exact scan-completion provenance, completion records must remain bound to authorization/target/scan identities and persisted content hashes according to the current governance contract.
 
-## Boundaries
+## 12. What authorization does not do
 
-An authorization does not:
+Authorization does not automatically:
 
-- expand the laboratory-only network scope;
-- permit POST, PUT, PATCH, or DELETE;
-- permit exploitation or credential attacks;
-- override redirect or derived-URL containment;
-- prove that a human-provided permission statement is genuine.
+- make a private-only worker public-capable;
+- permit a different hostname, port, protocol or path;
+- allow redirects outside scope;
+- allow DNS rebinding outside the approved transport policy;
+- permit arbitrary POST/PUT/PATCH/DELETE behavior;
+- permit destructive testing or denial of service;
+- permit brute-force/credential attacks;
+- grant a model execution authority;
+- prove that false evidence supplied by an operator is genuine.
 
-The operator remains responsible for entering truthful authorization details and retaining real permission evidence outside secret-bearing tracked files.
+The operator remains responsible for truthful permission evidence.
 
-## Commands
+## 13. Revocation and expiry
+
+Revocation/expiry must be effective before new execution and at the relevant runtime checkpoints.
+
+A browser session, cached plan or previously approved model response cannot revive expired/revoked permission.
+
+## 14. Browser behavior
+
+The conversation should show an exact authorization requirement rather than generic governance jargon.
+
+Example:
+
+```text
+Authorization required
+Target  https://example.com/
+Class   Public
+Port    443
+Path    /
+
+No active authorization covers this exact target.
+[Review authorization]
+```
+
+Once an exact active record exists, the workspace should reuse it and continue to the immutable plan rather than repeatedly asking the user for the same evidence.
+
+## 15. CLI state
+
+Use actual CLI help as the operational source of truth:
 
 ```bash
 vulnhunter authorize create --help
@@ -82,10 +239,20 @@ vulnhunter authorize revoke --help
 vulnhunter authorize events --help
 ```
 
-A passive scan now requires:
+**Current limitation:** the existing generic authorization CLI target validation may still reject public targets until the public-target authorization/runtime programme updates it. Do not document a public CLI command as operational until code/tests expose it.
 
-```bash
-vulnhunter scan run URL \
-  --authorization AUTHORIZATION_ID \
-  --authorization-database authorizations.db
-```
+## 16. Acceptance
+
+Authorization changes should test:
+
+- expected exact-match success;
+- wrong host/port/protocol/path rejection;
+- expiry/revocation;
+- record tampering;
+- actor ownership/role restriction;
+- request/profile limit enforcement;
+- private/public target classification;
+- mixed resolution rejection;
+- public authorization cannot bypass private-only worker capability;
+- public runtime containment once implemented;
+- audit redaction/integrity.

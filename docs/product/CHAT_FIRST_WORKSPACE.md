@@ -1,11 +1,12 @@
 # VulnHunter Chat-First Workspace Contract
 
 **Status:** Binding product workflow contract  
-**Visual contract:** `docs/design/VULNHUNTER_UI_CONTRACT.md`
+**Visual contract:** `docs/design/VULNHUNTER_UI_CONTRACT.md`  
+**Agent implementation standard:** `docs/design/AI_AGENT_UI_IMPLEMENTATION_STANDARD.md`
 
 ## 1. Permanent product rule
 
-VulnHunter is a **chat-first security assessment product**.
+VulnHunter is a **chat-first, task-oriented security assessment product**.
 
 > The user talks to VulnHunter. VulnHunter converts the request into a typed, governed operation. The backend — not chat text — authorizes, executes, verifies, persists and reports the result.
 
@@ -15,7 +16,37 @@ This includes website assessment, repository Source Hunt, APK/mobile analysis, a
 
 A separate page may exist for a large evidence view, step-up authentication, independent identity-bound decisions, settings or specialist administration. It remains a **deep view of the same authoritative workspace state** and must project its result back into the conversation.
 
-## 2. Chat is not authority
+## 2. Canonical workspace surfaces
+
+The default product has three conceptual surfaces, not a dashboard grid:
+
+```text
+desktop:
+compact task/chat sidebar
+→ main conversation + task timeline + persistent composer
+→ optional contextual detail drawer only when opened
+
+mobile:
+overlay task/chat drawer
+→ one-column conversation + task timeline + persistent composer
+→ full-width context card/sheet/deep view when required
+```
+
+The base conversation does not need four large cards for authorization/scope/approval/active state. Those states appear contextually where they affect the current task.
+
+Utility actions such as Search, History, Export and Source Hunt do not form a permanent wide toolbar competing with the active conversation.
+
+## 3. Reference behavior contract
+
+Workflow behavior follows the locked reference hierarchy:
+
+- **MonkeyCode:** task/chat shell, current/recent tasks, running timeline, queued follow-ups, reconnect behavior, persistent composer, mobile drawer.
+- **Beautiful UI:** AI-native task rows, tool chips, approval cards, context cards, recommendation cards, prompt-bar ergonomics, loading and safe activity states.
+- **VulnHunter:** actual product capability, persisted state, terminology, security authority and visual identity.
+
+A Beautiful UI-style “Thinking” state means safe user-facing activity only, never hidden chain-of-thought/private reasoning.
+
+## 4. Chat is not authority
 
 A user message must never directly become:
 
@@ -46,7 +77,7 @@ message / upload
 
 The UI may explain or request a decision; backend services enforce the decision boundary.
 
-## 3. One conversation, one durable workspace
+## 5. One conversation, one durable workspace
 
 Each assessment conversation binds to a durable owner-scoped workspace containing the relevant:
 
@@ -68,71 +99,76 @@ The browser may refresh, disconnect, close or move from phone to desktop without
 
 Multiple conversations may run concurrently, but state and artifacts remain isolated by owner/workspace.
 
-## 4. Contextual surfaces first
+## 6. Contextual surfaces first
 
-The conversation should render structured cards/panels when prose alone is insufficient, including:
+The conversation renders structured objects when prose alone is insufficient.
 
-- authorization summary/requirement;
-- immutable plan/confirmation;
-- approval request and outcome;
-- task stage and blocker;
-- upload/integrity state;
-- tool receipts;
-- evidence summary;
-- finding summary;
-- verification/controlled-validation state;
-- review assignment/status;
-- remediation/retest comparison;
-- report/export readiness;
-- worker recovery/failure.
+Canonical primitives include:
+
+- task rows for execution stages;
+- tool chips for tool receipts/provenance;
+- authorization requirement card;
+- immutable plan confirmation card;
+- independent approval card/deep view;
+- upload/integrity card;
+- context/evidence card;
+- finding card;
+- remediation/recommendation card;
+- report-ready card;
+- recovery/failure/cancellation state.
 
 The card is a projection of backend state. It never owns the security decision.
 
 Large or identity-bound actions may open a specialist view. After the user acts there, the persisted result returns to the original conversation.
 
-## 5. Running-task behaviour
+## 7. Running-task behaviour
 
 While a task is running:
 
-1. the message composer remains enabled;
+1. the message composer remains enabled unless a real backend restriction requires otherwise;
 2. the user may submit a follow-up instruction;
-3. a follow-up that cannot execute yet is persisted and visibly marked **Queued**;
+3. a follow-up that cannot execute yet is persisted and visibly marked **Queued** where supported;
 4. the active task continues independently of the browser connection;
 5. Refresh/reconnect reconstructs state and must **not restart** the task;
 6. navigation away from the conversation does not imply cancellation;
 7. Cancel is offered only when the backend contract allows safe cancellation;
-8. a browser-only timer/progress value must never pretend to be authoritative worker progress.
+8. a browser-only timer/progress value must never pretend to be authoritative worker progress;
+9. tool chips/statuses update only from real receipts/state;
+10. the UI must not freeze the entire conversation merely because one node is waiting for approval/input.
 
 ### Pause rule
 
 **There is no generic operator Pause control unless/until the backend implements an explicit pause/resume contract.**
 
-Documentation, visual references or agents must not infer Pause from another product. If a workflow is blocked waiting for approval/authorization/input, represent the true blocked state rather than calling it a user pause.
+If a workflow is blocked waiting for approval, authorization or input, represent the true blocked state rather than calling it a user pause.
 
-## 6. Core workflow shape
+## 8. Core workflow shape
 
-### Website
+### Website assessment
 
 ```text
 authorized target selected/provided in chat
 → authorization + exact scope resolved
-→ immutable plan shown
+→ immutable plan shown as contextual task/confirmation card
 → required confirmation/approval
 → persisted task graph/worker execution
-→ activity/evidence/findings/review/report reflected in chat
+→ task rows + tool receipts + activity/evidence/findings/review/report reflected in chat
 ```
+
+A default dashboard state strip is not required to communicate this lifecycle.
 
 ### Source Hunt
 
 ```text
-approved repository intent in chat
+repository intent in chat
 → exact root/revision/snapshot/path boundary
+→ compact Source Hunt task/setup card
 → remote-source-processing approval when required
 → queued worker outside the HTTP request
 → hypotheses/falsification/capability filtering/evidence/remediation reflected in chat
 ```
 
-A specialist Source Hunt page may exist for exact setup/detail but is not a competing primary product.
+A specialist Source Hunt page may exist for exact setup, re-authentication, permitted paths and attestations. It is not the primary way the product introduces source analysis, and it must not become a giant separate dark dashboard.
 
 ### APK/mobile
 
@@ -140,7 +176,7 @@ A specialist Source Hunt page may exist for exact setup/detail but is not a comp
 APK attached in chat
 → resumable upload + integrity validation
 → artifact identity + analysis profile
-→ static/native/dynamic nodes only where policy/worker support exists
+→ task rows + real static/native/dynamic tool receipts where supported
 → tool failures/evidence/findings/blockers reflected in chat
 ```
 
@@ -160,7 +196,7 @@ persisted finding selected
 
 The user should be able to request remediation, retest and report generation naturally in the same conversation. Engineering orchestration, deterministic verification, human merge/review and publication remain governed by their existing backend contracts.
 
-## 7. User-facing task states
+## 9. User-facing task states
 
 Default task language should be understandable and stable:
 
@@ -185,7 +221,32 @@ Failed safely
 
 Technical node names, queue envelopes, provider/model identifiers, hashes and worker diagnostics remain available under details/activity/evidence/settings when useful. Do not turn internal task-graph noise into the default conversation.
 
-## 8. Safety/truth rules
+## 10. Safe AI activity presentation
+
+The workspace may show truthful activity such as:
+
+```text
+Checking authorization…
+Preparing bounded passive plan…
+Waiting for worker receipt…
+Reviewing persisted evidence…
+```
+
+It must never display hidden chain-of-thought, private reasoning traces or fabricated internal deliberation.
+
+Streaming, when supported, streams user-facing answer text rather than hidden reasoning.
+
+## 11. Search, history and utility placement
+
+- Task history belongs primarily in the task/chat navigation system.
+- Search is a compact utility or dedicated search interaction, not a giant default page control.
+- Export/report actions appear when a relevant persisted result exists.
+- Source Hunt may be initiated conversationally and progressively disclosed.
+- `+ New assessment` remains the primary new-workspace action.
+
+Do not build an always-visible page-header row of `Source Hunt / Search / Export / History / New workspace`.
+
+## 12. Safety/truth rules
 
 The chat interface must never:
 
@@ -202,7 +263,7 @@ The chat interface must never:
 
 Deterministic-only operation must remain possible when the AI provider is unavailable where the underlying workflow supports it.
 
-## 9. Acceptance criteria
+## 13. Acceptance criteria
 
 A chat-first feature is complete only when:
 
@@ -212,11 +273,13 @@ A chat-first feature is complete only when:
 4. long-running work is persisted independently of the browser;
 5. disconnect/reconnect restores exact current state;
 6. task execution has truthful loading, blocked, recovery, failure, cancellation and completion states;
-7. follow-up instructions can be queued while supported work is running;
+7. follow-up instructions can be queued while supported work is running where the contract supports queuing;
 8. evidence/findings/reports remain bound to the owning assessment/workspace;
 9. specialist decisions project their result back to the originating conversation;
 10. desktop and mobile render the same product semantics;
-11. multi-user/workspace isolation is preserved;
-12. UI visuals comply with `docs/design/VULNHUNTER_UI_CONTRACT.md`.
+11. mobile is not a squeezed desktop dashboard and has no essential horizontal overflow;
+12. multi-user/workspace isolation is preserved;
+13. UI visuals comply with `docs/design/VULNHUNTER_UI_CONTRACT.md`;
+14. the implementation passes `docs/product/UI_ACCEPTANCE_CRITERIA.md` including explicit anti-regression gates.
 
-A standalone page or backend service alone does not satisfy the product contract.
+A standalone page, backend service, dashboard or visually rendered template alone does not satisfy the product contract.

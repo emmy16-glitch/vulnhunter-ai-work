@@ -1,217 +1,367 @@
 # VulnHunter Chat-First Workspace Contract
 
-**Status:** Binding product workflow contract  
+**Status:** BINDING PRODUCT WORKFLOW CONTRACT  
 **Visual contract:** `docs/design/VULNHUNTER_UI_CONTRACT.md`  
-**Agent implementation standard:** `docs/design/AI_AGENT_UI_IMPLEMENTATION_STANDARD.md`
+**Agent implementation standard:** `docs/design/AI_AGENT_UI_IMPLEMENTATION_STANDARD.md`  
+**Live execution:** `docs/product/LIVE_EXECUTION_ACTIVITY.md`  
+**Public targets:** `docs/product/PUBLIC_TARGET_ASSESSMENT.md`
+
+---
 
 ## 1. Permanent product rule
 
-VulnHunter is a **chat-first, task-oriented security assessment product**.
+VulnHunter is a **conversation/task-first authorised security-assessment product**.
 
-> The user talks to VulnHunter. VulnHunter converts the request into a typed, governed operation. The backend — not chat text — authorizes, executes, verifies, persists and reports the result.
+> The user talks to VulnHunter. VulnHunter resolves the exact object and intent, then deterministic backend services authorize, plan, execute, verify, persist and report the result.
 
-The authenticated conversation/task workspace is the primary place where an operator starts, controls, understands and continues supported VulnHunter work.
+Chat is the operating surface, not the authority.
 
-This includes website assessment, repository Source Hunt, APK/mobile analysis, authorization requests that policy permits, plan confirmation, independent approval, progress/blockers, cancellation, evidence, findings, verification, controlled active validation, review/adjudication status, remediation, retest and report generation.
+The authenticated workspace is where an operator should be able to:
 
-A separate page may exist for a large evidence view, step-up authentication, independent identity-bound decisions, settings or specialist administration. It remains a **deep view of the same authoritative workspace state** and must project its result back into the conversation.
+- provide a private or public website target;
+- resolve/create/select valid authorization through supported policy;
+- review an exact plan;
+- confirm/approve governed work;
+- start and observe long-running work;
+- continue chatting while supported work runs;
+- start Source Hunt;
+- attach and analyze APKs;
+- see blockers/recovery/failures;
+- inspect evidence/findings;
+- request remediation/retest/report work;
+- continue the same task after reconnect.
 
-## 2. Canonical workspace surfaces
+Specialist pages exist only when more room, step-up authentication or identity-bound governance genuinely requires them. They project the same persisted state back to the originating conversation.
 
-The default product has three conceptual surfaces, not a dashboard grid:
+---
+
+## 2. Core command path
+
+Every actionable request follows the same shape:
 
 ```text
-desktop:
-compact task/chat sidebar
-→ main conversation + task timeline + persistent composer
-→ optional contextual detail drawer only when opened
-
-mobile:
-overlay task/chat drawer
-→ one-column conversation + task timeline + persistent composer
-→ full-width context card/sheet/deep view when required
+message / attachment
+→ workspace ownership/session validation
+→ intent + exact entity resolution
+→ typed command proposal
+→ role/policy/scope/authorization/state validation
+→ required confirmation / approval / re-authentication
+→ immutable action/plan identity
+→ persisted task graph / bounded service
+→ worker/tool receipts + activity
+→ evidence/findings
+→ verification/review/report state
+→ contextual conversation projection
 ```
-
-The base conversation does not need four large cards for authorization/scope/approval/active state. Those states appear contextually where they affect the current task.
-
-Utility actions such as Search, History, Export and Source Hunt do not form a permanent wide toolbar competing with the active conversation.
-
-## 3. Reference behavior contract
-
-Workflow behavior follows the locked reference hierarchy:
-
-- **MonkeyCode:** task/chat shell, current/recent tasks, running timeline, queued follow-ups, reconnect behavior, persistent composer, mobile drawer.
-- **Beautiful UI:** AI-native task rows, tool chips, approval cards, context cards, recommendation cards, prompt-bar ergonomics, loading and safe activity states.
-- **VulnHunter:** actual product capability, persisted state, terminology, security authority and visual identity.
-
-A Beautiful UI-style “Thinking” state means safe user-facing activity only, never hidden chain-of-thought/private reasoning.
-
-## 4. Chat is not authority
 
 A user message must never directly become:
 
-- a shell command;
+- arbitrary shell commands;
 - unrestricted scanner arguments;
-- repository/file authority;
 - target authorization;
+- repository/file authority;
 - approval;
-- a review/adjudication decision;
+- review/adjudication decision;
 - finding verification;
 - severity authority;
 - merge/release/publication authority.
 
-Every action follows:
+---
 
-```text
-message / upload
-→ workspace ownership/session validation
-→ intent + entity resolution
-→ typed command proposal
-→ policy/role/scope/authorization/state validation
-→ required confirmation or independent approval
-→ immutable action/plan identity
-→ persisted task graph / bounded service
-→ receipts + evidence + audit persistence
-→ contextual conversation event/card
-```
+## 3. Durable workspace identity
 
-The UI may explain or request a decision; backend services enforce the decision boundary.
+Each conversation binds to a durable owner-scoped workspace containing the relevant:
 
-## 5. One conversation, one durable workspace
-
-Each assessment conversation binds to a durable owner-scoped workspace containing the relevant:
-
-- workspace/conversation identity;
-- messages and uploads;
-- resolved targets/repositories/artifacts;
+- workspace/conversation ID;
+- messages/uploads;
+- selected target/repository/artifact;
 - authorization references;
-- assessment IDs;
+- assessment/job IDs;
 - immutable plan/action digests;
 - approval references;
-- task-graph/worker state;
-- activity events;
+- task graph/worker state;
+- append-only activity events;
+- tool receipts;
 - evidence/finding references;
-- review/adjudication/remediation/retest state;
+- verification/review/adjudication state;
+- remediation/retest state;
 - report/export references;
 - cancellation/recovery state.
 
-The browser may refresh, disconnect, close or move from phone to desktop without becoming the owner of execution. Long-running work continues through persisted backend queues/task state. Returning to the conversation reconstructs current state from authoritative stores, not browser memory.
+Browser storage may cache ephemeral selection/draft/UI state only. It is not authoritative for task lifecycle.
 
-Multiple conversations may run concurrently, but state and artifacts remain isolated by owner/workspace.
+Refresh, disconnect, close/reopen or device switching reconstructs the same persisted task instead of restarting it.
 
-## 6. Contextual surfaces first
+---
 
-The conversation renders structured objects when prose alone is insufficient.
+## 4. Canonical surfaces
 
-Canonical primitives include:
+### Desktop
 
-- task rows for execution stages;
-- tool chips for tool receipts/provenance;
-- authorization requirement card;
-- immutable plan confirmation card;
-- independent approval card/deep view;
+```text
+compact task/chat sidebar
+→ main conversation + task timeline + live activity
+→ persistent composer
+→ contextual detail drawer only when opened
+```
+
+### Mobile
+
+```text
+overlay task/chat drawer
+→ one-column conversation + task timeline + live activity
+→ persistent composer
+→ full-width detail sheet/deep view when needed
+```
+
+Do not turn the main workspace into a KPI dashboard or permanent multi-panel admin console.
+
+---
+
+## 5. Public target workflow
+
+Authorised public targets are a supported product class.
+
+Canonical flow:
+
+```text
+User provides https://example.com
+→ normalize/classify as public
+→ check exact active authorization
+→ if absent, show authorization-required card
+→ collect/select backend-supported authorization evidence
+→ verify worker capability for public target class
+→ prepare immutable passive plan
+→ required confirmation/approval
+→ queue
+→ persisted live execution activity
+→ evidence/findings/verification
+```
+
+The UI must never treat “public” as permission.
+
+If the configured worker is still private-only, say so truthfully and block execution. Do not pretend the scan started.
+
+See `docs/product/PUBLIC_TARGET_ASSESSMENT.md`.
+
+---
+
+## 6. Private target workflow
+
+Private/laboratory targets use the same conversation/task semantics, with the applicable private-network authorization and worker policy.
+
+The UI should not maintain a completely different product shell just because target class differs.
+
+---
+
+## 7. Authorization presentation
+
+When authorization is missing, show the exact unresolved object:
+
+```text
+Authorization required
+Target  https://example.com/
+Class   Public
+Port    443
+Path    /
+
+No active authorization covers this exact target.
+[Review authorization]
+```
+
+After authorization succeeds:
+
+```text
+✓ Authorization verified
+  AUTH-...
+  public · HTTPS/443 · /
+```
+
+The conversation should not repeatedly ask for evidence already covered by a valid active exact record.
+
+Authorization, owner confirmation, independent approval, human review and adjudication are separate concepts and must not be collapsed into one generic “Approve” action.
+
+---
+
+## 8. Exact plan confirmation
+
+Before executable website assessment, show a backend-produced immutable plan with relevant fields such as:
+
+- authorization ID;
+- target/class;
+- protocol/port/path;
+- scanner/profile;
+- template selection/manifest digest;
+- rate/concurrency;
+- prohibited actions;
+- expiry;
+- plan digest.
+
+The UI may summarize, but confirmation binds the exact plan identity.
+
+A changed plan requires a new decision.
+
+---
+
+## 9. Live running-task behavior
+
+While a task is queued/running/recovering, the workspace must project persisted operational state.
+
+A running task should answer, where backend data exists:
+
+- current stage;
+- completed stages;
+- next stages;
+- current worker/tool;
+- safe current target/file/artifact;
+- receipt/evidence/candidate counts;
+- latest activity;
+- human action required;
+- failure/recovery/preserved state.
+
+Example:
+
+```text
+Website assessment — Running
+
+✓ Authorization verified
+✓ Passive plan confirmed
+✓ Worker claimed job
+◌ Nuclei assessment
+  17 reviewed passive templates
+  Latest receipt: HTTP probe completed
+○ Evidence normalization
+○ Deterministic verification
+
+[Nuclei ◌] [Evidence 4]
+```
+
+Do not expose hidden chain-of-thought. Do not invent percentages.
+
+See `docs/product/LIVE_EXECUTION_ACTIVITY.md`.
+
+---
+
+## 10. Composer while work runs
+
+The composer remains available unless a real backend restriction requires otherwise.
+
+The user may ask:
+
+- “what is it doing now?”;
+- “show activity”;
+- “what has completed?”;
+- “what failed?”;
+- “what findings do we have so far?” where supported;
+- “cancel” where cancellation exists;
+- a follow-up instruction.
+
+If a follow-up cannot execute immediately but queued-follow-up behavior exists, persist it and label it `Queued`.
+
+Do not disable the whole conversation just because one stage waits for approval/input.
+
+---
+
+## 11. Website assessment shape
+
+```text
+target intent
+→ exact target class + authorization
+→ immutable plan
+→ required decision
+→ persisted worker execution
+→ task rows + tool receipts + live activity
+→ evidence
+→ candidate findings
+→ deterministic verification
+→ optional separately governed active validation
+→ review
+→ report/release state
+```
+
+Evidence/findings/report remain assessment-scoped.
+
+---
+
+## 12. Source Hunt shape
+
+```text
+repository intent
+→ exact approved root
+→ deterministic preflight
+→ exact revision/snapshot/permitted path boundary
+→ source-processing approval + step-up
+→ queued worker
+→ live snapshot/inventory/hunt/falsification/capability activity
+→ evidence-backed remediation
+→ deterministic/human-controlled fix workflow
+→ report/result in same conversation
+```
+
+The specialist setup page is a continuation, not the product centre.
+
+See `docs/product/SOURCE_HUNT.md`.
+
+---
+
+## 13. APK/mobile shape
+
+```text
+APK attachment
+→ resumable upload
+→ integrity validation
+→ artifact/assessment identity
+→ plan/worker capability
+→ static tool receipts
+→ evidence/findings/verification
+→ optional separately governed dynamic path
+```
+
+Uploading never means execution.
+
+Individual tool failures preserve truthful partial state.
+
+---
+
+## 14. Contextual product primitives
+
+Use a small set of structured objects in chat:
+
+- task rows;
+- tool chips;
+- authorization card;
+- exact-plan confirmation card;
+- independent approval card;
 - upload/integrity card;
 - context/evidence card;
 - finding card;
 - remediation/recommendation card;
 - report-ready card;
-- recovery/failure/cancellation state.
+- recovery/failure/cancellation state;
+- live activity disclosure.
 
-The card is a projection of backend state. It never owns the security decision.
+Cards render backend truth. They do not create authority.
 
-Large or identity-bound actions may open a specialist view. After the user acts there, the persisted result returns to the original conversation.
+---
 
-## 7. Running-task behaviour
+## 15. Task language
 
-While a task is running:
-
-1. the message composer remains enabled unless a real backend restriction requires otherwise;
-2. the user may submit a follow-up instruction;
-3. a follow-up that cannot execute yet is persisted and visibly marked **Queued** where supported;
-4. the active task continues independently of the browser connection;
-5. Refresh/reconnect reconstructs state and must **not restart** the task;
-6. navigation away from the conversation does not imply cancellation;
-7. Cancel is offered only when the backend contract allows safe cancellation;
-8. a browser-only timer/progress value must never pretend to be authoritative worker progress;
-9. tool chips/statuses update only from real receipts/state;
-10. the UI must not freeze the entire conversation merely because one node is waiting for approval/input.
-
-### Pause rule
-
-**There is no generic operator Pause control unless/until the backend implements an explicit pause/resume contract.**
-
-If a workflow is blocked waiting for approval, authorization or input, represent the true blocked state rather than calling it a user pause.
-
-## 8. Core workflow shape
-
-### Website assessment
-
-```text
-authorized target selected/provided in chat
-→ authorization + exact scope resolved
-→ immutable plan shown as contextual task/confirmation card
-→ required confirmation/approval
-→ persisted task graph/worker execution
-→ task rows + tool receipts + activity/evidence/findings/review/report reflected in chat
-```
-
-A default dashboard state strip is not required to communicate this lifecycle.
-
-### Source Hunt
-
-```text
-repository intent in chat
-→ exact root/revision/snapshot/path boundary
-→ compact Source Hunt task/setup card
-→ remote-source-processing approval when required
-→ queued worker outside the HTTP request
-→ hypotheses/falsification/capability filtering/evidence/remediation reflected in chat
-```
-
-A specialist Source Hunt page may exist for exact setup, re-authentication, permitted paths and attestations. It is not the primary way the product introduces source analysis, and it must not become a giant separate dark dashboard.
-
-### APK/mobile
-
-```text
-APK attached in chat
-→ resumable upload + integrity validation
-→ artifact identity + analysis profile
-→ task rows + real static/native/dynamic tool receipts where supported
-→ tool failures/evidence/findings/blockers reflected in chat
-```
-
-Uploading an APK never means executing it.
-
-### Controlled active validation
-
-```text
-persisted finding selected
-→ controlled scenario/limits explained
-→ required step-up + independent approval
-→ bounded generated-data trials
-→ cleanup/evidence/abstention/result reflected in original conversation
-```
-
-### Remediation/retest/report
-
-The user should be able to request remediation, retest and report generation naturally in the same conversation. Engineering orchestration, deterministic verification, human merge/review and publication remain governed by their existing backend contracts.
-
-## 9. User-facing task states
-
-Default task language should be understandable and stable:
+Primary task language should be understandable:
 
 ```text
 Understanding request
 Checking authorization
+Preparing plan
 Waiting for confirmation
 Waiting for approval
 Queued for analysis
 Collecting evidence
 Analyzing evidence
-Verification required
+Verification
 Waiting for independent review
 Preparing remediation
 Retesting
+Preparing report
 Report ready
 Recovering
 Blocked
@@ -219,11 +369,13 @@ Cancelled
 Failed safely
 ```
 
-Technical node names, queue envelopes, provider/model identifiers, hashes and worker diagnostics remain available under details/activity/evidence/settings when useful. Do not turn internal task-graph noise into the default conversation.
+Technical queue/node/provider/hash details belong under Activity/Details/Evidence when useful.
 
-## 10. Safe AI activity presentation
+---
 
-The workspace may show truthful activity such as:
+## 16. Safe AI activity
+
+Allowed:
 
 ```text
 Checking authorization…
@@ -232,54 +384,88 @@ Waiting for worker receipt…
 Reviewing persisted evidence…
 ```
 
-It must never display hidden chain-of-thought, private reasoning traces or fabricated internal deliberation.
+Forbidden:
 
-Streaming, when supported, streams user-facing answer text rather than hidden reasoning.
+- hidden chain-of-thought;
+- private reasoning tokens;
+- fabricated deliberation;
+- fake activity when no backend work exists.
 
-## 11. Search, history and utility placement
+Streaming may stream user-facing assistant text, not private reasoning.
 
-- Task history belongs primarily in the task/chat navigation system.
-- Search is a compact utility or dedicated search interaction, not a giant default page control.
-- Export/report actions appear when a relevant persisted result exists.
-- Source Hunt may be initiated conversationally and progressively disclosed.
-- `+ New assessment` remains the primary new-workspace action.
+---
 
-Do not build an always-visible page-header row of `Source Hunt / Search / Export / History / New workspace`.
+## 17. Failure and recovery
 
-## 12. Safety/truth rules
+When typed backend state exists, failure UI should identify:
 
-The chat interface must never:
+- failed stage;
+- safe reason/reference;
+- completed stages;
+- preserved evidence/artifact/snapshot;
+- whether automatic recovery is occurring;
+- whether safe retry exists;
+- retry scope;
+- user-vs-operator action required.
 
-- infer target authorization from a URL or user claim;
-- turn natural language into arbitrary execution;
-- let an AI model grant scope/roles/approval/verification/review/merge/release/publication authority;
-- hide a required human decision behind conversational wording;
-- send prohibited material to a remote provider;
-- treat a model answer as evidence;
-- claim queued/running/completed status without persisted evidence;
-- invent percentages, findings, evidence, readiness or tool availability;
-- continue a cancelled, revoked, expired or terminal task;
-- expose another user's workspace through history or guessed identifiers.
+Recovery updates the same task:
 
-Deterministic-only operation must remain possible when the AI provider is unavailable where the underlying workflow supports it.
+```text
+Worker interrupted — recovering
+Persisted state preserved
+Restoring execution context…
+```
 
-## 13. Acceptance criteria
+A reconnect never converts a failed/running task into a new assessment automatically.
 
-A chat-first feature is complete only when:
+---
 
-1. the supported operation can be started/requested from the conversation;
-2. intent becomes a typed policy-checked backend command;
-3. required authorization/confirmation/approval/re-authentication/review cannot be bypassed through chat;
+## 18. Search/history/utilities
+
+- task history lives primarily in task/chat navigation;
+- search is a compact utility or dedicated search interaction;
+- export/report appears when a relevant persisted result exists;
+- Source Hunt is initiated conversationally/progressively disclosed;
+- `+ New assessment` remains the main new-work action.
+
+Do not restore a permanent `Source Hunt / Search / Export / History / New workspace` toolbar row.
+
+---
+
+## 19. State truth rules
+
+The workspace must never:
+
+- infer authorization from a URL/user claim;
+- claim a public target is executable when worker policy is private-only;
+- claim queued/running/completed without persisted evidence;
+- invent progress/findings/evidence/readiness/tool state;
+- request an APK/repository/authorization that is already present and valid;
+- continue a cancelled/revoked/expired/terminal task;
+- expose another user's workspace through guessed identifiers;
+- use model prose instead of authoritative state when the state exists.
+
+Unknown/unavailable remains unknown/unavailable.
+
+---
+
+## 20. Acceptance criteria
+
+A chat-first workflow is complete only when:
+
+1. it can be requested from the conversation;
+2. request becomes a typed backend operation;
+3. required authorization/confirmation/approval/re-authentication/review cannot be bypassed;
 4. long-running work is persisted independently of the browser;
-5. disconnect/reconnect restores exact current state;
-6. task execution has truthful loading, blocked, recovery, failure, cancellation and completion states;
-7. follow-up instructions can be queued while supported work is running where the contract supports queuing;
-8. evidence/findings/reports remain bound to the owning assessment/workspace;
-9. specialist decisions project their result back to the originating conversation;
-10. desktop and mobile render the same product semantics;
-11. mobile is not a squeezed desktop dashboard and has no essential horizontal overflow;
-12. multi-user/workspace isolation is preserved;
-13. UI visuals comply with `docs/design/VULNHUNTER_UI_CONTRACT.md`;
-14. the implementation passes `docs/product/UI_ACCEPTANCE_CRITERIA.md` including explicit anti-regression gates.
+5. the conversation shows meaningful live activity while it runs;
+6. reconnect restores exact current state and deduplicated activity;
+7. failure/recovery/cancellation are truthful;
+8. follow-up queuing works where supported;
+9. evidence/findings/reports remain assessment-scoped;
+10. specialist decisions project back to the same task;
+11. mobile/desktop preserve the same semantics;
+12. UI complies with the locked design contract;
+13. public-target behavior complies with `PUBLIC_TARGET_ASSESSMENT.md` when applicable;
+14. no hidden chain-of-thought is rendered.
 
-A standalone page, backend service, dashboard or visually rendered template alone does not satisfy the product contract.
+A standalone page, a backend service or an attractive screenshot alone does not satisfy this contract.

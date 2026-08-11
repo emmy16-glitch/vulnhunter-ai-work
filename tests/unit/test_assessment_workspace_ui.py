@@ -73,3 +73,14 @@ def test_execution_state_card_uses_persisted_failure_contract() -> None:
     assert "Worker interrupted — recovering task" in script
     assert "failure?.preserved" in script
     assert "data-execution-state" in template
+
+
+def test_apk_chat_cards_use_the_shared_workspace_tokens_and_preserve_long_hashes() -> None:
+    css = (WEB / "static" / "web" / "assessment-workspace.css").read_text(encoding="utf-8")
+
+    assert ".vh-apk-attachment-card" in css
+    assert ".vh-mobile-hunt-card" in css
+    assert "var(--vh-pink-soft)" in css
+    assert "white-space: normal" in css
+    assert "overflow-wrap: anywhere" in css
+    assert "@media (prefers-reduced-motion: reduce)" in css

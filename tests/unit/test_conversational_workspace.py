@@ -121,6 +121,7 @@ def test_conversation_payload_reads_persisted_finding_and_artifact_mappings():
         "verification": "validated",
         "target": "target-reference",
         "finding_id": "finding-observation-1",
+        "detail_url": "/findings/finding-observation-1/",
     }
     assert artifact == {
         "filename": "evidence.jsonl",

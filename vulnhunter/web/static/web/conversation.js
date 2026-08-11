@@ -448,6 +448,12 @@
       title.textContent = text(finding.title || "Candidate finding");
       detail.textContent = `${prettyState(finding.verification || "candidate")} · ${text(finding.target || run.target)}`;
       copy.append(title, detail);
+      if (finding.detail_url) {
+        const link = document.createElement("a");
+        link.href = text(finding.detail_url);
+        link.textContent = "Open full finding";
+        copy.append(link);
+      }
       item.append(severity, copy);
       container.append(item);
     });

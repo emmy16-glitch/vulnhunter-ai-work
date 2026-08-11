@@ -368,13 +368,17 @@ def _item_value(item: object, key: str, default: object = "") -> object:
 
 
 def _safe_finding(item: object) -> dict[str, object]:
-    return {
+    finding_id = str(_item_value(item, "finding_id", _item_value(item, "evidence_id", "")))
+    result = {
         "title": str(_item_value(item, "title", "Candidate finding")),
         "severity": str(_item_value(item, "severity", "info")),
         "verification": str(_item_value(item, "verification", "candidate")),
         "target": str(_item_value(item, "target_reference", "")),
-        "finding_id": str(_item_value(item, "finding_id", _item_value(item, "evidence_id", ""))),
+        "finding_id": finding_id,
     }
+    if finding_id:
+        result["detail_url"] = reverse("web-finding-detail", kwargs={"finding_id": finding_id})
+    return result
 
 
 def _safe_artifact(item: object) -> dict[str, object]:

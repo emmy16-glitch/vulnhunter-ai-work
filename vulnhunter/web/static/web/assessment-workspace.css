@@ -117,6 +117,8 @@
 .vh-chat-workspace .vh-mobile-hunt-card > footer { border-color: var(--vh-line); background: transparent; }
 .vh-chat-workspace .vh-mobile-tool-chips span { border: 1px solid var(--vh-ink); border-radius: 0; background: var(--vh-pink-soft); color: var(--vh-ink); font-family: var(--vh-font-mono); }
 .vh-chat-workspace .vh-mobile-hunt-rounds li > span { border: 1px solid var(--vh-ink); border-radius: 0; background: var(--vh-surface); color: var(--vh-ink); }
+.vh-chat-workspace .vh-finding-row { padding: 16px; border: 1px solid var(--vh-line); background: var(--vh-surface); }
+.vh-chat-workspace .vh-finding-row a { display: inline-block; margin-top: 8px; color: var(--vh-ink); font-family: var(--vh-font-mono); font-size: 11px; text-decoration-thickness: 1px; }
 
 @media (max-width: 640px) {
   .vh-chat-workspace .vh-apk-attachment-card,

@@ -1,0 +1,27 @@
+---
+description: Binding VulnHunter repository authority and safety rules
+alwaysApply: true
+---
+
+# VulnHunter repository authority
+
+Read `AGENTS.md` in full before changing the repository. It is the binding operating manual.
+
+For browser/UI work, follow the exact additional read order in `vulnhunter/web/AGENTS.md`.
+
+Permanent rules:
+
+- authorised private and public targets are supported product classes;
+- a public URL is never permission;
+- public execution must follow `docs/product/PUBLIC_TARGET_ASSESSMENT.md` and preserve explicit authorization, target class, worker capability, DNS/address containment and Host/TLS identity;
+- never globally relax scope checks or delete private-worker restrictions to make public scanning work;
+- queued/running work must follow `docs/product/LIVE_EXECUTION_ACTIVITY.md` and expose persisted operational activity, not fake progress;
+- Source Hunt follows `docs/product/SOURCE_HUNT.md`, including preflight and truthful permitted-path/snapshot semantics;
+- browser UI follows the locked `docs/design/` authority chain and remains conversation/task-first;
+- never expose hidden chain-of-thought/private model reasoning;
+- models never grant authorization, execution, verification, review, merge, release or publication authority;
+- `docs/intelligence/CURRENT_STATE.md` owns implementation truth;
+- `docs/intelligence/ROADMAP.md` owns current dependency order;
+- historical milestone/total-programme/future-plan files do not override current authorities.
+
+If the requested task conflicts with a binding boundary, stop and report the exact conflict rather than weakening the product.

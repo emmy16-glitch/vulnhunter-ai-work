@@ -1,189 +1,275 @@
 # Current State
 
-## Implemented capabilities
+**Status owner:** this file is the authoritative implementation-state summary for VulnHunter.  
+**Rule:** product contracts may describe approved future behavior; this file states what the runtime actually implements now.
 
-VulnHunter is an authorised, laboratory-only security-research and decision-support platform. The repository currently includes:
+---
 
-- strict loopback/private-lab target validation, explicit time-limited authorisation, redirect/derived-link containment, connection-time DNS revalidation, pinned approved-address transport, peer verification and bounded GET/HEAD collection;
-- central redaction, bounded response handling, passive mapping and passive security observations;
-- SQLite persistence for scans, observations, review decisions, authorisation records and audit events;
-- two-reviewer consensus, independent adjudication, reviewer-specific queues, duplicate/conflicting-label gates and immutable review attestations;
-- governed collection campaigns, campaign/authorisation binding, application metadata, release manifests and deterministic release-provenance packages;
-- controlled reviewed-dataset export, scan-group-isolated splits, deterministic Multinomial/Bernoulli Naive Bayes research baselines, bounded JSON model artifacts and locked holdout diagnostics;
-- bounded orchestration, evaluator separation, unattended permission manifests and fail-closed verifier contracts;
-- authenticated Django product surfaces, a persistent conversational workspace, optional Groq and Hugging Face advisory providers and provider-neutral browser-path readiness verification;
-- a versioned scanner-manager protocol, signed worker spool, restricted remote bridge and one activated passive RFC1918 Nuclei laboratory path;
-- a separately authorised publication foundation with signed state, destination policy, correction/revocation and recovery checks.
+## 1. Product classification
 
-The platform is not an autonomous public-Internet scanner, exploit framework, automatic vulnerability publisher or production-grade vulnerability classifier. Human review, deterministic services and verified evidence remain authoritative.
+VulnHunter is an **authorised security-assessment and decision-support platform**.
 
-## Product programme status
+The product contract supports both private and authorised public targets, but the current scanner runtime does **not** yet provide a production-accepted public-host execution path.
 
-### Programme 1 — AI-first assessment workspace
-
-**Status: COMPLETE for repository-supported automated runtime scope.**
-
-The implemented runtime provides one authoritative selected-assessment projection across Chat, Activity, inspector, history, Findings, Evidence and Report; monotonic persisted projection revisions; separate assessment/worker/provider health; typed failures and scoped retries; one durable task-card/activity timeline with measured byte/stage progress only; idempotent APK create/bind/finalise and timeout-after-success recovery; desktop and mobile contextual inspection; consolidated navigation; simplified provider controls; website/APK/Source Hunt alignment; assessment-scoped result truth; report-format readiness; and server-selected Findings continuity.
-
-The final Programme 1 reconciliation is recorded through PRs #117, #119, #121, #122 and #123. Physical Android performance, TalkBack, bright-environment contrast and non-technical usability remain manual evidence categories and are not inferred from browser automation.
-
-### Programme 2 — premium interaction, motion and conversation
-
-**Status: COMPLETE for repository-supported automated interaction scope.**
-
-The binding twelve-step premium interaction programme is implemented in dependency order:
-
-1. **Inventory and measurable baseline** — PR #132 adds a deterministic repository interaction inventory and fail-closed owner checks.
-2. **Shared semantic motion tokens** — PR #118 establishes product-wide duration, easing, distance, scale and opacity semantics.
-3. **Primitive component states** — PR #118 establishes shared pressed, disabled, unavailable, locked, loading, selected, active, success, warning and failure presentation plus 44px targets.
-4. **Overlay/dialog/sheet/focus ownership** — PR #120 provides one shared native-dialog controller with stacking, scroll lock, focus restoration, Escape/backdrop policy and browser/Android Back handling.
-5. **Shell/navigation continuity** — PR #124 preserves server-owned active route, immediate acknowledgement, BFCache recovery and focus restoration without navigation-delay animation.
-6. **Login/session/reauthentication** — PR #125 preserves validated return destinations, duplicate-submit protection, BFCache recovery and server-owned authentication/CSRF/session rotation.
-7. **Conversation/send/scroll continuity** — PR #126 adds bounded message receipts, timeout-after-success idempotency, truthful optimistic states, same-identity retry, safe draft continuity and reader-controlled autoscroll/Jump-to-latest.
-8. **Upload/artifact/task-card choreography** — PR #127 keeps byte upload, validation and ready states distinct; exposes bounded retry/reselect/cancel; and binds the existing task card to server-produced persisted-stage measurements.
-9. **Inspector/activity/results continuity** — PR #128 removes browser-invented workflow percentages and limits arrival emphasis to newly persisted activity receipts.
-10. **Mobile direct manipulation/viewport/Back** — PR #129 hardens the full-screen inspector sheet for dynamic viewport, safe areas, short-height landscape, 44px controls and existing Back/Escape/focus ownership.
-11. **Performance/reduced-motion/accessibility hardening** — PR #130 routes remaining transition timing through shared tokens, collapses reduced-motion transitions, improves zoom/narrow reflow and preserves forced-colors focus/overlay boundaries.
-12. **Cross-workflow cleanup** — PR #131 removes retired workspace patch layers; PR #132 verifies the canonical owner stack and measurable interaction surface.
-
-The final Programme 2 repository slice, PR #132, merged as `3b5e62b27a7bf0878b8c7115b8cefcc286550a85`. Its exact head `afbde7cebc9e588062abe6fb97a0fffbc88c6a3f` passed VulnHunter quality gates #1742, Conversational workspace quality #1234 and Phone acceptance #701. No review threads remained.
-
-This completion claim is intentionally narrower than physical-device acceptance. The following remain manual evidence categories and must not be fabricated from static inventory, Playwright or responsive Chromium automation:
-
-- realistic physical Android frame/performance behaviour;
-- TalkBack operation;
-- bright-environment/real-device contrast review;
-- non-technical usability and subjective polish review.
-
-### Current product classification
+Current high-level classification:
 
 ```text
-BACKEND SECURITY AND GOVERNANCE FOUNDATIONS   IMPLEMENTED
-CONVERSATIONAL ENTRY POINT                    IMPLEMENTED
-PERSISTED WORKER AND UPLOAD FOUNDATIONS       IMPLEMENTED
-ONE CONSISTENT ASSESSMENT SOURCE OF TRUTH     IMPLEMENTED
-LIVE AGENT EXECUTION EXPERIENCE               IMPLEMENTED
-ACTIONABLE FAILURE AND RECOVERY EXPERIENCE    IMPLEMENTED
-DESKTOP CONTEXTUAL INSPECTOR                  IMPLEMENTED
-PHONE-FIRST RESPONSIVE WORKSPACE              IMPLEMENTED — AUTOMATED ACCEPTANCE
-CONSOLIDATED NAVIGATION                       IMPLEMENTED
-ASSESSMENT-SCOPED FINDINGS/EVIDENCE/REPORTS   IMPLEMENTED
-REPORT FORMAT READINESS                       IMPLEMENTED — TRUTHFUL AVAILABILITY CONTRACT
-AI-FIRST PRODUCT EXPERIENCE                   IMPLEMENTED — PROGRAMME 1 AUTOMATED SCOPE
-PREMIUM INTERACTION/MOTION SYSTEM             IMPLEMENTED — PROGRAMME 2 AUTOMATED SCOPE
-PHYSICAL ANDROID/TALKBACK/USABILITY EVIDENCE  MANUAL — NOT CLAIMED
+AUTHORIZATION / GOVERNANCE FOUNDATIONS          IMPLEMENTED
+PRIVATE-TARGET PASSIVE WEBSITE EXECUTION        IMPLEMENTED — CONFIGURATION/ENVIRONMENT DEPENDENT
+PUBLIC-TARGET PRODUCT CONTRACT                  APPROVED
+PUBLIC-TARGET WORKER EXECUTION                  NOT COMPLETE
+CONVERSATION/TASK WORKSPACE FOUNDATION          IMPLEMENTED
+LOCKED UI CONTRACT V2                           APPROVED / MERGED
+FULL UI V2 RUNTIME CONFORMANCE                  NOT COMPLETE
+PERSISTED TASK/ACTIVITY FOUNDATION              IMPLEMENTED
+RICH LIVE EXECUTION ACTIVITY ACROSS ALL FLOWS   PARTIAL
+SOURCE HUNT PYTHON-FIRST PIPELINE                IMPLEMENTED — BOUNDED
+SOURCE HUNT PREFLIGHT/ACTIVITY UX                PARTIAL
+APK RESUMABLE UPLOAD/STATIC PIPELINE             IMPLEMENTED — ENVIRONMENT DEPENDENT
+HUMAN REVIEW/ADJUDICATION/GOVERNED RELEASE       IMPLEMENTED
+PROGRAMME 3 ML FOUNDATIONS THROUGH P3.9          IMPLEMENTED / MERGED
+PRODUCTION REAL-WORLD VULNERABILITY CLASSIFIER   NOT ESTABLISHED
+PHYSICAL ANDROID/TALKBACK/USABILITY EVIDENCE     MANUAL — NOT CLAIMED
 ```
 
-## Programme 3 — ML and Hugging Face production architecture
+---
 
-**Status: ACTIVE. P3.1 and P3.2 are merged; P3.3 is implemented on PR #135 and requires green exact-head repository gates before merge.**
+## 2. Implemented foundations
 
-The existing ML foundation remains a responsible research baseline: human-reviewed labels, duplicate/conflict gates, scan-group splitting, training-only candidate selection, deterministic privacy-conscious features, Multinomial/Bernoulli Naive Bayes candidates, explicit thresholds, bounded JSON artifacts, provenance, locked diagnostics, optional Groq/Hugging Face advisory providers and provider-neutral readiness verification are implemented.
+The repository currently includes:
 
-### P3.1 current-state reconciliation
+- explicit time-limited authorization records and append-only audit events;
+- exact scheme/host/port/path/address scope controls;
+- redirect/derived-link containment foundations;
+- connection-time DNS revalidation and address pinning in the bounded HTTP path;
+- sensitive-data redaction;
+- bounded request/response handling;
+- scanner manager/worker separation;
+- signed worker spool and immutable plan/approval identity;
+- one reviewed passive private-target Nuclei worker path;
+- task/activity persistence and selected-assessment projection foundations;
+- evidence normalization and deterministic verification;
+- finding/review/adjudication/release governance;
+- Source Hunt exact snapshots, processing approvals, Python inventory/attack-surface mapping, model-assisted hunt/falsification/capability filtering and remediation proposal;
+- resumable APK upload and bounded static-analysis foundations;
+- optional advisory provider routing including Groq and Hugging Face families under current policy;
+- controlled ML/retrieval/governance foundations;
+- canonical browser design/interaction governance.
 
-PR #133 merged as `8f7b912197f6804cb56cdcda77e1d2cf17fea7a9` and reconciled Programme 2 completion before activating Programme 3. It did not claim any new production ML capability.
+---
 
-### P3.2 governed release-to-training boundary
+## 3. Public-target support
 
-PR #134 merged as `467b72bd0ea12cae796ba74af3a6367292bd5f67` after exact head `d3c2fde14999c402edcae8840f8c578f67133821` passed VulnHunter quality gates #1753, Conversational workspace quality #1243 and Phone acceptance #712.
+### Product status
 
-The merged P3.2 runtime adds an owner-private append-only training-eligibility ledger, exact governed-release registration, withdrawal/revocation/supersession blocking, deterministic content-addressed production training packages, redacted release/review lineage, package-integrity revalidation immediately before training and governed candidate provenance. It intentionally fails closed when legacy integer scan or observation identities overlap across applications because hierarchical identity belongs to P3.3.
+**APPROVED PRODUCT REQUIREMENT.**
 
-P3.2 does not establish application-family external holdout, calibration, OOD, model registry activation, shadow inference, monitoring, Hugging Face production capability or real-world classifier performance.
+The binding contract is `docs/product/PUBLIC_TARGET_ASSESSMENT.md`.
 
-### P3.3 hierarchical application identity and group isolation
+Authorised public targets are legitimate VulnHunter targets when an exact active authorization covers the target and requested scan profile.
 
-PR #135 implements the next bounded boundary and remains subject to its exact-head gates and merge:
+Public does not mean permission. Arbitrary public scanning remains prohibited.
 
-- stable application-family, application-instance and deployment-environment identities derived from governed release metadata rather than integer scan IDs;
-- one owner-private append-only hash-chained partition registry that freezes a whole application family to development training, development calibration or external holdout for one evaluation programme;
-- explicit partition-programme reset lineage instead of silently moving a family between partitions;
-- hierarchical scan and observation keys that preserve source lineage when legacy integer IDs overlap across applications;
-- deterministic collision-checked compatibility IDs only at the legacy Naive Bayes training boundary;
-- repeated releases of the same application family reusing the same frozen partition assignment;
-- external-validation availability reported only when development-training, development-calibration and external-holdout families all actually exist;
-- partitioned production-training entry points that consume development-training families only and leave calibration/external-holdout families untouched.
+### Runtime status
 
-This P3.3 implementation does not claim that a diverse external holdout already exists. It does not evaluate or expose external performance, and it does not implement P3.4 label/task expansion, calibration, OOD, model activation, shadowing or Hugging Face production features.
+**NOT COMPLETE.**
 
-The remaining production ML/Hugging Face programme continues in the binding order from `ML_AND_HUGGING_FACE_PRODUCTION_ARCHITECTURE.md`:
+The current scope and Nuclei activation models can represent public addresses, but the current passive worker pilot is explicitly private-target-only and requires a private literal target. Therefore a public hostname such as a normal TLS virtual host cannot yet be truthfully classified as supported end-to-end execution.
 
-1. current-state reconciliation — **MERGED in PR #133**;
-2. governed release-to-training boundary — **MERGED in PR #134**;
-3. hierarchical application identity and group isolation — **IMPLEMENTED on PR #135; exact-head gates and merge required**;
-4. richer label and task contracts — **NEXT after P3.3 merges**;
-5. pluggable feature-extractor interface;
-6. expanded leakage and ablation evaluation;
-7. calibration, abstention and OOD handling;
-8. complete evaluation and uncertainty reporting;
-9. model registry, signing, activation and rollback;
-10. shadow inference and reviewer-feedback linkage;
-11. monitoring, drift and incident response;
-12. revision-pinned Hugging Face capability registry;
-13. local embedding and retrieval experiments;
-14. Source Hunt code-model experiments;
-15. evidence-grounded conversational retrieval;
-16. full cross-workflow production acceptance and cleanup.
+Do not work around this by removing the private worker assertion.
 
-### ML capability classification
+### Required remaining runtime work
+
+A public-capable execution path must implement and verify:
+
+- explicit worker target-class capability;
+- exact public authorization binding;
+- connection-time public DNS/address containment;
+- protection against public-to-private/metadata rebinding;
+- original hostname preservation for HTTP Host, TLS SNI and certificate validation while using approved address containment;
+- redirect revalidation;
+- passive template/rate/concurrency limits;
+- signed job/evidence/activity continuity;
+- public-target success and failure acceptance tests.
+
+Until those gates pass, UI/status must say `public execution unavailable/not configured` rather than claiming a scan is running.
+
+---
+
+## 4. UI Contract V2
+
+The locked conversation/task-first UI direction has been merged and is authoritative.
+
+Canonical sources include:
+
+- `docs/design/VULNHUNTER_UI_CONTRACT.md`;
+- `docs/design/AI_AGENT_UI_IMPLEMENTATION_STANDARD.md`;
+- `docs/design/references/manifest.json`;
+- `docs/design/DEPRECATIONS.md`;
+- `docs/product/CHAT_FIRST_WORKSPACE.md`;
+- `docs/product/LIVE_EXECUTION_ACTIVITY.md`;
+- `docs/product/UI_ACCEPTANCE_CRITERIA.md`.
+
+### Runtime conformance status
+
+**PARTIAL / MIGRATION REQUIRED.**
+
+Documentation/design governance is complete enough to prevent future agents from treating the old dashboard-style UI as authority. Existing templates/CSS/tests may still contain deprecated presentation.
+
+Known runtime presentation debt includes surfaces that may still show:
+
+- old wide utility action rows;
+- clipped phone controls;
+- giant dark Source Hunt panels/forms;
+- low-contrast or undersized conversation text;
+- incomplete live activity while a worker runs;
+- separate-page monitoring instructions instead of one in-workspace task experience.
+
+Do not classify UI V2 as fully implemented until browser acceptance proves the affected runtime surfaces conform.
+
+---
+
+## 5. Live execution activity
+
+### Foundation
+
+The repository already persists important task/activity events for several workflows and has task-card/projection foundations.
+
+### Current limitation
+
+**RICH CROSS-WORKFLOW LIVE ACTIVITY IS PARTIAL.**
+
+Website assessment has more persisted activity than Source Hunt. Source Hunt's selected-assessment projection currently exposes only a shallow summary in places and may not expose an active tool/current detailed operation even while work is running.
+
+The user must not be forced to accept a generic message such as “the backend is executing; check elsewhere.”
+
+The binding target contract is `docs/product/LIVE_EXECUTION_ACTIVITY.md`.
+
+### Exit gate
+
+Live execution may be classified implemented for a workflow only when:
+
+1. worker/service persists meaningful stage/tool/activity events;
+2. authoritative assessment projection exposes them;
+3. chat/task UI renders them in place;
+4. reconnect reconstructs/deduplicates them;
+5. browser acceptance verifies UI against persisted state.
+
+---
+
+## 6. Source Hunt
+
+### Implemented
+
+- operator-approved repository roots;
+- exact revision/snapshot identity;
+- bounded eligible-file snapshot;
+- exact source-processing approval;
+- password re-authentication in browser flow;
+- separate queued worker;
+- deterministic Python mapper;
+- model-assisted reconnaissance/hypothesis;
+- independent falsification;
+- capability filtering;
+- evidence-bound remediation planning;
+- persisted report/job state.
+
+### Current limitations
+
+- Python-first only;
+- repository file/byte limits can fail a hunt before queueing;
+- current form-level `permitted_paths` does not by itself guarantee that the snapshot builder avoided scanning a larger repository root before the approval boundary is created;
+- predictable file/byte-limit failure should be surfaced through preflight before submission;
+- live Source Hunt activity should expose more persisted stage/tool/candidate state in the originating workspace.
+
+Do not claim permitted-path narrowing solved snapshot-size failure unless the runtime actually uses it during snapshot construction.
+
+---
+
+## 7. Website/private scanner path
+
+The current reviewed passive Nuclei pilot remains deliberately bounded:
+
+- passive profile;
+- rate limit 1;
+- concurrency 1;
+- reviewed template manifest;
+- no automatic updates;
+- no public OAST;
+- no cloud upload;
+- no raw command arguments;
+- exact plan/approval identity;
+- bounded output/timeouts/cancellation.
+
+The existing private-target safety boundary remains valid while public support is implemented separately.
+
+---
+
+## 8. APK/mobile
+
+Implemented foundations include resumable upload, integrity validation and bounded static tooling where the environment is configured.
+
+Uploading does not execute an APK.
+
+Dynamic execution, emulator, ADB, Frida and MobSF capabilities remain separately governed/environment dependent.
+
+Physical Android performance, TalkBack, bright-environment contrast and non-technical usability remain manual evidence categories.
+
+---
+
+## 9. AI/provider state
+
+Global provider policy is provider-neutral and currently recognizes optional advisory provider families including Groq and Hugging Face.
+
+Do not reintroduce a blanket statement that Groq is the only provider everywhere.
+
+Source Hunt itself may remain Groq-specific under `docs/product/SOURCE_HUNT.md`.
+
+Models remain non-authoritative for authorization, execution, verification, review, severity, merge, release and publication.
+
+---
+
+## 10. Programme 3 ML status
+
+Programme 3 work through P3.9 has been merged, including:
+
+- governed release-bound production training packages;
+- hierarchical application/family/environment identity and partition registry;
+- explicit task/label separation;
+- pluggable governed feature extractors;
+- development-only leakage/ablation evaluation;
+- calibration/OOD/abstention foundations;
+- expanded evaluation/uncertainty reporting;
+- signed model registry, activation and rollback lifecycle.
+
+The remaining programme still includes later capabilities such as shadow inference, delayed reviewer feedback joins, monitoring/drift/incident response, revision-pinned Hugging Face capability registry, retrieval/code-model experiments and complete production acceptance.
+
+No real-world production vulnerability-classifier performance claim is established merely because these foundations exist.
+
+---
+
+## 11. Documentation reconciliation rule
+
+After a major PR merges, update this file, `ROADMAP.md` and `KNOWN_FAILURES.md` together when their status is affected.
+
+Never leave states such as:
 
 ```text
-GOVERNED RELEASE-BOUND TRAINING PACKAGE          IMPLEMENTED — PR #134 MERGED
-WITHDRAWAL/REVOCATION/SUPERSESSION TRAINING GATE IMPLEMENTED — PR #134 MERGED
-RESEARCH NAIVE BAYES BASELINE                    IMPLEMENTED
-HIERARCHICAL APPLICATION/GROUP IDENTITY          IMPLEMENTED ON PR #135 — GATES/MERGE REQUIRED
-FAMILY-LEVEL PARTITION REGISTRY                  IMPLEMENTED ON PR #135 — GATES/MERGE REQUIRED
-APPLICATION-FAMILY EXTERNAL HOLDOUT              CAPABILITY BOUNDARY ON PR #135; REAL HOLDOUT NOT ESTABLISHED
-RICH LABEL/TASK CONTRACTS                        NOT COMPLETE — P3.4 NEXT
-CALIBRATION                                      NOT COMPLETE
-OOD DETECTION                                    NOT COMPLETE
-EXPLICIT CLASSIFIER ABSTENTION                   NOT COMPLETE
-MODEL REGISTRY/PROMOTION/ACTIVATION              NOT COMPLETE
-SHADOW/CANARY DEPLOYMENT                         NOT COMPLETE
-MODEL DRIFT AND OUTCOME MONITORING               NOT COMPLETE
-REVISION-PINNED HF CAPABILITY REGISTRY           NOT COMPLETE
-LOCAL HF EMBEDDING/FEATURE PIPELINE              NOT COMPLETE
-ASSESSMENT-SCOPED RETRIEVAL AND CITATIONS        NOT COMPLETE
-PRODUCTION VULNERABILITY CLASSIFIER              NOT ESTABLISHED
+CURRENT_STATE: complete
+KNOWN_FAILURES: still missing
+ROADMAP: in progress
 ```
 
-The current Naive Bayes model remains the honest comparison baseline. Controlled benchmark performance is not real-application performance; raw posterior values are not calibrated real-world probabilities; and no production registry, activation, shadow, rollback or drift lifecycle exists yet.
+for the same exact capability without explaining the difference in scope.
 
-## Real-world performance prerequisites
+Use explicit qualifiers such as `contract approved`, `runtime partial`, `automated acceptance complete`, `manual evidence pending`.
 
-No real-world ML performance claim is permitted until the repository has diverse authorised application-family data, independent governed review, immutable verified release-bound training packages, complete application-family/instance/environment metadata, group-isolated development/calibration partitions, a locked external application-family holdout, leakage/ablation analysis, calibration/OOD/coverage-risk analysis, ranking/review-budget metrics, repeated-seed/grouped uncertainty analysis, error analysis, registry/shadow/rollback evidence and privacy/supply-chain/operational acceptance.
+---
 
-## Current operational commands
+## 12. Immediate highest-priority gaps
 
-Use CLI help as the exact implemented interface:
-
-```bash
-vulnhunter --help
-vulnhunter scope --help
-vulnhunter authorize --help
-vulnhunter scan --help
-vulnhunter findings --help
-vulnhunter governance --help
-vulnhunter governance identity --help
-vulnhunter governance campaign --help
-vulnhunter governance campaign readiness --help
-vulnhunter ml --help
-vulnhunter benchmark --help
-vulnhunter loop --help
-vulnhunter research --help
-vulnhunter unattended --help
-python -m vulnhunter.product --help
-python manage.py vh_configure_groq --help
-python manage.py vh_configure_huggingface --help
-python manage.py vh_verify_llm --help
-python manage.py vh_publication_preflight --help
-python manage.py vh_publication_recover --help
-python manage.py vh_campaign_release_package --help
-```
-
-P3.2 and P3.3 are Python contracts, not new CLI commands. Commands proposed in architecture documents are not operational until they are implemented and exposed by the help surfaces above.
-
-## Repository health
-
-The repository should remain testable offline, usable without optional remote providers, free of tracked secrets/local databases/generated model artifacts, free of unreviewed executable model formats and remote custom code, organised into focused bounded commits, documented alongside architectural changes and truthful about implemented, partial, research-only and unavailable capabilities.
+1. implement public-capable passive execution without weakening private-worker protections;
+2. implement the complete persisted live-execution activity contract across website/Source Hunt/APK;
+3. migrate remaining browser surfaces to UI Contract V2 and remove deprecated presentation;
+4. add Source Hunt preflight that surfaces file/byte/path limits before queue submission;
+5. keep current-state/roadmap/known-failure documents reconciled after each implementation slice.

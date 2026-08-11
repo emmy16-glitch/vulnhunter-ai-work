@@ -1,122 +1,311 @@
 # Scanner Manager and Worker Architecture
 
-VulnHunter separates governance from scanner execution.
+**Status:** CURRENT SCANNER ARCHITECTURE  
+**Public-target contract:** `docs/product/PUBLIC_TARGET_ASSESSMENT.md`  
+**Nuclei contract:** `docs/product/NUCLEI_INTEGRATION.md`  
+**Live activity:** `docs/product/LIVE_EXECUTION_ACTIVITY.md`
 
-## Manager
+VulnHunter separates governance/plan authority from scanner execution.
 
-The Django application owns:
+---
 
-- operator identity and role policy;
-- target authorization and address pins;
-- exact assessment planning;
-- plan digest and expiry;
-- human approval;
+## 1. Manager responsibilities
+
+The Django/product manager owns or coordinates:
+
+- authenticated operator/workspace identity;
+- exact target authorization;
+- private/public target classification;
+- exact target origin/port/path/address policy;
+- immutable assessment plan;
+- plan digest/expiry;
+- required confirmation/approval;
 - signed worker-job creation;
 - cancellation decisions;
-- evidence trust, verification, review and release state.
+- selected-assessment/task graph;
+- evidence trust/verification/review/report state.
 
-The manager does not accept arbitrary scanner arguments and does not own long-running scanner subprocesses.
+The manager does **not** accept arbitrary scanner arguments and does not run long-lived scanner subprocesses inside the web request process.
 
-## Signed spool
+---
 
-The manager writes one immutable, HMAC-signed and expiring job to an owner-controlled
-spool. Pending, processing, completed, failed and cancellation areas are separate.
-Jobs are written atomically with restrictive permissions. Duplicate job IDs,
-replays, invalid signatures and expired jobs are rejected.
+## 2. Worker responsibilities
 
-## Local isolated worker
+A worker independently validates applicable:
 
-The local worker consumes one signed job and independently verifies:
+- signed job integrity/invocation digest;
+- job/plan/authorization/approval expiry;
+- exact target authorization and scope;
+- target class and worker target-class capability;
+- protocol/port/path/address policy;
+- scanner/adapter/profile;
+- template manifest and content hashes;
+- rate/concurrency/timeout/output limits;
+- approved evidence path;
+- cancellation state;
+- worker-local activation policy.
 
-- HMAC signature and invocation digest;
-- job and plan expiry;
-- authorization and exact approval binding;
-- target, protocol, port and address pins;
-- passive profile, rate and concurrency limits;
-- scanner, adapter and template versions;
-- template file hashes;
-- approved evidence path and worker-local activation policy.
+The worker executes only a fixed bounded adapter contract.
 
-The passive pilot accepts one literal private address, one reviewed passive
-template, rate limit `1` and concurrency `1`. It runs as a separate unprivileged
-process boundary with a minimal environment, fixed arguments, process-group
-cancellation, bounded output files and operating-system resource limits.
+It cannot:
 
-## Restricted remote worker transport
+- expand target scope;
+- create authorization;
+- approve its own plan;
+- accept raw user shell/argv;
+- change target class from browser input;
+- return unrestricted secrets/process output;
+- confirm a finding or publish it.
 
-Milestone 33 adds an optional transport for environments where the manager host
-cannot run the pinned scanner binary. The signed spool and all governance remain
-with the manager. Only the fixed scanner process moves to a separately restricted
-owned host.
+---
+
+## 3. Current worker state
+
+The current passive Nuclei pilot is deliberately **private-target-only**.
+
+Its narrow properties include:
+
+- one reviewed private target mapping;
+- passive profile;
+- rate limit `1`;
+- concurrency `1`;
+- reviewed/pinned Nuclei/templates;
+- fixed arguments;
+- minimal environment;
+- process-group cancellation;
+- bounded evidence/output;
+- operating-system resource limits.
+
+This is an implementation state, not the final product target policy.
+
+Authorised public targets are an approved product class, but public execution remains unavailable until a separately reviewed public-capable worker/transport path is implemented.
+
+---
+
+## 4. Target-class worker capability
+
+Worker capability must be explicit.
+
+Conceptually:
+
+```text
+worker capability: private
+→ accepts exactly authorised private jobs
+→ rejects public jobs
+
+worker capability: public
+→ accepts exactly authorised public jobs
+→ enforces public-host transport containment
+```
+
+A future worker may support both through an explicit typed capability set, but no browser field may grant that capability.
+
+Do not replace a private-only assertion with a permissive boolean just to execute public hosts.
+
+---
+
+## 5. Public-capable execution boundary
+
+Before a worker may accept a public hostname it must prove:
+
+- exact active public-target authorization;
+- public/private address classification;
+- connection-time DNS/address revalidation;
+- no mixed public/private resolution;
+- no localhost/loopback/link-local/metadata destination;
+- no public-to-private/metadata rebinding;
+- approved-address pinning or equivalent containment;
+- original hostname preserved for HTTP Host, TLS SNI and certificate validation;
+- redirect revalidation;
+- scanner-internal DNS behavior cannot escape containment;
+- passive profile/rate/concurrency/template policy remains bounded;
+- execution/activity/evidence remains bound to exact assessment/plan/job identities.
+
+If Nuclei cannot provide those guarantees directly, use a reviewed transport/proxy/dialer boundary rather than deleting validation.
+
+---
+
+## 6. Signed spool
+
+The manager persists one immutable signed/expiring job in an owner-controlled spool or equivalent queue boundary.
+
+Queued/processing/completed/failed/cancellation states remain distinct.
+
+Required properties include:
+
+- atomic write/claim transitions;
+- restrictive storage permissions;
+- duplicate/replay detection;
+- signature/invocation-digest verification;
+- expiry;
+- recovery after interruption;
+- no raw provider/credential/password secret in job payloads.
+
+---
+
+## 7. Local isolated worker
+
+Local mode keeps scanner execution outside the web process under a bounded unprivileged process boundary.
+
+Worker policy controls:
+
+- executable identity/version;
+- template manifest/digests;
+- target-class capability;
+- target/address mapping/containment;
+- process environment;
+- fixed command arguments;
+- output/time/resource limits;
+- cancellation;
+- evidence destination.
+
+Current local passive worker remains private-only until the public programme lands.
+
+---
+
+## 8. Restricted remote worker
+
+A restricted remote worker may move scanner process execution to an operator-owned host while manager-side governance remains local.
+
+Conceptual boundary:
 
 ```text
 Django manager
-→ signed local spool
-→ guest worker revalidation
-→ dedicated SSH identity with strict host-key pinning
-→ forced host command
-→ fixed Nuclei v3.8.0 invocation against a loopback transport target
-→ bounded structured response with genuine digests
-→ guest evidence and verification pipeline
+→ signed local job
+→ local worker validation
+→ dedicated restricted transport identity
+→ forced/typed remote runner
+→ independent remote policy validation
+→ fixed scanner invocation
+→ bounded structured response/evidence digest
+→ local evidence/verification pipeline
 ```
 
-The client sends a typed JSON request, never shell text. The host forced command
-accepts no arbitrary command, target, template, flag, header, cookie, credential,
-proxy or environment value. It independently verifies the owner-private host
-policy, executable, engine version, template digest, target mapping, freshness,
-replay state, timeout and candidate limits.
+Remote transport must not become an unrestricted SSH command channel.
 
-The dedicated SSH key is installed with a forced command and with agent,
-forwarding, PTY, user-RC and X11 disabled. The installer uses no sudo and preserves
-unrelated `authorized_keys` entries.
+The remote side independently validates executable/version/template/target/freshness/replay/limits according to its approved policy.
 
-The remote response is bound to the request digest, worker identity, engine pin and
-template digest. Zero candidate observations is a successful completed scan. The
-response contains sanitized candidate metadata only; it does not return raw
-headers, bodies, cookies, credentials or unrestricted process output.
+A public remote worker still needs the public-host containment contract; merely being remote does not make public scanning safe.
 
-## Shared protocol
+---
 
-Scanner protocol `1.0` currently contains:
+## 9. Shared scanner protocol
 
-- `nuclei-controlled-harness` — manager harness plus local or restricted remote passive worker;
-- `mobile-analysis-planned-adapter` — shared contract for the separate static and future disposable dynamic workers.
+Scanner protocol/adapter identity is versioned and tool-independent.
 
-The protocol is tool-independent. A future scanner must reuse the same
-authorization, approval, signed-job, evidence, redaction, verification and
-candidate-finding rules rather than adding a second control plane.
+A scanner adapter must reuse the same core controls:
 
-## Control ownership
+- exact authorization;
+- exact plan/approval;
+- target-class capability;
+- signed/immutable job;
+- bounded execution;
+- cancellation/recovery;
+- redacted evidence;
+- persisted activity;
+- deterministic downstream verification;
+- human review authority.
 
-| Responsibility | Manager | Guest worker | Host forced command |
-|---|---:|---:|---:|
-| Target authorization | owns | revalidates | exact policy match |
-| Human approval | owns | revalidates | never owns |
-| Plan digest | creates | verifies | request binding only |
-| Version/template policy | defines | verifies | verifies installed state |
-| Scanner process | never | local mode only | remote mode only |
-| Cancellation | issues | enforces and disconnects | terminates process group |
-| Evidence hashing | verifies | produces bounded artifacts | returns structured digest |
-| Deterministic verification | owns | pipeline only | never |
-| Finding confirmation and release | human workflow | never | never |
+New scanners must not introduce a second ungoverned execution plane.
 
-## Queue and recovery
+---
 
-On worker restart, stranded processing jobs and unfinished execution records
-recover fail-closed. The worker never assumes a scanner process survived the
-restart. A pending Stop request moves the job to a terminal cancelled receipt; a
-claimed or running job receives a cooperative cancellation marker and execution-store
-cancellation request.
+## 10. Control ownership
 
-The remote host also records each scan request digest in an owner-private replay
-directory before process execution. Repeating the same scan request is rejected.
+| Responsibility | Manager | Worker | Restricted remote runner |
+| --- | --- | --- | --- |
+| Target authorization | owns/validates | revalidates | never creates |
+| Target class | resolves/persists | enforces capability | enforces local policy |
+| Human plan decision | owns/persists | verifies binding | never owns |
+| Plan digest | creates | verifies | binds request only |
+| Tool/version/template policy | selects approved contract | verifies | verifies installed state |
+| Scanner process | never in web request | local mode | remote mode |
+| Cancellation | requests | enforces/checkpoints | terminates process where applicable |
+| Activity events | task source + projection | emits execution events | returns bounded execution state |
+| Evidence hashing | verifies/links | produces bounded artifacts | returns structured digests |
+| Finding verification | deterministic product services | never | never |
+| Human review/release | governed workflow | never | never |
 
-## Activation rule
+---
 
-Code readiness is not machine activation. The source defaults remain fail-closed.
-For the intended private laboratory, the operator must create owner-private local
-policies, set `enabled=true`, install the restricted key, restore the private port
-forwards after restart, pass readiness verification, and then enable signed-job
-enqueue. Browser input cannot perform any of these steps.
+## 11. Persisted live activity
 
-See `docs/setup/REMOTE_NUCLEI_WORKER.md`.
+The worker/task pipeline should persist meaningful events such as:
+
+```text
+job queued
+worker claimed
+policy/plan validated
+tool started
+tool progress where measurable
+tool receipt recorded
+evidence recorded
+tool completed / failed
+normalization started / completed
+verification started / completed
+recovering / cancelled / completed
+```
+
+The originating conversation renders the same persisted activity.
+
+Do not fabricate per-template/progress counters that the worker cannot actually measure.
+
+---
+
+## 12. Queue/recovery
+
+On worker restart, interrupted jobs recover according to persisted state and fail-closed policy.
+
+The system must not assume an OS scanner process survived merely because a job file says `running`.
+
+Recovery/cancellation updates the same assessment/task identity and preserves prior receipts/evidence where valid.
+
+Browser reconnect is independent from worker recovery and never restarts a scanner.
+
+---
+
+## 13. Activation rule
+
+Code readiness is not machine activation.
+
+A deployment must provide reviewed worker policy, scanner binary/template identity, signing/transport secrets and environment-specific readiness before jobs can execute.
+
+Browser input cannot:
+
+- install a scanner;
+- create signing keys;
+- enable a worker;
+- broaden target class;
+- alter version/template policy;
+- make a public worker available.
+
+Current private-lab setup/runbooks remain valid for the private worker.
+
+Public worker activation will require its own readiness/acceptance path.
+
+---
+
+## 14. Public-worker acceptance
+
+Before public execution is marked implemented:
+
+1. authorized public hostname succeeds;
+2. unauthorized/wrong host/port/path/profile fails;
+3. private-only worker rejects public job;
+4. public-capable worker rejects missing/expired/revoked authorization;
+5. mixed public/private DNS fails;
+6. public-to-private/metadata rebinding fails at connection time;
+7. redirect escape fails;
+8. Host/SNI/certificate identity is preserved;
+9. browser cannot broaden worker capability/limits;
+10. activity/evidence remain assessment-scoped across reconnect;
+11. cancellation/timeout/recovery are truthful;
+12. signed job/plan tampering fails.
+
+---
+
+## 15. Status rule
+
+`docs/intelligence/CURRENT_STATE.md` owns runtime status.
+
+Do not infer public-worker availability from this architecture document alone.

@@ -1,13 +1,25 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "contract": "docs/design/VULNHUNTER_UI_CONTRACT.md",
+  "agent_standard": "docs/design/AI_AGENT_UI_IMPLEMENTATION_STANDARD.md",
   "rules": {
     "repository_functionality_is_authoritative": true,
     "reference_branding_is_never_authoritative": true,
-    "monkeycode_means_interaction_reference_only": true,
-    "cream_dotted_editorial_means_visual_reference_only": true,
+    "references_do_not_grant_functionality": true,
+    "existing_implementation_never_overrides_contract": true,
+    "monkeycode_means_structure_and_interaction_reference_only": true,
+    "beautiful_ui_means_ai_component_and_microinteraction_reference_only": true,
+    "cream_dotted_editorial_means_vulnhunter_visual_language": true,
+    "hidden_chain_of_thought_must_never_be_rendered": true,
     "partial_reference_ignore_rules_are_binding": true
   },
+  "reference_hierarchy": [
+    "VulnHunter repository security/functionality contracts",
+    "VulnHunter UI contract and AI agent implementation standard",
+    "MonkeyCode structure/task-interaction references",
+    "Beautiful UI AI-native component/microinteraction reference",
+    "VulnHunter cream/dotted/dusty-pink visual language references"
+  ],
   "references": [
     {
       "id": "VH-REF-001",
@@ -77,6 +89,7 @@
         "mobile task timeline",
         "queued follow-up instruction",
         "mobile composer",
+        "mobile overlay drawer behavior",
         "square controls and hard shadows",
         "mobile spacing rhythm"
       ],
@@ -225,6 +238,40 @@
         "sample severity counts",
         "sample evidence counts",
         "any finding or confidence value not persisted by VulnHunter"
+      ]
+    },
+    {
+      "id": "VH-REF-013",
+      "name": "beautiful-ui-ai-native-primitives",
+      "url": "https://beautiful-ui-five.vercel.app/",
+      "status": "PARTIAL_REFERENCE",
+      "use_for": [
+        "loading-state composition",
+        "safe user-facing activity or thinking indicator",
+        "assistant streaming-text presentation",
+        "human-in-the-loop approval-card hierarchy",
+        "tool-chip hierarchy and compact provenance",
+        "task-row hierarchy",
+        "chat and prompt-bar ergonomics",
+        "recommendation-card hierarchy",
+        "context-card evidence and source presentation",
+        "code-block and diff presentation",
+        "records and filtering patterns for specialist deep views",
+        "search interaction",
+        "selection-action ergonomics where repository-backed"
+      ],
+      "ignore": [
+        "Beautiful UI branding or sample product identity",
+        "Beautiful UI colors when they conflict with VulnHunter cream/dotted/dusty-pink identity",
+        "Beautiful UI rounding when it conflicts with VulnHunter square geometry",
+        "sample provider or model selectors",
+        "Fine-tune Card unless a separately approved repository-backed feature requires it",
+        "dictation or voice controls unless repository-backed",
+        "sample command-palette actions unless repository-backed",
+        "sample business or demo data",
+        "any unsupported action",
+        "hidden chain-of-thought or private model reasoning",
+        "any visual behavior that fabricates backend progress or tool state"
       ]
     }
   ]

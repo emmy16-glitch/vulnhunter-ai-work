@@ -57,11 +57,31 @@ def test_chat_shell_navigation_buckets_items_by_product_ia() -> None:
     from vulnhunter.web.templatetags.vh_navigation import chat_shell_navigation
 
     navigation = (
-        {"label": "Assessment Workspace", "url_name": "web-dashboard", "active_routes": ("web-dashboard",)},
-        {"label": "Authorizations", "url_name": "web-authorization-list", "active_routes": ("web-authorization-list",)},
-        {"label": "Assessment History", "url_name": "web-scan-run-list", "active_routes": ("web-scan-run-list",)},
-        {"label": "Findings", "url_name": "web-findings-overview", "active_routes": ("web-findings-overview",)},
-        {"label": "Settings", "url_name": "web-settings-overview", "active_routes": ("web-settings-overview",)},
+        {
+            "label": "Assessment Workspace",
+            "url_name": "web-dashboard",
+            "active_routes": ("web-dashboard",),
+        },
+        {
+            "label": "Authorizations",
+            "url_name": "web-authorization-list",
+            "active_routes": ("web-authorization-list",),
+        },
+        {
+            "label": "Assessment History",
+            "url_name": "web-scan-run-list",
+            "active_routes": ("web-scan-run-list",),
+        },
+        {
+            "label": "Findings",
+            "url_name": "web-findings-overview",
+            "active_routes": ("web-findings-overview",),
+        },
+        {
+            "label": "Settings",
+            "url_name": "web-settings-overview",
+            "active_routes": ("web-settings-overview",),
+        },
     )
     shell = chat_shell_navigation(navigation, "web-findings-overview")
 
@@ -78,7 +98,11 @@ def test_chat_shell_navigation_does_not_promote_every_backend_capability() -> No
     from vulnhunter.web.templatetags.vh_navigation import chat_shell_navigation
 
     reviewer_navigation = (
-        {"label": "Review Queue", "url_name": "web-review-queue", "active_routes": ("web-review-queue",)},
+        {
+            "label": "Review Queue",
+            "url_name": "web-review-queue",
+            "active_routes": ("web-review-queue",),
+        },
     )
     shell = chat_shell_navigation(reviewer_navigation, "web-review-queue")
 
@@ -113,7 +137,13 @@ def test_chat_shell_navigation_keeps_route_permissions_authoritative() -> None:
     """The classifier never manufactures routes; it only moves existing items."""
     from vulnhunter.web.templatetags.vh_navigation import chat_shell_navigation
 
-    navigation = ({"label": "Datasets", "url_name": "web-dataset-list", "active_routes": ("web-dataset-list",)},)
+    navigation = (
+        {
+            "label": "Datasets",
+            "url_name": "web-dataset-list",
+            "active_routes": ("web-dataset-list",),
+        },
+    )
     shell = chat_shell_navigation(navigation, "")
     combined = (
         list(shell["primary"])

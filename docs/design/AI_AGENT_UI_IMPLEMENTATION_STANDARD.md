@@ -1,322 +1,341 @@
 # VulnHunter AI Agent UI Implementation Standard
 
 **STATUS: BINDING — AGENT EXECUTION STANDARD**  
-**Applies to:** Codex, Cline, Claude Code, Copilot, Cursor, ChatGPT coding agents, local coding agents, human developers, and any automated process that changes VulnHunter browser UI  
-**Canonical visual contract:** `docs/design/VULNHUNTER_UI_CONTRACT.md`  
-**Canonical workflow contract:** `docs/product/CHAT_FIRST_WORKSPACE.md`
+**Applies to:** Codex, Cline, Claude Code, Copilot, Cursor, ChatGPT coding agents, local agents, humans and automated processes changing VulnHunter browser UI  
+**Visual authority:** `docs/design/VULNHUNTER_UI_CONTRACT.md`  
+**Workflow authority:** `docs/product/CHAT_FIRST_WORKSPACE.md`  
+**Live-task authority:** `docs/product/LIVE_EXECUTION_ACTIVITY.md`  
+**Public-target authority:** `docs/product/PUBLIC_TARGET_ASSESSMENT.md`
 
-This document exists because a correct backend can still be presented through a poor, contradictory, dashboard-first UI. That is a product regression. Agents are not allowed to improvise the product's interface from existing markup, old screenshots, generic dashboard instincts, or whichever CSS file happens to be easiest to patch.
+This document exists because a correct backend can still be presented through a poor, contradictory, dashboard-first, unsafe or state-fabricating UI.
 
 ---
 
 ## 1. Non-negotiable product model
 
-VulnHunter is an **AI-first, conversation-controlled security workspace**.
-
-It is **not**:
-
-- an admin dashboard with a chatbot added;
-- a KPI wall;
-- a collection of independent backend-module pages;
-- a generic SOC console;
-- a cyberpunk terminal UI;
-- a blue-and-white SaaS dashboard;
-- a desktop dashboard squeezed into a phone viewport.
+VulnHunter is a **conversation/task-first authorised security workspace**.
 
 The default experience is:
 
 ```text
-conversation / attachment
+conversation / attachment / target
 → exact governed interpretation
 → required authorization / confirmation / approval
 → persisted task execution
-→ live truthful task state
+→ truthful live activity
 → tool receipts / evidence / findings / recommendations
 → contextual deep view only when more room or identity-bound action is required
 ```
 
-The conversation and its task timeline are the centre of gravity. Specialist pages are supporting deep views of the same persisted state.
+It is not:
+
+- an admin dashboard with a chatbot attached;
+- a KPI wall;
+- a generic SOC console;
+- a cyberpunk terminal UI;
+- a generic blue-and-white SaaS dashboard;
+- a desktop dashboard squeezed onto phone;
+- a black-box worker with only a spinner;
+- a UI that treats a public URL as permission.
 
 ---
 
 ## 2. Mandatory authority order
 
-Before any UI change, read and obey these sources in this exact order:
+Before browser UI work, read in this order:
 
-1. repository-root `AGENTS.md` — security, authorization and engineering truth;
-2. `vulnhunter/web/AGENTS.md` — web-specific agent rules;
-3. `docs/design/VULNHUNTER_UI_CONTRACT.md` — canonical visual and interaction contract;
-4. **this file** — exact implementation discipline and rejection criteria;
-5. `docs/design/references/manifest.json` — approved reference usage and mandatory ignore rules;
-6. `docs/design/DEPRECATIONS.md` — patterns that must not be revived;
-7. `docs/product/CHAT_FIRST_WORKSPACE.md` — workflow semantics;
-8. `docs/product/UI_ACCEPTANCE_CRITERIA.md`;
-9. `docs/product/RESPONSIVE_AND_ACCESSIBILITY.md`;
-10. repository-backed routes, actions, persisted states, permissions, tests and shared primitives.
+1. `AGENTS.md`;
+2. `vulnhunter/web/AGENTS.md`;
+3. `docs/design/VULNHUNTER_UI_CONTRACT.md`;
+4. this file;
+5. `docs/design/references/manifest.json`;
+6. `docs/design/DEPRECATIONS.md`;
+7. `docs/product/CHAT_FIRST_WORKSPACE.md`;
+8. `docs/product/LIVE_EXECUTION_ACTIVITY.md`;
+9. `docs/product/PUBLIC_TARGET_ASSESSMENT.md` when website/public-target behavior is affected;
+10. `docs/product/UI_ACCEPTANCE_CRITERIA.md`;
+11. `docs/product/RESPONSIVE_AND_ACCESSIBILITY.md`;
+12. relevant routes/actions/projections/persisted state/security/tests/shared primitives.
 
-When another document disagrees with this order, the higher source wins.
-
-### Existing implementation is never design authority
-
-Current templates, CSS, JavaScript and tests may encode implementation debt. They are evidence of what exists, not permission to preserve a bad composition.
-
-If existing code conflicts with the locked contract:
-
-- preserve backend behavior and security boundaries;
-- replace or refactor the contradictory presentation;
-- update tests that encode the deprecated presentation;
-- do **not** weaken the contract to make the old markup easier to keep.
+Current implementation is never visual/product authority when it conflicts with this chain.
 
 ---
 
-## 3. Reference hierarchy — exact roles
+## 3. Reference roles
 
-The three design influences have different jobs. Agents must not blend their responsibilities arbitrarily.
+### MonkeyCode — structure/task behavior
 
-### 3.1 MonkeyCode — structural interaction reference
-
-MonkeyCode is the primary reference for **workspace structure and task behavior**, including:
+Use for:
 
 - compact chat/task sidebar;
-- `+ New assessment` entry point;
-- current running task prominence;
-- recent chats/tasks;
+- current/recent tasks;
 - task history;
-- task title + status + elapsed duration;
-- running-operation timeline;
-- queued follow-up instructions;
-- reconnect / restore behavior;
-- contextual task controls;
-- mobile overlay drawer;
-- task-oriented rather than dashboard-oriented navigation;
-- persistent composer while work is running.
+- running timeline;
+- queued follow-ups;
+- reconnect/restore;
+- persistent composer;
+- contextual controls;
+- mobile overlay drawer.
 
-Do not copy MonkeyCode branding, account tiers, provider names, model names, Projects terminology, unsupported controls, or sample content.
+Never copy branding, Projects/account tiers, provider/model names or unsupported actions.
 
-### 3.2 Beautiful UI — AI-native component and microinteraction reference
+### Beautiful UI — AI-native primitives
 
-`https://beautiful-ui-five.vercel.app/` is the component-interaction reference for making VulnHunter feel like a polished AI product.
+Use for:
 
-Use the patterns below only when backed by real VulnHunter state:
+- loading/safe activity;
+- assistant streaming;
+- approval/confirmation cards;
+- tool chips;
+- task rows;
+- chat/prompt bar;
+- recommendation/context/finding cards;
+- code/diff presentation;
+- search/deep-view records.
 
-| Beautiful UI pattern | VulnHunter use |
-|---|---|
-| Loading State | bounded preparation, upload verification, worker startup, state restoration |
-| Thinking | safe user-facing activity summary only; never hidden chain-of-thought |
-| Streaming Text | assistant response streaming where supported |
-| Approval Card | immutable plan confirmation, source-processing approval, controlled-validation decisions |
-| Tool Chips | tool receipts, provenance, tool state, duration and evidence links |
-| Task Rows | persisted assessment stages and task graph projection |
-| Chat | primary assessment workspace |
-| Prompt Bar | primary persistent composer |
-| Recommendation Card | remediation recommendation or safe next action |
-| Context Cards | evidence, file/line source references, request/response, proof capsule, provenance |
-| Diff Table | proposed remediation/source changes when repository-backed |
-| Records Table | specialist/deep views such as findings or authorization records |
-| Filter Table | deep-view filtering, never a replacement for the conversation |
-| Sidebar Nav | compact task/chat shell patterns |
-| Search | task/history/finding/evidence search when backed by existing capability |
-| Insight Cards | only real persisted insights; never decorative KPI cards |
-| Code Block | source evidence, bounded code excerpts, remediation snippets |
-| Selection Actions | only actions actually supported for selected evidence/code/text |
+Never copy its branding, palette, rounding, Fine-tune controls, dictation, sample commands, provider/model selectors or hidden model reasoning.
 
-Do **not** implement a Fine-tune Card, fictional model selector, provider selector, dictation control, command palette action, or sample Beautiful UI function merely because the reference contains it. Product capability must already exist and be authorized by repository contracts.
+### VulnHunter — identity/functionality/authority
 
-### 3.3 VulnHunter visual language — identity and styling
+VulnHunter owns:
 
-The canonical VulnHunter visual language is the warm editorial system:
-
-- warm cream/off-white canvas; historical approved reference around `#F7F3EE`, repository canonical token `--vh-canvas: #f5f2ec`;
-- subtle dotted/graph-paper texture;
-- dusty pink primary/accent state;
-- near-black text and technical borders;
+- actual routes/actions/capabilities;
+- authorization/security boundaries;
+- persisted state/evidence/findings;
+- terminology;
+- warm cream/off-white dotted canvas;
+- dusty-pink accent;
 - compact dark sidebar;
-- bold grotesk headings;
-- monospace/typewriter technical metadata and controls;
-- square or nearly-square geometry;
-- hard black zero-blur offset shadows;
-- generous whitespace;
-- restrained semantic green/warning/danger colors only for truthful state.
-
-Beautiful UI does **not** override this palette, geometry, typography or shadow system.
+- near-black technical text/borders;
+- square/nearly-square geometry;
+- hard zero-blur offset shadows.
 
 ---
 
 ## 4. Canonical desktop composition
 
-The everyday desktop Assessment Workspace must follow this conceptual composition:
-
 ```text
-┌──────────────────┬──────────────────────────────────────────┬───────────────────┐
-│ VULNHUNTER       │ current task / breadcrumb          ⋯     │ contextual detail │
-│ AI SECURITY      ├──────────────────────────────────────────┤ drawer             │
-│                  │                                          │                   │
-│ + New assessment │ conversation                             │ only when opened   │
-│                  │                                          │                   │
-│ CHATS / TASKS    │ user request                             │ evidence           │
-│ ● current target │                                          │ finding            │
-│   Running · 02:41│ VulnHunter response                      │ approval detail    │
-│   recent task    │                                          │ tool receipt       │
-│   recent task    │ ✓ Authorization                          │ source file        │
-│                  │ ✓ Plan                                   │                   │
-│ Task history     │ ◌ Nuclei assessment                      │                   │
-│ Manage ▸         │ ○ Verification                           │                   │
-│ Settings         │                                          │                   │
-│                  │ [Nuclei ✓] [HTTP ✓] [Evidence 3]        │                   │
-│ user / role      │                                          │                   │
-│                  │ ┌──────────────────────────────────────┐ │                   │
-│                  │ │ Ask VulnHunter…                  ➜   │ │                   │
-│                  │ └──────────────────────────────────────┘ │                   │
-└──────────────────┴──────────────────────────────────────────┴───────────────────┘
+┌──────────────────┬─────────────────────────────────────────┬──────────────────┐
+│ task/chat sidebar│ current conversation + task timeline    │ contextual detail│
+│                  │                                         │ only when opened │
+│ + New assessment │ user / assistant messages               │ evidence/finding │
+│ current task     │ task rows / tool chips / live activity  │ receipt/source   │
+│ recent tasks     │ contextual cards                        │                  │
+│ history/manage   │ persistent composer                     │                  │
+└──────────────────┴─────────────────────────────────────────┴──────────────────┘
 ```
 
 Rules:
 
-- sidebar is the stable everyday navigation surface;
-- conversation owns the main width;
-- a right-hand contextual drawer is **closed by default** and opens only for detail;
-- do not create a permanent metrics rail;
-- do not create a permanent row of global action buttons below the page title;
-- do not display four large state cards merely to repeat Authorization / Scope / Approval / Active;
-- state belongs in the task flow and compact task header where relevant;
-- the composer remains visually anchored and reachable.
+- conversation owns main width;
+- right detail is closed by default;
+- no permanent metrics rail;
+- no wide action row competing with task;
+- no four-card state strip;
+- composer remains anchored/reachable;
+- running state updates in place.
 
 ---
 
 ## 5. Canonical mobile composition
 
-Mobile is not a compressed desktop dashboard. It is a one-column AI task workspace.
+Phone is one column:
 
 ```text
-┌─────────────────────────────────┐
-│ ☰   target / task title      ⋯  │
-├─────────────────────────────────┤
-│ Running · 02:41                 │
-│                                 │
-│ ✓ Authorization verified        │
-│ ✓ Passive plan prepared         │
-│ ◌ Nuclei assessment             │
-│ ○ Evidence normalization        │
-│ ○ Verification                  │
-│                                 │
-│ VulnHunter                      │
-│ I found two candidate issues…   │
-│                                 │
-│ [Nuclei ✓] [HTTP ✓]             │
-│                                 │
-│ finding / approval / context    │
-│ card when relevant              │
-│                                 │
-├─────────────────────────────────┤
-│ +  Ask VulnHunter…          ➜   │
-└─────────────────────────────────┘
+☰  current task                               ⋯
+
+Running · truthful duration if derivable
+
+✓ Authorization verified
+✓ Plan confirmed
+◌ Nuclei assessment
+○ Verification
+
+assistant response
+[tool chips]
+[context/finding/approval/live activity]
+
++ Ask VulnHunter…                          ➜
 ```
 
-The hamburger opens the task drawer:
+Requirements:
 
-```text
-VULNHUNTER
-
-+ New assessment
-
-CHATS / TASKS
-● current target
-  Running · 02:41
-
-APK assessment
-Completed
-
-Source Hunt
-Blocked · approval
-
-Task history
-Manage ▸
-Settings
-
-user / Security Analyst
-```
-
-Mobile requirements:
-
-- no horizontal page scrolling at supported phone widths;
-- no desktop toolbar squeezed into one line;
-- no clipped buttons such as `New wo…`;
-- no four-column/four-card desktop grids reduced to tiny cards;
-- no unreadably small body copy;
-- primary body copy should normally render at approximately `15–17px` on phone;
-- critical controls use at least `44px` touch targets;
-- the composer must remain usable without obscuring the active content;
-- details become full-width cards, drawers, sheets or dedicated deep views;
-- sidebar becomes an overlay drawer rather than a narrow permanent desktop rail;
-- phone screenshots are a required acceptance artifact for meaningful UI changes.
+- no essential horizontal page scroll;
+- no clipped primary actions;
+- no desktop toolbar/grid squeezed onto phone;
+- body text generally ~15–17px on phone;
+- critical touch targets ~44px minimum;
+- composer reachable with keyboard open;
+- context/activity detail becomes full-width sheet/drawer/deep view;
+- long paths/URLs/hashes wrap/truncate deliberately.
 
 ---
 
-## 6. Canonical conversation anatomy
+## 6. Public-target implementation rule
 
-A healthy VulnHunter conversation uses a small set of durable primitives rather than arbitrary cards.
+Authorised public targets are a supported product class.
+
+A public target UI must show the difference between:
+
+- target classification;
+- authorization existence/scope;
+- worker capability/readiness;
+- immutable plan;
+- confirmation/approval;
+- actual queued/running execution.
+
+Never implement public support by browser-only toggles or by presenting a public URL as authorized.
+
+When runtime is private-only, the UI should say something like:
+
+```text
+Public target authorized
+Execution unavailable
+The configured worker is private-target-only.
+```
+
+rather than claiming it queued.
+
+After public runtime exists, the same task flow continues into plan/queue/live activity.
+
+See `PUBLIC_TARGET_ASSESSMENT.md`.
+
+---
+
+## 7. Live execution implementation rule
+
+When work is queued/running/recovering, show persisted operational telemetry.
+
+Required when backend exposes it:
+
+- current stage;
+- completed/pending stages;
+- active worker/tool;
+- safe current target/file/artifact;
+- real receipt/evidence/candidate counts;
+- latest event;
+- failure/recovery/preserved work;
+- safe supported action.
+
+Do not append one assistant paragraph per poll. Update one stable task group/timeline.
+
+A separate Activity/Inspector view may provide detail, but the conversation must make basic task health understandable.
+
+Do not expose chain-of-thought. See `LIVE_EXECUTION_ACTIVITY.md`.
+
+---
+
+## 8. Conversation anatomy
+
+Use a small durable primitive set.
 
 ### User message
 
-Clean text block with optional attachment reference. Avoid oversized rounded chat bubbles.
+Clean text with optional attachment reference. Avoid oversized bubbly chat balloons.
 
 ### Assistant message
 
-Readable prose with optional structured objects below it. Assistant text must remain high-contrast and readable; do not use near-white text on a cream background.
+Readable high-contrast prose with structured state below it when useful.
 
 ### Task group
-
-A single stage list projects persisted task state:
 
 ```text
 ✓ Check authorization
 ✓ Prepare immutable plan
-Ⅱ Waiting for confirmation
-○ Queue worker
-○ Normalize evidence
-○ Deterministic verification
+◌ Nuclei assessment
+○ Evidence normalization
+○ Verification
 ```
 
-Only one visual state system is allowed.
+One state language only.
 
-### Tool receipts
-
-Tool chips summarize real execution/provenance:
+### Tool chips
 
 ```text
-[Nuclei ✓ 14.2s] [HTTP probe ✓] [Evidence normalizer ◌]
+[Nuclei ◌]
+[HTTP probe ✓ 1.2s]
+[Evidence 4]
 ```
 
-Expanding a chip may show version, start/end, worker identity, policy, exit state, evidence count and digest if those values are actually available.
+Only from real receipts/state.
 
-### Context/evidence card
+### Authorization/approval cards
 
-Shows the minimum useful evidence and provenance, then allows a deeper view.
+Show exact object/action/scope and backend-supported decisions. Authorization, owner plan confirmation and independent approval remain distinct.
 
-### Finding card
+### Context/evidence/finding cards
 
-Prioritizes severity/state, finding title, concise explanation, evidence/provenance count and one or two relevant actions.
-
-### Approval/confirmation card
-
-Shows the exact object, exact requested action, reason the decision is needed, and backend-supported decision controls. Do not reduce all decision types to a generic `Approve` button.
-
-### Recommendation card
-
-May show a remediation or safe next step. It is advisory, not authority.
+Show concise summary/provenance and allow deeper inspection.
 
 ---
 
-## 7. Safe “Thinking” and streaming behavior
+## 9. Source Hunt implementation rule
 
-VulnHunter may show **user-facing activity**, not private reasoning.
+Source Hunt is conversational/contextual first.
+
+Specialist setup may collect exact root/revision/permitted paths/password/attestations.
+
+Before full submission, use deterministic preflight when available:
+
+```text
+Root             /workspaces/project
+Revision         HEAD → abc123
+Eligible Python  684 / 2,000
+Eligible bytes   12.4 MB / 50 MB
+Permitted paths  vulnhunter/
+```
+
+Predictable limits should be shown before queue failure.
+
+Do not imply permitted paths constrain snapshot construction unless runtime actually enforces that.
+
+After queueing, return to the conversation and show snapshot/inventory/hunt/falsification/capability/remediation activity from persisted events.
+
+---
+
+## 10. APK implementation rule
+
+APK analysis starts from attachment flow.
+
+Distinguish:
+
+```text
+upload
+→ uploaded/validating
+→ integrity verified
+→ static tools
+→ evidence
+→ verification
+```
+
+100% upload is not assessment completion.
+
+Uploading never implies dynamic execution.
+
+Individual tool receipts/failures remain truthful and preserve partial work.
+
+---
+
+## 11. Running/composer behavior
+
+- composer remains usable while supported work runs;
+- follow-up can be visibly queued where backend supports it;
+- reconnect reconstructs state and never restarts work;
+- leaving page does not imply cancellation;
+- Cancel only when backend supports it;
+- Pause never without a real pause/resume contract;
+- progress only from measured backend data.
+
+---
+
+## 12. Safe activity / streaming
 
 Allowed:
 
 ```text
 Checking authorization…
 Preparing bounded passive plan…
-Waiting for worker receipt…
+Worker claimed signed job…
 Reviewing persisted evidence…
 ```
 
@@ -324,315 +343,160 @@ Forbidden:
 
 - hidden chain-of-thought;
 - private reasoning traces;
-- fabricated internal deliberation;
+- fake internal deliberation;
 - fake percentages;
-- animated “thinking” that implies backend work not actually occurring.
+- animated work with no backend state.
 
-If streaming is supported, stream the answer text. Do not expose hidden reasoning tokens.
-
----
-
-## 8. Source Hunt interaction contract
-
-Source Hunt must not default to a giant standalone admin form.
-
-Preferred flow:
-
-```text
-User: Review this repository.
-
-VulnHunter
-Source Hunt
-Repository: /workspaces/project
-Revision: abc123…
-
-✓ Repository root resolved
-✓ Eligible snapshot created
-Ⅱ Exact source-processing approval required
-
-[Review source-processing approval]
-```
-
-A specialist Source Hunt deep view may collect exact root/revision/permitted paths, re-authentication and attestations when required. It should feel like a focused continuation of the same task, not a separate dark dashboard product.
-
-The result must project back into the originating conversation.
+Streaming streams user-facing answer text only.
 
 ---
 
-## 9. APK/mobile-analysis interaction contract
+## 13. Failure/recovery
 
-APK analysis begins from the conversation attachment flow.
+Failure should show, when available:
 
-Expected stages may include, only where backed by real state:
+- exact stage;
+- safe category/reason/reference;
+- completed stages;
+- preserved artifact/evidence/snapshot;
+- whether retry exists;
+- exact retry scope;
+- user-vs-operator action required.
 
-```text
-✓ Upload complete
-✓ SHA-256 verified
-◌ Static analysis
-  [AAPT ✓] [JADX ✓] [Apktool ✓]
-○ Evidence normalization
-○ Verification
-```
+Recovery updates same task identity.
 
-Never imply that uploading an APK executed it. Dynamic execution remains separately governed.
-
----
-
-## 10. Approval and authorization interaction contract
-
-The interface must distinguish:
-
-- authorization existence/scope;
-- owner confirmation of an immutable low-risk plan;
-- independent approval;
-- step-up authentication;
-- human review;
-- adjudication.
-
-Example exact-plan confirmation:
-
-```text
-Confirmation required
-
-Passive assessment plan
-Target       10.0.0.12
-Port         443
-Scanner      Nuclei
-Profile      Passive
-Rate limit   1
-Concurrency  1
-Plan digest  abcd…
-
-[Cancel]                         [Confirm and continue]
-```
-
-An independent approval may require a separate governed actor and must not be visually mislabeled as the same kind of confirmation.
+Do not offer Retry when backend cannot safely/idempotently retry.
 
 ---
 
-## 11. Search, history and utility controls
+## 14. CSS/presentation architecture
 
-Utility actions must not become a giant toolbar competing with the task.
+For each affected component:
 
-Preferred placement:
+1. identify canonical tokens (`tokens.css`);
+2. identify existing component/style owner;
+3. remove/consolidate contradictory rules;
+4. keep responsive behavior with owner;
+5. remove dead selectors when safe;
+6. avoid `!important` as normal repair;
+7. never add a global patch stylesheet just to win cascade order;
+8. do not introduce page-local palette/radius/shadow/type systems;
+9. preserve CSP/no-inline-script requirements.
 
-- search: compact top-bar icon or command/search surface;
-- history: sidebar/task history or compact drawer trigger;
-- export/report: contextual action after a relevant persisted result exists;
-- Source Hunt: contextually initiated from chat or available through progressive disclosure;
-- new workspace: prominent `+ New assessment` in sidebar/drawer and an optional compact task-menu action.
-
-Do not render a horizontal page-header row containing `Source Hunt / Search / Export / History / New workspace` as the default mobile or desktop composition.
-
----
-
-## 12. Explicitly rejected current-implementation patterns
-
-The following patterns are implementation debt and must **not** be preserved merely because they currently exist:
-
-1. four large top state cards for `Authorization`, `Scope`, `Approval`, `Active` on the ordinary conversation page;
-2. a wide row of page-level utility buttons directly below the workspace title;
-3. giant empty conversation canvases caused by sparse content being vertically detached from the composer;
-4. tiny, low-contrast assistant text on cream backgrounds;
-5. blue-glow shield/orb decoration that contradicts the locked warm editorial identity;
-6. dark dashboard panels used for ordinary Source Hunt/workspace composition;
-7. `Runs / Scanner / Execution / Entry point` KPI-style cards as the primary assessment history experience;
-8. a giant Source Hunt form as the primary way a user starts source analysis;
-9. multiple competing navigation systems simultaneously visible;
-10. desktop layouts mechanically squeezed onto phones;
-11. clipped or horizontally overflowing header controls;
-12. giant areas of unused space while essential task state is tiny;
-13. dashboard cards that merely restate backend fields without helping the current task;
-14. page-specific style overrides that fight the canonical tokens;
-15. adding another stylesheet at the end of the cascade simply to override earlier contradictory styles.
-
-An agent seeing these patterns should treat them as candidates for removal/refactor, not visual precedent.
+Migration should reduce the number of competing style owners.
 
 ---
 
-## 13. CSS and presentation architecture
+## 15. Explicitly rejected current/deprecated patterns
 
-The repository currently contains several historical UI stylesheets. Agents must reduce drift rather than add more override layers.
+Treat these as debt, not precedent:
 
-Rules:
-
-- prefer canonical tokens from `tokens.css`;
-- prefer a small set of shared workspace primitives;
-- consolidate contradictory selectors rather than append `!important` patches;
-- do not create a new global stylesheet solely to override an existing global stylesheet;
-- avoid route-specific color/radius/shadow systems;
-- page-specific CSS may arrange product-specific content but must consume shared design tokens/primitives;
-- remove dead/deprecated styles when safely replacing a surface;
-- preserve CSP requirements and no-inline-script rules;
-- use shared DOM/state contracts instead of duplicate browser state machines;
-- avoid duplicated responsive rules scattered across many files for the same component.
-
-Before adding CSS, the agent must identify which existing stylesheet owns the component and explain why a new rule belongs there.
-
----
-
-## 14. Readability and density requirements
-
-The visual direction is spacious, but “spacious” does not mean “empty and tiny.”
-
-- readable conversation column: approximately `680–900px` depending on surrounding panels;
-- ordinary desktop body text: generally `14–16px`;
-- ordinary phone body text: generally `15–17px`;
-- metadata may be smaller but must remain legible and high contrast;
-- avoid long lines stretching across the entire browser;
-- do not create huge blank vertical regions between a short message and the composer;
-- use whitespace to separate ideas, not to hide low information density;
-- technical data should progressively disclose rather than shrink.
+1. four large Authorization/Scope/Approval/Active cards;
+2. wide Source Hunt/Search/Export/History/New workspace toolbar;
+3. Runs/Scanner/Execution/Entry point KPI cards;
+4. giant dark Source Hunt/admin panels;
+5. giant Source Hunt form as primary entry;
+6. giant empty conversation areas while task state is tiny;
+7. low-contrast/tiny assistant text;
+8. blue-glow identity;
+9. desktop UI squeezed/clipped on phone;
+10. competing navigation systems;
+11. permanent context panel when not opened;
+12. repeated CSS patch layers;
+13. fake tool/progress/activity;
+14. generic “backend is running; check elsewhere” as sole live state;
+15. public URL treated as authorization.
 
 ---
 
-## 15. State truth requirements
+## 16. Mandatory implementation sequence
 
-Every visible status must be derived from persisted/backend truth or an explicitly non-authoritative local interaction state.
+Before editing:
 
-Never fabricate:
+1. inspect current `main`, open PRs, recent commits, CI;
+2. inspect exact backend projection/state powering the surface;
+3. identify the security/authorization boundary;
+4. identify existing component/style owner;
+5. define expected phone behavior;
+6. identify applicable MonkeyCode pattern;
+7. identify applicable Beautiful UI primitive;
+8. identify deprecated presentation to remove;
+9. define loading/blocked/running/failure/recovery states;
+10. define tests/browser evidence.
 
-- scan progress percentage;
-- finding count;
-- evidence count;
-- approval state;
-- authorization state;
-- worker readiness;
-- tool success;
-- provider readiness;
-- elapsed execution data that cannot be derived reliably;
-- completion;
-- recovery success.
+During implementation:
 
-Unknown is displayed as unknown/unavailable, not replaced with a pleasant-looking number.
+- preserve routes/API/auth/security/state truth;
+- reuse shared tokens/primitives;
+- do not duplicate frontend lifecycle stores;
+- keep desktop/mobile one system;
+- never invent backend capability/state;
+- never weaken authorization/public-target containment;
+- never expose hidden reasoning.
 
----
+After implementation:
 
-## 16. Required visual states
-
-When the affected feature can reach these states, design and test them:
-
-- initial/empty;
-- composing;
-- uploading;
-- validating upload integrity;
-- understanding request;
-- authorization missing;
-- authorization found;
-- confirmation required;
-- independent approval required;
-- queued;
-- running;
-- follow-up queued;
-- tool running;
-- evidence available;
-- finding available;
-- recovering;
-- failed safely;
-- cancelled;
-- completed;
-- provider unavailable / deterministic fallback;
-- permission denied;
-- reconnect/restored state.
-
-Do not build only the ideal screenshot.
+- run focused tests;
+- run `AGENTS.md` repository gates;
+- run real browser acceptance;
+- verify backend state matches UI;
+- verify representative phone widths;
+- report actual limitations.
 
 ---
 
-## 17. Required responsive viewports
+## 17. Public-target UI exit gate
 
-At minimum, meaningful workspace changes must be checked at representative widths close to:
+A public-target UI slice is not complete unless:
 
-- `360px` phone;
-- `390px` phone;
-- `412px` phone;
-- `768px` tablet;
-- `1024px` compact desktop/tablet landscape;
-- `1280px` desktop;
-- `1440px` desktop.
-
-Acceptance does not require pixel-identical screenshots, but it requires the same product hierarchy and no broken layout.
-
-Immediate failure conditions include:
-
-- any essential horizontal page scroll on phone;
-- clipped primary controls;
-- unreadable text;
-- composer outside the viewport/reachability contract;
-- desktop sidebar permanently occupying phone width;
-- approval controls inaccessible without horizontal scrolling;
-- evidence/code causing uncontrolled viewport overflow;
-- a header action row wider than the phone.
+- exact authorization state is backend-driven;
+- target class is truthful;
+- private-only worker blocker is truthful when applicable;
+- public-capable worker state appears only when runtime supports it;
+- plan decision is exact/digest-bound;
+- reconnect preserves same task;
+- no browser control can broaden scope/worker capability.
 
 ---
 
-## 18. Required screenshot / browser evidence
+## 18. Live-execution UI exit gate
 
-For significant UI work, the agent must provide browser evidence for applicable states, not merely unit tests.
+A long-running UI slice is not complete unless:
 
-Minimum recommended evidence set:
-
-1. login on phone;
-2. empty/new workspace on phone;
-3. mobile drawer open;
-4. running assessment on phone;
-5. approval/confirmation required on phone;
-6. finding/evidence context on phone;
-7. empty/new workspace desktop;
-8. running task desktop;
-9. contextual drawer desktop;
-10. Source Hunt initiation;
-11. APK attachment state when changed;
-12. recovery/failure state when changed.
-
-The agent must compare the result against the canonical contract, not merely verify that the browser rendered without exceptions.
+- worker/service persists meaningful activity;
+- projection exposes it;
+- conversation renders it;
+- reconnect deduplicates/reconstructs it;
+- browser tests compare rendered state with persisted state;
+- no fake percentage/tool/event exists.
 
 ---
 
-## 19. Agent pre-edit checklist
+## 19. Browser/phone acceptance
 
-Before editing, an agent must be able to answer:
+Verify representative widths near:
 
-- What is the current user task?
-- Does this belong in conversation, sidebar, contextual drawer, or specialist deep view?
-- Which MonkeyCode structural pattern applies?
-- Which Beautiful UI primitive applies, if any?
-- Which VulnHunter backend state powers it?
-- Which existing shared primitive/style owner should be changed?
-- What must disappear from the current UI rather than be preserved?
-- What happens on a 360–412px phone?
-- What are the blocked/error/recovery states?
-- What security/authority boundary must remain backend-owned?
+`360`, `390`, `412`, `768`, `1024`, `1280`, `1440` CSS pixels.
 
-If these questions cannot be answered, the agent should inspect more code/docs before writing UI code.
+Applicable evidence includes:
+
+- empty/new workspace;
+- authorization required/verified;
+- public target blocked/running when supported;
+- plan confirmation/approval;
+- queued/running live task;
+- Source Hunt preflight/running;
+- APK upload/tool state;
+- evidence/finding;
+- failure/recovery/cancellation;
+- reconnect;
+- contextual drawer/sheet;
+- keyboard/focus/touch/reduced-motion behavior.
 
 ---
 
-## 20. Agent definition of done
+## Final rule
 
-UI work is not complete until all applicable statements are true:
+A generic dashboard is not close enough. A polished screenshot with fabricated state is a failure. A public-target shortcut that weakens containment is a failure. A spinner-only running task when the backend has useful activity is a failure. A desktop-only result is a failure.
 
-- the primary experience is still conversation/task-first;
-- no deprecated dashboard pattern was reintroduced;
-- MonkeyCode structural rules were followed where relevant;
-- Beautiful UI primitives were adapted rather than visually copied wholesale;
-- VulnHunter cream/dotted/pink/dark-sidebar identity remains intact;
-- desktop and phone have the same hierarchy;
-- no horizontal phone overflow exists;
-- text remains legible;
-- the composer remains usable during running work;
-- queued follow-ups behave truthfully where supported;
-- contextual detail opens only when needed;
-- state is backend-derived;
-- security/authorization/approval authority was not moved into browser code;
-- shared tokens/primitives were used;
-- CSS override debt was not increased;
-- real browser checks were performed for changed critical flows;
-- relevant automated tests pass;
-- remaining limitations are reported explicitly.
-
-A result that technically works but looks like a generic dashboard is **not done**.
-
-A result that resembles a reference screenshot but invents unsupported product behavior is **not done**.
-
-A result that looks good on desktop but is clipped, tiny or horizontally scrolling on phone is **not done**.
+The UI is complete only when **security truth, persisted task truth, canonical design and responsive/accessibility evidence agree**.

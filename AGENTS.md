@@ -1,110 +1,334 @@
 # VulnHunter AI — Permanent Agent Operating Manual
 
-## 1. Purpose
+**STATUS: BINDING FOR THE ENTIRE REPOSITORY**
 
-VulnHunter AI is an authorised, laboratory-only security-research platform. It maps approved local/private web targets, creates passive security observations, preserves human review authority, and supports reproducible machine-learning experiments.
+This file is the first authority every human or coding agent must read before changing VulnHunter.
 
-This file is the binding operating manual for humans and AI coding agents working in this repository.
+---
 
-## 2. Non-negotiable product boundary
+## 1. Product identity
 
-VulnHunter may assist with:
+VulnHunter AI is an **authorised security-assessment platform** for private/laboratory targets, owner-controlled public targets, and other public targets covered by explicit written/program authorization.
 
-- validating authorised laboratory targets;
-- recording explicit time-limited human authorization before manual scans;
-- bounded GET/HEAD HTTP collection;
-- passive mapping and passive security observations;
-- sanitised persistence and audit events;
-- human review and labelling;
-- reproducible dataset construction;
-- model training, diagnostics, and decision support.
+The product combines deterministic scope and execution controls, evidence provenance, bounded scanners, human authority, optional advisory AI, source-code analysis, mobile analysis and a conversation/task-first browser workspace.
+
+**Public Internet does not mean ungoverned.** VulnHunter may assess an authorised public target, but it must never scan an arbitrary public target merely because a URL was supplied.
+
+---
+
+## 2. Non-negotiable security boundary
+
+VulnHunter may support:
+
+- exact private and public target normalization;
+- explicit time-limited authorization records;
+- owner-controlled public-target self-attestation where product policy permits it;
+- independently approved client/third-party targets;
+- bug-bounty/Vulnerability Disclosure Programme targets within the exact programme scope;
+- bounded passive HTTP/security collection;
+- reviewed Nuclei execution through a governed worker;
+- evidence normalization and deterministic verification;
+- Source Hunt against exact approved source snapshots;
+- APK/static analysis and separately governed dynamic/active validation where implemented;
+- human review, adjudication and publication governance;
+- reproducible ML/retrieval experiments and advisory model assistance.
 
 VulnHunter must not:
 
-- scan arbitrary public Internet targets;
-- exploit vulnerabilities;
-- brute-force credentials;
-- submit destructive forms;
-- upload payloads;
-- bypass authentication or access controls;
-- alter human labels automatically;
-- represent synthetic benchmark metrics as production performance;
-- log or persist raw secrets, authentication values, cookies, or unredacted sensitive data.
+- scan an arbitrary or unverified public target;
+- infer permission from a URL, chat message, model output or screenshot;
+- weaken scope/authorization to make a workflow succeed;
+- permit DNS rebinding or redirects to pivot from a public target into private, loopback, link-local or metadata networks;
+- brute-force credentials without a separately approved product contract;
+- perform destructive actions, denial of service, persistence or data destruction;
+- upload or execute arbitrary payloads against a target;
+- bypass authentication/access control merely to continue a scan;
+- let an AI model grant authorization, approval, verification, severity, review, merge, release or publication authority;
+- persist raw secrets, authentication values, cookies, private keys or unredacted sensitive data;
+- present benchmark/model scores as real-world production performance without the required governed evidence.
 
-Stop immediately when a requested change weakens any of these boundaries.
+When the requested change would weaken one of these boundaries, stop and report the exact conflict.
 
-## 3. Current architecture
+---
 
-Core flow:
+## 3. Mandatory product/security documents
 
-```text
-Raw target URL
-    -> initial scope validation
-    -> ApprovedTarget
-    -> derived URL / redirect validation
-    -> ScopedUrl
-    -> SafeHttpClient
-    -> connection-time DNS revalidation
-    -> pinned approved TCP address
-    -> bounded response
-    -> passive mapper
-    -> passive observations
-    -> redacted SQLite persistence
-    -> governed campaign scan link
-    -> authenticated reviewer assignments
-    -> consensus or independent adjudication
-    -> identity-bound review attestations
-    -> governed dataset release manifest
-    -> deduplicated reviewed dataset
-    -> scan-group-isolated model selection/evaluation
-    -> decision-support prediction
-```
+Before substantial work, read the documents relevant to the affected boundary.
 
-Primary packages:
+### Website/private/public target work
 
-- `vulnhunter/scope/`: technical target approval and derived-URL containment.
-- `vulnhunter/authorization/`: explicit permission records, limits, revocation, and audit events.
-- `vulnhunter/security/`: redaction and sensitive-data handling.
-- `vulnhunter/scanner/`: request policy, cancellation, budgets, rate limits, and HTTP transport.
-- `vulnhunter/mapping/`: bounded passive crawling and link discovery.
-- `vulnhunter/observations/`: passive checks, persistence, effective labels, and review queues.
-- `vulnhunter/review/`: consensus, disputes, adjudication, and immutable review contracts.
-- `vulnhunter/governance/`: authenticated identities, collection campaigns, assignments, attestations, and release gates.
-- `vulnhunter/orchestration/`: bounded change specifications, deterministic evaluation, role gates, audit events, and guarded recovery.
-- `vulnhunter/ml/`: dataset preparation, features, grouped splitting, training, tuning, provenance, and diagnostics.
-- `vulnhunter/benchmark/`: controlled loopback benchmark workflow.
-- `vulnhunter/cli.py`: Typer command-line interface.
+1. `docs/product/PUBLIC_TARGET_ASSESSMENT.md`
+2. `docs/product/LIVE_EXECUTION_ACTIVITY.md`
+3. `docs/product/CHAT_FIRST_WORKSPACE.md`
+4. relevant authorization/scope/scanner implementation and tests
 
-## 4. Required engineering workflow
+### Source Hunt
 
-Substantial delivery must also follow
-`docs/engineering/TEST_ENGINEERED_BATCH_DELIVERY.md`. Related capabilities may be
-combined into one dependency-aligned batch when they share one authoritative
-lifecycle, trust boundary, cancellation model and acceptance path. Unrelated
-features must not be bundled merely to reduce pull-request count. No required
-test, security, browser, phone, worker or repository gate may be bypassed or
-weakened to make a batch pass.
+1. `docs/product/SOURCE_HUNT.md`
+2. `docs/product/LIVE_EXECUTION_ACTIVITY.md`
+3. `docs/product/CHAT_FIRST_WORKSPACE.md`
+4. exact source-processing, snapshot, provider and queue implementation/tests
+
+### Browser UI
+
+Read in this exact order:
+
+1. this file;
+2. `vulnhunter/web/AGENTS.md`;
+3. `docs/design/VULNHUNTER_UI_CONTRACT.md`;
+4. `docs/design/AI_AGENT_UI_IMPLEMENTATION_STANDARD.md`;
+5. `docs/design/references/manifest.json`;
+6. `docs/design/DEPRECATIONS.md`;
+7. `docs/product/CHAT_FIRST_WORKSPACE.md`;
+8. `docs/product/LIVE_EXECUTION_ACTIVITY.md`;
+9. `docs/product/UI_ACCEPTANCE_CRITERIA.md`;
+10. `docs/product/RESPONSIVE_AND_ACCESSIBILITY.md`;
+11. relevant backend routes, commands, projections, persisted state and tests.
+
+### ML/intelligence work
+
+Read the current-state/roadmap owners and the exact ML governance/architecture documents. Do not infer implementation status from an older programme document.
+
+---
+
+## 4. Authority order
+
+When sources disagree, use this order:
+
+1. security/authorization/runtime invariants in code and this operating manual;
+2. explicit current product contracts;
+3. `docs/design/VULNHUNTER_UI_CONTRACT.md` for visual/interaction rules;
+4. `docs/design/AI_AGENT_UI_IMPLEMENTATION_STANDARD.md` for frontend implementation discipline;
+5. approved reference manifest;
+6. current-state/roadmap owners;
+7. specialist/historical architecture documents;
+8. current implementation/tests only as evidence of what exists;
+9. agent preference — never authority.
+
+Old screenshots, old CSS, stale tests and historical docs do not override a newer binding contract.
+
+---
+
+## 5. Public-target rules
+
+Public-target support is a permanent product requirement, but it must be implemented through a distinct governed path.
+
+Required invariants:
+
+- exact target URL, protocol, port and path boundary;
+- explicit owner/controller and approver identity;
+- evidence reference and purpose;
+- exact approved scan profile and expiry;
+- explicit public/private address classification;
+- connection-time DNS/address containment;
+- no mixed public/private resolution;
+- no localhost, loopback, link-local, metadata or unsupported special-use destination;
+- approved-address pinning or an equivalent reviewed containment mechanism;
+- original hostname preserved for HTTP Host, TLS SNI and certificate validation;
+- every redirect independently revalidated;
+- worker policy explicitly declares whether it supports public execution;
+- a private-only worker continues to reject public jobs;
+- browser/chat cannot toggle a worker into public mode.
+
+**Do not implement public support by globally setting `allow_public=True`, deleting private-target assertions, or bypassing the worker policy.**
+
+The complete contract is `docs/product/PUBLIC_TARGET_ASSESSMENT.md`.
+
+---
+
+## 6. Authorization rules
+
+Technical scope validation and permission are separate.
+
+Every executable website assessment must present an active authorization record that covers the exact target and requested limits/profile.
+
+Authorization must be validated before creating a network-execution job.
+
+Expired, revoked, mismatched, tampered or over-limit authorization fails closed.
+
+Authorization events are append-only and redacted.
+
+Self-authorization may exist only for an owner-controlled target under an explicit product policy. Client/third-party/bounty scope must use an appropriate independent/written authorization basis.
+
+Do not store secrets inside the evidence reference.
+
+---
+
+## 7. Scope and transport rules
+
+A raw unvalidated URL must not reach network execution.
+
+For private and public targets:
+
+- only supported schemes are accepted;
+- embedded URL credentials are prohibited;
+- scheme, hostname, port and segment-aware path boundaries remain exact;
+- `/app` must not authorize `/application`;
+- redirects are disabled by default or manually revalidated;
+- connection-time DNS/address state must remain inside the authorized set/policy;
+- Host/TLS identity must remain the original hostname when address pinning is used;
+- a public hostname must not rebind to private/metadata space;
+- response bodies, requests, timeouts, retries and cancellation remain bounded;
+- automatic updates, public OAST, cloud upload and arbitrary command arguments remain prohibited unless a separate reviewed contract explicitly changes them.
+
+---
+
+## 8. Scanner/worker rules
+
+The browser prepares and approves plans; it does not execute scanner subprocesses directly.
+
+Worker capability is explicit and immutable for a job.
+
+A worker must validate:
+
+- authorization/plan/approval identity;
+- target class it is permitted to handle;
+- exact profile;
+- template manifest/digests;
+- rate/concurrency/timeout/output limits;
+- cancellation/expiry;
+- evidence output root;
+- transport containment.
+
+The current private-lab worker safety assertions are not expendable. Public support requires a reviewed public-capable execution boundary, not a permissive flag flip.
+
+---
+
+## 9. Live execution is mandatory product behavior
+
+Any long-running task that is queued/running must project meaningful persisted activity into the same workspace.
+
+The user should be able to understand:
+
+- current stage;
+- completed stages;
+- next stages;
+- active worker/tool where known;
+- real receipts/evidence/candidate counts;
+- blockers/failures/recovery;
+- preserved state;
+- available safe action.
+
+The product must not respond only with “backend is executing; go elsewhere to check.”
+
+Do not expose hidden chain-of-thought. Render safe operational telemetry only.
+
+The binding contract is `docs/product/LIVE_EXECUTION_ACTIVITY.md`.
+
+---
+
+## 10. Source Hunt rules
+
+Source Hunt binds to an exact repository root, revision, eligible-file snapshot hash and permitted paths.
+
+Remote source processing requires an exact time-limited approval and password re-authentication where the browser contract requires it.
+
+The current deterministic mapper is Python-first. Unsupported languages/ambiguous paths must not be silently treated as covered.
+
+Source Hunt must perform preflight before queueing and should surface file/byte/eligibility limits before the user receives a generic queue failure.
+
+Permitted paths must eventually constrain the snapshot/processing boundary in a way that is technically enforceable; do not imply that a form field narrowed the snapshot when runtime still scanned the entire repository root.
+
+Groq/model output may propose hypotheses, falsify them, assess capability and propose remediation. It cannot authorize processing, verify a finding, set severity, edit/merge code or publish.
+
+---
+
+## 11. APK/mobile rules
+
+Uploading an APK never means executing it.
+
+Static tools operate on an immutable validated artifact and persist individual tool receipts.
+
+Dynamic execution remains separately governed and environment-gated.
+
+Tool failures preserve partial evidence and do not fabricate findings.
+
+---
+
+## 12. Evidence and human authority
+
+Scanner observations and model hypotheses are evidence/candidates, not proof.
+
+Human review remains authoritative where the governance contract requires it.
+
+New governed real observations require the configured independent review/adjudication path.
+
+Predictions must never mutate review labels.
+
+Evidence shown to users/reviewers must be redacted and assessment-scoped.
+
+---
+
+## 13. Sensitive-data rules
+
+Redact before logging, persistence, prompts, exports or exceptions cross a trust boundary.
+
+Protected examples include:
+
+- authorization headers;
+- cookies/session identifiers;
+- passwords/secrets;
+- API keys/tokens;
+- private keys;
+- embedded URL credentials;
+- unnecessary emails/PII;
+- payment-card-like values.
+
+Raw response bodies may exist only as bounded short-lived values under the relevant execution policy.
+
+---
+
+## 14. AI/provider authority
+
+The current provider inventory is governed by `docs/product/AI_ROUTING.md` and current code. Do not reintroduce stale “Groq is the only provider everywhere” language when other approved advisory provider families exist.
+
+Provider/model controls never override deterministic policy.
+
+Models propose/retrieve/explain. VulnHunter validates/enforces/records authority.
+
+Source Hunt may remain Groq-specific when the Source Hunt contract says so.
+
+---
+
+## 15. Machine-learning rules
+
+Do not train on unreviewed/ineligible observations.
+
+Preserve release provenance, application-family isolation, calibration/OOD/abstention boundaries, model registry state and human authority as implemented by the current Programme 3 contracts.
+
+Never tune against a locked external holdout.
+
+Never describe a raw posterior as calibrated real-world confidence.
+
+Never claim real-world performance from synthetic benchmark evidence.
+
+---
+
+## 16. Engineering workflow
+
+Substantial delivery must follow `docs/engineering/TEST_ENGINEERED_BATCH_DELIVERY.md` where applicable.
 
 Before changing code:
 
-1. Read the relevant implementation, tests, public exports, and CLI wiring.
-2. Identify the security boundary and data-flow impact.
-3. Check whether a similar abstraction already exists.
-4. Define failure behaviour before happy-path behaviour.
-5. Decide how the change will be verified.
-6. Keep the Git working tree clean or explain why it is not.
+1. inspect current `main`, open PRs, recent commits and CI;
+2. read relevant implementation, tests and public exports;
+3. identify trust/security/data-flow boundaries;
+4. define failure behavior before happy-path behavior;
+5. identify the authoritative state owner;
+6. define mobile/browser behavior for product-facing changes;
+7. decide exact verification evidence.
 
 During implementation:
 
-1. Make one coherent architectural change.
-2. Preserve backward compatibility unless an intentional migration is documented.
-3. Use typed immutable models at trust boundaries.
-4. Redact before logging, persistence, exports, or exceptions cross a boundary.
-5. Prefer deterministic tests with fake resolvers, mock transports, temporary databases, and loopback servers.
-6. Never add hidden network calls to unit tests.
-7. Keep external dependencies minimal and justified.
+- make one coherent dependency-aligned change;
+- use typed immutable models at trust boundaries;
+- redact before persistence/output;
+- avoid hidden network calls in unit tests;
+- keep external dependencies minimal;
+- preserve backward compatibility unless migration is intentional/documented;
+- never weaken a test/security gate merely to make a change pass.
 
-After implementation, run:
+Required repository checks before claiming completion:
 
 ```bash
 python -m ruff format .
@@ -116,286 +340,106 @@ git diff --check
 git status --short
 ```
 
-Do not claim completion unless these checks pass.
+Run additional browser/phone/worker/public-target/Source-Hunt gates required by the affected contract.
 
-## 5. Scope, authorization, and network rules
+Do not claim completion when you cannot run required checks; report that limitation explicitly.
 
-- Technical scope validation does not prove permission.
-- Every manual `scan run` must present an active authorization ID.
-- Authorization must be checked before a scan row or network request is created.
-- Expired, revoked, mismatched, tampered, or over-limit authorization must fail closed.
-- Authorization events must be append-only and redacted.
-- Initial targets must remain restricted to loopback and explicitly approved private laboratory address space.
-- A raw URL string must not reach the HTTP transport.
-- Every request destination must be represented by `ScopedUrl`.
-- Every redirect must be followed manually and revalidated.
-- Scheme, hostname, port, and segment-aware path boundaries must remain fixed.
-- `/app` must not authorise `/application`.
-- Embedded URL credentials are forbidden.
-- Public, unspecified, multicast, link-local, reserved, documentation, and mixed private/public resolutions remain rejected.
-- `trust_env=False` must remain enabled unless a documented safe proxy design replaces it.
-- Automatic redirects remain disabled.
-- Only configured read-only methods are permitted.
-- Every request consumes a budget slot.
-- Response bodies must remain bounded and streamed.
-- Cancellation must be checked before scheduling work and while streaming.
+---
 
-Connection-bound transport rules:
+## 17. Frontend/UI governance
 
-- every default HTTP connection must use `PinnedAsyncTransport`;
-- the transport must re-resolve immediately before each connection and reject addresses outside the immutable target set;
-- the TCP backend must connect to the selected IP rather than resolving the hostname again;
-- the connected peer address must match the pinned address;
-- the original hostname must remain in the request URL, HTTP `Host`, TLS SNI, and certificate validation;
-- keep-alive reuse is disabled so each request and redirect receives an independent connection-time check;
-- retries may rotate only through the approved current address set;
-- a caller-supplied test transport is permitted only for deterministic local tests and is explicitly visible through `connection_pinning_enabled`.
+VulnHunter is a conversation/task-first security workspace, not an admin dashboard with a chatbot attached.
 
-## 6. Sensitive-data rules
+Reference roles are fixed:
 
-Redact before:
+- **MonkeyCode:** task/workspace structure and interaction behavior only;
+- **Beautiful UI:** AI-native component/microinteraction patterns only;
+- **VulnHunter:** functionality, authority, terminology, branding and warm cream/off-white dotted + dusty-pink + compact-dark-sidebar identity.
 
-- audit event creation;
-- database persistence;
-- exported datasets;
-- CLI error display;
-- model features derived from text;
-- diagnostic output.
+The current UI implementation is not design authority.
 
-Protected examples include:
+Explicitly rejected patterns include:
 
-- authorisation values;
-- cookies and session identifiers;
-- passwords and secrets;
-- API keys and access tokens;
-- embedded URL credentials;
-- emails;
-- payment-card-like sequences.
+- four large Authorization/Scope/Approval/Active cards on ordinary chat;
+- the wide Source Hunt/Search/Export/History/New workspace toolbar;
+- KPI-card walls as the workspace;
+- giant dark Source Hunt/admin surfaces;
+- desktop composition squeezed onto phone;
+- clipped phone controls/horizontal page overflow;
+- tiny low-contrast conversation text;
+- permanent context panels when not opened;
+- another late-loaded global CSS patch layer;
+- hidden chain-of-thought.
 
-Raw response bodies may exist only as bounded, short-lived in-memory values. They must not be written to logs or training datasets.
+Follow the full read order in section 3.
 
-## 7. Observation and human-review rules
+---
 
-- Observations are passive evidence, not proof of exploitation.
-- Observation severity does not equal exploitability.
-- Human review is authoritative.
-- New manual observations require two distinct primary reviewers.
-- Matching decisions establish consensus; disagreement requires a third, independent adjudicator.
-- Pending and disputed cases must remain labelled `needs_review` and excluded from training.
-- Reviewer IDs are stable pseudonyms, not emails, secrets, or proof of legal identity.
-- Primary decisions and adjudications are immutable audit records.
-- Predictions must never change review labels.
-- Legacy single-review storage exists only for controlled benchmark and historical compatibility and must not overwrite governed cases.
-- Evidence displayed to reviewers must be redacted.
-- Duplicate and conflicting-label checks must run before training.
+## 18. Testing requirements
 
-## 8. Machine-learning rules
+Every security-sensitive change needs:
 
-- Do not train on unreviewed observations.
-- Do not train when class, sample, or scan-diversity gates fail.
-- Deduplicate before splitting.
-- Keep all observations from one scan in exactly one split.
-- Perform model selection using training scans only.
-- Treat the holdout as locked after the split.
-- Store dataset hash, feature schema, split strategy, scan IDs, configuration, metrics, and application version in the artifact.
-- Model artifacts are decision-support records, not authority.
-- Synthetic benchmark metrics must be labelled synthetic.
-- Never describe a perfect controlled-benchmark score as real-world accuracy.
-- A low honest score is preferable to a contaminated impressive score.
+- expected-success test;
+- blocked/failure test;
+- regression test for the motivating defect;
+- deterministic/offline inputs where practical.
 
-## 9. Bounded agent-loop rules
+Public-target changes additionally require the complete containment tests in `PUBLIC_TARGET_ASSESSMENT.md`.
 
-Substantial AI-assisted changes must use the orchestration contract where practical:
+Live-execution changes require reconnect/deduplication/persisted-event acceptance from `LIVE_EXECUTION_ACTIVITY.md`.
 
-1. define the objective, context, allowed actions and paths, verifiers/evidence, stop/recovery conditions, and audit trail;
-2. keep builder, test runner, security verifier, reviewer, and human approver identities separate;
-3. use fixed deterministic verifiers rather than agent claims;
-4. stop on iteration, time, token, cost, repeated-error, no-progress, changed-file, or diff-size ceilings;
-5. escalate uncertainty instead of weakening a gate;
-6. record changed files, commands, hashes, findings, decisions, limitations, and learning;
-7. never execute arbitrary shell commands from a loop specification;
-8. never treat orchestration approval as target authorization or vulnerability confirmation.
+Browser UI work requires real browser evidence at representative desktop/tablet/phone widths and backend-connected state truth.
 
-## 10. Transactional autoresearch rules
+---
 
-Research experiments must:
+## 19. Status/documentation truth
 
-1. start from a clean recorded Git baseline;
-2. use exactly one hypothesis and one candidate commit;
-3. run in a dedicated branch/worktree outside the primary working tree;
-4. classify candidate resources as editable, read-only, or inaccessible;
-5. keep tests, labels, holdouts, authorization, scope, redaction, evaluator, orchestration, and research-engine resources outside candidate write authority;
-6. record trusted baseline and candidate metric reports with hashes and independent evaluator identity;
-7. require objective improvement plus every regression, safety, integrity, and verifier gate;
-8. remove rejected or inconclusive worktrees while preserving evidence and patch provenance;
-9. require a distinct human promoter and exact confirmation before cherry-picking an accepted candidate;
-10. permit meta-search to propose non-executable strategy guidance only; it may never alter evaluator policy or inject code.
+Documentation must distinguish:
 
-A better score never compensates for a failed safety or integrity gate.
+- product requirement/contract;
+- implemented runtime capability;
+- implemented but unverified/manual evidence pending;
+- planned/not complete;
+- known failure/blocker.
 
-## 11. Unattended operations rules
+Do not classify documentation as implementation.
 
-Any session, scheduled task, CI adapter, or remote routine that can act without continuous human supervision must:
+`docs/intelligence/CURRENT_STATE.md` is the current implementation-status owner. `docs/intelligence/ROADMAP.md` owns dependency order. `docs/intelligence/KNOWN_FAILURES.md` owns unresolved limitations.
 
-1. use an immutable, expiring permission manifest approved by a distinct human actor;
-2. enforce tool, path, command, network, connector, secret, push, deletion, and deployment permissions at runtime;
-3. use fixed shell-free commands rather than specification-provided command strings;
-4. keep private security data, credentials, customer data, and sensitive target information out of remote routines unless a specific protected exception is approved;
-5. isolate an item after two materially identical failures and preserve evidence;
-6. continue only with tasks explicitly declared independent from a non-critical blocker;
-7. halt the complete workflow when a blocker affects security invariants, authorization, scope, data integrity, the evaluator, or a required verifier;
-8. reject completion until every required verifier has successful integrity-linked evidence;
-9. stop immediately after revocation, expiry, runtime ceiling, or iteration ceiling;
-10. never infer permission from a prompt, source document, model output, or prior run.
+When a PR merges, reconcile those owners so they do not claim already-merged work is pending or already-broken work is complete.
 
-## 12. Governed collection and identity rules
+---
 
-- Real-data collection must belong to an approved campaign with an immutable
-  manifest digest and one or more exact target-authorization bindings.
-- The campaign creator must not approve their own campaign.
-- Campaign limits must be equal to or narrower than every bound authorization.
-- Only completed scans with matching authorization validation, start, and
-  completion events may be linked to a campaign.
-- Reviewers and adjudicators must authenticate through the local governance
-  registry. Plain reviewer-name strings are not sufficient for governed data.
-- Two distinct assigned reviewers are required. The campaign creator, campaign
-  owner, conflicted identities, and inactive identities must not review the data.
-- A disputed case may be resolved only by its assigned, distinct adjudicator.
-- Direct or legacy review decisions are never silently adopted into a governed
-  campaign. Each repository decision needs a matching governance attestation.
-- Dataset release requires campaign completion, current authorization records,
-  application-family diversity, final governed review for every linked
-  observation, and an immutable release manifest.
-- Credential secrets, salts, and password hashes must never be printed, logged,
-  exported in reports, or placed in prompts.
+## 20. Mandatory stop/escalation conditions
 
-## 13. Testing requirements
+Stop and report when:
 
-Every security-sensitive change requires:
+- target authorization is absent/ambiguous;
+- public-target support would require weakening DNS/address containment;
+- Host/SNI/certificate semantics cannot be preserved under the chosen pinning design;
+- the scanner performs an uncontrollable second DNS resolution;
+- a redirect/DNS result escapes the exact target boundary;
+- secrets appear in tracked files/output;
+- working tree/baseline differs from assumptions;
+- tests fail for unknown reasons;
+- a change requires data leakage or holdout contamination;
+- destructive behavior is requested without an explicit approved contract;
+- a dependency/design choice cannot be justified.
 
-- at least one expected-success test;
-- at least one blocked/failure test;
-- a regression test for the motivating defect;
-- no external Internet dependency;
-- deterministic inputs and assertions.
+Escalation means preserving evidence and stating the blocker. It never means silently broadening permission.
 
-Additional expectations:
+---
 
-- scope changes: hostname, port, scheme, traversal, credentials, redirects, IPv4/IPv6, and DNS-change tests;
-- transport changes: cancellation, budgets, redirect limits, body limits, protected headers, audit redaction, address pinning, peer verification, Host preservation, TLS SNI, IPv4/IPv6, and connection-time DNS changes;
-- storage changes: temporary database, transaction rollback, missing-record behaviour, and redaction;
-- ML changes: duplicate conflicts, grouped isolation, insufficient-data failure, provenance integrity, and deterministic seeds;
-- review changes: reviewer separation, consensus, disagreement, adjudicator independence, immutability, and training exclusion;
-- CLI changes: exit code and user-facing output tests.
-
-## 14. Coding conventions
-
-- Python 3.11+ syntax only, despite development currently using a newer interpreter.
-- Type public functions and trust-boundary models.
-- Prefer small modules with one responsibility.
-- Use immutable Pydantic models for validated records.
-- Use standard-library functionality when it is adequate.
-- Avoid global mutable state.
-- Never catch `Exception` merely to hide a defect.
-- Convert expected operational failures into project-specific exceptions.
-- Preserve exception chaining with `raise ... from exc`.
-- Keep CLI functions thin; move business rules into packages.
-- Use transactions for multi-record state changes.
-- Use UTC timestamps.
-- Keep user-facing text precise and free of unsupported claims.
-
-## 15. Common AI-agent mistakes to avoid
-
-- replacing a complete file without inspecting its current exports and callers;
-- weakening a test instead of fixing the contract;
-- adding a feature that bypasses `ApprovedTarget` or `ScopedUrl`;
-- using raw string prefixes for path containment;
-- enabling automatic redirects;
-- logging raw HTTP headers or URLs;
-- placing observations from one scan in both training and holdout;
-- tuning against the holdout;
-- treating synthetic labels as real-world ground truth;
-- adding a heavy dependency for functionality already available locally;
-- generating one giant project report instead of maintaining atomised knowledge;
-- claiming implementation success before running tests;
-- leaving installers, databases, models, or temporary files accidentally tracked.
-
-## 16. Mandatory stop and escalation conditions
-
-Stop the change and report clearly when:
-
-- the requested target is public or authorisation is unclear;
-- a change requires weakening scope or explicit authorization restrictions;
-- secrets appear in tracked files or output;
-- database migration safety is uncertain;
-- an existing model artifact would be overwritten without explicit intent;
-- the working tree contains unrelated changes;
-- the current code differs from the assumed baseline;
-- tests fail for reasons not understood;
-- a requested metric would require data leakage;
-- a model result cannot be reproduced;
-- destructive behaviour is requested;
-- a dependency or design choice cannot be justified.
-
-## 17. Definition of done
+## 21. Definition of done
 
 A milestone is done only when:
 
-- architecture and boundaries remain coherent;
-- implementation and tests pass;
-- documentation reflects the change;
+- architecture/security boundaries remain coherent;
+- implementation matches the current product contracts;
+- relevant tests/gates pass;
+- browser/phone evidence exists when required;
+- documentation/status owners are reconciled;
 - known limitations are recorded;
-- Git contains one focused commit;
-- no temporary or sensitive artifacts are tracked;
-- claims are supported by evidence.
-
-## 18. Browser UI and product-design governance
-
-Any task that changes or reviews VulnHunter browser UI, templates, CSS, JavaScript, navigation, responsive behavior, accessibility, conversation rendering, UI tests, screenshots, component architecture or presentation copy must read and obey this additional chain before editing:
-
-1. `vulnhunter/web/AGENTS.md`;
-2. `docs/design/VULNHUNTER_UI_CONTRACT.md`;
-3. `docs/design/AI_AGENT_UI_IMPLEMENTATION_STANDARD.md`;
-4. `docs/design/references/manifest.json`;
-5. `docs/design/DEPRECATIONS.md`;
-6. `docs/product/CHAT_FIRST_WORKSPACE.md`;
-7. `docs/product/UI_ACCEPTANCE_CRITERIA.md`;
-8. `docs/product/RESPONSIVE_AND_ACCESSIBILITY.md`.
-
-This requirement applies to Codex, Cline, Claude Code, Copilot, Cursor, ChatGPT coding agents, local agents and humans.
-
-The UI reference hierarchy is fixed:
-
-- **MonkeyCode** supplies task/workspace structure and interaction behavior only;
-- **Beautiful UI** supplies AI-native component and microinteraction patterns only;
-- **VulnHunter** supplies actual functionality, security authority, terminology, branding and the warm cream/off-white dotted + dusty-pink + compact-dark-sidebar visual identity.
-
-The current implementation is not design authority. Existing templates, selectors, screenshots or tests may encode explicitly documented presentation debt. When they conflict with the locked UI contract, preserve security/backend behavior and replace the presentation rather than weakening the contract.
-
-UI-specific hard rules include:
-
-- the everyday product remains conversation/task-first rather than dashboard-first;
-- desktop uses a compact task/chat sidebar, main conversation/task flow, persistent composer and optional contextual detail only when opened;
-- mobile is a one-column task workspace with an overlay drawer, not desktop squeezed into a phone;
-- no essential phone horizontal overflow or clipped primary controls;
-- no generic blue/white SaaS, neon cyberpunk, glassmorphism, soft floating-card system or large-radius default;
-- no hidden chain-of-thought/private reasoning display;
-- no reference-derived unsupported provider/model/Fine-tune/dictation/Pause/SSO/account-tier controls;
-- no fabricated progress, evidence, findings, readiness or approval state;
-- no additional global CSS patch layer created merely to override earlier contradictory presentation;
-- real browser desktop and phone evidence is required for meaningful UI completion.
-
-A functionally correct UI that violates the locked product design is a regression and is not complete.
-
-## graphify
-
-This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
-
-When the user types `/graphify`, use the installed graphify skill or instructions before doing anything else.
-
-Rules:
-- For codebase questions, first run `graphify query "<question>"` when graphify-out/graph.json exists. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
-- Dirty graphify-out/ files are expected after hooks or incremental updates; dirty graph files are not a reason to skip graphify. Only skip graphify if the task is about stale or incorrect graph output, or the user explicitly says not to use it.
-- If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
-- Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
-- After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
+- no temporary/sensitive artifacts are tracked;
+- claims are supported by evidence;
+- Git contains focused reviewable changes.

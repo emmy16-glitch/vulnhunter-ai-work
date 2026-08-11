@@ -496,7 +496,7 @@
     const findings = Array.isArray(run.findings) ? run.findings : [];
     const artifacts = Array.isArray(run.artifacts) ? run.artifacts : [];
     const rules = {
-      summary: Boolean(run.terminal),
+      summary: Boolean(run.terminal) || Boolean(run.analysis_note),
       progress: false,
       findings: findings.length > 0 || Boolean(run.terminal),
       evidence: artifacts.length > 0,

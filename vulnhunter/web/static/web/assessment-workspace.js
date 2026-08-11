@@ -13,6 +13,13 @@
     report: "Preparing report",
   };
   const icons = { completed: "✓", running: "◌", pending: "○", queued: "○", blocked: "Ⅱ", recovering: "↻", failed: "!", cancelled: "×" };
+  const canonicalStatus = (value) => ({
+    active: "running",
+    claimed: "running",
+    waiting: "pending",
+    prepared: "pending",
+    error: "failed",
+  }[String(value || "pending").trim().toLowerCase()] || String(value || "pending").trim().toLowerCase());
   const readable = (value) => String(value || "pending").replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 
   window.VulnHunterAssessmentWorkspace = {
@@ -24,7 +31,7 @@
       root.replaceChildren();
       stages.forEach((item) => {
         const stage = String(item?.stage || "").trim();
-        const status = String(item?.status || "pending").trim().toLowerCase();
+        const status = canonicalStatus(item?.status);
         if (!stage) return;
         const row = document.createElement("div");
         row.className = `vh-assessment-timeline-row is-${status}`;

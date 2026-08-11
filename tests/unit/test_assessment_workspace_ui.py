@@ -19,6 +19,8 @@ def test_assessment_workspace_uses_persisted_projection_timeline() -> None:
     assert "recovering" in script
     assert "failed" in script
     assert "cancelled" in script
+    assert 'active: "running"' in script
+    assert 'waiting: "pending"' in script
     assert 'data-run-stages aria-label="Persisted assessment timeline"' in template
 
 

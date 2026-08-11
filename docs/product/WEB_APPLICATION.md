@@ -1,336 +1,388 @@
 # VulnHunter Web Application
 
-## Purpose
+**Status:** CURRENT BROWSER PRODUCT ARCHITECTURE  
+**Visual authority:** `docs/design/VULNHUNTER_UI_CONTRACT.md`  
+**Workflow:** `docs/product/CHAT_FIRST_WORKSPACE.md`  
+**Live activity:** `docs/product/LIVE_EXECUTION_ACTIVITY.md`  
+**Public targets:** `docs/product/PUBLIC_TARGET_ASSESSMENT.md`
 
-The VulnHunter web application is a local, authenticated, server-rendered
-security-operations console for authorized private-laboratory work. It exposes
-real repository-backed authorization, assessment, approval, evidence,
-verification, independent review, adjudication, campaign, release, dataset,
-reporting, role, skill, mobile-analysis, and audit state.
+## 1. Purpose
 
-The browser is a governed control surface, not a second security control plane.
-Backend authorization, policy, digest binding, evidence integrity, deterministic
-verification, reviewer independence, and release gates remain authoritative.
+The VulnHunter web application is an authenticated **conversation/task-first security-assessment workspace**.
 
-The application is not a public scanning service, an unrestricted exploitation
-console, or an autonomous publication system.
+It projects real repository-backed state for:
 
-## UI implementation
+- website target/authorization/assessment workflows;
+- authorised private and public target classes;
+- immutable plans/decisions;
+- worker execution/activity;
+- Source Hunt;
+- APK/mobile analysis;
+- evidence/findings/verification;
+- independent review/adjudication;
+- campaigns/releases/datasets;
+- reports/audit/settings;
+- optional advisory intelligence.
 
-The current console uses the approved VulnHunter dark operational design:
+The browser is a governed control surface, not a second security-control plane.
 
-- `264px` desktop sidebar and `64px` top bar;
-- maximum content width of `1600px`;
-- reusable metric cards, status badges, tables, evidence panels, timelines,
-  forms, empty states, and responsive workspaces;
-- a private-lab environment marker;
-- stage-based status rather than invented progress percentages;
-- backend-derived counts and states rather than demonstration records;
-- accessible focus indicators and reduced-motion support.
+Backend authorization, worker capability, task state, evidence integrity, verification, human review and release/publication gates remain authoritative.
 
-The standalone frontend prototype was used only as a visual reference. The
-following prototype behaviours were intentionally not carried into production:
+---
 
-- JavaScript-only authentication;
-- prefilled demonstration credentials;
-- browser-controlled role switching;
-- hard-coded findings, approvals, scans, or activity;
-- inline event handlers;
-- simulated execution or publication controls.
+## 2. Product composition
 
-All state-changing forms are Django POST requests with CSRF protection and
-server-side permission enforcement. Website and APK work now begin in the same
-assessment workspace. The historical `/scans/new/` and `/mobile-analysis/`
-paths remain navigation-compatible aliases only; they do not maintain a second
-form, upload surface, or backend workflow.
-
-## Current product boundary
-
-Implemented browser surfaces include:
-
-- authenticated dashboard and system readiness;
-- authorization registry and detail inspection with confirmed, append-only revocation;
-- bounded assessment creation and assessment workspaces;
-- exact digest-bound approval decisions;
-- signed passive Nuclei worker-pilot visibility and cancellation controls;
-- persisted finding lists and evidence detail workspaces;
-- identity-scoped independent review queues;
-- governed review submission using the separate governance credential;
-- identity-scoped adjudication queues and immutable dispute resolution;
-- campaign, readiness, release-assessment, and dataset-quality workspaces;
-- model-neutral intelligence component status and authority contracts;
-- reports and renderer readiness;
-- audit, role, skill, tool, settings, and unified mobile static-analysis state;
-- controlled synthetic active-validation workspaces.
-
-Activation-gated or environment-dependent capabilities include:
-
-- real Nuclei execution in a separately configured worker boundary;
-- optional sanitized advisory analysis;
-- repository graph generation or refresh;
-- PDF rendering;
-- production deployment acceptance;
-- dynamic Android laboratory execution.
-
-The interface must show an honest unavailable, disabled, empty, or blocked
-state when one of these capabilities is not activated.
-
-## Exact local preview command
-
-First generate a local-only secret in your shell session or private environment
-file. Do not commit it:
-
-```bash
-export VULNHUNTER_WEB_SECRET_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
-```
-
-Inspect the default Django user model without printing credentials:
-
-```bash
-VULNHUNTER_WEB_DEBUG=true python manage.py shell -c \
-  'from django.contrib.auth import get_user_model; U=get_user_model(); print(U.USERNAME_FIELD, U.objects.count())'
-```
-
-Bootstrap a governance administrator through the hidden-prompt governance CLI
-when the registry is empty, then run first-time setup in order:
-
-```bash
-python -m vulnhunter.governance identity bootstrap \
-  --reviewer <reviewer-id> --display-name "<display-name>" \
-  --governance-database governance.db
-python manage.py migrate
-VULNHUNTER_WEB_DEBUG=true python manage.py vh_init_agent_store
-python manage.py vh_create_web_user \
-  --username <local-user> \
-  --governance-identity <reviewer-id> \
-  --product-role security-auditor
-python scripts/run_local_preview.py
-```
-
-Repeat startup in a fresh shell using the same private secret:
-
-```bash
-python manage.py migrate
-python scripts/run_local_preview.py
-```
-
-The preview command is for local development only. It does not make the
-application safe for public exposure.
-
-## Identity and authority
-
-Each Django account maps to:
-
-- one active governed identity from the governance store;
-- one or more product-surface roles from the product-interface registry;
-- optional specialist registry role or skill references.
-
-The web layer verifies the mapping, product action, governed identity, and
-identity status on every protected surface. A browser dropdown or request
-parameter cannot grant a role.
-
-Independent review and adjudication use an additional governance credential.
-The credential is submitted only to authenticate the governed decision and is
-not persisted by the web application.
-
-## Secure defaults
-
-- Django authentication and session middleware;
-- `HttpOnly` session and CSRF cookies;
-- `SameSite=Lax` cookies;
-- secure cookies when HTTPS mode is enabled;
-- CSRF middleware for state-changing requests;
-- `X-Frame-Options: DENY`;
-- `X-Content-Type-Options: nosniff`;
-- strict same-origin Content Security Policy;
-- template auto-escaping;
-- no inline JavaScript requirement;
-- private, no-store caching on sensitive workspaces;
-- backend redaction before persistence and presentation;
-- only health, readiness, and login endpoints are unauthenticated as configured.
-
-## Canonical routes
-
-### Overview and collection
-
-- `/`
-- `/status/`
-- `/audit/`
-- `/authorizations/`
-- `/authorizations/<authorization_id>/`
-- `/authorizations/<authorization_id>/revoke/` (POST only; system-administrator recovery action)
-- `/scans/new/` (compatibility redirect to `/?intent=new-assessment`)
-- `/scans/`
-- `/scans/<run_id>/`
-- `/agent/runs/<run_id>/activity/`
-- `/agent/runs/<run_id>/activity/stream/`
-- `/agent/runs/<run_id>/stop/`
-
-### Findings and independent review
-
-- `/findings/`
-- `/findings/<finding_id>/`
-- `/reviews/`
-- `/reviews/<assignment_reference>/`
-- `/adjudications/`
-- `/adjudications/<assignment_reference>/`
-
-Finding identifiers are resolved against findings visible to the current actor.
-Review and adjudication references are bounded prefixes of integrity-checked
-assignment hashes and must resolve to exactly one stored assignment.
-
-### Governance and intelligence
-
-- `/campaigns/`
-- `/campaigns/<campaign_id>/`
-- `/readiness/<campaign_id>/`
-- `/releases/`
-- `/releases/<campaign_id>/`
-- `/datasets/`
-- `/datasets/<campaign_id>/`
-- `/models/`
-- `/models/<component_id>/`
-
-The release and dataset detail pages are currently read-only assessments. They
-do not expose decorative publication, export, training, or promotion actions
-without a safe backend contract.
-
-### Operations and assurance
-
-- `/approvals/`
-- `/approvals/<request_id>/`
-- `/approvals/<request_id>/decision/`
-- `/reports/`
-- `/security-tools/`
-- `/advanced-assessment/`
-- `/mobile-analysis/` (compatibility alias for the unified assessment workspace)
-- `/active-validation/<lab_id>/`
-- `/roles/`
-- `/skills/`
-- `/settings/`
-
-## Approval and cancellation boundaries
-
-Supported now:
-
-- exact plan-digest approval decisions from the browser;
-- rejection, information-required, and conditional decision states supported by
-  the approval ledger;
-- CSRF-protected decision submission;
-- bounded run cancellation;
-- signed worker-spool cancellation requests;
-- append-only activity and approval audit events.
-
-Not provided as general browser controls:
-
-- arbitrary reconstruction and resume of any persisted runtime task;
-- manual operator pause without a backend transition contract;
-- alteration of an already recorded immutable review or adjudication;
-- release publication without a dedicated authorized service contract.
-
-Approval of a plan does not itself execute a scanner. Execution still requires
-worker readiness, explicit activation, and the isolated worker boundary.
-
-## Findings, review, and adjudication
-
-The finding workspace displays only data exposed by the authenticated product
-read model. Scanner output remains candidate evidence.
-
-The review workspace:
-
-- verifies that the signed-in governed identity is one of the assigned primary
-  reviewers;
-- opens only the integrity-bound scan repository referenced by the assignment;
-- rejects a symbolic-link database target;
-- hides other reviewers' decisions until the current reviewer submits;
-- requires the governance credential;
-- records one immutable decision and attestation.
-
-The adjudication workspace:
-
-- verifies the assigned adjudicator identity;
-- requires exactly two conflicting primary decisions;
-- requires the adjudicator to remain distinct from both primary reviewers;
-- records an immutable final outcome, rationale, and attestation.
-
-## Intelligence boundary
-
-The interface is model-neutral. Intelligence components may provide bounded
-context, sanitized advisory proposals, or deterministic verification status.
-They cannot:
-
-- authorize targets;
-- expand scope;
-- approve plans;
-- execute scanners, shells, browsers, or connectors;
-- declare a candidate finding final by themselves;
-- adjudicate human disagreement;
-- publish findings or datasets;
-- modify policy.
-
-Private source code, credentials, tokens, customer data, private targets,
-authorization records, unpublished findings, and raw evidence remain denied
-from remote advisory routing. Deterministic workflows continue when optional
-advisory analysis is disabled or unavailable.
-
-## Static assets
-
-Primary style and interaction files include:
+### Desktop
 
 ```text
-web/app.css
-web/activity.css
-web/product.css
-web/operational.css
-web/workspaces.css
-web/console.css
-web/intelligence.css
-web/app.js
-web/activity.js
-web/conversation.js
-web/workspace-state.js
+compact task/chat sidebar
+→ main conversation + task timeline + live activity
+→ persistent composer
+→ optional contextual detail drawer
 ```
 
-The Content Security Policy requires scripts and styles to be served from the
-application origin. New UI behaviour should use these static files instead of
-inline handlers.
+### Mobile
 
-## Verification commands
-
-Focused checks:
-
-```bash
-python -m ruff check vulnhunter/web tests/unit/test_web_app.py
-python -m ruff format --check vulnhunter/web tests/unit/test_web_app.py
-python -m compileall -q vulnhunter/web
-VULNHUNTER_WEB_SECRET_KEY=local-check-secret python manage.py check
-VULNHUNTER_WEB_SECRET_KEY=local-check-secret python manage.py findstatic \
-  web/app.css web/console.css web/workspaces.css web/intelligence.css
-python -m pytest -q tests/unit/test_web_app.py
+```text
+overlay task/chat drawer
+→ one-column conversation + task timeline + live activity
+→ persistent composer
+→ full-width context/activity/evidence sheet or deep view
 ```
 
-Repository verification remains the final gate:
+The web product is **not** a permanent dark operations dashboard.
 
-```bash
-python -m ruff check .
-python -m ruff format --check .
-python -m compileall -q vulnhunter scripts
-python scripts/validate_scanner_compatibility.py
-python scripts/project_audit.py --strict
-python -m pytest -q
+The locked visual identity is the warm cream/off-white dotted VulnHunter workspace with dusty-pink accents, compact dark sidebar, near-black technical text/borders, square/nearly-square geometry and hard zero-blur offset shadows.
+
+Do not revive older dark-console/KPI/dashboard patterns from historical screenshots/templates/tests.
+
+---
+
+## 3. Current implementation versus target product
+
+The browser/runtime already contains significant workspace, authorization, assessment, evidence, review, Source Hunt, APK and governance infrastructure.
+
+However, current status must be read from `docs/intelligence/CURRENT_STATE.md`.
+
+In particular:
+
+- UI Contract V2 is authoritative but migration of all old presentation is still incomplete;
+- rich live execution activity is partial across workflows;
+- authorised public targets are an approved product class, but the current passive Nuclei worker is still private-target-only until the public transport programme lands.
+
+The UI must show those limitations truthfully.
+
+---
+
+## 4. Website target flow
+
+Canonical browser flow:
+
+```text
+user enters target in conversation
+→ normalize/classify target
+→ resolve exact authorization
+→ authorization-required card if missing
+→ verify worker capability
+→ immutable plan
+→ required confirmation/approval
+→ queue worker
+→ live persisted activity
+→ evidence/findings/verification
+→ report/review state
 ```
 
-## Known limitations
+Private/public target classes use the same workspace semantics.
 
-- The web product is local/private-lab oriented and is not yet approved for
-  public Internet exposure.
-- Real scanner, advisory-provider, PDF-renderer, graph-refresh, and dynamic
-  Android acceptance depend on the operator environment.
-- Finding evidence detail is limited to fields and artifacts exposed by the
-  current product read model.
-- Release and dataset workspaces are read-only until dedicated authorized write
-  contracts are implemented.
-- Formal backup, external signing, retention, migration, and disaster recovery
-  remain operational work.
-- Production SSO, MFA, hardware-backed identity, and independently protected
-  signing keys are not yet implemented.
+A public URL is never permission.
+
+If a public target is authorized but the current worker is private-only, show a blocker instead of a fake queued/running state.
+
+---
+
+## 5. Public-target browser behavior
+
+Example authorization state:
+
+```text
+Authorization required
+Target  https://example.com/
+Class   Public
+Port    443
+Path    /
+
+No active authorization covers this exact target.
+[Review authorization]
+```
+
+Example current runtime blocker:
+
+```text
+✓ Authorization verified
+! Public execution unavailable
+  Configured worker supports private targets only.
+```
+
+After a public-capable worker is implemented, the same task proceeds through the exact plan and live execution contract.
+
+The browser must never:
+
+- create permission by toggling `allow_public`;
+- bypass backend authorization;
+- switch worker target-class capability;
+- disable DNS/address containment;
+- imply success before worker/backend state exists.
+
+---
+
+## 6. Long-running execution
+
+Queued/running tasks must update one stable task group in the originating workspace.
+
+Where persisted state exists, show:
+
+- current stage;
+- completed/pending stages;
+- active worker/tool;
+- safe current target/file/artifact;
+- real receipts/evidence/candidate counts;
+- latest activity;
+- blocker/failure/recovery state;
+- preserved work;
+- supported action.
+
+Do not force the user to navigate to another page just to know whether the task is alive.
+
+A separate Activity/Inspector view may provide technical detail, but it must render the same persisted event stream.
+
+---
+
+## 7. Source Hunt browser flow
+
+Canonical flow:
+
+```text
+repository request in conversation
+→ resolve approved root
+→ deterministic preflight
+→ exact revision/snapshot/path boundary
+→ source-processing approval + password re-authentication
+→ queue worker
+→ live snapshot/inventory/hunt/falsification/capability activity
+→ remediation/result
+→ return to original conversation
+```
+
+The specialist setup page may collect exact fields but must not become a giant competing dark dashboard.
+
+Preflight should expose predictable file/byte blockers before full submission where possible.
+
+See `docs/product/SOURCE_HUNT.md`.
+
+---
+
+## 8. APK/mobile browser flow
+
+Website and APK work use the same workspace shell.
+
+APK flow:
+
+```text
+attach APK
+→ resumable upload
+→ upload complete / integrity validation
+→ immutable artifact/assessment identity
+→ static tool execution where configured
+→ live tool receipts
+→ evidence/findings/verification
+→ optional separately governed dynamic path
+```
+
+Uploading does not execute the APK.
+
+100% upload does not mean analysis complete.
+
+---
+
+## 9. Contextual product surfaces
+
+Use contextual in-chat/task objects before forcing navigation:
+
+- authorization card;
+- exact-plan confirmation card;
+- independent approval card;
+- task rows;
+- tool chips;
+- live activity disclosure;
+- upload/integrity card;
+- evidence/context card;
+- finding card;
+- remediation/recommendation card;
+- report-ready card;
+- recovery/failure/cancellation state.
+
+Large/identity-bound detail may open a specialist route/drawer/sheet and must project its persisted result back to the same task.
+
+---
+
+## 10. Navigation
+
+Everyday navigation prioritizes:
+
+```text
++ New assessment
+Chats / Tasks
+current/recent tasks
+Task history
+Manage
+Settings
+user / role
+```
+
+Specialist capabilities such as Authorizations, Source Hunt, Findings, Review Queue, Campaigns, Releases, Datasets, Audit and Reports are progressively disclosed rather than all competing as equal permanent navigation items.
+
+Historical dashboard-flow hierarchies are not current product authority.
+
+---
+
+## 11. Composer
+
+Primary composer remains simple:
+
+```text
+Attach / add
+Text input
+Send
+```
+
+The composer remains usable during supported long-running work.
+
+Provider/readiness/diagnostics belong behind progressive disclosure/settings.
+
+Follow-up instructions may be visibly queued where backend supports it.
+
+---
+
+## 12. Secure browser defaults
+
+Preserve:
+
+- Django/server authentication;
+- CSRF protection for state changes;
+- secure/session cookie policy appropriate to deployment;
+- no browser role escalation;
+- same-origin/content-security controls;
+- template escaping;
+- no secret-bearing debug output;
+- redaction before presentation/persistence;
+- no-store/private caching on sensitive surfaces;
+- backend permission checks regardless of navigation visibility.
+
+A hidden/disabled control is not a security control.
+
+---
+
+## 13. Identity and authority
+
+Each authenticated account maps to the current governance/product identity model.
+
+Browser parameters/dropdowns cannot grant roles.
+
+Authorization, independent approval, review and adjudication remain distinct decisions.
+
+Where step-up/governance credentials are required, they authenticate the decision and must not be persisted or echoed.
+
+---
+
+## 14. Approval and cancellation
+
+Plan confirmation/approval references an exact immutable plan/action identity.
+
+Approval does not by itself bypass worker readiness/capability.
+
+Cancel is shown only when the backend supports safe cancellation.
+
+There is no generic Pause control unless an explicit backend pause/resume contract exists.
+
+Reconnect restores persisted state and never silently restarts work.
+
+---
+
+## 15. Findings/evidence/reports
+
+All contextual specialist data remains bound to the selected assessment/workspace.
+
+Scanner/model output remains candidate evidence until deterministic/human authority says otherwise.
+
+Zero findings must not erase evidence, activity or history.
+
+Reports/export controls appear only when current persisted readiness supports them.
+
+Demo/seeded records must not appear as if they belong to the selected user assessment.
+
+---
+
+## 16. AI/provider presentation
+
+Global provider policy is owned by `docs/product/AI_ROUTING.md`.
+
+Do not add a provider/model picker to ordinary chat merely because a reference UI has one.
+
+Provider/model state is provenance/configuration, not security authority.
+
+Safe activity may say:
+
+```text
+Reviewing persisted evidence…
+Waiting for advisory provider…
+```
+
+Never render hidden chain-of-thought/private reasoning.
+
+---
+
+## 17. Current canonical routes
+
+Routes are repository-backed implementation details and may evolve. Agents must inspect `vulnhunter/web/urls.py` before editing/navigation claims.
+
+Important route families include the assessment workspace, authorizations, scans/assessment details, activity endpoints, findings, reviews/adjudications, campaigns/releases/datasets, approvals, reports, Source Hunt, mobile compatibility routes, active validation, roles/skills/settings and readiness/audit surfaces.
+
+Do not duplicate a route/workflow merely because an older document lists a historical standalone page.
+
+Use route names/current code as source of truth rather than copying a stale route list from documentation.
+
+---
+
+## 18. Local development
+
+Use the current repository setup/startup documentation and command help for exact environment commands.
+
+Never commit secret keys/provider tokens/passwords.
+
+A local development preview does not make the service safe for public exposure.
+
+Public **target assessment** and public **deployment/exposure of VulnHunter itself** are separate concerns.
+
+---
+
+## 19. Browser acceptance
+
+Browser/UI completion requires applicable tests from:
+
+- `docs/product/UI_ACCEPTANCE_CRITERIA.md`;
+- `docs/product/UI_QUALITY_ASSURANCE.md`;
+- `docs/product/RESPONSIVE_AND_ACCESSIBILITY.md`;
+- `docs/product/LIVE_EXECUTION_ACTIVITY.md`;
+- `docs/product/PUBLIC_TARGET_ASSESSMENT.md`.
+
+Representative widths include approximately:
+
+`360`, `390`, `412`, `768`, `1024`, `1280`, `1440` CSS pixels.
+
+A public-target success screenshot is forbidden until the runtime can truly execute that path. Until then, verify the truthful blocker.
+
+---
+
+## 20. Final rule
+
+The browser is acceptable only when **security authority, target class, worker capability, persisted task/activity state, evidence ownership and canonical design all agree**.

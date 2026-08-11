@@ -1,107 +1,152 @@
-# Bounded advisory reasoning
+# Bounded Advisory Reasoning
 
-VulnHunter can run an optional evidence-bound reasoning session after scanner evidence has been persisted and deterministic verification has completed.
+**Status:** SPECIALIST / LEGACY GROQ-PIPELINE DOCUMENTATION  
+**Provider authority:** `docs/product/AI_ROUTING.md`  
+**Current implementation status:** `docs/intelligence/CURRENT_STATE.md`
 
-The model is never the authority for authorization, scope, execution, verification, severity, publication, or human review.
+This document describes the bounded multi-stage advisory reasoning pattern that exists in the repository. It is **not** the global provider inventory and must not be used to reintroduce a “Groq is the only provider everywhere” product assumption.
 
-## Runtime flow
+## 1. Authority boundary
+
+Advisory reasoning is never authoritative for:
+
+- target authorization;
+- target class or scope;
+- worker execution;
+- evidence truth;
+- vulnerability verification;
+- final severity;
+- human review/adjudication;
+- merge/release/publication.
+
+Models propose/explain. Deterministic VulnHunter services verify/enforce/persist authority.
+
+## 2. Applicable targets
+
+Advisory reasoning may operate on a completed/verified assessment envelope from an authorised **private or public** target when provider/data-class policy permits it.
+
+Public-target support does not grant a provider raw target authority or bypass `docs/product/PUBLIC_TARGET_ASSESSMENT.md`.
+
+The provider should receive bounded/redacted evidence rather than raw credentials, authorization evidence or unrestricted target data.
+
+## 3. Legacy Groq multi-stage flow
+
+Where the current Groq-backed advisory pipeline is configured, the conceptual flow is:
 
 ```text
-approved private-lab scan
-  -> persisted scanner evidence
-  -> deterministic proof-capsule verification
-  -> sanitised advisory queue item
-  -> analyst with openai/gpt-oss-20b
-  -> critic with openai/gpt-oss-20b
-  -> synthesizer with openai/gpt-oss-120b
-  -> stored untrusted advisory report
-  -> human review
+authorised assessment
+→ persisted scanner evidence
+→ deterministic verification/proof capsule
+→ sanitized advisory queue item
+→ bounded analyst stage
+→ bounded critic/falsification stage
+→ bounded synthesis stage
+→ stored untrusted advisory result
+→ human review
 ```
 
-The synthesizer may fall back once to `openai/gpt-oss-20b` when the 120B model is unavailable. There is no open-ended self-reflection loop.
+Exact models, provider capabilities, fallbacks and runtime readiness must come from current configuration/provider profiles, not from hard-coded historical examples in this document.
 
-A normal successful finding therefore uses exactly three model requests. A deep-model failure can use one additional fallback request. Queue delivery is attempted at most twice by default.
+Use `AI_ROUTING.md` and current runtime readiness as source of truth for provider/model availability.
 
-## Supplied context
+## 4. Supplied context
 
-The remote provider receives only a bounded, redacted finding envelope:
+Remote advisory processing should receive only the data class and fields allowed by current provider policy, such as:
 
-- redacted scanner title, severity, and confidence;
-- deterministic verification verdict and strategy;
-- reviewed scanner template identity;
-- a hashed target identity rather than a raw address or URL;
+- redacted finding metadata;
+- deterministic verification verdict/strategy;
+- reviewed scanner/tool identity;
+- hashed or minimized target identity where required;
 - safe structured observations;
-- SHA-256 evidence references;
-- prior structured stage outputs.
+- evidence references/digests;
+- prior structured advisory-stage output.
 
-Raw evidence files, response bodies, customer data, authorization records, credentials, API keys, cookies, and private target addresses are not included.
+Do not send remotely unless explicitly allowed:
 
-Every model-provided evidence reference must match a digest that VulnHunter supplied. A stage that invents an evidence reference is rejected and the session abstains.
+- passwords;
+- API keys/tokens;
+- cookies/session values;
+- private keys;
+- raw authorization evidence containing secrets;
+- unrestricted raw response bodies;
+- unrestricted customer/source data;
+- data disallowed by deployment/provider policy.
 
-## Stage responsibilities
+## 5. Evidence-reference rule
 
-### Analyst
+Every model-supplied evidence reference must correspond to evidence that VulnHunter supplied to the model/request context.
 
-Builds possible vulnerability hypotheses, identifies assumptions, records missing information, and uses only the supplied evidence references.
+Invented/stale/foreign references are rejected or cause abstention according to the current contract.
 
-### Critic
+Model prose is not evidence by itself.
 
-Challenges the analyst for false positives, missing preconditions, unsupported CWE mappings, contradictory evidence, and overconfidence.
+## 6. Stage responsibilities
 
-### Synthesizer
+### Analyst / hypothesis stage
 
-Reconciles the first two stages into one conservative advisory conclusion, safe verification suggestions, and remediation options.
+May identify possible explanations, assumptions, missing information and bounded security hypotheses.
 
-The application stores the structured conclusions, not hidden chain-of-thought.
+### Critic / falsification stage
 
-## Failure behavior
+Challenges false positives, missing preconditions, contradictory evidence, framework protections and overconfidence.
 
-The advisory layer fails safely:
+### Synthesis stage
 
-- missing key: deterministic verification and human review continue;
-- disabled intelligence: no analysis is queued;
-- timeout or rate limit: the stage abstains or the queue retries within its fixed limit;
-- invalid JSON or schema: the response is rejected;
-- invented evidence: the response is rejected;
-- unavailable 120B model: one 20B synthesis fallback is permitted;
-- damaged optional activity timeline: the persisted advisory report remains unaffected.
+Produces a conservative advisory summary/remediation suggestion from validated supplied context.
 
-No advisory failure changes a scanner finding or its deterministic verification result.
+The application stores structured user-facing conclusions and provenance, **not hidden chain-of-thought**.
 
-## Codespaces settings
+## 7. Failure behavior
 
-The phone-oriented Codespaces setup writes these defaults:
+Provider/advisory failure must not corrupt assessment truth.
 
-```bash
-VULNHUNTER_INTELLIGENCE_ENABLED=true
-VULNHUNTER_INTELLIGENCE_PRIMARY_MODEL=openai/gpt-oss-20b
-VULNHUNTER_INTELLIGENCE_DEEP_MODEL=openai/gpt-oss-120b
-VULNHUNTER_INTELLIGENCE_MAX_ATTEMPTS=2
-VULNHUNTER_INTELLIGENCE_TIMEOUT_SECONDS=90
-VULNHUNTER_INTELLIGENCE_MAX_INPUT_BYTES=64000
-VULNHUNTER_INTELLIGENCE_MAX_OUTPUT_TOKENS=2400
+Examples:
+
+- provider disabled/unconfigured → deterministic assessment remains usable;
+- key missing → safe provider-unavailable state;
+- timeout/rate limit → bounded retry or abstention according to current policy;
+- malformed schema → reject response;
+- invented evidence → reject response;
+- provider/model unavailable → use only a configured approved fallback, otherwise abstain;
+- activity-display failure → persisted assessment/evidence remains authoritative.
+
+No advisory failure may silently change a scanner observation, verification result or human review state.
+
+## 8. Live activity
+
+If advisory reasoning is part of a running task, user-facing activity may expose safe operational stages such as:
+
+```text
+Preparing redacted advisory context…
+Advisory analysis running…
+Reviewing advisory result against persisted evidence…
+Advisory result stored / abstained…
 ```
 
-The protected `GROQ_API_KEY` Codespaces secret is copied once into the owner-only key file expected by VulnHunter. The environment variable is then unset by the first-run script.
+Do not expose provider chain-of-thought or private reasoning tokens.
 
-`start-vulnhunter.sh` starts two independent workers:
+The task/activity rules are defined by `docs/product/LIVE_EXECUTION_ACTIVITY.md`.
 
-- the isolated Nuclei scanner worker;
-- the advisory intelligence worker.
+## 9. Trust statement
 
-The intelligence worker starts only when Groq is enabled and the protected key file exists.
-
-## Phone workspace behavior
-
-The assessment card continues a separate bounded status check after scanner completion, for no more than three minutes, so the later advisory result can appear on a phone. Polling stops immediately when the result or safe abstention is recorded.
-
-## Trust statement
-
-All advisory reports include:
+Advisory results remain conceptually:
 
 ```text
 advisory_only = true
 trusted = false
 ```
 
-A human reviewer remains responsible for accepting, rejecting, or changing the finding.
+or the equivalent current schema.
+
+Human/deterministic authority remains unchanged.
+
+## 10. Historical model/config examples
+
+Older commits may contain concrete Groq model IDs and Codespaces defaults used for a specific deployment period. Treat those values as historical/runtime examples, not permanent product contract.
+
+Current provider/model truth comes from:
+
+- `docs/product/AI_ROUTING.md`;
+- `docs/product/LLM_RUNTIME_READINESS.md`;
+- current provider/model registry/configuration;
+- current code/tests.

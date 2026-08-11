@@ -1,38 +1,30 @@
-# VulnHunter UI quality assurance
+# VulnHunter UI Quality Assurance
 
-**Status:** Binding browser, responsive, accessibility and product-truth gate  
-**Companion documents:**
+**Status:** Binding browser, responsive, accessibility, product-truth and visual-conformance gate  
+**Canonical design:** `docs/design/VULNHUNTER_UI_CONTRACT.md`  
+**Agent standard:** `docs/design/AI_AGENT_UI_IMPLEMENTATION_STANDARD.md`
 
-- `docs/product/AI_FIRST_ASSESSMENT_WORKSPACE_ARCHITECTURE.md`;
-- `docs/product/AI_FIRST_ASSESSMENT_WORKSPACE_IMPLEMENTATION_STANDARD.md`;
+Companion documents:
+
+- `docs/design/references/manifest.json`;
+- `docs/design/DEPRECATIONS.md`;
 - `docs/product/CHAT_FIRST_WORKSPACE.md`;
-- `docs/intelligence/CURRENT_STATE.md`;
-- `docs/intelligence/KNOWN_FAILURES.md`.
+- `docs/product/UI_ACCEPTANCE_CRITERIA.md`;
+- `docs/product/RESPONSIVE_AND_ACCESSIBILITY.md`;
+- `docs/product/AI_FIRST_ASSESSMENT_WORKSPACE_ARCHITECTURE.md`;
+- `docs/product/AI_FIRST_ASSESSMENT_WORKSPACE_IMPLEMENTATION_STANDARD.md`.
 
-VulnHunter treats the browser interface as a governed product surface, not a
-decorative shell. A page is not ready merely because its URL resolves, a
-template compiles, a screenshot looks attractive or an expected string exists.
+VulnHunter treats the browser interface as a governed product surface, not a decorative shell. A page is not ready merely because its URL resolves, a template compiles, a screenshot looks attractive, or an expected string exists.
 
-A browser change is ready only when the interface presents one truthful backend
-state, enables only valid actions, remains usable on supported phone and desktop
-configurations, and provides enough evidence for another reviewer to reproduce
-the result.
+A browser change is ready only when it presents one truthful backend state, follows the canonical chat/task-first product composition, remains readable and usable on supported phone/desktop layouts, and provides reproducible evidence.
 
 ---
 
 ## 1. Quality ownership
 
-The AI-first architecture document owns required product behaviour. The
-implementation standard owns technical migration and acceptance details. This
-file owns the browser and interaction evidence required before a product-facing
-slice may merge.
+The locked UI contract owns visual/product interaction. The AI agent implementation standard owns implementation/rejection discipline. The chat-first contract owns workflow semantics. The AI-first architecture owns non-conflicting state/lifecycle architecture. This file owns browser/interaction evidence before a product-facing slice may merge.
 
-Do not create a second UI QA checklist in a milestone document. Add new permanent
-browser gates here and reference them from pull requests and workflows.
-
-A green UI audit does not override a failed security, authorisation, evidence,
-worker, repository or test gate. Similarly, passing backend tests does not excuse
-an unusable or contradictory interface.
+A green UI audit does not override a failed security, authorization, evidence, worker, repository or test gate. Passing backend tests does not excuse a contradictory, unreadable or dashboard-first UI.
 
 ---
 
@@ -42,167 +34,243 @@ Every product-facing pull request is validated at the following levels.
 
 ### 2.1 Static and application correctness
 
-Required repository checks include:
-
-- canonical Ruff formatting;
-- Ruff lint;
-- Python compilation;
-- complete unit and integration test suite;
-- scanner compatibility validation;
-- restricted-worker validation where affected;
-- strict repository audit;
-- `git diff --check`;
-- clean expected Git state.
+Required repository checks include the gates defined by `AGENTS.md`, including relevant formatting, lint, compilation, tests, scanner/repository validation and `git diff --check`.
 
 No UI test may weaken or bypass a backend invariant to obtain a green result.
 
-### 2.2 Backend-connected browser behaviour
+### 2.2 Backend-connected browser behavior
 
-The browser audit uses authenticated local-only personas and deterministic
-seeded records. It must exercise the real route, view, permission, projection
-and command path rather than a static mock page.
+Browser validation must exercise the real route, view, permission, projection and command path rather than only a static mock page.
 
-When a slice affects an assessment lifecycle, browser evidence must be paired
-with assertions against the persisted stores or authoritative assessment
-projection. A screenshot that appears correct while the underlying assessment
-record disagrees is a failure.
+When a slice affects an assessment lifecycle, browser evidence must be paired with assertions against the persisted stores or authoritative assessment projection. A screenshot that appears correct while the underlying record disagrees is a failure.
 
 Required browser defect checks include:
 
-- HTTP or Django errors;
+- HTTP/Django errors;
 - JavaScript console errors;
 - uncaught page errors;
 - failed static assets;
 - duplicate IDs;
 - unnamed controls;
-- broken in-page anchors;
-- empty links or dead actions;
-- missing or duplicate active navigation;
-- clipped sidebar navigation;
+- broken/dead actions;
+- missing/duplicate active navigation;
 - body-level horizontal overflow;
-- long pages that cannot scroll;
-- open dialogs outside the viewport;
-- dialogs without headings, controls or scrollable content;
+- clipped primary controls;
+- dialogs/drawers outside the viewport;
 - mobile sidebar visible by default;
-- missing mobile navigation control.
+- missing mobile drawer/menu control;
+- composer unreachable/covered;
+- unreadable message copy;
+- unintended permanent context panel;
+- multiple competing navigation systems.
 
-### 2.3 State-truth and cross-surface consistency
+### 2.3 State truth and cross-surface consistency
 
-When an assessment is involved, the audit must verify:
+When an assessment is involved, verify:
 
-- one assessment ID is shown by every affected surface;
-- a validated artifact is bound to a durable assessment;
-- a queued or running task is not displayed under `No active assessment`;
-- chat, task card, inspector and history agree on lifecycle;
-- findings, evidence, graph and reports identify the owning assessment;
-- worker failure updates terminal or partial state everywhere;
-- zero findings does not erase evidence, history or partial work;
-- provider health is not confused with worker or assessment health;
-- demo, pilot and seeded records are separated from current user work;
-- refresh and reconnect reconstruct the same state.
+- one workspace/assessment ID is used consistently;
+- a validated artifact is bound to durable state where required;
+- queued/running work is not displayed under contradictory “no active assessment” state;
+- chat/task projection and specialist deep views agree on lifecycle;
+- findings/evidence/reports identify the owning assessment;
+- worker failure updates the same state model;
+- zero findings does not erase evidence/history/partial work;
+- provider health is not confused with worker/assessment health;
+- demo/pilot/seeded records are separated from current user work;
+- refresh/reconnect reconstructs the same state;
+- browser code does not invent missing status to make screenshots look consistent.
 
-The audit must fail closed when a projection is incomplete. It must not create
-browser-only state to make the screenshot appear consistent.
+### 2.4 Canonical visual/product conformance
 
-### 2.4 Responsive visual evidence
+Every affected UI slice must be checked against these invariants:
 
-Capture and retain full-page or purpose-specific screenshots at the supported
-viewports. The standard matrix includes:
+- conversation/task-first hierarchy remains dominant;
+- MonkeyCode is used only for task/workspace structure/behavior;
+- Beautiful UI is used only for AI-native component/microinteraction patterns;
+- VulnHunter retains warm cream/off-white dotted canvas, dusty-pink accents, compact dark task/sidebar, near-black technical text/borders, square geometry and hard black offset shadows;
+- assistant/body copy remains readable;
+- contextual detail is closed until opened;
+- utilities do not become a wide toolbar competing with the task;
+- the UI does not resurrect explicitly deprecated dashboard patterns;
+- no hidden chain-of-thought/private reasoning is exposed.
 
-- reference desktop: 1672 by 941;
-- common desktop: 1440 by 900;
-- tablet landscape: 1024 by 768;
-- tablet portrait: 768 by 1024;
-- mobile: 390 by 844;
-- narrow mobile: 360 by 800.
-
-Affected mobile work must also be checked in Android Chrome and Android
-desktop-site simulation when the environment permits. Short-height landscape is
-required for changes involving sticky headers, bottom navigation, composer,
-dialogs, sheets or keyboard behaviour.
-
-Screenshots, machine-readable report, server log and console/page-error evidence
-must be retained as workflow artifacts.
-
-### 2.5 Accessibility and interaction evidence
-
-The following are required when the affected surface contains interactive
-controls, dialogs, sheets, navigation or live status:
-
-- keyboard-only desktop completion;
-- logical focus order;
-- visible focus state;
-- dialog or sheet focus containment;
-- Escape handling where appropriate;
-- Android/browser Back handling;
-- previous-focus restoration;
-- status and error announcements;
-- no colour-only state;
-- reduced-motion behaviour;
-- 200% browser zoom;
-- readable long text, filenames, URLs and hashes;
-- primary Android TalkBack path for major mobile changes when practical.
-
-Automated axe checks should be added to the Playwright audit where practical,
-but automated accessibility output does not replace manual keyboard, TalkBack
-and zoom review.
+A screenshot that looks polished but violates these invariants fails.
 
 ---
 
-## 3. Product-truth scenarios
+## 3. Responsive visual evidence
 
-Every affected slice includes expected success, blocked/failure and motivating
-regression scenarios.
+Capture purpose-specific screenshots at representative viewports. The standard matrix includes approximately:
 
-### 3.1 Identity and lifecycle scenarios
+- desktop `1440×900`;
+- desktop `1280×800` where practical;
+- tablet landscape `1024×768`;
+- tablet portrait `768×1024`;
+- mobile `412×915` or similar;
+- mobile `390×844`;
+- narrow mobile `360×800`.
 
-At minimum, cover relevant cases from this set:
+Affected mobile work should also be checked in Android Chrome when practical. Short-height landscape is required for changes involving sticky headers, composer, dialogs, sheets or keyboard behavior.
+
+Screenshots are evidence, not authority. They are compared against the locked design contract rather than against the previous implementation.
+
+---
+
+## 4. Mobile shell gate
+
+At phone width:
+
+- the desktop sidebar becomes an overlay task/chat drawer;
+- the base workspace is one column;
+- there is no permanent desktop inspector beside chat;
+- contextual detail opens as a full-width sheet/drawer/deep view;
+- primary task state remains visible and readable;
+- normal use requires no body-level horizontal scrolling;
+- no desktop toolbar row is squeezed into the header/page;
+- primary actions are not clipped/truncated;
+- safe-area/browser/system insets are respected;
+- the composer remains usable with the virtual keyboard open;
+- meaningful copy is not shrunk below the readable scale;
+- desktop KPI/state grids are restructured, not miniaturized.
+
+### Mobile navigation
+
+The canonical everyday mobile navigation is the **MonkeyCode-style task/chat drawer**, not a permanent bottom-tab dashboard.
+
+The drawer prioritizes:
+
+```text
+VULNHUNTER
++ New assessment
+Chats / Tasks
+current task
+recent tasks
+Task history
+Manage
+Settings
+user / role
+```
+
+Evidence, findings, reports, Source Hunt and other specialist areas open contextually or through progressive disclosure. They are not all permanent bottom tabs.
+
+A pull request fails when duplicate `Analysis`, `Findings`, `Graph`, `Chat` or similar destination systems compete with the task drawer/workspace hierarchy.
+
+---
+
+## 5. Composer gate
+
+The primary composer remains simple and persistent.
+
+Core composition:
+
+```text
+Attach / add
+Text input
+Send
+```
+
+A compact mode/detail control may exist where repository-backed, but provider selection, provider health, detailed reasoning, prompt management and diagnostics remain behind progressive disclosure/settings.
+
+Validate:
+
+- approximately 16px mobile input text where needed to avoid browser zoom;
+- send/attachment targets meet critical touch size;
+- composer remains reachable with keyboard open;
+- latest content is not permanently covered;
+- attachment/upload state is understandable;
+- one authoritative upload progress source;
+- disabled state explains the reason;
+- composer remains available during supported running work and approval waits;
+- queued follow-up behavior is visible where supported.
+
+---
+
+## 6. AI-native component gate
+
+When used, AI-native primitives must reflect real state:
+
+### Task rows
+
+Use one coherent visible state system for pending/running/blocked/recovering/failed/cancelled/completed.
+
+### Tool chips
+
+Show only real tool/receipt/provenance information. Do not imply execution from a decorative chip.
+
+### Approval cards
+
+Show exact object/action/scope and real backend-supported decisions. Authorization, owner confirmation, independent approval, review and adjudication are distinct.
+
+### Context cards
+
+Show concise evidence/source/provenance and allow a deeper view. Do not dump huge technical detail into the base conversation.
+
+### Recommendation cards
+
+Advisory only. Never imply that a recommendation has been applied or verified unless authoritative state says so.
+
+### Thinking/activity
+
+Allowed: safe activity such as `Checking authorization…`. Forbidden: hidden chain-of-thought/private model reasoning.
+
+---
+
+## 7. Product-truth scenarios
+
+Every affected slice includes expected success, blocked/failure and motivating regression scenarios.
+
+Cover relevant states from:
 
 - no selected assessment;
 - temporary upload before validation;
-- validated artifact and newly bound assessment;
+- validated artifact/new assessment binding;
 - planning;
+- authorization missing;
 - confirmation required;
-- approval required;
+- independent approval required;
 - queued;
-- worker claimed;
-- running;
+- worker claimed/running;
+- follow-up queued;
 - dependency blocked;
 - tool failure;
 - worker unavailable;
+- recovering;
 - partial completion;
 - cancellation requested;
 - cancellation race with completion;
 - terminal failure;
 - complete with zero findings and preserved evidence;
-- complete with candidate findings;
+- complete with findings;
 - review required;
 - report ready;
 - archived/historical assessment.
 
 A page must not use one generic fixture for every lifecycle state.
 
-### 3.2 Idempotency and recovery scenarios
+---
 
-Cover the commands relevant to the slice under:
+## 8. Idempotency and recovery scenarios
 
-- double tap or duplicate submission;
+Cover relevant commands under:
+
+- double tap/duplicate submission;
 - slow network;
 - request timeout after backend success;
-- browser refresh;
-- disconnect and reconnect;
+- refresh;
+- disconnect/reconnect;
 - stale page resubmission;
 - stale CSRF/session recovery;
 - Android Back/forward;
 - opening the same assessment on another device;
 - clearing browser-local state.
 
-The browser must show the existing authoritative result rather than creating a
-duplicate assessment, approval transition, worker job, cancellation or retry.
+The browser must show the existing authoritative result rather than creating duplicate assessment, approval, worker job, cancellation or retry state.
 
-### 3.3 Failure and retry scenarios
+---
 
-When failure UI changes, verify:
+## 9. Failure and retry scenarios
+
+When failure UI changes, verify where available:
 
 - machine-readable error category;
 - stable reference ID;
@@ -210,145 +278,87 @@ When failure UI changes, verify:
 - understandable reason;
 - completed stages;
 - preserved evidence;
-- user-action-required versus operator-action-required;
+- user-action-required vs operator-action-required;
 - backend-owned retry eligibility;
 - targeted retry scope;
 - new attempt identity;
-- prior attempt and receipts retained;
-- no Retry control when the backend cannot perform a safe idempotent retry.
+- prior attempt/receipts retained;
+- no Retry control when safe idempotent retry is unavailable.
 
-Generic `worker did not complete` copy is not sufficient when typed failure
-information exists.
-
----
-
-## 4. Responsive workspace requirements
-
-### 4.1 Mobile shell
-
-At phone width:
-
-- the desktop inspector must not remain compressed beside chat;
-- the inspector opens as a full-screen route, sheet or appropriate bottom sheet;
-- Android/browser Back closes the topmost temporary surface first;
-- closing the inspector returns to the exact conversation context and scroll
-  position;
-- global tables become cards or labelled rows;
-- normal task completion requires no body-level horizontal scrolling;
-- sticky header, composer, latest-message control and bottom navigation do not
-  overlap;
-- safe-area insets are respected;
-- primary actions remain reachable with the virtual keyboard open;
-- long action rows wrap, intentionally scroll or collapse into More;
-- text is not reduced below the product readable scale to make the layout fit.
-
-### 4.2 Mobile primary navigation
-
-The assessment workspace primary set is:
-
-```text
-Chat
-Activity
-Findings
-More
-```
-
-Evidence and Report are contextual destinations. Graph appears only when
-meaningful graph records exist. The audit must fail when competing duplicate
-Analysis, Findings or Graph destinations are presented as primary navigation.
-
-### 4.3 Composer
-
-The primary composer exposes:
-
-```text
-Attach
-Text input
-Mode
-Send
-```
-
-Provider selection, provider health, detailed reasoning, prompt management and
-diagnostics belong behind progressive disclosure or Settings.
-
-Validate:
-
-- 16-pixel mobile input text where needed to avoid browser zoom;
-- send and attachment targets meet the minimum touch size;
-- composer remains visible with keyboard open;
-- latest-message affordance does not cover content;
-- attachment/upload state remains understandable;
-- one authoritative upload progress value;
-- character count appears only when useful;
-- disabled state explains its reason.
-
-### 4.4 Tables and dense technical content
-
-Assessment history, findings, evidence and reports become mobile cards or
-labelled rows. Contained horizontal scrolling is allowed only for technical data
-where transforming the table would destroy meaning. The scroll container must be
-obvious, keyboard reachable and must not force the complete page to overflow.
+Generic `worker did not complete` copy is insufficient when typed failure information exists.
 
 ---
 
-## 5. Typography, contrast and touch thresholds
+## 10. Accessibility and interaction evidence
+
+When the affected surface contains interactive controls, dialogs, sheets, navigation or live status, verify:
+
+- keyboard-only desktop completion;
+- logical focus order;
+- visible focus state;
+- dialog/sheet focus containment;
+- Escape handling where appropriate;
+- Android/browser Back handling;
+- previous-focus restoration;
+- status/error announcements;
+- no color-only state;
+- reduced-motion behavior;
+- 200% browser zoom;
+- readable long text, filenames, URLs and hashes;
+- TalkBack path for major mobile changes when practical.
+
+Automated accessibility checks may assist but do not replace manual interaction review.
+
+---
+
+## 11. Typography, contrast and touch thresholds
 
 Use the approved design tokens unless a reviewed exception exists.
 
 Minimum expectations:
 
-- primary content: 14–16 CSS pixels;
-- meaningful mobile message content: at least 14 CSS pixels;
-- supporting metadata: at least 12 CSS pixels;
-- secondary labels: 11–12 CSS pixels;
-- 8–10 CSS pixel text must not carry critical status, instruction, identity or
-  action meaning;
-- primary touch targets: at least 44 by 44 CSS pixels;
-- focus state remains visible against every surface;
+- desktop primary content: generally `14–16px`;
+- meaningful mobile conversation content: generally `15–17px`;
+- supporting metadata: generally at least `12px` where practical;
+- `8–10px` text must not carry critical status/instruction/identity/action meaning;
+- primary/critical touch targets: approximately `44×44px` minimum;
+- focus remains visible on cream and dark sidebar surfaces;
 - muted text remains readable on bright mobile screens;
-- enabled green or blue primary actions must not use muted text that resembles a
-  disabled control;
-- destructive actions use text and iconography, not colour alone.
+- enabled primary actions use clear near-black/high-contrast text appropriate to the dusty-pink system;
+- destructive actions use text/icon semantics, not color alone.
 
-When density is too high, remove repetition or use progressive disclosure. Do
-not shrink meaningful text as the first response.
+When density is too high, remove repetition or use progressive disclosure. Do not shrink meaningful text first.
 
 ---
 
-## 6. Design-system and frontend-maintainability checks
+## 12. CSS/design-system maintainability
 
-### 6.1 Token consistency
+### Token consistency
 
-`config/product_interface/design_tokens.json` is the intended token source.
-Review affected runtime CSS for drift in:
+`vulnhunter/web/static/web/tokens.css` is the runtime canonical token expression. Related config tokens must stay consistent with it.
 
-- background and surface colours;
-- accent and focus colours;
-- body and label sizes;
-- control and card radii;
-- border and shadow values;
+Review affected CSS for drift in:
+
+- canvas/surface colors;
+- dusty-pink accent/focus language;
+- dark sidebar colors;
+- body/label sizes;
+- square radius system;
+- hard offset shadows;
 - spacing scale;
 - minimum control height.
 
-A deliberate exception must be documented. Silent drift is a defect.
+### CSS ownership
 
-### 6.2 CSS ownership
-
-A pull request must not add another permanent `polish`, `final-fixes`, `bridge`
-or overlapping mobile override file without documenting:
-
-- the existing owner that cannot safely contain the change;
-- the migration plan;
-- the obsolete file/rules that will be removed;
-- regression evidence preventing future consolidation.
+A pull request must not add another permanent `polish`, `final-fixes`, `bridge`, `override` or overlapping mobile file without a documented necessity and consolidation plan.
 
 Prefer one component owner and remove obsolete corrective layers after migration.
 
-### 6.3 JavaScript state ownership
+Routine `!important` use to force the design is a failure of ownership unless a narrowly justified edge case is documented.
 
-Conversation, upload, task card, inspector, history and mobile navigation should
-consume the same assessment projection through one coordinated frontend state
-layer. The audit must detect or reviewers must reject:
+### JavaScript state ownership
+
+Conversation, upload, task state, history and responsive/context behavior should consume the same authoritative assessment projection. Reject:
 
 - independent lifecycle inference in multiple scripts;
 - copied status translation tables;
@@ -360,159 +370,123 @@ layer. The audit must detect or reviewers must reject:
 
 ---
 
-## 7. Navigation and content checks
+## 13. Explicit visual anti-regression gate
 
-### 7.1 One owner per destination
+A browser audit fails if the affected ordinary workspace contains any of these without a separately approved contract change:
 
-Every concept has one primary owner and at most one contextual shortcut. The
-browser audit checks duplicate primary destinations by URL and label, but manual
-review must also catch conceptual duplicates that use different labels.
+1. four large top cards for `Authorization / Scope / Approval / Active`;
+2. a default `Source Hunt / Search / Export / History / New workspace` toolbar row;
+3. `Runs / Scanner / Execution / Entry point` KPI cards as the main workspace/history presentation;
+4. giant dark Source Hunt/admin panels in the conversational workflow;
+5. a giant Source Hunt form as the primary source-analysis entry;
+6. low-contrast/tiny assistant message text;
+7. giant blank areas while task state is microscopic;
+8. blue-glow identity drift;
+9. desktop controls clipped/squeezed on phone;
+10. multiple competing navigation systems;
+11. a permanent context/detail panel when nothing is selected;
+12. a new CSS patch layer whose only purpose is to beat previous CSS.
 
-Global pages are indexes across assessments. Contextual pages preserve the
-selected assessment. Opening a finding, evidence item or report must provide a
-clear path back to its owning assessment.
-
-### 7.2 Ordinary language first
-
-Primary task copy uses understandable language. Governance, provider, worker,
-hash and receipt details remain exact under expandable technical or audit views.
-
-Reviewers must reject interfaces where labels such as `canonical worker state`,
-`persisted receipts`, `exact snapshot` or queue-envelope terminology appear
-before the user understands what is happening and what action is required.
-
-### 7.3 Empty states
-
-An empty state is concise, contextual and actionable. It must not use a large
-metric-card grid merely to explain zero records.
-
-Contextual empty states identify the selected assessment. Global empty states
-explain how records enter the index. Seeded or pilot records are explicitly
-labelled and separated.
+These items are also recorded in `docs/design/DEPRECATIONS.md`.
 
 ---
 
-## 8. Activation policy
+## 14. Navigation/content checks
 
-An interface element may report that a capability is gated, but it must not
-pretend that an unavailable backend action succeeded.
+Every concept has one primary owner and at most one contextual shortcut.
 
-Scanner enqueue, active validation, repository graph generation, remote advisory
-routing, mobile subprocess execution, report rendering, retry and publication
-require explicit reviewed backend contracts and local prerequisites.
+Global pages are indexes across assessments. Contextual deep views preserve the selected assessment. Opening a finding, evidence item or report must provide a clear path back to its owning assessment/workspace.
 
-The Settings surface reports activation gates truthfully. It does not expose
-secrets and does not provide decorative toggles that bypass server-side policy.
+Primary task copy uses ordinary language. Governance, provider, worker, hash and receipt detail remains exact under technical/audit disclosure.
 
-Provider health, worker readiness and assessment lifecycle are displayed as
-separate dimensions.
+Empty states are concise and actionable; do not use a metric-card grid merely to communicate zero records.
 
 ---
 
-## 9. Report exports
+## 15. Activation policy
 
-Pilot-plan HTML and JSON downloads use the existing protected-data-safe
-`ReportExporter`. Other formats remain unavailable until their required finding,
-evidence, attack-path or renderer context exists.
+An interface may report that a capability is gated, but it must not pretend an unavailable backend action succeeded.
+
+Scanner enqueue, active validation, repository graph generation, remote advisory routing, mobile subprocess execution, report rendering, retry and publication require explicit backend contracts and prerequisites.
+
+Provider health, worker readiness and assessment lifecycle are separate dimensions.
+
+---
+
+## 16. Report/export gate
 
 Assessment-scoped report UI must:
 
-- identify the owning assessment;
+- identify owning assessment;
 - show lifecycle state;
-- list every supported format;
-- state the exact unmet requirement for unavailable formats;
+- list supported formats truthfully;
+- state unmet requirements for unavailable formats;
 - distinguish rendering from publication;
 - separate pilot/demo data from user work;
 - avoid dead download controls;
-- reject protected payloads, unsafe filenames, oversized artifacts and evidence
-  outside approved roots.
+- preserve protected-data constraints.
 
-Rendering a report never publishes a finding or changes governance state.
+Rendering never publishes a finding or changes governance state.
 
 ---
 
-## 10. Browser artifact requirements
+## 17. Browser artifact requirements
 
-The responsive workflow retains:
+Retain appropriate evidence such as:
 
-- screenshots for every required viewport;
+- screenshots for required viewports/states;
 - machine-readable validation report;
 - server log;
-- console errors;
-- page errors;
-- failed static asset responses;
-- modal audit results;
+- console/page errors;
+- failed static-asset responses;
+- dialog/drawer audit results;
 - exact page/persona/state manifest;
-- failure list;
 - relevant Android/keyboard evidence.
 
-Artifact names must identify route, viewport and state. A set of screenshots that
-contains only empty/default states is insufficient for a lifecycle-changing pull
-request.
-
-Reviewers should compare affected states side by side and verify:
-
-- hierarchy;
-- density;
-- typography;
-- contrast;
-- alignment;
-- state consistency;
-- action clarity;
-- mobile reachability;
-- absence of demo data confusion.
+Artifact names should identify route, viewport and state. Empty/default screenshots alone are insufficient for lifecycle-changing work.
 
 ---
 
-## 11. Manual review
+## 18. Manual review questions
 
-A green browser audit establishes that the rendered pages are operational and
-free from the automated defect classes it covers. It does not establish that the
-product flow is understandable or that the displayed state is the correct state.
+Before a major product-facing change merges, reviewers should answer:
 
-Before a major product-facing change merges, reviewers must manually inspect the
-running journey from start through success, blocked/failure and recovery. The
-review must answer:
-
-- Can a non-technical authorised user identify what object is selected?
-- Is the assessment identity visible where needed?
-- Is the current stage unambiguous?
-- Is there exactly one primary next action?
-- Does failure explain preserved work and recovery?
-- Can the user return to the conversation without losing context?
-- Are global and contextual pages clearly different?
-- Is provider or governance detail progressively disclosed?
-- Does phone use feel intentionally designed rather than compressed desktop?
-- Does the UI agree with the persisted projection?
+- Is the selected object/task obvious?
+- Is current stage understandable?
+- Is there one clear primary next action?
+- Does failure explain preserved work/recovery?
+- Can the user return to conversation without losing context?
+- Are global and contextual views clearly different?
+- Is provider/governance detail progressively disclosed?
+- Does phone feel intentionally designed rather than compressed desktop?
+- Does the UI agree with persisted projection?
+- Does the surface still look unmistakably like the cream/dotted/dusty-pink VulnHunter product?
+- Did the change reduce rather than add CSS/presentation debt?
 
 If any answer is uncertain, the slice remains incomplete.
 
 ---
 
-## 12. Pull-request completion checklist
+## 19. Pull-request completion checklist
 
 A product-facing pull request may merge only when:
 
-1. the motivating product defect and invariant are stated;
+1. motivating product defect/invariant is stated;
 2. success, blocked/failure and regression tests exist;
-3. persisted state or projection assertions accompany browser assertions;
-4. idempotency and recovery are tested where relevant;
+3. persisted-state assertions accompany browser assertions where relevant;
+4. idempotency/recovery are tested where relevant;
 5. required viewport evidence is retained;
-6. no body-level horizontal overflow exists;
-7. keyboard, focus, Back, safe-area and virtual-keyboard behaviour is verified
-   where relevant;
-8. critical text and touch targets meet thresholds;
+6. no essential body-level horizontal overflow exists;
+7. keyboard/focus/Back/safe-area/virtual-keyboard behavior is verified where relevant;
+8. critical text/touch targets meet thresholds;
 9. navigation has one owner per concept;
-10. no fabricated progress, findings, evidence, metrics or capability is shown;
-11. enabled, loading, disabled and destructive controls are visually distinct;
-12. token drift and frontend ownership are reviewed;
-13. obsolete duplicate styles, scripts or state sources are removed when made
-    unnecessary;
-14. documentation reflects implemented truth;
-15. all repository, security, worker and browser gates pass;
-16. review threads are resolved.
+10. no fabricated progress/findings/evidence/metrics/capability is shown;
+11. enabled/loading/disabled/destructive controls are distinct;
+12. design-token/CSS ownership drift is reviewed;
+13. obsolete duplicate styles/scripts/state sources are removed when made unnecessary;
+14. the explicit anti-regression gate passes;
+15. documentation reflects implemented truth;
+16. repository/security/worker/browser gates pass;
+17. review threads are resolved.
 
-The interface remains partial when a supported workflow still contains
-contradictory state, generic unactionable failure, duplicate primary navigation,
-compressed phone layout, dead action or seeded data that appears to be user
-work.
+A UI remains incomplete when it contains contradictory state, generic unactionable failure, dashboard-first composition, duplicate navigation, compressed phone layout, dead action, seeded-data confusion, hidden reasoning exposure, or stylesheet-patch accumulation.

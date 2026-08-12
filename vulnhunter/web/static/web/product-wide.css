@@ -1,4 +1,0 @@
-/* Retired compatibility file.
-   app.js historically requested this file after product.css. Canonical product
-   ownership now lives in app.css, product.css and chat-shell.css. This file is
-   intentionally rule-free so it cannot reintroduce late cascade overrides. */

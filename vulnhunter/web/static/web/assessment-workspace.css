@@ -1,4 +1,4 @@
-/* Persisted assessment timeline.
+/* Persisted assessment timeline and governed mobile assessment cards.
    Data attributes are populated from authoritative assessment projection only. */
 
 .vh-assessment-timeline {
@@ -106,6 +106,225 @@
   color: var(--vh-muted);
 }
 
+/* Resumable APK controls and mobile-plan cards share the primary workspace contract. */
+.vh-chat-workspace .vh-apk-attachment-card,
+.vh-chat-workspace .vh-apk-uploading {
+  display: flex;
+  min-width: 0;
+  max-width: 34rem;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 12px;
+  border: 1px solid var(--vh-ink);
+  border-radius: 2px;
+  background: var(--vh-surface);
+  box-shadow: 3px 3px 0 var(--vh-ink);
+  color: var(--vh-ink);
+}
+
+.vh-chat-workspace .vh-apk-attachment-card > div,
+.vh-chat-workspace .vh-apk-uploading > div {
+  display: grid;
+  min-width: 0;
+  flex: 1 1 auto;
+  gap: 3px;
+}
+
+.vh-chat-workspace .vh-apk-attachment-icon {
+  display: grid;
+  width: 46px;
+  height: 46px;
+  flex: 0 0 46px;
+  place-items: center;
+  border: 1px solid var(--vh-ink);
+  border-radius: 2px;
+  background: var(--vh-pink-soft);
+  color: var(--vh-ink);
+  font-family: var(--vh-font-mono);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
+.vh-chat-workspace .vh-apk-attachment-card strong,
+.vh-chat-workspace .vh-apk-attachment-card small,
+.vh-chat-workspace .vh-apk-attachment-card code {
+  min-width: 0;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.vh-chat-workspace .vh-apk-attachment-card strong {
+  color: var(--vh-ink);
+  font-size: 12px;
+}
+
+.vh-chat-workspace .vh-apk-attachment-card small,
+.vh-chat-workspace .vh-apk-attachment-card code {
+  color: var(--vh-muted);
+  font-family: var(--vh-font-mono);
+  font-size: 9.5px;
+}
+
+.vh-chat-workspace .vh-apk-attachment-remove {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  place-items: center;
+  margin-left: auto;
+  padding: 0;
+  border: 1px solid var(--vh-line);
+  border-radius: 2px;
+  background: var(--vh-surface);
+  color: var(--vh-ink);
+  cursor: pointer;
+}
+
+.vh-chat-workspace .vh-apk-attachment-remove:hover,
+.vh-chat-workspace .vh-apk-attachment-remove:focus-visible {
+  border-color: var(--vh-ink);
+  background: var(--vh-pink-soft);
+}
+
+.vh-chat-message .vh-apk-attachment-card {
+  max-width: 100%;
+  margin-bottom: 10px;
+}
+
+.vh-chat-workspace .vh-mobile-hunt-card {
+  margin-top: 12px;
+  overflow: hidden;
+  border: 1px solid var(--vh-ink);
+  border-radius: 2px;
+  background: var(--vh-surface);
+  box-shadow: 4px 4px 0 var(--vh-ink);
+  color: var(--vh-ink);
+}
+
+.vh-chat-workspace .vh-mobile-hunt-card > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 13px 14px 11px;
+  border-bottom: 1px solid var(--vh-line);
+  background: var(--vh-surface-strong);
+}
+
+.vh-chat-workspace .vh-mobile-hunt-card > header > div {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.vh-chat-workspace .vh-mobile-hunt-card > header small {
+  color: var(--vh-muted);
+  font-family: var(--vh-font-mono);
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.vh-chat-workspace .vh-mobile-hunt-card > header strong {
+  color: var(--vh-ink);
+  font-size: 13px;
+}
+
+.vh-chat-workspace .vh-mobile-hunt-card > header code {
+  max-width: 10rem;
+  overflow-wrap: anywhere;
+  color: var(--vh-muted);
+  font-family: var(--vh-font-mono);
+  font-size: 9px;
+}
+
+.vh-chat-workspace .vh-mobile-tool-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 11px 14px 4px;
+}
+
+.vh-chat-workspace .vh-mobile-tool-chips span {
+  padding: 4px 7px;
+  border: 1px solid var(--vh-line);
+  border-radius: 2px;
+  background: var(--vh-pink-soft);
+  color: var(--vh-ink);
+  font-family: var(--vh-font-mono);
+  font-size: 9px;
+}
+
+.vh-chat-workspace .vh-mobile-hunt-rounds {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 12px 14px 14px;
+  list-style: none;
+}
+
+.vh-chat-workspace .vh-mobile-hunt-rounds li {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 28px minmax(0, 1fr);
+  align-items: flex-start;
+  gap: 9px;
+  opacity: 0;
+  transform: translateY(5px);
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.vh-chat-workspace .vh-mobile-hunt-rounds li.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.vh-chat-workspace .vh-mobile-hunt-rounds li > span {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 1px solid var(--vh-line);
+  border-radius: 2px;
+  background: var(--vh-surface);
+  color: var(--vh-ink);
+  font-family: var(--vh-font-mono);
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.vh-chat-workspace .vh-mobile-hunt-rounds li.is-blocked > span {
+  border-color: var(--vh-warning);
+  color: var(--vh-warning);
+}
+
+.vh-chat-workspace .vh-mobile-hunt-rounds li.is-covered > span {
+  border-color: var(--vh-success);
+  color: var(--vh-success);
+}
+
+.vh-chat-workspace .vh-mobile-hunt-rounds li > div {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.vh-chat-workspace .vh-mobile-hunt-rounds strong {
+  color: var(--vh-ink);
+  font-size: 11.5px;
+}
+
+.vh-chat-workspace .vh-mobile-hunt-rounds small {
+  color: var(--vh-muted);
+  font-size: 10px;
+  line-height: 1.45;
+  white-space: normal;
+}
+
 @media (max-width: 767px) {
   .vh-assessment-timeline {
     margin: 14px;
@@ -123,5 +342,50 @@
   .vh-assessment-timeline-row small {
     font-size: 10px;
     white-space: normal;
+  }
+}
+
+@media (max-width: 640px) {
+  .vh-chat-workspace .vh-apk-attachment-card,
+  .vh-chat-workspace .vh-apk-uploading,
+  .vh-chat-workspace .vh-mobile-hunt-card {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .vh-chat-workspace .vh-apk-attachment-card {
+    align-items: flex-start;
+  }
+
+  .vh-chat-workspace .vh-apk-attachment-remove {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .vh-chat-workspace .vh-mobile-hunt-card > header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .vh-chat-workspace .vh-mobile-hunt-card > header code {
+    max-width: 100%;
+  }
+
+  .vh-governed-message-card .vh-button-primary,
+  .vh-cancel-dialog-actions button {
+    width: 100%;
+    min-height: 44px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vh-chat-workspace .vh-mobile-hunt-rounds li {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+
+  .vh-assessment-timeline-row {
+    transition: none;
   }
 }

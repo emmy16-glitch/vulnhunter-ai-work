@@ -3,32 +3,51 @@
 <section class="vh-page-shell">
   <header class="vh-page-header">
     <div>
-      <p class="vh-eyebrow">Analysis</p>
+      <p class="vh-eyebrow">Evidence and verification</p>
       <h1>Findings</h1>
       {% if selected_assessment %}
-        <p>Evidence-backed records for the selected assessment <strong>{{ selected_assessment.label }}</strong>. Scanner matches remain candidates until deterministic verification and independent review complete.</p>
+        <p>Evidence-backed records for <strong>{{ selected_assessment.label }}</strong>. Scanner observations remain candidates until the persisted verification and independent-review state says otherwise.</p>
       {% else %}
-        <p>Evidence-backed records produced by governed assessments. Scanner matches remain candidates until deterministic verification and independent review complete.</p>
+        <p>Evidence-backed records visible to this account. Findings keep their assessment provenance, verification state and review boundaries; this index does not create findings in the browser.</p>
       {% endif %}
     </div>
-    {% if selected_assessment %}<a class="vh-secondary-action" href="?scope=all">View all account findings</a>{% endif %}
+    <div class="vh-page-actions">
+      <span class="vh-status-chip">{{ findings|length }} record{{ findings|length|pluralize }}</span>
+      {% if selected_assessment %}<a class="vh-button-secondary" href="?scope=all">All findings</a>{% endif %}
+    </div>
   </header>
 
-  <section class="vh-summary-strip" aria-label="Finding summary">
-    <article class="vh-summary-item"><small>Stored findings</small><strong>{{ findings|length }}</strong><span>{% if selected_assessment %}Selected assessment only{% else %}Visible to this account{% endif %}</span></article>
-    <article class="vh-summary-item"><small>Source</small><strong>Evidence store</strong><span>No browser-generated findings</span></article>
-    <article class="vh-summary-item"><small>Verification</small><strong>Recorded state</strong><span>Scanner output is not final</span></article>
-    <article class="vh-summary-item"><small>Release</small><strong>Separate gate</strong><span>Confirmation does not publish</span></article>
-  </section>
+  {% if error_message %}
+    <div class="vh-operational-notice is-danger" role="alert"><strong>Findings unavailable</strong><p>{{ error_message }}</p></div>
+  {% endif %}
 
   <section class="vh-surface">
-    <header class="vh-surface-header"><div><h2>{% if selected_assessment %}Selected assessment findings{% else %}Finding records{% endif %}</h2><p>Open a finding workspace for evidence, lifecycle and source-assessment provenance.</p></div><span class="vh-panel-count">{{ findings|length }}</span></header>
-    {% if error_message %}
-      <div class="vh-operational-notice is-danger"><strong>Findings unavailable</strong><p>{{ error_message }}</p></div>
-    {% elif findings %}
-      <div class="vh-table-wrap"><table class="vh-table"><thead><tr><th>Finding</th><th>Severity</th><th>Confidence</th><th>Verification</th><th>Target</th><th>Assessment</th><th></th></tr></thead><tbody>{% for finding in findings %}<tr><td><strong>{{ finding.title }}</strong><code>{{ finding.evidence_id }}</code></td><td><span class="vh-severity-{{ finding.severity|default:'info'|lower }}">{{ finding.severity|default:"Unclassified" }}</span></td><td>{{ finding.confidence|default:"—" }}</td><td><span class="vh-status-chip {% if finding.verification == 'verified' %}vh-status-safe{% else %}vh-status-warning{% endif %}">{{ finding.verification|default:"candidate" }}</span></td><td>{{ finding.target_reference|default:"Not recorded" }}</td><td><strong>{{ finding.scanner|default:"Not recorded" }}</strong><small>{{ finding.run_state }}</small></td><td><a class="vh-row-link" href="{% url 'web-finding-detail' finding.evidence_id %}">Open finding →</a></td></tr>{% endfor %}</tbody></table></div>
-    {% else %}
-      <div class="vh-empty-panel"><svg aria-hidden="true"><use href="#vh-i-finding"></use></svg><h3>{% if selected_assessment %}No findings for this assessment{% else %}No findings{% endif %}</h3><p>{% if selected_assessment %}This assessment has not produced a stored evidence-backed finding.{% else %}No assessment evidence has produced a stored finding.{% endif %}</p></div>
+    <header class="vh-surface-header">
+      <div><h2>{% if selected_assessment %}Assessment findings{% else %}Finding records{% endif %}</h2><p>Open a finding to inspect evidence, verification, review status and source-assessment provenance.</p></div>
+      <span class="vh-panel-count">{{ findings|length }}</span>
+    </header>
+
+    {% if findings %}
+      <div class="vh-table-wrap">
+        <table class="vh-table">
+          <thead><tr><th>Finding</th><th>Severity</th><th>Verification</th><th>Confidence</th><th>Target</th><th>Assessment</th><th>Action</th></tr></thead>
+          <tbody>
+            {% for finding in findings %}
+              <tr>
+                <td><strong>{{ finding.title }}</strong><code>{{ finding.evidence_id }}</code></td>
+                <td><span class="vh-severity-{{ finding.severity|default:'info'|lower }}">{{ finding.severity|default:"Unclassified" }}</span></td>
+                <td><span class="vh-status-chip {% if finding.verification == 'verified' %}vh-status-safe{% elif finding.verification == 'rejected' %}vh-status-danger{% else %}vh-status-warning{% endif %}">{{ finding.verification|default:"candidate" }}</span></td>
+                <td>{{ finding.confidence|default:"—" }}</td>
+                <td>{{ finding.target_reference|default:"Not recorded" }}</td>
+                <td><strong>{{ finding.scanner|default:"Not recorded" }}</strong><small>{{ finding.run_state }}</small></td>
+                <td><a class="vh-row-link" href="{% url 'web-finding-detail' finding.evidence_id %}">Open finding</a></td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% elif not error_message %}
+      <div class="vh-empty-panel"><svg aria-hidden="true"><use href="#vh-i-finding"></use></svg><h3>{% if selected_assessment %}No findings for this assessment{% else %}No findings yet{% endif %}</h3><p>{% if selected_assessment %}This assessment has not produced a stored evidence-backed finding. Evidence and completed task state remain available independently.{% else %}Findings will appear after an authorised assessment produces persisted evidence-backed records.{% endif %}</p></div>
     {% endif %}
   </section>
 </section>

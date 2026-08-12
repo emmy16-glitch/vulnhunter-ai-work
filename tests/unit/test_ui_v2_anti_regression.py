@@ -116,6 +116,10 @@ def test_live_auxiliary_conversation_surfaces_use_the_same_visual_contract() -> 
     assert ".vh-provider-control" in composer
     assert "min-width: 112px" in composer
     assert "padding-bottom: max(8px, env(safe-area-inset-bottom))" in composer
+    assert ".vh-composer-advanced[open]" in composer
+    assert ".vh-composer-advanced[open] .vh-composer-advanced-body" in composer
+    assert "position: static" in composer
+    assert "flex: 1 0 100%" in composer
 
 
 def test_mobile_workspace_is_one_column_and_drawer_driven() -> None:

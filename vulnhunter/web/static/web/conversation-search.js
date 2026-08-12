@@ -69,8 +69,12 @@
   }
 
   function clearMarkers() {
-    feed.querySelectorAll("mark[data-vh-search-match]").forEach((marker) => marker.replaceWith(document.createTextNode(marker.textContent || "")));
-    feed.querySelectorAll(".is-vh-search-active").forEach((node) => node.classList.remove("is-vh-search-active"));
+    feed
+      .querySelectorAll("mark[data-vh-search-match]")
+      .forEach((marker) => marker.replaceWith(document.createTextNode(marker.textContent || "")));
+    feed
+      .querySelectorAll(".is-vh-search-active")
+      .forEach((node) => node.classList.remove("is-vh-search-active"));
     matches = [];
     activeIndex = -1;
     if (position) position.textContent = "0 of 0";
@@ -82,7 +86,10 @@
     activeIndex = (index + matches.length) % matches.length;
     const match = matches[activeIndex];
     match.classList.add("is-vh-search-active");
-    match.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "center" });
+    match.scrollIntoView({
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+      block: "center",
+    });
     if (position) position.textContent = `${activeIndex + 1} of ${matches.length}`;
   }
 
@@ -100,8 +107,12 @@
       const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT, {
         acceptNode(textNode) {
           const value = String(textNode.nodeValue || "");
-          if (!value.toLocaleLowerCase().includes(needle.toLocaleLowerCase())) return NodeFilter.FILTER_REJECT;
-          if (textNode.parentElement?.closest("mark[data-vh-search-match]")) return NodeFilter.FILTER_REJECT;
+          if (!value.toLocaleLowerCase().includes(needle.toLocaleLowerCase())) {
+            return NodeFilter.FILTER_REJECT;
+          }
+          if (textNode.parentElement?.closest("mark[data-vh-search-match]")) {
+            return NodeFilter.FILTER_REJECT;
+          }
           return NodeFilter.FILTER_ACCEPT;
         },
       });
@@ -125,9 +136,23 @@
         textNode.replaceWith(fragment);
       });
     });
-    if (status) status.textContent = matches.length ? `${matches.length} result${matches.length === 1 ? "" : "s"}` : "No matches";
+    if (status) {
+      status.textContent = matches.length
+        ? `${matches.length} result${matches.length === 1 ? "" : "s"}`
+        : "No matches";
+    }
     if (results) results.hidden = matches.length === 0;
     if (matches.length) activate(0);
+  }
+
+  function overflowSummary() {
+    return toggle.closest("details")?.querySelector("summary") || null;
+  }
+
+  function restoreMenuFocus() {
+    const summary = overflowSummary();
+    if (summary instanceof HTMLElement) summary.focus({ preventScroll: true });
+    else toggle.focus({ preventScroll: true });
   }
 
   function openPanel() {
@@ -137,16 +162,16 @@
     window.requestAnimationFrame(() => input?.focus());
   }
 
-  function closePanel() {
+  function closePanel({ restoreFocus = true } = {}) {
     panel.hidden = true;
     toggle.setAttribute("aria-expanded", "false");
     clearMarkers();
     if (input) input.value = "";
-    toggle.focus({ preventScroll: true });
+    if (restoreFocus) restoreMenuFocus();
   }
 
   toggle.addEventListener("click", openPanel);
-  close?.addEventListener("click", closePanel);
+  close?.addEventListener("click", () => closePanel());
   input?.addEventListener("input", () => markMatches(input.value));
   next?.addEventListener("click", () => activate(activeIndex + 1));
   previous?.addEventListener("click", () => activate(activeIndex - 1));
@@ -171,5 +196,8 @@
     }
   });
 
-  window.VulnHunterConversationSearch = Object.freeze({ open: openPanel, close: closePanel });
+  window.VulnHunterConversationSearch = Object.freeze({
+    open: openPanel,
+    close: closePanel,
+  });
 })();

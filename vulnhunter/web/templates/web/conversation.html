@@ -2,69 +2,66 @@
 {% load static %}
 
 {% block extra_styles %}
-  <link rel="stylesheet" href="{% static 'web/conversation.css' %}?v=20260727-phone-acceptance1">
-  <link rel="stylesheet" href="{% static 'web/conversation-layout.css' %}?v=20260727-phone-acceptance1">
-  <link rel="stylesheet" href="{% static 'web/conversation-mobile.css' %}?v=20260727-phone-acceptance1">
   <link rel="stylesheet" href="{% static 'web/conversation-upload.css' %}?v=20260727-phone-acceptance1">
-  <link rel="stylesheet" href="{% static 'web/conversation-mobile-execution.css' %}?v=20260727-phone-acceptance1">
-  <link rel="stylesheet" href="{% static 'web/conversation-mobile-inspector.css' %}?v=20260727-phone-acceptance1">
-  <link rel="stylesheet" href="{% static 'web/conversation-mobile-deferred-tools.css' %}?v=20260727-phone-acceptance1">
-  <link rel="stylesheet" href="{% static 'web/conversation-threads.css' %}?v=20260727-phone-acceptance1">
-  <link rel="stylesheet" href="{% static 'web/assessment-workspace.css' %}?v=20260811-batch3-structure1">
+  <link rel="stylesheet" href="{% static 'web/conversation.css' %}?v=20260812-ui2">
+  <link rel="stylesheet" href="{% static 'web/assessment-workspace.css' %}?v=20260812-ui2">
 {% endblock %}
 
 {% block extra_scripts %}
   <script src="{% static 'web/conversation-thread-client.js' %}?v=20260727-phone-acceptance1" defer></script>
   <script src="{% static 'web/conversation-runtime-compat.js' %}?v=20260727-phone-acceptance1"></script>
-  <script src="{% static 'web/conversation.js' %}?v=20260727-phone-acceptance1" defer></script>
+  <script src="{% static 'web/conversation.js' %}?v=20260812-ui2" defer></script>
   <script src="{% static 'web/conversation-autoscroll.js' %}?v=20260727-phone-acceptance1" defer></script>
   <script src="{% static 'web/conversation-mobile-bridge.js' %}?v=20260727-phone-acceptance1" defer></script>
   <script src="{% static 'web/conversation-mobile.js' %}?v=20260727-phone-acceptance1" defer></script>
   <script src="{% static 'web/conversation-mobile-context.js' %}?v=20260727-phone-acceptance1" defer></script>
-  <script src="{% static 'web/conversation-mobile-inspector.js' %}?v=20260727-phone-acceptance1" defer></script>
+  <script src="{% static 'web/conversation-mobile-inspector.js' %}?v=20260812-ui2" defer></script>
   <script src="{% static 'web/conversation-mobile-deferred-tools.js' %}?v=20260727-phone-acceptance1" defer></script>
-  <script src="{% static 'web/assessment-workspace.js' %}?v=20260811-batch3-structure1" defer></script>
+  <script src="{% static 'web/assessment-workspace.js' %}?v=20260812-ui2" defer></script>
 {% endblock %}
 
 {% block content %}
 <section class="vh-chat-workspace" data-product-name="VulnHunter Workspace" data-conversation-workspace data-thread-id="{{ conversation.thread_id }}" data-mobile-workspace-view="chat" aria-labelledby="vh-chat-title">
   <header class="vh-chat-header">
     <div class="vh-chat-title-group">
-      <span class="vh-chat-orb" aria-hidden="true"><svg><use href="#vh-i-shield"></use></svg></span>
-      <div>
-        <p class="vh-eyebrow">Governed security assessment</p>
-        <h1 id="vh-chat-title">{{ conversation.thread_title }}</h1>
-        <p class="vh-chat-subtitle">Conversational analysis for authorised websites and APKs</p>
+      <p class="vh-eyebrow">Assessment workspace</p>
+      <h1 id="vh-chat-title">{{ conversation.thread_title }}</h1>
+      <div class="vh-chat-context-line" aria-live="polite">
+        {% if conversation.active_run %}
+          <span class="vh-current-task-state"><i aria-hidden="true"></i>{{ conversation.active_run.state }}</span>
+          <span class="vh-current-task-subject">{{ conversation.active_run.target|default:"Current assessment"|truncatechars:64 }}</span>
+          <span>{{ conversation.active_run.profile|default:"passive" }}{% if conversation.active_run.scanner %} · {{ conversation.active_run.scanner }}{% endif %}</span>
+        {% else %}
+          <span class="vh-current-task-state is-idle"><i aria-hidden="true"></i>Ready</span>
+          <span>Describe an authorised target or attach an APK to begin.</span>
+        {% endif %}
       </div>
     </div>
+
     <div class="vh-chat-runtime" aria-label="Workspace actions">
-      <a class="vh-chat-history-toggle" href="{% url 'web-source-hunt' %}">Source Hunt</a>
-      <button type="button" class="vh-chat-history-toggle" data-history-toggle aria-expanded="false" aria-controls="vh-chat-history">History</button>
-      <button type="button" class="vh-chat-reset" data-conversation-reset data-thread-create>New workspace</button>
+      <button type="button" class="vh-chat-icon-action" data-history-toggle aria-expanded="false" aria-controls="vh-chat-history" aria-label="Open workspace history"><svg aria-hidden="true"><use href="#vh-i-history"></use></svg><span>History</span></button>
+      <details class="vh-task-menu vh-context-menu">
+        <summary class="vh-chat-icon-action" aria-label="More workspace actions"><span aria-hidden="true">•••</span></summary>
+        <div class="vh-task-menu-popover vh-context-popover">
+          <a href="{% url 'web-source-hunt' %}">Source Hunt</a>
+          <button type="button" data-conversation-reset data-thread-create>New assessment</button>
+        </div>
+      </details>
     </div>
   </header>
 
-  <section class="vh-state-strip" aria-label="Current assessment state" data-state-strip>
-    <button type="button" class="vh-state-card is-authorization" data-state-card="authorization">
-      <span class="vh-state-label"><i></i>Authorization</span>
-      <strong data-state-authorization>{% if conversation.active_run %}Bound to run{% else %}Not selected{% endif %}</strong>
-    </button>
-    <button type="button" class="vh-state-card is-scope" data-state-card="scope">
-      <span class="vh-state-label"><i></i>Scope</span>
-      <strong data-state-scope>{% if conversation.active_run %}{{ conversation.active_run.target|truncatechars:44 }}{% else %}No target selected{% endif %}</strong>
-    </button>
-    <button type="button" class="vh-state-card is-approval" data-state-card="approval">
-      <span class="vh-state-label"><i></i>Approval</span>
-      <strong data-state-approval>{% if conversation.active_run %}{{ conversation.active_run.approval_state|default:"Not required" }}{% else %}Not required{% endif %}</strong>
-    </button>
-    <button type="button" class="vh-state-card is-active" data-state-card="active" data-analysis-inspector-open>
-      <span class="vh-state-label"><i></i>Active</span>
-      <strong data-state-active>{% if conversation.active_run %}{{ conversation.active_run.state }}{% else %}Idle{% endif %}</strong>
-    </button>
-  </section>
+  {# Compatibility state hooks are intentionally non-visual. Operational truth appears in task rows/cards. #}
+  <div class="vh-visually-hidden" aria-hidden="true">
+    <span data-state-authorization>{% if conversation.active_run %}Bound to run{% else %}Not selected{% endif %}</span>
+    <span data-state-scope>{% if conversation.active_run %}{{ conversation.active_run.target }}{% else %}No target selected{% endif %}</span>
+    <span data-state-approval>{% if conversation.active_run %}{{ conversation.active_run.approval_state|default:"Not required" }}{% else %}Not required{% endif %}</span>
+    <span data-state-active>{% if conversation.active_run %}{{ conversation.active_run.state }}{% else %}Idle{% endif %}</span>
+  </div>
 
-  <button type="button" class="vh-mobile-status-summary" data-analysis-inspector-open hidden>
-    <i></i><span data-mobile-status-copy>{% if conversation.active_run %}{{ conversation.active_run.state }}{% else %}Ready for an authorised target{% endif %}</span>
+  <button type="button" class="vh-mobile-status-summary" data-analysis-inspector-open>
+    <span class="vh-mobile-status-marker" aria-hidden="true">{% if conversation.active_run %}◌{% else %}○{% endif %}</span>
+    <span data-mobile-status-copy>{% if conversation.active_run %}{{ conversation.active_run.state }} · {{ conversation.active_run.target|truncatechars:46 }}{% else %}Ready for an authorised target{% endif %}</span>
+    <span aria-hidden="true">›</span>
   </button>
 
   <div class="vh-chat-layout">
@@ -75,7 +72,7 @@
 
       <div class="vh-chat-thinking" data-conversation-thinking hidden aria-live="polite">
         <span class="vh-thinking-mark" aria-hidden="true"><i></i><i></i><i></i></span>
-        <span data-thinking-copy>Working…</span>
+        <span data-thinking-copy>Working with the current assessment state…</span>
       </div>
 
       <form
@@ -100,21 +97,17 @@
         <label class="vh-visually-hidden" for="vh-chat-message">Message VulnHunter</label>
         <div class="vh-chat-attachment-tray" data-attachment-tray hidden aria-live="polite"></div>
         <div class="vh-chat-input-shell">
-          <button type="button" class="vh-chat-attach" data-conversation-attach aria-label="Attach an Android APK" title="Attach an Android APK">
-            <span aria-hidden="true">+</span>
-          </button>
+          <button type="button" class="vh-chat-attach" data-conversation-attach aria-label="Attach an Android APK" title="Attach an Android APK"><span aria-hidden="true">+</span></button>
           <input type="file" name="attachment" accept=".apk,application/vnd.android.package-archive" data-conversation-file hidden>
-          <textarea id="vh-chat-message" name="message" rows="1" maxlength="4000" autocomplete="off" spellcheck="true" placeholder="Describe an authorised website, attach an APK, or ask about a finding" data-conversation-input required></textarea>
-          <button type="submit" class="vh-chat-send" data-conversation-send aria-label="Send message">
-            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m4 12 16-8-5.5 16-3.2-6.8z"/><path d="m11.3 13.2 4.6-4.6"/></svg>
-          </button>
+          <textarea id="vh-chat-message" name="message" rows="1" maxlength="4000" autocomplete="off" spellcheck="true" placeholder="Ask VulnHunter about an authorised target, APK, finding or evidence…" data-conversation-input required></textarea>
+          <button type="submit" class="vh-chat-send" data-conversation-send aria-label="Send message"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="m4 12 16-8-5.5 16-3.2-6.8z"/><path d="m11.3 13.2 4.6-4.6"/></svg></button>
         </div>
         <div class="vh-chat-composer-meta">
-          <span>Website and APK assessments start here · Enter to send</span>
+          <span>Enter to send · Shift+Enter for a new line</span>
           <details class="vh-composer-advanced" data-composer-advanced>
-            <summary>Advanced settings</summary>
+            <summary>Advanced</summary>
             <div class="vh-composer-advanced-body">
-              <label class="vh-reasoning-control" title="Reasoning level for the next answer">
+              <label class="vh-reasoning-control" title="Answer detail for the next response">
                 <span>Answer detail</span>
                 <select name="reasoning_effort" data-reasoning-effort aria-label="Answer detail">
                   <option value="low"{% if conversation.reasoning_effort == "low" %} selected{% endif %}>Brief</option>
@@ -123,9 +116,7 @@
                 </select>
               </label>
               <p><b data-reasoning-copy>{{ conversation.reasoning_effort|title }}</b> answer detail</p>
-              <p class="vh-provider-runtime{% if groq.live_verified %} is-ready{% elif groq.configured %} is-warning{% else %} is-offline{% endif %}" data-provider-runtime title="{{ groq.label }}">
-                {% if groq.live_verified %}Advisory provider ready{% elif groq.configured %}Advisory provider needs operator verification{% else %}Advisory provider unavailable; deterministic workflows remain available{% endif %}
-              </p>
+              <p class="vh-provider-runtime{% if groq.live_verified %} is-ready{% elif groq.configured %} is-warning{% else %} is-offline{% endif %}" data-provider-runtime>{% if groq.live_verified %}Advisory provider ready{% elif groq.configured %}Advisory provider needs operator verification{% else %}Advisory provider unavailable; deterministic workflows remain available{% endif %}</p>
             </div>
           </details>
         </div>
@@ -134,38 +125,38 @@
 
     {% include "web/_mobile_analysis_inspector.html" %}
 
-    <aside id="vh-chat-history" class="vh-chat-history" data-history-panel hidden aria-labelledby="vh-recent-assessments-title">
+    <aside id="vh-chat-history" class="vh-chat-history-drawer" data-history-panel hidden aria-labelledby="vh-recent-assessments-title">
       <header>
-        <div><p class="vh-eyebrow">History</p><h2 id="vh-recent-assessments-title">Recent assessments</h2></div>
-        <div class="vh-chat-history-actions">
-          <span>{{ conversation_threads|length }}</span>
-          <button type="button" data-history-close aria-label="Close assessment history">×</button>
-        </div>
+        <div><p class="vh-eyebrow">Task history</p><h2 id="vh-recent-assessments-title">Recent work</h2></div>
+        <button type="button" data-history-close aria-label="Close task history">×</button>
       </header>
-      <p class="vh-history-section-title">Workspaces</p>
-      <div class="vh-thread-list" data-conversation-threads>
-        {% for item in conversation_threads %}
-          <a href="{{ item.url }}" class="vh-thread-item"{% if item.thread_id == conversation.thread_id %} aria-current="page"{% endif %}>
-            <i class="is-{{ item.status }}" aria-hidden="true"></i>
-            <span><strong>{{ item.title|truncatechars:42 }}</strong><small>{{ item.status }} · {{ item.updated_at }}</small></span>
-            {% if item.upload_count %}<b aria-label="{{ item.upload_count }} active upload">{{ item.upload_count }}</b>{% endif %}
-          </a>
-        {% empty %}
-          <p class="vh-chat-history-empty">No saved workspaces yet.</p>
-        {% endfor %}
+      <div class="vh-history-drawer-body">
+        <p class="vh-history-section-title">Workspaces</p>
+        <div class="vh-thread-list" data-conversation-threads>
+          {% for item in conversation_threads %}
+            <a href="{{ item.url }}" class="vh-thread-item"{% if item.thread_id == conversation.thread_id %} aria-current="page"{% endif %}>
+              <i class="is-{{ item.status }}" aria-hidden="true"></i>
+              <span><strong>{{ item.title|truncatechars:42 }}</strong><small>{{ item.status }} · {{ item.updated_at }}</small></span>
+              {% if item.upload_count %}<b aria-label="{{ item.upload_count }} active upload">{{ item.upload_count }}</b>{% endif %}
+            </a>
+          {% empty %}
+            <p class="vh-chat-history-empty">No saved workspaces yet.</p>
+          {% endfor %}
+        </div>
+
+        <p class="vh-history-section-title">Assessment runs</p>
+        <div class="vh-chat-history-list" data-recent-runs>
+          {% for item in recent_runs %}
+            <a href="{{ item.detail_url }}" class="vh-chat-history-item">
+              <span class="vh-history-state is-{{ item.state }}" aria-hidden="true"></span>
+              <span><strong>{{ item.target|truncatechars:38 }}</strong><small>{{ item.state }} · {{ item.profile }}</small></span>
+            </a>
+          {% empty %}
+            <p class="vh-chat-history-empty">No assessment runs yet.</p>
+          {% endfor %}
+        </div>
+        <a class="vh-chat-history-link" href="{% url 'web-findings-overview' %}">Open all findings</a>
       </div>
-      <p class="vh-history-section-title">Assessment runs</p>
-      <div class="vh-chat-history-list" data-recent-runs>
-        {% for item in recent_runs %}
-          <a href="{{ item.detail_url }}" class="vh-chat-history-item">
-            <span class="vh-history-state is-{{ item.state }}" aria-hidden="true"></span>
-            <span><strong>{{ item.target|truncatechars:38 }}</strong><small>{{ item.state }} · {{ item.profile }}</small></span>
-          </a>
-        {% empty %}
-          <p class="vh-chat-history-empty">No assessment runs yet.</p>
-        {% endfor %}
-      </div>
-      <a class="vh-chat-history-link" href="{% url 'web-findings-overview' %}">Open findings</a>
     </aside>
   </div>
 </section>
@@ -180,9 +171,8 @@
 <template id="vh-run-template">
   <article class="vh-run-card" data-run-card>
     <header class="vh-run-card-header">
-      <div class="vh-run-card-icon" aria-hidden="true"><svg><use href="#vh-i-radar"></use></svg></div>
       <div class="vh-run-card-heading">
-        <span class="vh-run-state"><i></i><strong data-run-state>Preparing</strong></span>
+        <span class="vh-run-state"><i aria-hidden="true"></i><strong data-run-state>Preparing</strong></span>
         <h2 data-run-target>Assessment</h2>
         <p><span data-run-profile>Passive</span> · <span data-run-scanner>Nuclei</span></p>
         <p class="vh-run-live-copy" data-run-live-copy>Preparing assessment…</p>
@@ -190,17 +180,21 @@
       <time data-run-elapsed>00:00</time>
     </header>
 
-    <div class="vh-run-summary-grid" aria-label="Assessment summary">
-      <div><small>State</small><strong data-summary-state>Preparing</strong></div>
-      <div><small>Findings</small><strong data-summary-findings aria-label="Finding count unavailable">—</strong></div>
-      <div><small>Evidence</small><strong data-summary-evidence aria-label="Evidence count unavailable">—</strong></div>
-      <div><small>Confirmation</small><strong data-summary-approval>Not available</strong></div>
+    {# JS compatibility data only. The old four-card summary UI is intentionally retired. #}
+    <div class="vh-visually-hidden" aria-hidden="true">
+      <strong data-summary-state>Preparing</strong>
+      <strong data-summary-findings>—</strong>
+      <strong data-summary-evidence>—</strong>
+      <strong data-summary-approval>Not available</strong>
     </div>
+
+    <section class="vh-assessment-timeline" data-run-stages aria-label="Persisted assessment stages" aria-live="polite"></section>
+    <div class="vh-tool-chip-row" data-run-tool-chips aria-label="Assessment tools and receipts"></div>
 
     <section class="vh-inline-approval" data-inline-approval hidden aria-labelledby="vh-inline-approval-title">
       <div class="vh-inline-approval-top">
-        <span class="vh-approval-shield" aria-hidden="true"><svg><use href="#vh-i-shield"></use></svg></span>
-        <div><p class="vh-eyebrow">Paused</p><h3 id="vh-inline-approval-title">Confirm exact passive plan</h3><p data-approval-summary>Review the plan before execution.</p></div>
+        <span class="vh-approval-state-icon" aria-hidden="true">Ⅱ</span>
+        <div><p class="vh-eyebrow">Confirmation required</p><h3 id="vh-inline-approval-title">Confirm exact passive plan</h3><p data-approval-summary>Review the exact bounded plan before execution.</p></div>
       </div>
       <dl class="vh-inline-approval-facts">
         <div><dt>Target</dt><dd data-approval-target></dd></div>
@@ -214,30 +208,29 @@
       <label for="vh-inline-approval-note">Confirmation note</label>
       <textarea id="vh-inline-approval-note" rows="2" minlength="8" maxlength="500" data-approval-note>Confirm this authorised passive plan.</textarea>
       <div class="vh-inline-approval-actions">
-        <button type="button" class="vh-button-primary" data-approval-confirm>Confirm and continue</button>
         <button type="button" class="vh-button-secondary" data-approval-cancel>Cancel</button>
+        <button type="button" class="vh-button-primary" data-approval-confirm>Confirm and continue</button>
       </div>
       <p class="vh-inline-approval-risk" data-approval-risk></p>
     </section>
 
-    <section class="vh-assessment-timeline" data-run-stages aria-label="Persisted assessment timeline" aria-live="polite"></section>
     <section class="vh-execution-state" data-execution-state hidden aria-live="polite"></section>
 
     <div class="vh-run-disclosures">
-      <details data-section="summary"><summary><span><svg aria-hidden="true"><use href="#vh-i-assessment"></use></svg><strong>Analysis summary</strong></span><b data-section-summary-state>Preparing</b></summary><div class="vh-disclosure-body" data-summary-body></div></details>
+      <details data-section="summary"><summary><span><svg aria-hidden="true"><use href="#vh-i-assessment"></use></svg><strong>Assessment summary</strong></span><b data-section-summary-state>Preparing</b></summary><div class="vh-disclosure-body" data-summary-body></div></details>
       <details data-section="progress"><summary><span><svg aria-hidden="true"><use href="#vh-i-activity"></use></svg><strong>Activity</strong></span><b data-progress-count aria-label="Activity count unavailable">—</b></summary><div class="vh-disclosure-body"><ol class="vh-run-event-list" data-event-list></ol></div></details>
       <details data-section="findings"><summary><span><svg aria-hidden="true"><use href="#vh-i-finding"></use></svg><strong>Findings</strong></span><b data-findings-count aria-label="Finding count unavailable">—</b></summary><div class="vh-disclosure-body" data-findings-list></div></details>
       <details data-section="evidence"><summary><span><svg aria-hidden="true"><use href="#vh-i-checkdoc"></use></svg><strong>Evidence</strong></span><b data-evidence-count aria-label="Evidence count unavailable">—</b></summary><div class="vh-disclosure-body" data-evidence-list></div></details>
       <details data-section="verification"><summary><span><svg aria-hidden="true"><use href="#vh-i-oracle"></use></svg><strong>Verification</strong></span><b data-verification-state>Not available</b></summary><div class="vh-disclosure-body" data-verification-body></div></details>
-      <details data-section="guidance"><summary><span><svg aria-hidden="true"><use href="#vh-i-checkdoc"></use></svg><strong>Remediation guidance</strong></span><b>Available when evidence supports it</b></summary><div class="vh-disclosure-body" data-guidance-body></div></details>
-      <details data-section="technical"><summary><span><svg aria-hidden="true"><use href="#vh-i-audit"></use></svg><strong>Technical and audit details</strong></span><b data-audit-count aria-label="Audit event count unavailable">—</b></summary><div class="vh-disclosure-body" data-technical-body></div></details>
+      <details data-section="guidance"><summary><span><svg aria-hidden="true"><use href="#vh-i-checkdoc"></use></svg><strong>Remediation</strong></span><b>Evidence-backed only</b></summary><div class="vh-disclosure-body" data-guidance-body></div></details>
+      <details data-section="technical"><summary><span><svg aria-hidden="true"><use href="#vh-i-audit"></use></svg><strong>Technical details</strong></span><b data-audit-count aria-label="Audit event count unavailable">—</b></summary><div class="vh-disclosure-body" data-technical-body></div></details>
     </div>
 
     <footer class="vh-run-card-footer">
-      <button type="button" data-run-cancel hidden>Cancel assessment</button>
-      <button type="button" data-analysis-inspector-open>View in inspector</button>
-      <a data-findings-link>View findings</a>
-      <a data-run-detail-link>View details</a>
+      <button type="button" class="vh-run-danger-action" data-run-cancel hidden>Cancel assessment</button>
+      <button type="button" data-analysis-inspector-open>Open details</button>
+      <a data-findings-link>Open findings</a>
+      <a data-run-detail-link>Open run</a>
     </footer>
   </article>
 </template>
@@ -245,9 +238,9 @@
 {{ conversation|json_script:"vh-conversation-data" }}
 <dialog class="vh-cancel-dialog" data-cancel-dialog aria-labelledby="vh-cancel-dialog-title">
   <form method="dialog">
-    <p class="vh-eyebrow">Cancellation confirmation</p>
+    <p class="vh-eyebrow">Cancel assessment</p>
     <h2 id="vh-cancel-dialog-title">Cancel this assessment?</h2>
-    <p data-cancel-dialog-copy>Cancellation is sent to the persisted assessment worker.</p>
+    <p data-cancel-dialog-copy>Cancellation is sent to the persisted assessment worker. Completed evidence remains governed by backend state.</p>
     <div class="vh-cancel-dialog-actions">
       <button type="button" class="vh-button-secondary" data-cancel-dialog-close>Keep running</button>
       <button type="button" class="vh-button-primary" data-cancel-dialog-confirm>Cancel assessment</button>

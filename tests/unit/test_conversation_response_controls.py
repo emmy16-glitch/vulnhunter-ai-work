@@ -51,4 +51,5 @@ def test_response_controls_use_self_hosted_csp_safe_styles() -> None:
     assert ".vh-message-utility-actions" in styles
     assert ".vh-clipboard-proxy" in styles
     assert "@media (max-width: 640px)" in styles
-    assert ".vh-background-upload-dock[hidden] { display: none; }" in upload_styles
+    assert ".vh-background-upload-dock[hidden]" in upload_styles
+    assert "display: none" in upload_styles

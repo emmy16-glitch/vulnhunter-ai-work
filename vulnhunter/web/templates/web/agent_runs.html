@@ -17,13 +17,13 @@
   {% if pending_approvals %}
     <section class="vh-surface" aria-labelledby="pending-approval-title">
       <header class="vh-surface-header"><div><h2 id="pending-approval-title">Approval required</h2><p>Exact-plan decisions waiting for an authorised approver.</p></div><span class="vh-panel-count">{{ pending_approvals|length }}</span></header>
-      <div class="vh-source-job-list">
+      <div class="vh-component-grid vh-surface-body">
         {% for approval in pending_approvals %}
-          <article class="vh-source-job-row">
-            <span class="vh-source-job-state is-running" aria-hidden="true">Ⅱ</span>
-            <div><strong>{{ approval.summary|truncatechars:90 }}</strong><small>{{ approval.run_id }}</small></div>
-            <span class="vh-status-chip vh-status-warning">approval required</span>
-            <a class="vh-button-secondary" href="{% url 'web-scan-run-detail' approval.run_id %}">Review plan</a>
+          <article class="vh-component-card">
+            <span class="vh-record-kicker">Ⅱ approval required</span>
+            <div class="vh-component-card-head"><h3>{{ approval.summary|truncatechars:90 }}</h3><span class="vh-status-chip vh-status-warning">pending</span></div>
+            <p><code>{{ approval.run_id }}</code></p>
+            <a class="vh-button-secondary" href="{% url 'web-scan-run-detail' approval.run_id %}">Review exact plan</a>
           </article>
         {% endfor %}
       </div>

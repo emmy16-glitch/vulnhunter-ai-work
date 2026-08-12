@@ -34,8 +34,10 @@ def test_conversation_is_task_first_not_dashboard_first() -> None:
     assert "data-run-tool-chips" in conversation
     assert "data-conversation-form" in conversation
     assert "data-history-panel" in conversation
-    # The inspector is included as a contextual partial, not authored inline here.
-    assert "data-analysis-inspector" not in conversation
+    # The inspector is included as a contextual partial. The conversation owns only
+    # explicit open triggers, not a second inline dashboard implementation.
+    assert '{% include "web/_mobile_analysis_inspector.html" %}' in conversation
+    assert "data-analysis-inspector-open" in conversation
     assert "vh-state-strip" not in conversation
     assert "vh-chat-actions" not in conversation
     assert "vh-mobile-workspace-nav" not in conversation

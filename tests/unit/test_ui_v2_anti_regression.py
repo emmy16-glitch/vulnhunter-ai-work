@@ -64,6 +64,7 @@ def test_conversation_search_and_export_live_in_overflow_not_header_toolbar() ->
         assert '.querySelector(".vh-task-menu-popover")' in script
         assert "vh-chat-actions" not in script
 
+    assert "data-composer-tools-loader" in search_js
     assert "Search conversation" in search_js
     assert "Export conversation" in export_js
 
@@ -86,17 +87,31 @@ def test_primary_workspace_uses_readable_canonical_visual_system() -> None:
 
 
 def test_live_auxiliary_conversation_surfaces_use_the_same_visual_contract() -> None:
+    stylesheet_names = (
+        "conversation-composer-tools.css",
+        "conversation-search.css",
+        "conversation-export.css",
+        "conversation-response-controls.css",
+        "conversation-rich-content.css",
+        "conversation-draft.css",
+        "conversation-recent-prompts.css",
+        "conversation-premium-continuity.css",
+        "conversation-jump-latest.css",
+        "conversation-upload.css",
+        "background-uploads.css",
+    )
+
+    for name in stylesheet_names:
+        stylesheet = _read(STATIC / name)
+        assert "backdrop-filter" not in stylesheet, name
+        assert "rgba(108, 124, 255" not in stylesheet, name
+        assert "border-radius: 999px" not in stylesheet, name
+        assert "var(--vh-" in stylesheet, name
+
     composer = _read(STATIC / "conversation-composer-tools.css")
-    search = _read(STATIC / "conversation-search.css")
-    export = _read(STATIC / "conversation-export.css")
-
-    for stylesheet in (composer, search, export):
-        assert "backdrop-filter" not in stylesheet
-        assert "rgba(108, 124, 255" not in stylesheet
-        assert "var(--vh-surface" in stylesheet
-        assert "var(--vh-ink" in stylesheet
-
-    assert "border-radius: 999px" not in composer
+    assert ".vh-provider-control" in composer
+    assert "min-width: 112px" in composer
+    assert "padding-bottom: max(8px, env(safe-area-inset-bottom))" in composer
 
 
 def test_mobile_workspace_is_one_column_and_drawer_driven() -> None:

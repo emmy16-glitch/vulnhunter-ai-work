@@ -1,5 +1,4 @@
-{% load static %}
-<aside class="vh-analysis-inspector" data-analysis-inspector data-contract-name="Assessment Inspector" hidden aria-label="Current assessment inspector">
+<aside class="vh-analysis-inspector" data-analysis-inspector data-contract-name="Assessment Inspector" hidden aria-label="Current assessment details">
   <div class="vh-analysis-inspector-inner">
     <header class="vh-analysis-inspector-header">
       <div class="vh-analysis-inspector-title">
@@ -7,9 +6,9 @@
         <button type="button" class="vh-analysis-inspector-close" data-analysis-inspector-close aria-label="Return to conversation">×</button>
       </div>
       <div class="vh-analysis-progress-row">
-        <div><strong data-inspector-state>Not selected</strong><p data-inspector-stage>Select an assessment to view its saved progress.</p></div>
+        <div><strong data-inspector-state>Not selected</strong><p data-inspector-stage>Select an assessment to view its saved state.</p></div>
         <b data-inspector-progress-value aria-label="Progress unavailable">—</b>
-        <div class="vh-analysis-progress" data-inspector-progress aria-label="Saved stage progress"></div>
+        <div class="vh-analysis-progress" data-inspector-progress aria-label="Saved assessment progress"></div>
       </div>
     </header>
 
@@ -20,7 +19,7 @@
       <div><dt>Scope</dt><dd data-inspector-inventory data-inspector-scope>Select an assessment to see its scope.</dd></div>
     </dl>
 
-    <div class="vh-analysis-tabs" role="tablist" aria-label="Assessment inspector views">
+    <div class="vh-analysis-tabs" role="tablist" aria-label="Assessment detail views">
       <button type="button" role="tab" class="is-active" data-inspector-tab="overview" aria-selected="true" aria-controls="vh-inspector-overview">Summary</button>
       <button type="button" role="tab" data-inspector-tab="activity" aria-selected="false" aria-controls="vh-inspector-activity" tabindex="-1">Activity</button>
       <button type="button" role="tab" data-inspector-tab="findings" aria-selected="false" aria-controls="vh-inspector-findings" tabindex="-1">Findings <b data-inspector-findings-count aria-label="Finding count unavailable">—</b></button>
@@ -31,32 +30,31 @@
     <div class="vh-analysis-panels">
       <section id="vh-inspector-overview" class="vh-analysis-panel" data-inspector-panel="overview" role="tabpanel" aria-label="Assessment summary">
         <div class="vh-analysis-section">
-          <div class="vh-analysis-section-heading"><h3>Analysis progress</h3><small>Saved analysis state</small></div>
+          <div class="vh-analysis-section-heading"><h3>Task stages</h3><small>Persisted assessment state</small></div>
           <div class="vh-inspector-tool-list" data-inspector-tools></div>
         </div>
         <div class="vh-analysis-section">
-          <div class="vh-analysis-section-heading"><h3>Analysis status</h3><small>Saved execution state</small></div>
-          <p class="vh-inspector-empty" data-inspector-worker role="status">Select an assessment to view its analysis status.</p>
+          <div class="vh-analysis-section-heading"><h3>Execution status</h3><small>Backend-owned state</small></div>
+          <p class="vh-inspector-empty" data-inspector-worker role="status">Select an assessment to view its execution status.</p>
         </div>
       </section>
 
       <section id="vh-inspector-activity" class="vh-analysis-panel" data-inspector-panel="activity" role="tabpanel" aria-label="Assessment activity" hidden>
         <div class="vh-analysis-section">
-          <div class="vh-analysis-section-heading"><h3>Activity</h3><small>Saved events</small></div>
+          <div class="vh-analysis-section-heading"><h3>Activity</h3><small>Persisted events</small></div>
           <ol class="vh-inspector-events" data-inspector-events></ol>
         </div>
       </section>
 
-      <!-- Reference contract: No finding is shown until a real worker observation -->
+      <!-- No finding is shown until a real worker observation exists. -->
       <section id="vh-inspector-findings" class="vh-analysis-panel" data-inspector-panel="findings" role="tabpanel" aria-label="Evidence-backed findings" hidden>
-        <p class="vh-inspector-empty" data-inspector-empty-findings role="status" aria-live="polite">Select an assessment to view reviewed findings.</p>
+        <p class="vh-inspector-empty" data-inspector-empty-findings role="status" aria-live="polite">Select an assessment to view persisted findings.</p>
         <div class="vh-inspector-finding-list" data-inspector-findings></div>
       </section>
 
       <section id="vh-inspector-artifacts" class="vh-analysis-panel" data-inspector-panel="artifacts" role="tabpanel" aria-label="Assessment evidence" hidden>
         <p class="vh-inspector-empty" data-inspector-empty-artifacts role="status" aria-live="polite">Select an assessment to view saved evidence.</p>
         <div class="vh-inspector-artifact-list" data-inspector-artifacts></div>
-        <!-- Standalone data-inspector-panel="graph" is retired; graph relationships are contextual Evidence. -->
         <section class="vh-analysis-section vh-evidence-links" data-inspector-graph-section hidden>
           <div class="vh-analysis-section-heading"><h3>Evidence relationships</h3><small>Contextual evidence only</small></div>
           <p class="vh-inspector-empty" data-inspector-empty-graph role="status" aria-live="polite">No meaningful evidence relationships are available for this assessment.</p>
@@ -72,11 +70,3 @@
     </div>
   </div>
 </aside>
-
-<nav class="vh-mobile-workspace-nav" data-mobile-workspace-nav hidden aria-label="Mobile workspace views">
-  <button type="button" class="is-active" data-mobile-workspace-view="chat" data-mobile-nav-destination="chat" aria-current="page">Chat</button>
-  <button type="button" data-mobile-workspace-view="analysis" data-mobile-nav-destination="activity" data-mobile-specialist-tab="activity" aria-current="false">Activity</button>
-  <button type="button" data-mobile-nav-destination="findings" data-mobile-specialist-tab="findings" aria-current="false">Findings</button>
-  <button type="button" data-mobile-nav-destination="more" data-mobile-specialist-tab="overview" aria-current="false">More</button>
-</nav>
-<script src="{% static 'web/conversation-mobile-inspector-route.js' %}?v=20260807-context-nav4" defer></script>

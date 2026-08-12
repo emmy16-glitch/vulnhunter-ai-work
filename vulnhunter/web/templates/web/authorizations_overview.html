@@ -1,24 +1,17 @@
 {% extends "web/base.html" %}
-{% load static %}
 {% block content %}
-<section class="vh-product-page">
-  <header class="vh-product-heading">
-    <div><p class="vh-eyebrow">Collection</p><h1>Authorizations</h1><p>Inspect the real permission records that bound assessment targets, expiry and request limits.</p></div>
+<section class="vh-page-shell">
+  <header class="vh-page-header">
+    <div><p class="vh-eyebrow">Collection boundary</p><h1>Authorizations</h1><p>Inspect the stored permission records that bind exact target scope, expiry and request limits. The browser lists authoritative records; it never infers permission from a URL or user message.</p></div>
+    <div class="vh-page-actions"><span class="vh-status-chip">{{ authorizations|length }} record{{ authorizations|length|pluralize }}</span></div>
   </header>
 
-  <section class="vh-ops-metric-grid" aria-label="Authorization summary">
-    <article class="vh-ops-metric"><span class="vh-ops-metric-icon"><svg><use href="#vh-i-authorization"></use></svg></span><div class="vh-ops-metric-copy"><span>Stored records</span><strong>{{ authorizations|length }}</strong><small>Loaded from the authorization database</small></div></article>
-    <article class="vh-ops-metric"><span class="vh-ops-metric-icon"><svg><use href="#vh-i-shield"></use></svg></span><div class="vh-ops-metric-copy"><span>Target entry</span><strong>Exact</strong><small>No unrestricted free-text target launch</small></div></article>
-    <article class="vh-ops-metric"><span class="vh-ops-metric-icon"><svg><use href="#vh-i-audit"></use></svg></span><div class="vh-ops-metric-copy"><span>Integrity</span><strong>Hash bound</strong><small>Record provenance remains inspectable</small></div></article>
-    <article class="vh-ops-metric"><span class="vh-ops-metric-icon"><svg><use href="#vh-i-activity"></use></svg></span><div class="vh-ops-metric-copy"><span>Assessment use</span><strong>Revalidated</strong><small>The backend reloads scope before planning</small></div></article>
-  </section>
-
-  <section class="vh-product-panel">
-    <div class="vh-table-toolbar"><div><h2>Authorization registry</h2><p>Only stored records are shown; no permission is inferred by the browser.</p></div><span class="vh-panel-count">{{ authorizations|length }}</span></div>
+  <section class="vh-surface">
+    <header class="vh-surface-header"><div><h2>Authorization registry</h2><p>Open a record to inspect exact hostname, port, path boundary, limits, lifecycle and integrity information.</p></div><span class="vh-panel-count">{{ authorizations|length }}</span></header>
     {% if authorizations %}
-      <div class="vh-table-wrap"><table class="vh-table"><thead><tr><th>Authorization</th><th>Target boundary</th><th>Status</th><th>Expires</th><th>Limits</th></tr></thead><tbody>{% for item in authorizations %}<tr><td><a href="{% url 'web-authorization-detail' item.authorization_id %}"><strong>{{ item.authorization_id }}</strong></a><code>{{ item.record_sha256|slice:":18" }}…</code></td><td><strong>{{ item.hostname }}:{{ item.port }}</strong><small>{{ item.path_boundary }}</small></td><td><span class="vh-status-chip {% if item.status == 'active' %}vh-status-safe{% else %}vh-status-danger{% endif %}">{{ item.status }}</span></td><td>{{ item.expires_at }}</td><td><small>{{ item.limits.maximum_requests }} requests · {{ item.limits.maximum_pages }} pages</small></td></tr>{% endfor %}</tbody></table></div>
+      <div class="vh-table-wrap"><table class="vh-table"><thead><tr><th>Authorization</th><th>Target boundary</th><th>Status</th><th>Expires</th><th>Limits</th><th>Action</th></tr></thead><tbody>{% for item in authorizations %}<tr><td><strong>{{ item.authorization_id }}</strong><code>{{ item.record_sha256|slice:":18" }}…</code></td><td><strong>{{ item.hostname }}:{{ item.port }}</strong><small>{{ item.path_boundary }}</small></td><td><span class="vh-status-chip {% if item.status == 'active' %}vh-status-safe{% else %}vh-status-danger{% endif %}">{{ item.status }}</span></td><td>{{ item.expires_at }}</td><td><small>{{ item.limits.maximum_requests }} requests · {{ item.limits.maximum_pages }} pages</small></td><td><a class="vh-row-link" href="{% url 'web-authorization-detail' item.authorization_id %}">Open record</a></td></tr>{% endfor %}</tbody></table></div>
     {% else %}
-      <div class="vh-product-empty"><svg aria-hidden="true"><use href="#vh-i-authorization"></use></svg><h3>No authorization records</h3><p>Create permission records through the governed authorization workflow before attempting an assessment.</p></div>
+      <div class="vh-empty-panel"><svg aria-hidden="true"><use href="#vh-i-authorization"></use></svg><h3>No authorization records</h3><p>Permission records must be created through the governed authorization workflow before a matching assessment can proceed.</p></div>
     {% endif %}
   </section>
 </section>

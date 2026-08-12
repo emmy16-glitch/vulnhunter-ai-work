@@ -2,22 +2,18 @@
 {% block content %}
 <section class="vh-page-shell">
   <header class="vh-page-header">
-    <div><p class="vh-eyebrow">System</p><h1>Audit Log</h1><p>Recent hash-linked events from the agent and governance stores.</p></div>
+    <div><p class="vh-eyebrow">System evidence</p><h1>Audit log</h1><p>Read-only, hash-linked events from the agent and governance stores. The log reports recorded activity; it does not infer events from browser state.</p></div>
+    <div class="vh-page-actions"><span class="vh-status-chip">{{ audit_status.state }}</span><span class="vh-status-chip">{{ audit_events|length }} recent</span></div>
   </header>
 
-  <section class="vh-summary-strip" aria-label="Audit summary">
-    <article class="vh-summary-item"><small>Store state</small><strong>{{ audit_status.state }}</strong><span>{{ audit_status.detail|truncatechars:90 }}</span></article>
-    <article class="vh-summary-item"><small>Recent events</small><strong>{{ audit_events|length }}</strong><span>Newest recorded activity</span></article>
-    <article class="vh-summary-item"><small>Integrity</small><strong>Hash linked</strong><span>References are shown when available</span></article>
-    <article class="vh-summary-item"><small>Access</small><strong>Read only</strong><span>This page does not mutate records</span></article>
-  </section>
+  {% if audit_status.detail %}<div class="vh-operational-notice {% if audit_status.state == 'ready' %}is-safe{% else %}is-warning{% endif %}"><strong>Audit store</strong><p>{{ audit_status.detail }}</p></div>{% endif %}
 
   <section class="vh-surface">
-    <header class="vh-surface-header"><div><h2>Recent activity</h2><p>Events are ordered by recorded time.</p></div><span class="vh-panel-count">{{ audit_events|length }}</span></header>
+    <header class="vh-surface-header"><div><h2>Recent activity</h2><p>Newest persisted events first. Evidence references remain visible when the store provides them.</p></div><span class="vh-panel-count">{{ audit_events|length }}</span></header>
     {% if audit_events %}
-      <div>{% for event in audit_events %}<article class="vh-audit-event"><time datetime="{{ event.occurred_at|date:'c' }}">{{ event.occurred_at }}</time><div><strong>{{ event.event_type }}</strong><span>{{ event.source }} · {{ event.subject }}{% if event.actor_id %} · {{ event.actor_id }}{% endif %}</span></div><code>{% if event.evidence_reference %}{{ event.evidence_reference }}{% else %}No reference{% endif %}</code></article>{% endfor %}</div>
+      <ol class="vh-activity-list">{% for event in audit_events %}<li><span aria-hidden="true" class="vh-status-chip">{{ forloop.counter }}</span><div><strong>{{ event.event_type }}</strong><small><time datetime="{{ event.occurred_at|date:'c' }}">{{ event.occurred_at }}</time> · {{ event.source }} · {{ event.subject }}{% if event.actor_id %} · {{ event.actor_id }}{% endif %}</small><code>{% if event.evidence_reference %}{{ event.evidence_reference }}{% else %}No evidence reference recorded{% endif %}</code></div></li>{% endfor %}</ol>
     {% else %}
-      <div class="vh-empty-panel"><svg aria-hidden="true"><use href="#vh-i-audit"></use></svg><h3>No audit activity</h3><p>No recent agent or governance events are available.</p></div>
+      <div class="vh-empty-panel"><svg aria-hidden="true"><use href="#vh-i-audit"></use></svg><h3>No recent audit activity</h3><p>No recent agent or governance events are available to this account.</p></div>
     {% endif %}
   </section>
 </section>

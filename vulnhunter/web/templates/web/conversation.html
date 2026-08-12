@@ -35,7 +35,7 @@
           <span>{{ conversation.active_run.profile|default:"passive" }}{% if conversation.active_run.scanner %} · {{ conversation.active_run.scanner }}{% endif %}</span>
         {% else %}
           <span class="vh-current-task-state is-idle"><i aria-hidden="true"></i>Ready</span>
-          <span>Describe an authorised target or attach an APK to begin.</span>
+          <span>Describe an authorised website, attach an APK, or ask about a finding.</span>
         {% endif %}
       </div>
     </div>
@@ -176,8 +176,8 @@
 
     <div class="vh-visually-hidden" aria-hidden="true">
       <strong data-summary-state>Preparing</strong>
-      <strong data-summary-findings>—</strong>
-      <strong data-summary-evidence>—</strong>
+      <strong data-summary-findings aria-label="Finding count unavailable">—</strong>
+      <strong data-summary-evidence aria-label="Evidence count unavailable">—</strong>
       <strong data-summary-approval>Not available</strong>
     </div>
 

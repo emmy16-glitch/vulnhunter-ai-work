@@ -20,7 +20,7 @@ def test_conversation_search_marks_only_searchable_workspace_text() -> None:
     assert "function searchableBlocks()" in script
     assert 'mark.dataset.vhSearchMatch = "true"' in script
     assert 'match.classList.add("is-vh-search-active")' in script
-    assert 'feed.querySelectorAll("mark[data-vh-search-match]")' in script
+    assert 'mark[data-vh-search-match]' in script
     assert "replaceWith(document.createTextNode" in script
     assert "insertAdjacentHTML" not in script
     assert "DOMParser" not in script

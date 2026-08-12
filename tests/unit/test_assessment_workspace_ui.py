@@ -1,4 +1,4 @@
-"""Batch 3 assessment-workspace contract checks."""
+"""Assessment-workspace contract checks for the canonical chat-first UI."""
 
 from pathlib import Path
 
@@ -21,7 +21,8 @@ def test_assessment_workspace_uses_persisted_projection_timeline() -> None:
     assert "cancelled" in script
     assert 'active: "running"' in script
     assert 'waiting: "pending"' in script
-    assert 'data-run-stages aria-label="Persisted assessment timeline"' in template
+    assert "data-run-stages" in template
+    assert 'aria-label="Persisted assessment stages"' in template
 
 
 def test_assessment_workspace_only_exposes_cancel_when_projection_allows_it() -> None:

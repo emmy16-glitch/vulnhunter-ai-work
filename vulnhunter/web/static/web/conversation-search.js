@@ -6,186 +6,164 @@
   const current = document.currentScript?.src;
   if (current && !document.querySelector("link[data-conversation-search-styles]")) {
     const styleUrl = new URL(current, window.location.href);
-    styleUrl.pathname = styleUrl.pathname.replace(
-      /conversation-search\.js$/,
-      "conversation-search.css",
-    );
-    styleUrl.search = "?v=20260801-search1";
+    styleUrl.pathname = styleUrl.pathname.replace(/conversation-search\.js$/, "conversation-search.css");
+    styleUrl.search = "?v=20260812-ui2";
     const link = document.createElement("link");
     link.rel = "stylesheet";
     link.href = styleUrl.toString();
     link.dataset.conversationSearchStyles = "true";
     document.head.append(link);
   }
-  if (current && !document.querySelector("script[data-composer-tools-loader]")) {
-    const toolsUrl = new URL(current, window.location.href);
-    toolsUrl.pathname = toolsUrl.pathname.replace(
-      /conversation-search\.js$/,
-      "conversation-composer-tools.js",
-    );
-    toolsUrl.search = "?v=20260801-composer-tools1";
-    const script = document.createElement("script");
-    script.src = toolsUrl.toString();
-    script.async = false;
-    script.dataset.composerToolsLoader = "true";
-    document.head.append(script);
-  }
 
   const workspace = document.querySelector("[data-conversation-workspace]");
-  const headerActions = document.querySelector(".vh-chat-runtime");
   const feed = document.querySelector("[data-conversation-feed]");
-  if (!workspace || !headerActions || !feed) return;
+  const actionMenu = workspace?.querySelector(".vh-task-menu-popover");
+  if (!workspace || !feed || !actionMenu) return;
 
-  const state = {
-    matches: [],
-    activeIndex: -1,
-    query: "",
-  };
-
-  const trigger = document.createElement("button");
-  trigger.type = "button";
-  trigger.className = "vh-chat-history-toggle vh-conversation-search-trigger";
-  trigger.dataset.conversationSearchTrigger = "true";
-  trigger.textContent = "Search";
-  trigger.setAttribute("aria-expanded", "false");
-  trigger.setAttribute("aria-controls", "vh-conversation-search");
-  trigger.title = "Search this conversation (Ctrl or Command + F)";
-  headerActions.insertBefore(trigger, headerActions.querySelector("[data-history-toggle]"));
+  const toggle = document.createElement("button");
+  toggle.type = "button";
+  toggle.className = "vh-task-menu-action vh-conversation-search-toggle";
+  toggle.dataset.conversationSearchToggle = "true";
+  toggle.textContent = "Search conversation";
+  toggle.setAttribute("aria-expanded", "false");
+  actionMenu.prepend(toggle);
 
   const panel = document.createElement("section");
-  panel.id = "vh-conversation-search";
-  panel.className = "vh-conversation-search";
-  panel.dataset.conversationSearch = "true";
+  panel.className = "vh-conversation-search-panel";
+  panel.dataset.conversationSearchPanel = "true";
   panel.hidden = true;
-  panel.setAttribute("aria-label", "Search this conversation");
   panel.innerHTML = `
-    <label>
-      <span class="vh-visually-hidden">Search conversation</span>
-      <input type="search" autocomplete="off" spellcheck="false" placeholder="Search prompts, answers, findings, or code" data-conversation-search-input>
-    </label>
-    <output data-conversation-search-count>0 results</output>
-    <div class="vh-conversation-search-actions">
-      <button type="button" data-conversation-search-previous aria-label="Previous search result">↑</button>
-      <button type="button" data-conversation-search-next aria-label="Next search result">↓</button>
+    <div class="vh-conversation-search-box">
+      <label class="vh-visually-hidden" for="vh-conversation-search-input">Search this conversation</label>
+      <input id="vh-conversation-search-input" type="search" autocomplete="off" placeholder="Search messages, findings and task activity" data-conversation-search-input>
+      <span data-conversation-search-status aria-live="polite">Type to search this workspace</span>
       <button type="button" data-conversation-search-close aria-label="Close conversation search">×</button>
+    </div>
+    <div class="vh-conversation-search-results" data-conversation-search-results hidden>
+      <button type="button" data-conversation-search-previous>Previous</button>
+      <span data-conversation-search-position>0 of 0</span>
+      <button type="button" data-conversation-search-next>Next</button>
+      <button type="button" data-conversation-search-clear>Clear</button>
     </div>
   `;
   workspace.append(panel);
 
   const input = panel.querySelector("[data-conversation-search-input]");
-  const count = panel.querySelector("[data-conversation-search-count]");
+  const close = panel.querySelector("[data-conversation-search-close]");
+  const results = panel.querySelector("[data-conversation-search-results]");
   const previous = panel.querySelector("[data-conversation-search-previous]");
   const next = panel.querySelector("[data-conversation-search-next]");
-  const close = panel.querySelector("[data-conversation-search-close]");
+  const clear = panel.querySelector("[data-conversation-search-clear]");
+  const position = panel.querySelector("[data-conversation-search-position]");
+  const status = panel.querySelector("[data-conversation-search-status]");
 
-  const candidateMessages = () =>
-    [...feed.querySelectorAll(".vh-chat-message")].filter(
-      (message) => !message.classList.contains("is-local-notice"),
-    );
+  let matches = [];
+  let activeIndex = -1;
 
-  const clearHighlights = () => {
-    feed.querySelectorAll(".is-search-match, .is-search-active").forEach((message) => {
-      message.classList.remove("is-search-match", "is-search-active");
-      message.removeAttribute("aria-current");
+  function searchableBlocks() {
+    return [
+      ...feed.querySelectorAll(
+        ".vh-chat-message .vh-message-copy, .vh-run-card [data-run-target], .vh-run-card [data-run-live-copy], .vh-run-card [data-summary-body], .vh-run-card [data-findings-list], .vh-run-card [data-evidence-list], .vh-run-card [data-verification-body], .vh-run-card [data-guidance-body], .vh-run-card [data-technical-body]",
+      ),
+    ];
+  }
+
+  function clearMarkers() {
+    feed.querySelectorAll("mark[data-vh-search-match]").forEach((marker) => marker.replaceWith(document.createTextNode(marker.textContent || "")));
+    feed.querySelectorAll(".is-vh-search-active").forEach((node) => node.classList.remove("is-vh-search-active"));
+    matches = [];
+    activeIndex = -1;
+    if (position) position.textContent = "0 of 0";
+  }
+
+  function activate(index) {
+    if (!matches.length) return;
+    matches.forEach((match) => match.classList.remove("is-vh-search-active"));
+    activeIndex = (index + matches.length) % matches.length;
+    const match = matches[activeIndex];
+    match.classList.add("is-vh-search-active");
+    match.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "center" });
+    if (position) position.textContent = `${activeIndex + 1} of ${matches.length}`;
+  }
+
+  function markMatches(query) {
+    clearMarkers();
+    const needle = String(query || "").trim();
+    if (!needle) {
+      if (status) status.textContent = "Type to search this workspace";
+      if (results) results.hidden = true;
+      return;
+    }
+    const escaped = needle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const expression = new RegExp(`(${escaped})`, "gi");
+    searchableBlocks().forEach((node) => {
+      const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT, {
+        acceptNode(textNode) {
+          const value = String(textNode.nodeValue || "");
+          if (!value.toLocaleLowerCase().includes(needle.toLocaleLowerCase())) return NodeFilter.FILTER_REJECT;
+          if (textNode.parentElement?.closest("mark[data-vh-search-match]")) return NodeFilter.FILTER_REJECT;
+          return NodeFilter.FILTER_ACCEPT;
+        },
+      });
+      const textNodes = [];
+      while (walker.nextNode()) textNodes.push(walker.currentNode);
+      textNodes.forEach((textNode) => {
+        const value = String(textNode.nodeValue || "");
+        const fragment = document.createDocumentFragment();
+        let lastIndex = 0;
+        value.replace(expression, (match, _group, offset) => {
+          fragment.append(document.createTextNode(value.slice(lastIndex, offset)));
+          const mark = document.createElement("mark");
+          mark.dataset.vhSearchMatch = "true";
+          mark.textContent = match;
+          fragment.append(mark);
+          matches.push(mark);
+          lastIndex = offset + match.length;
+          return match;
+        });
+        fragment.append(document.createTextNode(value.slice(lastIndex)));
+        textNode.replaceWith(fragment);
+      });
     });
-  };
+    if (status) status.textContent = matches.length ? `${matches.length} result${matches.length === 1 ? "" : "s"}` : "No matches";
+    if (results) results.hidden = matches.length === 0;
+    if (matches.length) activate(0);
+  }
 
-  const updateCount = () => {
-    if (!state.query) {
-      count.textContent = "0 results";
-    } else if (!state.matches.length) {
-      count.textContent = "No results";
-    } else {
-      count.textContent = `${state.activeIndex + 1} of ${state.matches.length}`;
-    }
-    const disabled = state.matches.length < 2;
-    previous.disabled = disabled;
-    next.disabled = disabled;
-  };
-
-  const activate = (index, { behavior = "smooth" } = {}) => {
-    if (!state.matches.length) {
-      state.activeIndex = -1;
-      updateCount();
-      return;
-    }
-    const normalized = ((index % state.matches.length) + state.matches.length) % state.matches.length;
-    state.matches.forEach((message, candidateIndex) => {
-      const active = candidateIndex === normalized;
-      message.classList.toggle("is-search-active", active);
-      if (active) message.setAttribute("aria-current", "true");
-      else message.removeAttribute("aria-current");
-    });
-    state.activeIndex = normalized;
-    updateCount();
-    state.matches[normalized].scrollIntoView({ behavior, block: "center" });
-  };
-
-  const search = ({ preserveIndex = false } = {}) => {
-    const query = input.value.trim().toLocaleLowerCase();
-    const previousActive = preserveIndex ? state.matches[state.activeIndex] : null;
-    clearHighlights();
-    state.query = query;
-    state.matches = [];
-    state.activeIndex = -1;
-    if (!query) {
-      updateCount();
-      return;
-    }
-    state.matches = candidateMessages().filter((message) =>
-      String(message.textContent || "").toLocaleLowerCase().includes(query),
-    );
-    state.matches.forEach((message) => message.classList.add("is-search-match"));
-    if (!state.matches.length) {
-      updateCount();
-      return;
-    }
-    const preserved = previousActive ? state.matches.indexOf(previousActive) : -1;
-    activate(preserved >= 0 ? preserved : 0, { behavior: preserveIndex ? "auto" : "smooth" });
-  };
-
-  const open = ({ select = false } = {}) => {
+  function openPanel() {
     panel.hidden = false;
-    trigger.setAttribute("aria-expanded", "true");
-    window.requestAnimationFrame(() => {
-      input.focus();
-      if (select) input.select();
-    });
-  };
+    toggle.setAttribute("aria-expanded", "true");
+    toggle.closest("details")?.removeAttribute("open");
+    window.requestAnimationFrame(() => input?.focus());
+  }
 
-  const closePanel = () => {
+  function closePanel() {
     panel.hidden = true;
-    trigger.setAttribute("aria-expanded", "false");
-    clearHighlights();
-    state.matches = [];
-    state.activeIndex = -1;
-    trigger.focus();
-  };
+    toggle.setAttribute("aria-expanded", "false");
+    clearMarkers();
+    if (input) input.value = "";
+    toggle.focus({ preventScroll: true });
+  }
 
-  trigger.addEventListener("click", () => {
-    if (panel.hidden) open({ select: true });
-    else closePanel();
-  });
-  close.addEventListener("click", closePanel);
-  previous.addEventListener("click", () => activate(state.activeIndex - 1));
-  next.addEventListener("click", () => activate(state.activeIndex + 1));
-  input.addEventListener("input", () => search());
-  input.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") {
-      event.preventDefault();
-      activate(state.activeIndex + (event.shiftKey ? -1 : 1));
-    } else if (event.key === "Escape") {
-      event.preventDefault();
-      closePanel();
-    }
+  toggle.addEventListener("click", openPanel);
+  close?.addEventListener("click", closePanel);
+  input?.addEventListener("input", () => markMatches(input.value));
+  next?.addEventListener("click", () => activate(activeIndex + 1));
+  previous?.addEventListener("click", () => activate(activeIndex - 1));
+  clear?.addEventListener("click", () => {
+    if (input) input.value = "";
+    clearMarkers();
+    if (status) status.textContent = "Type to search this workspace";
+    if (results) results.hidden = true;
+    input?.focus();
   });
 
   document.addEventListener("keydown", (event) => {
-    const findShortcut = (event.ctrlKey || event.metaKey) && event.key.toLocaleLowerCase() === "f";
-    if (findShortcut) {
+    if ((event.metaKey || event.ctrlKey) && event.key.toLocaleLowerCase() === "f") {
+      if (!workspace.contains(document.activeElement) && !workspace.matches(":hover")) return;
       event.preventDefault();
-      open({ select: true });
-      return;
+      if (panel.hidden) openPanel();
+      else input?.focus();
     }
     if (event.key === "Escape" && !panel.hidden) {
       event.preventDefault();
@@ -193,17 +171,5 @@
     }
   });
 
-  new MutationObserver(() => {
-    if (!panel.hidden && state.query) search({ preserveIndex: true });
-  }).observe(feed, { childList: true, characterData: true, subtree: true });
-
-  window.VulnHunterConversationSearch = Object.freeze({
-    open,
-    close: closePanel,
-    search: (value) => {
-      input.value = String(value || "");
-      open();
-      search();
-    },
-  });
+  window.VulnHunterConversationSearch = Object.freeze({ open: openPanel, close: closePanel });
 })();

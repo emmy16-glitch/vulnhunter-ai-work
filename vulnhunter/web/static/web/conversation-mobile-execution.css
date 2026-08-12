@@ -1,205 +1,206 @@
+/* Mobile execution-state component.
+   This file is intentionally narrow: it owns mobile task execution/result
+   records and final phone clearance for the persistent composer. */
+
 .vh-mobile-execution {
-  align-items: center;
-  background: rgba(255, 255, 255, .025);
-  border-top: 1px solid rgba(255, 255, 255, .07);
   display: grid;
-  gap: .72rem;
-  grid-template-columns: .78rem 1fr;
-  padding: .82rem 1.05rem;
-  transition: background .24s ease, border-color .24s ease;
+  grid-template-columns: 26px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 11px 12px;
+  border-top: 1px solid var(--vh-line);
+  background: var(--vh-surface-strong);
 }
 
 .vh-mobile-execution-dot {
-  background: rgba(171, 187, 214, .58);
-  border-radius: 999px;
-  box-shadow: 0 0 0 0 rgba(112, 164, 255, 0);
-  height: .62rem;
-  width: .62rem;
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  border: 1px solid var(--vh-line);
+  border-radius: 2px;
+  background: transparent;
+  color: var(--vh-muted);
+}
+
+.vh-mobile-execution-dot::before {
+  content: "○";
+  font-family: var(--vh-font-mono);
+  font-size: 11px;
+  font-weight: 800;
 }
 
 .vh-mobile-execution > div {
   display: grid;
-  gap: .14rem;
+  min-width: 0;
+  gap: 2px;
 }
 
 .vh-mobile-execution strong {
-  color: rgba(245, 247, 251, .9);
-  font-size: .78rem;
+  color: var(--vh-ink);
+  font-size: 13px;
+  font-weight: 680;
 }
 
 .vh-mobile-execution small {
-  color: rgba(205, 216, 234, .64);
-  font-size: .7rem;
-  line-height: 1.42;
-}
-
-.vh-mobile-execution.is-queued,
-.vh-mobile-execution.is-running {
-  background: rgba(70, 123, 221, .055);
-  border-color: rgba(102, 153, 247, .16);
+  color: var(--vh-muted);
+  font-family: var(--vh-font-mono);
+  font-size: 10px;
+  line-height: 1.45;
 }
 
 .vh-mobile-execution.is-queued .vh-mobile-execution-dot,
 .vh-mobile-execution.is-running .vh-mobile-execution-dot {
-  animation: vh-mobile-worker-pulse 1.35s ease-out infinite;
-  background: #75a7ff;
+  border-color: var(--vh-pink);
+  background: var(--vh-pink-soft);
+  color: var(--vh-ink);
 }
 
-.vh-mobile-execution.is-completed {
-  background: rgba(61, 176, 123, .055);
-}
+.vh-mobile-execution.is-queued .vh-mobile-execution-dot::before { content: "○"; }
+.vh-mobile-execution.is-running .vh-mobile-execution-dot::before { content: "◌"; }
 
 .vh-mobile-execution.is-completed .vh-mobile-execution-dot {
-  background: #6fd29e;
-  box-shadow: 0 0 0 .28rem rgba(93, 205, 149, .1);
+  border-color: var(--vh-success);
+  color: var(--vh-success);
 }
+.vh-mobile-execution.is-completed .vh-mobile-execution-dot::before { content: "✓"; }
 
 .vh-mobile-execution.is-gated .vh-mobile-execution-dot,
-.vh-mobile-execution.is-blocked .vh-mobile-execution-dot {
-  background: #e5b66b;
+.vh-mobile-execution.is-blocked .vh-mobile-execution-dot,
+.vh-mobile-execution.is-approval_required .vh-mobile-execution-dot {
+  border-color: var(--vh-warning);
+  color: var(--vh-warning);
 }
+.vh-mobile-execution.is-gated .vh-mobile-execution-dot::before,
+.vh-mobile-execution.is-blocked .vh-mobile-execution-dot::before,
+.vh-mobile-execution.is-approval_required .vh-mobile-execution-dot::before { content: "Ⅱ"; }
 
 .vh-mobile-execution.is-failed .vh-mobile-execution-dot,
 .vh-mobile-execution.is-rejected .vh-mobile-execution-dot,
 .vh-mobile-execution.is-unknown .vh-mobile-execution-dot {
-  background: #db7d7d;
+  border-color: var(--vh-danger);
+  color: var(--vh-danger);
 }
+.vh-mobile-execution.is-failed .vh-mobile-execution-dot::before,
+.vh-mobile-execution.is-rejected .vh-mobile-execution-dot::before,
+.vh-mobile-execution.is-unknown .vh-mobile-execution-dot::before { content: "!"; }
 
-.vh-mobile-hunt-card.is-executing {
-  border-color: rgba(107, 157, 249, .25);
-}
-
-.vh-mobile-hunt-card.is-complete {
-  border-color: rgba(91, 200, 145, .23);
-}
-
-.vh-mobile-hunt-card.is-failed {
-  border-color: rgba(218, 118, 118, .22);
-}
+.vh-mobile-hunt-card.is-executing { border-color: var(--vh-pink); }
+.vh-mobile-hunt-card.is-complete { border-color: var(--vh-success); }
+.vh-mobile-hunt-card.is-failed { border-color: var(--vh-danger); }
 
 .vh-mobile-hunt-rounds li.is-covered > span {
-  background: rgba(83, 196, 139, .13);
-  border-color: rgba(99, 214, 157, .3);
-  color: #9ee0bd;
+  border-color: var(--vh-success);
+  background: transparent;
+  color: var(--vh-success);
 }
 
-.vh-mobile-hunt-rounds li.is-covered strong {
-  color: rgba(214, 244, 228, .94);
-}
+.vh-mobile-hunt-rounds li.is-covered strong { color: var(--vh-ink); }
 
 .vh-mobile-execution-results {
-  border-top: 1px solid rgba(255, 255, 255, .07);
   display: grid;
-  gap: .72rem;
-  padding: .9rem 1.05rem 1rem;
+  gap: 10px;
+  padding: 12px;
+  border-top: 1px solid var(--vh-line);
+  background: var(--vh-surface);
 }
 
-.vh-mobile-execution-results[hidden] {
-  display: none;
-}
+.vh-mobile-execution-results[hidden] { display: none; }
 
 .vh-mobile-execution-results > header {
-  align-items: baseline;
   display: flex;
   flex-wrap: wrap;
-  gap: .42rem .75rem;
+  align-items: baseline;
   justify-content: space-between;
+  gap: 6px 12px;
 }
 
 .vh-mobile-execution-results > header strong {
-  color: rgba(245, 248, 251, .92);
-  font-size: .8rem;
+  color: var(--vh-ink);
+  font-size: 12.5px;
 }
 
 .vh-mobile-execution-results > header small {
-  color: rgba(204, 217, 236, .62);
-  font-size: .68rem;
+  color: var(--vh-muted);
+  font-family: var(--vh-font-mono);
+  font-size: 9.5px;
 }
 
 .vh-mobile-capture-list {
   display: flex;
   flex-wrap: wrap;
-  gap: .4rem;
+  gap: 6px;
 }
 
 .vh-mobile-capture-list span {
-  border: 1px solid rgba(255, 255, 255, .11);
+  padding: 4px 7px;
+  border: 1px solid var(--vh-line);
   border-radius: 999px;
-  color: rgba(226, 234, 246, .78);
-  font-size: .67rem;
-  padding: .33rem .54rem;
+  background: var(--vh-surface-strong);
+  color: var(--vh-muted);
+  font-family: var(--vh-font-mono);
+  font-size: 9px;
 }
 
 .vh-mobile-capture-list span.is-success {
-  background: rgba(65, 178, 123, .08);
-  border-color: rgba(88, 202, 146, .19);
+  border-color: var(--vh-success);
+  color: var(--vh-success);
 }
 
 .vh-mobile-capture-list span.is-warning {
-  background: rgba(220, 161, 79, .08);
-  border-color: rgba(232, 173, 90, .2);
+  border-color: var(--vh-warning);
+  color: var(--vh-warning);
 }
 
 .vh-mobile-observation-list {
   display: grid;
-  gap: .42rem;
-  list-style: none;
+  gap: 7px;
   margin: 0;
   padding: 0;
+  list-style: none;
 }
 
 .vh-mobile-observation-list li {
-  align-items: center;
-  background: rgba(255, 255, 255, .025);
-  border: 1px solid rgba(255, 255, 255, .07);
-  border-radius: .72rem;
   display: flex;
-  gap: .6rem;
+  align-items: flex-start;
   justify-content: space-between;
-  padding: .58rem .65rem;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--vh-line);
+  border-radius: 2px;
+  background: var(--vh-surface-strong);
 }
 
 .vh-mobile-observation-list strong {
-  color: rgba(238, 242, 248, .86);
-  font-size: .72rem;
-  font-weight: 600;
+  color: var(--vh-ink);
+  font-size: 11.5px;
+  font-weight: 650;
 }
 
 .vh-mobile-observation-list small {
-  color: #9fc0f7;
-  font-size: .62rem;
+  color: var(--vh-muted);
+  font-family: var(--vh-font-mono);
+  font-size: 9px;
   font-weight: 700;
-  letter-spacing: .06em;
   text-transform: uppercase;
 }
 
 .vh-mobile-execution-results > p {
-  color: rgba(205, 216, 232, .64);
-  font-size: .72rem;
-  line-height: 1.45;
   margin: 0;
-}
-
-@keyframes vh-mobile-worker-pulse {
-  0% {
-    box-shadow: 0 0 0 0 rgba(112, 164, 255, .42);
-  }
-  75%, 100% {
-    box-shadow: 0 0 0 .52rem rgba(112, 164, 255, 0);
-  }
+  color: var(--vh-muted);
+  font-size: 11.5px;
+  line-height: 1.5;
 }
 
 @media (max-width: 720px) {
   .vh-mobile-execution-results > header,
   .vh-mobile-observation-list li {
-    align-items: flex-start;
     display: grid;
+    align-items: flex-start;
   }
-}
 
-@media (prefers-reduced-motion: reduce) {
-  .vh-mobile-execution.is-queued .vh-mobile-execution-dot,
-  .vh-mobile-execution.is-running .vh-mobile-execution-dot {
-    animation: none;
+  /* Keep the complete prompt bar inside a 390x844-class viewport. */
+  .vh-chat-composer {
+    padding-bottom: max(8px, env(safe-area-inset-bottom));
   }
 }

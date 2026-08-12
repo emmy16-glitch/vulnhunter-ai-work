@@ -13,7 +13,7 @@
     </div>
     <div class="vh-page-actions">
       <span class="vh-status-chip">{{ findings|length }} record{{ findings|length|pluralize }}</span>
-      {% if selected_assessment %}<a class="vh-button-secondary" href="?scope=all">All findings</a>{% endif %}
+      {% if selected_assessment %}<a class="vh-button-secondary" href="?scope=all">View all account findings</a>{% endif %}
     </div>
   </header>
 
@@ -23,7 +23,7 @@
 
   <section class="vh-surface">
     <header class="vh-surface-header">
-      <div><h2>{% if selected_assessment %}Assessment findings{% else %}Finding records{% endif %}</h2><p>Open a finding to inspect evidence, verification, review status and source-assessment provenance.</p></div>
+      <div><h2>{% if selected_assessment %}Selected assessment findings{% else %}Finding records{% endif %}</h2><p>Open a finding to inspect evidence, verification, review status and source-assessment provenance.</p></div>
       <span class="vh-panel-count">{{ findings|length }}</span>
     </header>
 

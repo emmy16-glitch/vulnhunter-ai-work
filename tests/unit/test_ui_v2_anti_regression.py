@@ -44,8 +44,11 @@ def test_conversation_is_task_first_not_dashboard_first() -> None:
 
 def test_contextual_inspector_has_no_duplicate_mobile_bottom_navigation() -> None:
     inspector = _read(TEMPLATES / "_mobile_analysis_inspector.html")
+    bridge = _read(STATIC / "conversation-mobile-bridge.js")
 
     assert "vh-mobile-workspace-nav" not in inspector
+    assert "data-mobile-nav-destination" not in inspector
+    assert "data-mobile-workspace-nav" not in bridge
     assert "Assessment details" in inspector
     assert "Technical and audit details" in inspector
     assert ">Summary<" in inspector
@@ -54,6 +57,7 @@ def test_contextual_inspector_has_no_duplicate_mobile_bottom_navigation() -> Non
     assert ">Evidence " in inspector
     assert ">Report " in inspector
     assert "Graph" not in inspector
+    assert not (STATIC / "conversation-mobile-inspector-route.js").exists()
 
 
 def test_conversation_search_and_export_live_in_overflow_not_header_toolbar() -> None:

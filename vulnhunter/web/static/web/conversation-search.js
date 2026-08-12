@@ -7,12 +7,25 @@
   if (current && !document.querySelector("link[data-conversation-search-styles]")) {
     const styleUrl = new URL(current, window.location.href);
     styleUrl.pathname = styleUrl.pathname.replace(/conversation-search\.js$/, "conversation-search.css");
-    styleUrl.search = "?v=20260812-ui2";
+    styleUrl.search = "?v=20260812-ui3";
     const link = document.createElement("link");
     link.rel = "stylesheet";
     link.href = styleUrl.toString();
     link.dataset.conversationSearchStyles = "true";
     document.head.append(link);
+  }
+  if (current && !document.querySelector("script[data-composer-tools-loader]")) {
+    const toolsUrl = new URL(current, window.location.href);
+    toolsUrl.pathname = toolsUrl.pathname.replace(
+      /conversation-search\.js$/,
+      "conversation-composer-tools.js",
+    );
+    toolsUrl.search = "?v=20260812-ui3";
+    const script = document.createElement("script");
+    script.src = toolsUrl.toString();
+    script.async = false;
+    script.dataset.composerToolsLoader = "true";
+    document.head.append(script);
   }
 
   const workspace = document.querySelector("[data-conversation-workspace]");

@@ -44,7 +44,8 @@
   const title = document.createElement("strong");
   title.textContent = "Export conversation";
   const description = document.createElement("small");
-  description.textContent = "Exports only messages already visible in this workspace. It does not publish findings or change governance state.";
+  description.textContent =
+    "Exports only messages already visible in this workspace. It does not publish findings or change governance state.";
   heading.append(eyebrow, title, description);
 
   const actions = document.createElement("div");
@@ -141,6 +142,16 @@
     window.setTimeout(() => URL.revokeObjectURL(url), 0);
   }
 
+  function overflowSummary() {
+    return trigger.closest("details")?.querySelector("summary") || null;
+  }
+
+  function restoreMenuFocus() {
+    const summary = overflowSummary();
+    if (summary instanceof HTMLElement) summary.focus({ preventScroll: true });
+    else trigger.focus({ preventScroll: true });
+  }
+
   function open() {
     panel.hidden = false;
     trigger.setAttribute("aria-expanded", "true");
@@ -148,10 +159,10 @@
     window.requestAnimationFrame(() => copy.focus());
   }
 
-  function closePanel({ focusTrigger = true } = {}) {
+  function closePanel({ restoreFocus = true } = {}) {
     panel.hidden = true;
     trigger.setAttribute("aria-expanded", "false");
-    if (focusTrigger) trigger.focus({ preventScroll: true });
+    if (restoreFocus) restoreMenuFocus();
   }
 
   trigger.addEventListener("click", open);
@@ -172,7 +183,7 @@
   });
   document.addEventListener("pointerdown", (event) => {
     if (panel.hidden || panel.contains(event.target) || trigger.contains(event.target)) return;
-    closePanel({ focusTrigger: false });
+    closePanel({ restoreFocus: false });
   });
 
   window.VulnHunterConversationExport = Object.freeze({

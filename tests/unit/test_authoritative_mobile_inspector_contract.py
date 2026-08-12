@@ -4,7 +4,7 @@ ROOT = Path(__file__).resolve().parents[2]
 STATIC = ROOT / "vulnhunter" / "web" / "static" / "web"
 TEMPLATES = ROOT / "vulnhunter" / "web" / "templates" / "web"
 SCRIPT = STATIC / "conversation-mobile-inspector.js"
-OPEN_BRIDGE = STATIC / "conversation-mobile-deferred-tools.js"
+OPEN_ADAPTER = STATIC / "conversation-inspector-open.js"
 STORE = STATIC / "workspace-state.js"
 TEMPLATE = TEMPLATES / "_mobile_analysis_inspector.html"
 CONVERSATION = TEMPLATES / "conversation.html"
@@ -92,16 +92,16 @@ def test_mobile_sheet_supports_focus_escape_and_android_back_semantics():
 
 
 def test_contextual_open_control_delegates_to_the_authoritative_inspector_controller():
-    bridge = _text(OPEN_BRIDGE)
+    adapter = _text(OPEN_ADAPTER)
     template = _text(TEMPLATE)
     conversation = _text(CONVERSATION)
 
     assert "data-analysis-inspector-controller" in template
     assert "data-analysis-inspector-open" in conversation
-    assert 'querySelector("[data-analysis-inspector-controller]")' in bridge
-    assert 'event.target.closest?.("[data-analysis-inspector-open]")' in bridge
-    assert "inspectorController.click()" in bridge
-    assert "restoreInspectorFocus" in bridge
+    assert 'querySelector("[data-analysis-inspector-controller]")' in adapter
+    assert 'event.target.closest?.("[data-analysis-inspector-open]")' in adapter
+    assert "controller.click()" in adapter
+    assert "restoreFocus" in adapter
     assert "conversation-mobile-inspector-route.js" not in template
     assert "conversation-mobile-inspector-route.js" not in conversation
 
@@ -112,7 +112,7 @@ def test_inspector_tabs_have_keyboard_roving_focus():
     for key in ("ArrowLeft", "ArrowRight", "Home", "End"):
         assert key in script
     assert "tab.tabIndex = selected ? 0 : -1" in script
-    assert template.count('tabindex="-1"') == 5  # four inactive tabs plus hidden controller
+    assert template.count('tabindex="-1"') == 5
 
 
 def test_assessment_empty_states_are_compact_ordinary_language_statuses():

@@ -4,48 +4,56 @@
 
 .vh-message-delivery {
   display: flex;
+  min-height: 24px;
   align-items: center;
   justify-content: flex-end;
-  gap: var(--vh-space-2, 8px);
-  min-height: 24px;
-  margin-top: var(--vh-space-1, 4px);
-  color: var(--vh-color-text-secondary, #9ca3af);
-  font-size: var(--vh-font-label-size, 12px);
-  line-height: var(--vh-font-label-line-height, 18px);
+  gap: 6px;
+  margin-top: 5px;
+  color: var(--vh-muted);
+  font-family: var(--vh-font-mono);
+  font-size: 9px;
+  line-height: 1.5;
 }
 
 .vh-chat-message.is-sending .vh-message-delivery::before {
-  content: "";
-  width: 8px;
-  height: 8px;
-  border-radius: 999px;
+  width: 7px;
+  height: 7px;
+  border-radius: 1px;
   background: currentColor;
-  opacity: .72;
+  content: "";
+  opacity: 0.72;
 }
 
 .vh-chat-message.is-send-accepted .vh-message-delivery {
-  color: var(--vh-color-success, #22c55e);
+  color: var(--vh-success);
 }
 
 .vh-chat-message.is-send-failed .vh-message-delivery {
-  color: var(--vh-color-danger, #ef4444);
+  color: var(--vh-danger);
 }
 
 .vh-message-retry {
   min-width: 44px;
   min-height: 44px;
-  padding: 0 var(--vh-space-3, 12px);
+  padding: 0 10px;
   border: 1px solid currentColor;
-  border-radius: var(--vh-radius-control, 8px);
-  background: transparent;
+  border-radius: 2px;
+  background: var(--vh-surface);
   color: inherit;
-  font: inherit;
-  font-weight: 600;
+  font-family: var(--vh-font-mono);
+  font-size: 10px;
+  font-weight: 700;
   cursor: pointer;
 }
 
+.vh-message-retry:hover {
+  border-color: var(--vh-ink);
+  background: var(--vh-pink-soft);
+  color: var(--vh-ink);
+}
+
 .vh-message-retry:focus-visible {
-  outline: 2px solid var(--vh-color-focus, #93c5fd);
+  outline: 2px solid var(--vh-ink);
   outline-offset: 2px;
 }
 

@@ -8,6 +8,9 @@
   const messageTemplate = document.getElementById("vh-message-template");
   if (!workspace || !toolList || !form) return;
 
+  const inspectorController = workspace.querySelector("[data-analysis-inspector-controller]");
+  const inspectorClose = workspace.querySelector("[data-analysis-inspector-close]");
+  let inspectorReturnFocus = null;
   let plan = null;
   const statuses = new Map();
   const timers = new Map();
@@ -21,6 +24,24 @@
       .replace(/\b\w/g, (letter) => letter.toUpperCase());
   const csrf = () => form.querySelector('input[name="csrfmiddlewaretoken"]')?.value || "";
   const kindFor = (toolId) => (toolId === "mobsf" ? "mobsf" : "runtime");
+
+  const restoreInspectorFocus = () => {
+    if (!(inspectorReturnFocus instanceof HTMLElement) || !inspectorReturnFocus.isConnected) return;
+    inspectorReturnFocus.focus({ preventScroll: true });
+    inspectorReturnFocus = null;
+  };
+
+  workspace.addEventListener("click", (event) => {
+    const trigger = event.target.closest?.("[data-analysis-inspector-open]");
+    if (!(trigger instanceof HTMLElement) || !inspectorController) return;
+    inspectorReturnFocus = trigger;
+    inspectorController.click();
+  });
+  inspectorClose?.addEventListener("click", () => window.queueMicrotask(restoreInspectorFocus));
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape" || !inspectorReturnFocus) return;
+    window.queueMicrotask(restoreInspectorFocus);
+  });
 
   const scrollLatest = () => {
     const controller = window.VulnHunterConversationScroll;

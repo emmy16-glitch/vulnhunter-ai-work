@@ -1,6 +1,21 @@
 (() => {
   "use strict";
 
+  const current = document.currentScript?.src;
+  if (current && !document.querySelector("script[data-inspector-open-adapter]")) {
+    const adapterUrl = new URL(current, window.location.href);
+    adapterUrl.pathname = adapterUrl.pathname.replace(
+      /conversation-mobile-deferred-tools\.js$/,
+      "conversation-inspector-open.js",
+    );
+    adapterUrl.search = "?v=20260812-ui3";
+    const script = document.createElement("script");
+    script.src = adapterUrl.toString();
+    script.async = false;
+    script.dataset.inspectorOpenAdapter = "true";
+    document.head.append(script);
+  }
+
   const workspace = document.querySelector("[data-conversation-workspace]");
   const toolList = workspace?.querySelector("[data-inspector-tools]");
   const form = workspace?.querySelector("[data-conversation-form]");
@@ -8,9 +23,6 @@
   const messageTemplate = document.getElementById("vh-message-template");
   if (!workspace || !toolList || !form) return;
 
-  const inspectorController = workspace.querySelector("[data-analysis-inspector-controller]");
-  const inspectorClose = workspace.querySelector("[data-analysis-inspector-close]");
-  let inspectorReturnFocus = null;
   let plan = null;
   const statuses = new Map();
   const timers = new Map();
@@ -24,24 +36,6 @@
       .replace(/\b\w/g, (letter) => letter.toUpperCase());
   const csrf = () => form.querySelector('input[name="csrfmiddlewaretoken"]')?.value || "";
   const kindFor = (toolId) => (toolId === "mobsf" ? "mobsf" : "runtime");
-
-  const restoreInspectorFocus = () => {
-    if (!(inspectorReturnFocus instanceof HTMLElement) || !inspectorReturnFocus.isConnected) return;
-    inspectorReturnFocus.focus({ preventScroll: true });
-    inspectorReturnFocus = null;
-  };
-
-  workspace.addEventListener("click", (event) => {
-    const trigger = event.target.closest?.("[data-analysis-inspector-open]");
-    if (!(trigger instanceof HTMLElement) || !inspectorController) return;
-    inspectorReturnFocus = trigger;
-    inspectorController.click();
-  });
-  inspectorClose?.addEventListener("click", () => window.queueMicrotask(restoreInspectorFocus));
-  document.addEventListener("keydown", (event) => {
-    if (event.key !== "Escape" || !inspectorReturnFocus) return;
-    window.queueMicrotask(restoreInspectorFocus);
-  });
 
   const scrollLatest = () => {
     const controller = window.VulnHunterConversationScroll;
@@ -139,7 +133,8 @@
     const kind = kindFor(text(tool.tool_id));
     const packageValue = kind === "runtime" ? packageName() : "";
     if (kind === "runtime" && !packageValue) return;
-    const label = kind === "mobsf" ? "private MobSF analysis" : "disposable ADB and Frida runtime analysis";
+    const label =
+      kind === "mobsf" ? "private MobSF analysis" : "disposable ADB and Frida runtime analysis";
     if (!window.confirm(`Approve this exact ${label} for the current APK and plan digest?`)) return;
     button.disabled = true;
     button.textContent = "Approving…";
@@ -187,7 +182,14 @@
 
       const marker = document.createElement("span");
       marker.className = "vh-inspector-tool-marker";
-      marker.textContent = state === "completed" ? "✓" : state === "failed" ? "!" : state === "approval_required" ? "⌁" : "×";
+      marker.textContent =
+        state === "completed"
+          ? "✓"
+          : state === "failed"
+            ? "!"
+            : state === "approval_required"
+              ? "⌁"
+              : "×";
 
       const copy = document.createElement("div");
       const label = document.createElement("strong");
@@ -200,7 +202,8 @@
       reason.textContent = text(latest?.reason || tool.reason || "Infrastructure is not ready.");
       copy.append(label, gate, reason);
 
-      const mayApprove = approveUrl && state === "approval_required" && (toolId === "mobsf" || toolId === "adb");
+      const mayApprove =
+        approveUrl && state === "approval_required" && (toolId === "mobsf" || toolId === "adb");
       if (mayApprove) {
         const button = document.createElement("button");
         button.type = "button";

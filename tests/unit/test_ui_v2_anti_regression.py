@@ -40,7 +40,6 @@ def test_conversation_is_task_first_not_dashboard_first() -> None:
     assert "vh-chat-actions" not in conversation
     assert "vh-mobile-workspace-nav" not in conversation
     assert "Remediation guidance" in conversation
-    assert "Technical and audit details" in conversation
 
 
 def test_contextual_inspector_has_no_duplicate_mobile_bottom_navigation() -> None:
@@ -48,6 +47,7 @@ def test_contextual_inspector_has_no_duplicate_mobile_bottom_navigation() -> Non
 
     assert "vh-mobile-workspace-nav" not in inspector
     assert "Assessment details" in inspector
+    assert "Technical and audit details" in inspector
     assert ">Summary<" in inspector
     assert ">Activity<" in inspector
     assert ">Findings " in inspector

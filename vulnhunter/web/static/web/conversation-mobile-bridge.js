@@ -6,15 +6,7 @@
   const retryStoragePrefix = "vh-mobile-retry:";
   let refreshGeneration = 0;
 
-  const setMobileNavigation = (visible) => {
-    const navigation = document.querySelector("[data-mobile-workspace-nav]");
-    if (navigation) navigation.hidden = !visible;
-  };
-
   const emitSupportingState = (name, detail) => {
-    if (["vh:mobile-attachment", "vh:mobile-plan", "vh:mobile-status"].includes(name)) {
-      setMobileNavigation(true);
-    }
     document.dispatchEvent(new CustomEvent(name, { detail }));
   };
 
@@ -42,7 +34,6 @@
 
   const clearSelectedAssessment = () => {
     invalidatePendingRefresh();
-    setMobileNavigation(false);
     withAssessmentStore((store) => store.clear());
   };
 
@@ -164,7 +155,13 @@
     const byteProgress = taskCard.byte_progress || {};
     const received = Number(byteProgress.received);
     const expected = Number(byteProgress.expected);
-    if (Number.isFinite(received) && Number.isFinite(expected) && received >= 0 && expected > 0 && received <= expected) {
+    if (
+      Number.isFinite(received) &&
+      Number.isFinite(expected) &&
+      received >= 0 &&
+      expected > 0 &&
+      received <= expected
+    ) {
       const bytes = document.createElement("p");
       bytes.textContent = `${received.toLocaleString()} of ${expected.toLocaleString()} bytes received`;
       panel.append(bytes);
@@ -299,35 +296,50 @@
     const response = await originalFetch(input, init);
     if (!kind) return response;
 
-    response.clone().json().then((payload) => {
-      if (!response.ok) {
-        document.dispatchEvent(new CustomEvent("vh:mobile-error", { detail: { kind, payload, status: response.status } }));
-        return;
-      }
-      if (kind === "attachment" && payload?.attachment) {
-        emitSupportingState("vh:mobile-attachment", payload.attachment);
-      } else if (kind === "plan") {
-        emitSupportingState("vh:mobile-plan", payload?.mobile_plan || payload?.message?.metadata?.mobile_plan || null);
-      } else if (kind === "context" && payload?.mobile_plan) {
-        emitSupportingState("vh:mobile-plan", payload.mobile_plan);
-      } else if (kind === "status" && payload?.mobile_execution) {
-        emitSupportingState("vh:mobile-status", payload.mobile_execution);
-      } else if (["retry-read", "retry-write"].includes(kind)) {
-        replaceSelectedAssessment(payload);
-      } else if (kind === "reset" || (kind === "followup" && payload?.handoff)) {
-        clearSelectedAssessment();
-      }
-    }).catch(() => undefined);
+    response
+      .clone()
+      .json()
+      .then((payload) => {
+        if (!response.ok) {
+          document.dispatchEvent(
+            new CustomEvent("vh:mobile-error", { detail: { kind, payload, status: response.status } }),
+          );
+          return;
+        }
+        if (kind === "attachment" && payload?.attachment) {
+          emitSupportingState("vh:mobile-attachment", payload.attachment);
+        } else if (kind === "plan") {
+          emitSupportingState(
+            "vh:mobile-plan",
+            payload?.mobile_plan || payload?.message?.metadata?.mobile_plan || null,
+          );
+        } else if (kind === "context" && payload?.mobile_plan) {
+          emitSupportingState("vh:mobile-plan", payload.mobile_plan);
+        } else if (kind === "status" && payload?.mobile_execution) {
+          emitSupportingState("vh:mobile-status", payload.mobile_execution);
+        } else if (["retry-read", "retry-write"].includes(kind)) {
+          replaceSelectedAssessment(payload);
+        } else if (kind === "reset" || (kind === "followup" && payload?.handoff)) {
+          clearSelectedAssessment();
+        }
+      })
+      .catch(() => undefined);
     return response;
   };
 
-  document.addEventListener("vh:mobile-plan", () => window.setTimeout(refreshSelectedAssessment, 0));
-  document.addEventListener("vh:mobile-status", () => window.setTimeout(refreshSelectedAssessment, 0));
+  document.addEventListener("vh:mobile-plan", () =>
+    window.setTimeout(refreshSelectedAssessment, 0),
+  );
+  document.addEventListener("vh:mobile-status", () =>
+    window.setTimeout(refreshSelectedAssessment, 0),
+  );
 
   withAssessmentStore(subscribeToSelectedAssessment);
 
   document.addEventListener("DOMContentLoaded", () => {
-    document.querySelector("[data-conversation-reset]")?.addEventListener("click", clearSelectedAssessment);
+    document
+      .querySelector("[data-conversation-reset]")
+      ?.addEventListener("click", clearSelectedAssessment);
     document.querySelector("[data-attachment-tray]")?.addEventListener("click", (event) => {
       if (event.target.closest(".vh-apk-attachment-remove")) clearSelectedAssessment();
     });

@@ -1,24 +1,18 @@
 {% extends "web/base.html" %}
 {% load static vh_remote_nuclei vh_navigation %}
+{% block extra_styles %}<link rel="stylesheet" href="{% static 'web/settings.css' %}?v=20260812-ui2">{% endblock %}
 {% block content %}
 {% remote_nuclei_status as remote_worker %}
 {% security_runtime as scanner_activation %}
-<link rel="stylesheet" href="{% static 'web/settings.css' %}?v=20260722-m33">
 <section class="vh-page-shell vh-settings-page">
   <header class="vh-page-header vh-settings-hero">
-    <div><p class="vh-eyebrow">System control plane</p><h1>Settings &amp; readiness</h1><p>Inspect the real identity, security posture, local capabilities and activation gates used by this deployment. This page never reveals secrets or enables a control without its backend contract.</p></div>
+    <div><p class="vh-eyebrow">System control plane</p><h1>Settings &amp; readiness</h1><p>Inspect the authenticated identity, browser security posture, local capabilities and activation gates used by this deployment. This surface does not reveal secrets and does not create capabilities that the backend has not enabled.</p></div>
+    <div class="vh-page-actions"><span class="vh-status-chip {% if identity.status == 'active' %}vh-status-safe{% else %}vh-status-warning{% endif %}">{{ identity.status }}</span><span class="vh-status-chip">{{ healthy_count }}/{{ capability_rows|length }} healthy</span></div>
   </header>
-
-  <section class="vh-summary-strip" aria-label="Settings summary">
-    <article class="vh-summary-item"><small>Environment</small><strong>{{ environment_label }}</strong><span>{{ database_engine }} database</span></article>
-    <article class="vh-summary-item"><small>Governed identity</small><strong>{{ identity.status }}</strong><span>{{ identity.display_name }}</span></article>
-    <article class="vh-summary-item"><small>Capabilities healthy</small><strong>{{ healthy_count }}/{{ capability_rows|length }}</strong><span>Backend-validated state</span></article>
-    <article class="vh-summary-item"><small>Remote worker</small><strong>{{ remote_worker.state }}</strong><span>{{ remote_worker.worker_id }}</span></article>
-  </section>
 
   <div class="vh-settings-layout">
     <section class="vh-surface vh-settings-identity">
-      <header class="vh-surface-header"><div><h2>Operator identity</h2><p>The authenticated account and governed authority used for every protected request.</p></div><span class="vh-status-chip {% if identity.status == 'active' %}vh-status-safe{% else %}vh-status-warning{% endif %}">{{ identity.status }}</span></header>
+      <header class="vh-surface-header"><div><h2>Operator identity</h2><p>The authenticated account and governed authority used for protected requests.</p></div><span class="vh-status-chip {% if identity.status == 'active' %}vh-status-safe{% else %}vh-status-warning{% endif %}">{{ identity.status }}</span></header>
       <div class="vh-settings-profile"><div class="vh-settings-avatar" aria-hidden="true">{{ request.user.username|slice:':1'|upper }}</div><div><span>Signed in as</span><strong>{{ request.user.username }}</strong><small>{{ identity.display_name }}</small></div></div>
       <dl class="vh-settings-definition">
         <div><dt>Governance identity</dt><dd><code>{{ identity.reviewer_id }}</code></dd></div>
@@ -29,11 +23,11 @@
     </section>
 
     <section class="vh-surface vh-settings-activation">
-      <header class="vh-surface-header"><div><h2>Activation gates</h2><p>Capabilities become active only after their required policy and local dependencies are present.</p></div><span class="vh-panel-count">{{ activation_rows|length|add:'3' }}</span></header>
+      <header class="vh-surface-header"><div><h2>Activation gates</h2><p>Capabilities become active only when their required policy and local dependencies are actually present.</p></div><span class="vh-panel-count">{{ activation_rows|length|add:'3' }}</span></header>
       <div class="vh-activation-list">
         <article class="vh-activation-row {% if remote_worker.enabled %}is-enabled{% else %}is-gated{% endif %}"><span class="vh-activation-indicator" aria-hidden="true"></span><div><strong>Restricted remote Nuclei worker</strong><p>{{ remote_worker.detail }}</p></div><div class="vh-activation-action"><span class="vh-status-chip {% if remote_worker.enabled %}vh-status-safe{% else %}vh-status-warning{% endif %}">{{ remote_worker.state }}</span></div></article>
         <article class="vh-activation-row {% if scanner_activation.configured %}is-enabled{% else %}is-gated{% endif %}"><span class="vh-activation-indicator" aria-hidden="true"></span><div><strong>Governed assessment runtime</strong><p>{{ scanner_activation.detail }}</p></div><div class="vh-activation-action"><span class="vh-status-chip {% if scanner_activation.configured %}vh-status-safe{% else %}vh-status-warning{% endif %}">{{ scanner_activation.state }}</span></div></article>
-        <article class="vh-activation-row {% if scanner_activation.connectors_enabled %}is-enabled{% else %}is-gated{% endif %}"><span class="vh-activation-indicator" aria-hidden="true"></span><div><strong>Security-tool connectors</strong><p>Governed scanner connectors are enabled; arbitrary connector activation remains denied.</p></div><div class="vh-activation-action"><span class="vh-status-chip {% if scanner_activation.connectors_enabled %}vh-status-safe{% else %}vh-status-warning{% endif %}">{% if scanner_activation.connectors_enabled %}configured{% else %}gated{% endif %}</span></div></article>
+        <article class="vh-activation-row {% if scanner_activation.connectors_enabled %}is-enabled{% else %}is-gated{% endif %}"><span class="vh-activation-indicator" aria-hidden="true"></span><div><strong>Security-tool connectors</strong><p>Governed scanner connectors are enabled only through their server-side activation contract.</p></div><div class="vh-activation-action"><span class="vh-status-chip {% if scanner_activation.connectors_enabled %}vh-status-safe{% else %}vh-status-warning{% endif %}">{% if scanner_activation.connectors_enabled %}configured{% else %}gated{% endif %}</span></div></article>
         {% for item in activation_rows %}<article class="vh-activation-row {% if item.enabled %}is-enabled{% else %}is-gated{% endif %}"><span class="vh-activation-indicator" aria-hidden="true"></span><div><strong>{{ item.name }}</strong><p>{{ item.detail }}</p></div><div class="vh-activation-action"><span class="vh-status-chip {% if item.enabled %}vh-status-safe{% else %}vh-status-warning{% endif %}">{% if item.enabled %}configured{% else %}gated{% endif %}</span>{% if item.link %}<a href="{% url item.link %}">Open</a>{% endif %}</div></article>{% endfor %}
       </div>
     </section>
@@ -46,19 +40,18 @@
     <section class="vh-surface vh-settings-security">
       <header class="vh-surface-header"><div><h2>Browser security posture</h2><p>Effective Django and response-layer controls for this deployment.</p></div></header>
       <ul class="vh-security-posture">{% for item in security_rows %}<li><span class="vh-security-check {% if item.safe %}is-safe{% else %}is-local{% endif %}" aria-hidden="true">{% if item.safe %}✓{% else %}!{% endif %}</span><div><strong>{{ item.name }}</strong><small>{{ item.value }}</small></div></li>{% endfor %}</ul>
-      <div class="vh-settings-note"><strong>Local-only is not production-ready</strong><p>When HTTPS enforcement or debug hardening is not active, keep the web process bound to loopback and use the documented deployment-readiness gates before exposure.</p></div>
+      <div class="vh-settings-note"><strong>Local-only is not production-ready</strong><p>When HTTPS enforcement or debug hardening is not active, keep the web process bound to the documented private/loopback environment until deployment-readiness gates pass.</p></div>
     </section>
 
     <section class="vh-surface vh-settings-providers">
-      <header class="vh-surface-header"><div><h2>Analysis services</h2><p>Health and authority state only. Opening this page does not start processing or graph generation.</p></div><span class="vh-panel-count">{{ intelligence_status|length }}</span></header>
-      {% if intelligence_status %}<ul class="vh-provider-list">{% for item in intelligence_status %}<li><div><strong>{{ item.name }}</strong><p>{{ item.detail }}</p></div><span class="vh-status-chip {% if 'READY' in item.state %}vh-status-safe{% else %}vh-status-warning{% endif %}">{{ item.state }}</span></li>{% endfor %}</ul>{% else %}<div class="vh-empty-panel"><svg aria-hidden="true"><use href="#vh-i-settings"></use></svg><h3>No provider state</h3><p>No advisory component status is available.</p></div>{% endif %}
+      <header class="vh-surface-header"><div><h2>Analysis services</h2><p>Readiness and authority state only. Opening this page does not start processing or graph generation.</p></div><span class="vh-panel-count">{{ intelligence_status|length }}</span></header>
+      {% if intelligence_status %}<ul class="vh-provider-list">{% for item in intelligence_status %}<li><div><strong>{{ item.name }}</strong><p>{{ item.detail }}</p></div><span class="vh-status-chip {% if 'READY' in item.state %}vh-status-safe{% else %}vh-status-warning{% endif %}">{{ item.state }}</span></li>{% endfor %}</ul>{% else %}<div class="vh-empty-panel"><svg aria-hidden="true"><use href="#vh-i-settings"></use></svg><h3>No provider state</h3><p>No advisory component status is currently available.</p></div>{% endif %}
     </section>
 
     {% if management_links %}<section class="vh-surface vh-settings-links">
-      <header class="vh-surface-header"><div><h2>Governed references</h2><p>Open related read-only and role-gated controls without duplicating them in primary navigation.</p></div><span class="vh-panel-count">{{ management_links|length }}</span></header>
+      <header class="vh-surface-header"><div><h2>Governed references</h2><p>Open related role-gated controls without duplicating them in everyday navigation.</p></div><span class="vh-panel-count">{{ management_links|length }}</span></header>
       <div class="vh-settings-link-grid">{% for item in management_links %}<a href="{% url item.url_name %}"><svg aria-hidden="true"><use href="#vh-i-{{ item.icon }}"></use></svg><span><strong>{{ item.label }}</strong><small>{{ item.detail }}</small></span></a>{% endfor %}</div>
     </section>{% endif %}
-
   </div>
 </section>
 {% endblock %}

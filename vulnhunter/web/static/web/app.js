@@ -1,14 +1,6 @@
 (() => {
   "use strict";
 
-  const productStyles = document.querySelector('link[href*="/product.css"]');
-  if (productStyles && !document.querySelector('link[href*="/product-wide.css"]')) {
-    const link = document.createElement("link");
-    link.rel = "stylesheet";
-    link.href = productStyles.href.replace("product.css", "product-wide.css");
-    document.head.append(link);
-  }
-
   const sidebar = document.querySelector("[data-sidebar]");
   const navToggle = document.querySelector("[data-nav-toggle]");
   const navClose = document.querySelector("[data-nav-close]");

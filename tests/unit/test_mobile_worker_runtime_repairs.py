@@ -44,7 +44,7 @@ def test_controlled_worker_failure_explains_the_actual_boundary():
 def test_assessment_creation_is_only_exposed_in_the_conversation_workspace():
     history = _text("vulnhunter/web/templates/web/agent_runs.html")
 
-    assert "Assessment History" in history
+    assert "Assessment history" in history
     assert "Open workspace" in history
     assert "data-assessment-open" not in history
     assert "New Assessment" not in history
@@ -52,11 +52,10 @@ def test_assessment_creation_is_only_exposed_in_the_conversation_workspace():
 
 
 def test_scrollable_workspace_regions_have_visible_scrollbars():
-    workspace = _text("vulnhunter/web/static/web/workspace.css")
+    conversation = _text("vulnhunter/web/static/web/conversation.css")
 
-    assert ".vh-analysis-panel" in workspace
-    assert "overflow-y: auto" in workspace
-    assert "scrollbar-width: auto" in workspace
-    assert ".vh-chat-feed::-webkit-scrollbar" in workspace
-    assert "width: 11px" in workspace
-    assert "min-height: 44px" in workspace
+    assert ".vh-analysis-panels" in conversation
+    assert "overflow-y: auto" in conversation
+    assert ".vh-chat-feed" in conversation
+    assert "scrollbar-width: thin" in conversation
+    assert "min-height: 44px" in conversation

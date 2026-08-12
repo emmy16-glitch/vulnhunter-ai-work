@@ -52,13 +52,6 @@
     </div>
   </header>
 
-  <div class="vh-visually-hidden" aria-hidden="true">
-    <span data-state-authorization>{% if conversation.active_run %}Bound to run{% else %}Not selected{% endif %}</span>
-    <span data-state-scope>{% if conversation.active_run %}{{ conversation.active_run.target }}{% else %}No target selected{% endif %}</span>
-    <span data-state-approval>{% if conversation.active_run %}{{ conversation.active_run.approval_state|default:"Not required" }}{% else %}Not required{% endif %}</span>
-    <span data-state-active>{% if conversation.active_run %}{{ conversation.active_run.state }}{% else %}Idle{% endif %}</span>
-  </div>
-
   <button type="button" class="vh-mobile-status-summary" data-analysis-inspector-open>
     <span class="vh-mobile-status-marker" aria-hidden="true">{% if conversation.active_run %}◌{% else %}○{% endif %}</span>
     <span data-mobile-status-copy>{% if conversation.active_run %}{{ conversation.active_run.state }} · {{ conversation.active_run.target|truncatechars:46 }}{% else %}Ready for an authorised target{% endif %}</span>

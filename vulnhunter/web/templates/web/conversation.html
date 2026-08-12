@@ -4,6 +4,8 @@
 {% block extra_styles %}
   <link rel="stylesheet" href="{% static 'web/conversation-upload.css' %}?v=20260727-phone-acceptance1">
   <link rel="stylesheet" href="{% static 'web/conversation.css' %}?v=20260812-ui2">
+  <link rel="stylesheet" href="{% static 'web/conversation-mobile-execution.css' %}?v=20260812-ui2">
+  <link rel="stylesheet" href="{% static 'web/conversation-mobile-deferred-tools.css' %}?v=20260812-ui2">
   <link rel="stylesheet" href="{% static 'web/assessment-workspace.css' %}?v=20260812-ui2">
 {% endblock %}
 
@@ -50,7 +52,6 @@
     </div>
   </header>
 
-  {# Compatibility state hooks are intentionally non-visual. Operational truth appears in task rows/cards. #}
   <div class="vh-visually-hidden" aria-hidden="true">
     <span data-state-authorization>{% if conversation.active_run %}Bound to run{% else %}Not selected{% endif %}</span>
     <span data-state-scope>{% if conversation.active_run %}{{ conversation.active_run.target }}{% else %}No target selected{% endif %}</span>
@@ -180,7 +181,6 @@
       <time data-run-elapsed>00:00</time>
     </header>
 
-    {# JS compatibility data only. The old four-card summary UI is intentionally retired. #}
     <div class="vh-visually-hidden" aria-hidden="true">
       <strong data-summary-state>Preparing</strong>
       <strong data-summary-findings>—</strong>
@@ -222,7 +222,7 @@
       <details data-section="findings"><summary><span><svg aria-hidden="true"><use href="#vh-i-finding"></use></svg><strong>Findings</strong></span><b data-findings-count aria-label="Finding count unavailable">—</b></summary><div class="vh-disclosure-body" data-findings-list></div></details>
       <details data-section="evidence"><summary><span><svg aria-hidden="true"><use href="#vh-i-checkdoc"></use></svg><strong>Evidence</strong></span><b data-evidence-count aria-label="Evidence count unavailable">—</b></summary><div class="vh-disclosure-body" data-evidence-list></div></details>
       <details data-section="verification"><summary><span><svg aria-hidden="true"><use href="#vh-i-oracle"></use></svg><strong>Verification</strong></span><b data-verification-state>Not available</b></summary><div class="vh-disclosure-body" data-verification-body></div></details>
-      <details data-section="guidance"><summary><span><svg aria-hidden="true"><use href="#vh-i-checkdoc"></use></svg><strong>Remediation</strong></span><b>Evidence-backed only</b></summary><div class="vh-disclosure-body" data-guidance-body></div></details>
+      <details data-section="guidance"><summary><span><svg aria-hidden="true"><use href="#vh-i-checkdoc"></use></svg><strong>Remediation guidance</strong></span><b>Evidence-backed only</b></summary><div class="vh-disclosure-body" data-guidance-body></div></details>
       <details data-section="technical"><summary><span><svg aria-hidden="true"><use href="#vh-i-audit"></use></svg><strong>Technical details</strong></span><b data-audit-count aria-label="Audit event count unavailable">—</b></summary><div class="vh-disclosure-body" data-technical-body></div></details>
     </div>
 

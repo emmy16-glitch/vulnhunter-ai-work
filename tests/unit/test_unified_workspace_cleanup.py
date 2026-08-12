@@ -24,15 +24,15 @@ def test_legacy_mobile_url_serves_the_unified_workspace():
 
 def test_workspace_copy_and_shared_product_styles_are_final():
     conversation = _text(TEMPLATES / "conversation.html")
-    app = _text(STATIC / "app.css")
     product = _text(STATIC / "product.css")
+    chat_shell = _text(STATIC / "chat-shell.css")
     tokens = _text(STATIC / "tokens.css")
 
     assert "Ask a security question, paste an authorised target" not in conversation
     assert "AI conversation ready" not in conversation
     assert "Describe an authorised website, attach an APK, or ask about a finding" in conversation
     assert ".vh-page-shell" in product
-    assert ".vh-chat-shell" in app
+    assert ".vh-chat-shell" in chat_shell
     assert "--vh-layout-sidebar: 280px" in tokens
     assert "--vh-layout-topbar: 60px" in tokens
     assert "workspace.css" not in _text(TEMPLATES / "base.html")

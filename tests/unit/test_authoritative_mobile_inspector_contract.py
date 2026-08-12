@@ -4,9 +4,10 @@ ROOT = Path(__file__).resolve().parents[2]
 STATIC = ROOT / "vulnhunter" / "web" / "static" / "web"
 TEMPLATES = ROOT / "vulnhunter" / "web" / "templates" / "web"
 SCRIPT = STATIC / "conversation-mobile-inspector.js"
-ROUTE = STATIC / "conversation-mobile-inspector-route.js"
+OPEN_BRIDGE = STATIC / "conversation-mobile-deferred-tools.js"
 STORE = STATIC / "workspace-state.js"
 TEMPLATE = TEMPLATES / "_mobile_analysis_inspector.html"
+CONVERSATION = TEMPLATES / "conversation.html"
 
 
 def _text(path: Path) -> str:
@@ -60,13 +61,15 @@ def test_inspector_never_invents_prepared_progress():
     assert '"Progress unavailable"' in script
 
 
-def test_mobile_inspector_has_four_primary_destinations_and_contextual_specialist_tabs():
+def test_mobile_inspector_is_contextual_and_has_no_duplicate_bottom_navigation():
     template = _text(TEMPLATE)
-    assert template.count('data-mobile-workspace-view="chat"') == 1
+    conversation = _text(CONVERSATION)
+
+    assert template.count("data-analysis-inspector-controller") == 1
     assert template.count('data-mobile-workspace-view="analysis"') == 1
-    assert template.count("data-mobile-nav-destination=") == 4
-    for destination in ("chat", "activity", "findings", "more"):
-        assert f'data-mobile-nav-destination="{destination}"' in template
+    assert "data-mobile-nav-destination" not in template
+    assert "vh-mobile-workspace-nav" not in template
+    assert "data-analysis-inspector-open" in conversation
     for tab in ("overview", "activity", "findings", "artifacts", "reports"):
         assert f'data-inspector-tab="{tab}"' in template
     assert 'data-inspector-tab="graph"' not in template
@@ -88,24 +91,19 @@ def test_mobile_sheet_supports_focus_escape_and_android_back_semantics():
         assert token in script
 
 
-def test_mobile_inspector_route_is_assessment_scoped_and_restorable():
-    route = _text(ROUTE)
+def test_contextual_open_control_delegates_to_the_authoritative_inspector_controller():
+    bridge = _text(OPEN_BRIDGE)
     template = _text(TEMPLATE)
-    assert "conversation-mobile-inspector-route.js" in template
-    for token in (
-        'url.searchParams.set("assessment", assessmentId)',
-        'url.searchParams.set("inspector", tab)',
-        "current.assessmentId !== selectedAssessmentId",
-        "!allowedTabs.has(current.tab)",
-        "analysisButton?.click()",
-        'window.addEventListener("popstate"',
-        'window.addEventListener("resize"',
-        "store.subscribe(applySelectedAssessment)",
-        "applySelectedAssessment(store.getSnapshot())",
-    ):
-        assert token in route
-    assert 'url.searchParams.set("assessment", current.assessmentId)' not in route
-    assert "writeRoute();" in route
+    conversation = _text(CONVERSATION)
+
+    assert "data-analysis-inspector-controller" in template
+    assert "data-analysis-inspector-open" in conversation
+    assert 'querySelector("[data-analysis-inspector-controller]")' in bridge
+    assert 'event.target.closest?.("[data-analysis-inspector-open]")' in bridge
+    assert "inspectorController.click()" in bridge
+    assert "restoreInspectorFocus" in bridge
+    assert "conversation-mobile-inspector-route.js" not in template
+    assert "conversation-mobile-inspector-route.js" not in conversation
 
 
 def test_inspector_tabs_have_keyboard_roving_focus():
@@ -114,14 +112,14 @@ def test_inspector_tabs_have_keyboard_roving_focus():
     for key in ("ArrowLeft", "ArrowRight", "Home", "End"):
         assert key in script
     assert "tab.tabIndex = selected ? 0 : -1" in script
-    assert template.count('tabindex="-1"') == 4
+    assert template.count('tabindex="-1"') == 5  # four inactive tabs plus hidden controller
 
 
 def test_assessment_empty_states_are_compact_ordinary_language_statuses():
     template = _text(TEMPLATE)
     for copy in (
-        "Select an assessment to view its analysis status.",
-        "Select an assessment to view reviewed findings.",
+        "Select an assessment to view its execution status.",
+        "Select an assessment to view persisted findings.",
         "Select an assessment to view saved evidence.",
         "No meaningful evidence relationships are available for this assessment.",
         "Format readiness is unavailable until the server provides the selected assessment "
@@ -141,12 +139,13 @@ def test_assessment_inspector_uses_task_language_before_system_language():
         "Assessment details",
         "Assessment ID",
         "Select an assessment to see its scope.",
-        "Analysis progress",
-        "Saved analysis state",
+        "Saved assessment progress",
+        "Task stages",
+        "Persisted assessment state",
         "Activity",
-        "Saved events",
-        "Analysis status",
-        "Saved execution state",
+        "Persisted events",
+        "Execution status",
+        "Backend-owned state",
     ):
         assert copy in template
     for implementation_copy in (

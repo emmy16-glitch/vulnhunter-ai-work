@@ -1,7 +1,4 @@
-from __future__ import annotations
-
 from pathlib import Path
-
 
 ROOT = Path(__file__).resolve().parents[2]
 WEB = ROOT / "vulnhunter" / "web"
@@ -37,11 +34,13 @@ def test_conversation_is_task_first_not_dashboard_first() -> None:
     assert "data-run-tool-chips" in conversation
     assert "data-conversation-form" in conversation
     assert "data-history-panel" in conversation
-    assert "data-analysis-inspector" not in conversation  # inspector is included as a contextual partial
+    # The inspector is included as a contextual partial, not authored inline here.
+    assert "data-analysis-inspector" not in conversation
     assert "vh-state-strip" not in conversation
     assert "vh-chat-actions" not in conversation
     assert "vh-mobile-workspace-nav" not in conversation
     assert "Remediation guidance" in conversation
+    assert "Technical and audit details" in conversation
 
 
 def test_contextual_inspector_has_no_duplicate_mobile_bottom_navigation() -> None:
@@ -82,8 +81,22 @@ def test_primary_workspace_uses_readable_canonical_visual_system() -> None:
     assert "backdrop-filter" not in conversation
     assert "glassmorphism" not in conversation.lower()
     assert ".vh-message-copy" in conversation
-    assert "font-size: 16px" in conversation  # mobile readable copy/input floor
+    assert "font-size: 16px" in conversation
     assert "min-height: 44px" in conversation
+
+
+def test_live_auxiliary_conversation_surfaces_use_the_same_visual_contract() -> None:
+    composer = _read(STATIC / "conversation-composer-tools.css")
+    search = _read(STATIC / "conversation-search.css")
+    export = _read(STATIC / "conversation-export.css")
+
+    for stylesheet in (composer, search, export):
+        assert "backdrop-filter" not in stylesheet
+        assert "rgba(108, 124, 255" not in stylesheet
+        assert "var(--vh-surface" in stylesheet
+        assert "var(--vh-ink" in stylesheet
+
+    assert "border-radius: 999px" not in composer
 
 
 def test_mobile_workspace_is_one_column_and_drawer_driven() -> None:

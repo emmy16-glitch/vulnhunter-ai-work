@@ -13,9 +13,9 @@ DETAIL = TEMPLATES / "agent_run_detail.html"
 CONVERSATION = TEMPLATES / "conversation.html"
 INSPECTOR = TEMPLATES / "_mobile_analysis_inspector.html"
 BASE = TEMPLATES / "base.html"
-CSS = STATIC / "workspace.css"
+APP = STATIC / "app.css"
+CONVERSATION_CSS = STATIC / "conversation.css"
 TOKENS = STATIC / "tokens.css"
-PREMIUM = STATIC / "premium-interaction.css"
 SCRIPT = STATIC / "workspace-state.js"
 BLUEPRINT_NAVIGATION = ROOT / "config" / "product_interface" / "navigation.json"
 BLUEPRINT_PAGES = ROOT / "config" / "product_interface" / "pages.json"
@@ -112,19 +112,22 @@ def test_canonical_routes_and_legacy_aliases_are_explicit():
 
 
 def test_final_tokens_shared_shell_and_responsive_breakpoints_are_present():
-    css = "\n".join((_text(TOKENS), _text(CSS), _text(PREMIUM))).lower()
+    tokens = _text(TOKENS).lower()
+    app = _text(APP).lower()
+    conversation_css = _text(CONVERSATION_CSS).lower()
+
     for token in (
         "--vh-color-background: #f5f2ec",
-        "--vh-layout-sidebar: 264px",
-        "--vh-layout-topbar: 64px",
+        "--vh-layout-sidebar: 280px",
+        "--vh-layout-topbar: 60px",
         "--vh-color-focus: #17171b",
-        "grid-template-columns: minmax(0, 1fr) 380px",
-        "@media (max-width: 1279px)",
-        "@media (max-width: 767px)",
-        "min-height: 44px",
-        "prefers-reduced-motion",
     ):
-        assert token in css
+        assert token in tokens
+    assert "@media (max-width: 1023px)" in app
+    assert ".vh-sidebar.is-open" in app
+    assert "@media (max-width: 767px)" in conversation_css
+    assert "min-height: 44px" in conversation_css
+    assert "prefers-reduced-motion" in conversation_css
 
     base = _text(BASE)
     conversation = _text(CONVERSATION)
@@ -132,6 +135,7 @@ def test_final_tokens_shared_shell_and_responsive_breakpoints_are_present():
     assert "{% block extra_scripts %}" in base
     assert "assessment-modal.js" not in base
     assert "conversation.js" not in base
+    assert "workspace.css" not in base
     assert conversation.count("conversation-mobile-deferred-tools.js") == 1
     assert conversation.count("conversation-mobile-deferred-tools.css") == 1
 
@@ -142,27 +146,37 @@ def test_unified_workspace_is_interactive_and_backend_truthful():
     script = _text(SCRIPT)
 
     for token in (
-        "data-state-authorization",
-        "data-state-scope",
-        "data-state-approval",
-        "data-state-active",
         "data-conversation-form",
         "data-conversation-attach",
         "data-approval-confirm",
         "data-analysis-inspector-open",
+        "data-run-stages",
+        "data-run-tool-chips",
     ):
         assert token in conversation
 
+    for retired in (
+        "data-state-authorization",
+        "data-state-scope",
+        "data-state-approval",
+        "data-state-active",
+        "vh-state-strip",
+        "vh-mobile-workspace-nav",
+    ):
+        assert retired not in conversation
+
     for token in (
-        "Assessment Inspector",
+        "Assessment details",
         'role="tab"',
         'data-inspector-panel="overview"',
         'data-inspector-panel="findings"',
         'data-inspector-panel="artifacts"',
-        'data-inspector-panel="graph"',
+        'data-inspector-panel="reports"',
+        "Evidence relationships",
         "No finding is shown until a real worker observation",
     ):
         assert token in inspector
+    assert 'data-inspector-panel="graph"' not in inspector
 
     assert "progress_percent" in script
     assert "A genuine numeric progress value is unavailable" in script
@@ -466,7 +480,6 @@ def test_overview_pages_do_not_repeat_sidebar_navigation():
     for name in overview_pages:
         text = _text(TEMPLATES / name)
         assert "vh-product-heading-actions" not in text, name
-        assert "vh-page-actions" not in text, name
         assert "Connected pages" not in text, name
         assert "Connected controls" not in text, name
         assert "Connected work areas" not in text, name

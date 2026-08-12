@@ -1,55 +1,59 @@
 /* VulnHunter canonical design tokens.
    Source of truth: docs/design/VULNHUNTER_UI_CONTRACT.md
-   Canonical JSON source: config/product_interface/design_tokens.json
-   Locked cream/dotted editorial visual language with a compact dark task sidebar,
-   square geometry, hard zero-blur offset shadows and grotesk/mono typography. */
+   The runtime must remain warm, editorial, technical and high-contrast.
+   Do not redefine palette, typography, radii or shadow systems in page CSS. */
 
 :root {
-  /* ---- Locked contract palette ---- */
+  /* Canonical visual identity */
   --vh-canvas: #f5f2ec;
   --vh-surface: #fbf9f4;
+  --vh-surface-strong: #ffffff;
   --vh-ink: #17171b;
   --vh-muted: #626169;
+  --vh-faint: #89878b;
   --vh-line: rgba(23, 23, 27, 0.22);
+  --vh-line-strong: rgba(23, 23, 27, 0.48);
   --vh-dot: rgba(23, 23, 27, 0.09);
   --vh-pink: #d99a9f;
+  --vh-pink-hover: #cf8b92;
   --vh-pink-soft: #f1dadb;
   --vh-sidebar: #10151b;
   --vh-sidebar-surface: #182028;
+  --vh-sidebar-line: rgba(255, 255, 255, 0.12);
+  --vh-sidebar-text: #f2f0eb;
+  --vh-sidebar-muted: #9da3a8;
   --vh-success: #3f8c63;
   --vh-warning: #a66e63;
   --vh-danger: #a6535b;
+  --vh-info: #6b6a72;
 
-  /* ---- Semantic palette (legacy names mapped to the locked contract) ---- */
-  --vh-color-accent: #d99a9f;
-  --vh-color-accent-hover: #c9828a;
-  --vh-color-background: #f5f2ec;
-  --vh-color-border: rgba(23, 23, 27, 0.22);
-  --vh-color-danger: #a6535b;
-  --vh-color-focus: #17171b;
-  --vh-color-info: #6b6a72;
-  --vh-color-success: #3f8c63;
-  --vh-color-surface: #fbf9f4;
-  --vh-color-surface-elevated: #ffffff;
-  --vh-color-text-primary: #17171b;
-  --vh-color-text-secondary: #626169;
-  --vh-color-warning: #a66e63;
+  /* Semantic aliases retained for repository compatibility */
+  --vh-color-accent: var(--vh-pink);
+  --vh-color-accent-hover: var(--vh-pink-hover);
+  --vh-color-background: var(--vh-canvas);
+  --vh-color-border: var(--vh-line);
+  --vh-color-danger: var(--vh-danger);
+  --vh-color-focus: var(--vh-ink);
+  --vh-color-info: var(--vh-info);
+  --vh-color-success: var(--vh-success);
+  --vh-color-surface: var(--vh-surface);
+  --vh-color-surface-elevated: var(--vh-surface-strong);
+  --vh-color-text-primary: var(--vh-ink);
+  --vh-color-text-secondary: var(--vh-muted);
+  --vh-color-warning: var(--vh-warning);
 
-  /* ---- Aliases consumed across the workspace system ---- */
   --vh-accent: var(--vh-pink);
-  --vh-accent-hover: #c9828a;
+  --vh-accent-hover: var(--vh-pink-hover);
   --vh-amber: var(--vh-warning);
   --vh-bg: var(--vh-canvas);
   --vh-bg-soft: #efebe2;
   --vh-border: var(--vh-line);
-  --vh-border-strong: rgba(23, 23, 27, 0.38);
+  --vh-border-strong: var(--vh-line-strong);
   --vh-cyan: var(--vh-info);
-  --vh-faint: #8a888d;
   --vh-focus: var(--vh-ink);
   --vh-green: var(--vh-success);
-  --vh-info: #6b6a72;
   --vh-panel: var(--vh-surface);
-  --vh-panel-2: #ffffff;
+  --vh-panel-2: var(--vh-surface-strong);
   --vh-panel-3: #f1ede4;
   --vh-purple: var(--vh-pink);
   --vh-red: var(--vh-danger);
@@ -59,73 +63,79 @@
   --vh-terminal: var(--vh-sidebar);
   --vh-text: var(--vh-ink);
 
-  /* ---- Layout ---- */
-  --vh-layout-collapsed-sidebar: 80px;
-  --vh-layout-content-max: 1600px;
-  --vh-layout-sidebar: 264px;
-  --vh-layout-topbar: 64px;
-  --vh-sidebar-width: 264px;
-  --vh-header-height: 64px;
-  --vh-inspector-width: 352px;
-  --vh-content-max-width: 1600px;
+  /* Layout */
+  --vh-layout-sidebar: 280px;
+  --vh-layout-collapsed-sidebar: 76px;
+  --vh-layout-content-max: 1560px;
+  --vh-layout-topbar: 60px;
+  --vh-sidebar-width: var(--vh-layout-sidebar);
+  --vh-header-height: var(--vh-layout-topbar);
+  --vh-inspector-width: 390px;
+  --vh-content-max-width: var(--vh-layout-content-max);
+  --vh-reading-width: 820px;
 
-  /* ---- Square geometry (hard edges per locked contract) ---- */
-  --vh-radius-card: 0px;
-  --vh-radius-control: 0px;
-  --vh-radius-modal: 0px;
+  /* Square / editorial geometry */
+  --vh-radius-card: 2px;
+  --vh-radius-control: 2px;
+  --vh-radius-modal: 3px;
   --vh-radius-pill: 999px;
-  --vh-radius: 0px;
-  --vh-radius-sm: 0px;
+  --vh-radius: var(--vh-radius-card);
+  --vh-radius-sm: var(--vh-radius-control);
 
-  /* ---- Hard zero-blur offset shadows ---- */
+  /* Hard zero-blur elevation */
   --vh-shadow-border: 0 0 0 1px var(--vh-line);
-  --vh-shadow-hover: 0 0 0 1px var(--vh-border-strong);
-  --vh-shadow-panel: 4px 4px 0 0 rgba(23, 23, 27, 0.9);
-  --vh-shadow-elevated: 6px 6px 0 0 rgba(23, 23, 27, 0.9);
-  --vh-shadow-focus: 0 0 0 3px rgba(217, 154, 159, 0.5);
+  --vh-shadow-hover: 0 0 0 1px var(--vh-line-strong);
+  --vh-shadow-control: 3px 3px 0 var(--vh-ink);
+  --vh-shadow-panel: 4px 4px 0 var(--vh-ink);
+  --vh-shadow-elevated: 6px 6px 0 var(--vh-ink);
+  --vh-shadow-focus: 0 0 0 3px rgba(217, 154, 159, 0.48);
 
-  /* ---- Spacing scale ---- */
+  /* Spacing */
   --vh-space-1: 4px;
   --vh-space-2: 8px;
   --vh-space-3: 12px;
   --vh-space-4: 16px;
+  --vh-space-5: 20px;
   --vh-space-6: 24px;
   --vh-space-8: 32px;
   --vh-space-10: 40px;
   --vh-space-12: 48px;
   --vh-space-16: 64px;
 
-  /* ---- Typography roles ---- */
-  --vh-font-family: "Helvetica Neue", Helvetica, "Segoe UI", Arial, "Liberation Sans", ui-sans-serif, system-ui, sans-serif;
-  --vh-font-display-family: var(--vh-font-family);
+  /* Typography.
+     System-first stacks deliberately render naturally on Android, Windows,
+     macOS and Linux without downloading or bundling font files. */
+  --vh-font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", "Segoe UI", Roboto, "Noto Sans", Ubuntu, Cantarell, "Helvetica Neue", Arial, sans-serif;
+  --vh-font-display-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI Variable Display", "Segoe UI", Roboto, "Noto Sans", Ubuntu, Cantarell, "Helvetica Neue", Arial, sans-serif;
   --vh-font-serif: Georgia, "Times New Roman", ui-serif, serif;
-  --vh-font-mono: "SFMono-Regular", ui-monospace, "Cascadia Code", "JetBrains Mono", Menlo, Consolas, monospace;
-  --vh-font-body-size: 14px;
-  --vh-font-body-line-height: 22px;
-  --vh-font-body-weight: 400;
-  --vh-font-display-size: 32px;
-  --vh-font-display-line-height: 40px;
-  --vh-font-display-weight: 700;
-  --vh-font-heading-1-size: 24px;
-  --vh-font-heading-1-line-height: 32px;
-  --vh-font-heading-1-weight: 700;
-  --vh-font-heading-2-size: 18px;
-  --vh-font-heading-2-line-height: 28px;
-  --vh-font-heading-2-weight: 650;
+  --vh-font-mono: ui-monospace, "SFMono-Regular", "Cascadia Code", "Roboto Mono", "Liberation Mono", Menlo, Consolas, monospace;
+
+  --vh-font-body-size: 15px;
+  --vh-font-body-line-height: 1.62;
+  --vh-font-body-weight: 430;
+  --vh-font-display-size: clamp(30px, 4vw, 48px);
+  --vh-font-display-line-height: 1.02;
+  --vh-font-display-weight: 820;
+  --vh-font-heading-1-size: clamp(26px, 3vw, 38px);
+  --vh-font-heading-1-line-height: 1.08;
+  --vh-font-heading-1-weight: 780;
+  --vh-font-heading-2-size: 20px;
+  --vh-font-heading-2-line-height: 1.25;
+  --vh-font-heading-2-weight: 730;
   --vh-font-label-size: 12px;
-  --vh-font-label-line-height: 18px;
-  --vh-font-label-weight: 600;
-  --vh-font-mono-size: 12px;
-  --vh-font-mono-line-height: 18px;
+  --vh-font-label-line-height: 1.4;
+  --vh-font-label-weight: 720;
+  --vh-font-mono-size: 12.5px;
+  --vh-font-mono-line-height: 1.5;
 
-  /* ---- Dotted canvas treatment ---- */
-  --vh-surface-dotted: radial-gradient(var(--vh-dot) 1px, transparent 1.2px);
+  /* Dotted canvas */
+  --vh-surface-dotted: radial-gradient(circle, var(--vh-dot) 1px, transparent 1.2px);
 
-  /* ---- Final alias layer (migrated surfaces) ---- */
+  /* Migrated aliases used by older templates while consolidation continues */
   --vh-final-bg: var(--vh-canvas);
   --vh-final-panel: var(--vh-surface);
-  --vh-final-surface: var(--vh-color-surface-elevated);
-  --vh-final-surface-2: #ffffff;
+  --vh-final-surface: var(--vh-surface-strong);
+  --vh-final-surface-2: var(--vh-surface-strong);
   --vh-final-surface-3: var(--vh-panel-3);
   --vh-final-border: var(--vh-line);
   --vh-final-border-soft: rgba(23, 23, 27, 0.12);
@@ -137,11 +147,11 @@
   --vh-final-authorized: var(--vh-success);
   --vh-final-pending: var(--vh-warning);
   --vh-final-blocked: var(--vh-danger);
-  --vh-final-active: var(--vh-color-info);
+  --vh-final-active: var(--vh-info);
   --vh-final-sidebar: var(--vh-layout-sidebar);
   --vh-final-topbar: var(--vh-layout-topbar);
   --vh-final-radius-sm: var(--vh-radius-sm);
   --vh-final-radius: var(--vh-radius-card);
   --vh-final-radius-lg: var(--vh-radius-modal);
-  --vh-final-focus: var(--vh-color-focus);
+  --vh-final-focus: var(--vh-ink);
 }

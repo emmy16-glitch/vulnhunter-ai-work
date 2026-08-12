@@ -6,11 +6,8 @@
   const current = document.currentScript?.src;
   if (current && !document.querySelector("link[data-conversation-export-styles]")) {
     const styleUrl = new URL(current, window.location.href);
-    styleUrl.pathname = styleUrl.pathname.replace(
-      /conversation-export\.js$/,
-      "conversation-export.css",
-    );
-    styleUrl.search = "?v=20260801-export1";
+    styleUrl.pathname = styleUrl.pathname.replace(/conversation-export\.js$/, "conversation-export.css");
+    styleUrl.search = "?v=20260812-ui2";
     const link = document.createElement("link");
     link.rel = "stylesheet";
     link.href = styleUrl.toString();
@@ -19,19 +16,19 @@
   }
 
   const workspace = document.querySelector("[data-conversation-workspace]");
-  const headerActions = document.querySelector(".vh-chat-runtime");
+  const actionMenu = workspace?.querySelector(".vh-task-menu-popover");
   const feed = document.querySelector("[data-conversation-feed]");
-  if (!workspace || !headerActions || !feed) return;
+  if (!workspace || !actionMenu || !feed) return;
 
   const trigger = document.createElement("button");
   trigger.type = "button";
-  trigger.className = "vh-chat-history-toggle vh-conversation-export-trigger";
+  trigger.className = "vh-task-menu-action vh-conversation-export-trigger";
   trigger.dataset.conversationExportTrigger = "true";
-  trigger.textContent = "Export";
+  trigger.textContent = "Export conversation";
   trigger.title = "Copy or download this conversation as Markdown";
   trigger.setAttribute("aria-expanded", "false");
   trigger.setAttribute("aria-controls", "vh-conversation-export");
-  headerActions.insertBefore(trigger, headerActions.querySelector("[data-history-toggle]"));
+  actionMenu.append(trigger);
 
   const panel = document.createElement("section");
   panel.id = "vh-conversation-export";
@@ -43,11 +40,11 @@
   const heading = document.createElement("div");
   heading.className = "vh-conversation-export-heading";
   const eyebrow = document.createElement("span");
-  eyebrow.textContent = "Current thread";
+  eyebrow.textContent = "Current conversation";
   const title = document.createElement("strong");
   title.textContent = "Export conversation";
   const description = document.createElement("small");
-  description.textContent = "Uses only messages already visible in this thread.";
+  description.textContent = "Exports only messages already visible in this workspace. It does not publish findings or change governance state.";
   heading.append(eyebrow, title, description);
 
   const actions = document.createElement("div");
@@ -69,20 +66,20 @@
   panel.append(heading, actions);
   workspace.append(panel);
 
-  const threadTitle = () => {
-    const value = document.querySelector(".vh-chat-title")?.textContent?.trim();
+  function threadTitle() {
+    const value = document.querySelector("#vh-chat-title")?.textContent?.trim();
     return (value || "VulnHunter Conversation").replace(/\s+/g, " ").trim();
-  };
+  }
 
-  const messageContent = (message) => {
+  function messageContent(message) {
     const copyElement = message.querySelector(".vh-message-copy");
     if (!copyElement) return "";
     return String(copyElement.dataset.rawMessage || copyElement.textContent || "")
       .replaceAll("\r\n", "\n")
       .trim();
-  };
+  }
 
-  const buildMarkdown = () => {
+  function buildMarkdown() {
     const sections = [`# ${threadTitle()}`, "", "_Exported from VulnHunter._"];
     feed.querySelectorAll(".vh-chat-message").forEach((message) => {
       if (message.classList.contains("is-local-notice")) return;
@@ -96,18 +93,18 @@
       sections.push("", `## ${role}`, "", content);
     });
     return `${sections.join("\n").trim()}\n`;
-  };
+  }
 
-  const slug = (value) => {
+  function slug(value) {
     const result = String(value || "conversation")
       .toLocaleLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-+|-+$/g, "")
       .slice(0, 72);
     return result || "vulnhunter-conversation";
-  };
+  }
 
-  const copyText = async (value) => {
+  async function copyText(value) {
     if (navigator.clipboard?.writeText) {
       await navigator.clipboard.writeText(value);
       return;
@@ -120,18 +117,18 @@
     proxy.select();
     document.execCommand("copy");
     proxy.remove();
-  };
+  }
 
-  const temporaryLabel = (button, value) => {
+  function temporaryLabel(button, value) {
     const original = button.dataset.originalLabel || button.textContent;
     button.dataset.originalLabel = original;
     button.textContent = value;
     window.setTimeout(() => {
       if (button.isConnected) button.textContent = original;
     }, 1400);
-  };
+  }
 
-  const downloadMarkdown = () => {
+  function downloadMarkdown() {
     const blob = new Blob([buildMarkdown()], { type: "text/markdown;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
@@ -142,24 +139,22 @@
     anchor.click();
     anchor.remove();
     window.setTimeout(() => URL.revokeObjectURL(url), 0);
-  };
+  }
 
-  const open = () => {
+  function open() {
     panel.hidden = false;
     trigger.setAttribute("aria-expanded", "true");
+    trigger.closest("details")?.removeAttribute("open");
     window.requestAnimationFrame(() => copy.focus());
-  };
+  }
 
-  const closePanel = ({ focusTrigger = true } = {}) => {
+  function closePanel({ focusTrigger = true } = {}) {
     panel.hidden = true;
     trigger.setAttribute("aria-expanded", "false");
-    if (focusTrigger) trigger.focus();
-  };
+    if (focusTrigger) trigger.focus({ preventScroll: true });
+  }
 
-  trigger.addEventListener("click", () => {
-    if (panel.hidden) open();
-    else closePanel();
-  });
+  trigger.addEventListener("click", open);
   close.addEventListener("click", () => closePanel());
   copy.addEventListener("click", async () => {
     try {

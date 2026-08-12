@@ -76,5 +76,8 @@ def test_jump_latest_uses_self_hosted_composer_anchored_styles() -> None:
     assert "conversation-jump-latest.css" in script
     assert "composer.append(jump)" in script
     assert ".vh-jump-latest" in styles
-    assert "top: -2.75rem" in styles
+    assert "position: absolute" in styles
+    assert "top: -44px" in styles
+    assert "box-shadow: 3px 3px 0 var(--vh-ink)" in styles
     assert "@media (max-width: 640px)" in styles
+    assert "min-height: 44px" in styles

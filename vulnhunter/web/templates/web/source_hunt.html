@@ -1,4 +1,6 @@
 {% extends "web/base.html" %}
+{% load static %}
+{% block extra_styles %}<link rel="stylesheet" href="{% static 'web/source-hunt.css' %}?v=20260812-ui2">{% endblock %}
 {% block content %}
 <section class="vh-page-shell vh-source-hunt-page">
   <header class="vh-page-header">
@@ -42,10 +44,7 @@
         <li><span aria-hidden="true">2</span><div><strong>Confirm source processing</strong><p>Re-authenticate and attest that the bounded source excerpts may be sent to the configured advisory provider under the recorded retention/data controls.</p></div></li>
         <li><span aria-hidden="true">3</span><div><strong>Queue the worker</strong><p>A separate persisted worker performs the hunt → falsification → capability filter. Navigation or a browser timeout does not restart the task.</p></div></li>
       </ol>
-      <div class="vh-source-boundary-note">
-        <strong>Authority stays with VulnHunter.</strong>
-        <p>Groq is advisory only. It cannot authorize a repository, execute code, verify a finding, set final severity, merge a fix or publish a result.</p>
-      </div>
+      <div class="vh-source-boundary-note"><strong>Authority stays with VulnHunter.</strong><p>Groq is advisory only. It cannot authorize a repository, execute code, verify a finding, set final severity, merge a fix or publish a result.</p></div>
     </section>
 
     <form method="post" class="vh-source-hunt-form">
@@ -118,9 +117,7 @@
               <div><dt>Falsification</dt><dd>{{ candidate.falsification.reason }}</dd></div>
               {% if candidate.capability %}<div><dt>Attacker requirement</dt><dd>{{ candidate.capability.required_attacker_capability }}</dd></div><div><dt>Resulting capability</dt><dd>{{ candidate.capability.resulting_capability }}</dd></div>{% endif %}
             </dl>
-            {% if candidate.remediation %}
-              <details class="vh-inline-disclosure"><summary>Evidence-backed remediation</summary><div class="vh-disclosure-body"><p>{{ candidate.remediation.summary }}</p><h4>RED regression test</h4><pre><code>{{ candidate.remediation.regression_test }}</code></pre><h4>Independent verification recipe</h4><pre><code>{{ candidate.remediation.verification_recipe }}</code></pre></div></details>
-            {% endif %}
+            {% if candidate.remediation %}<details class="vh-inline-disclosure"><summary>Evidence-backed remediation</summary><div class="vh-disclosure-body"><p>{{ candidate.remediation.summary }}</p><h4>RED regression test</h4><pre><code>{{ candidate.remediation.regression_test }}</code></pre><h4>Independent verification recipe</h4><pre><code>{{ candidate.remediation.verification_recipe }}</code></pre></div></details>{% endif %}
           </article>
         {% empty %}
           <div class="vh-empty-panel"><svg aria-hidden="true"><use href="#vh-i-shield"></use></svg><h3>No retained candidate</h3><p>No source-code candidate survived the current evidence and capability gates.</p></div>
@@ -133,12 +130,8 @@
     <summary class="vh-surface-header"><div><p class="vh-eyebrow">Archive</p><h2>Recent Source Hunt reports</h2><p>Persisted reports display recorded state only.</p></div><span class="vh-panel-count">{{ reports|length }}</span></summary>
     <div class="vh-surface-body">
       {% if reports %}
-        <div class="vh-source-report-list">
-          {% for item in reports %}<article class="vh-source-report-row"><div><strong>{{ item.report_id }}</strong><small>Revision {{ item.snapshot.revision|truncatechars:24 }} · {{ item.surfaces_examined }} surfaces · {{ item.model_calls }} advisory calls</small></div><span class="vh-status-chip {% if item.stage == 'complete' %}vh-status-safe{% else %}vh-status-warning{% endif %}">{{ item.stage }}</span><a class="vh-button-secondary" href="{{ source_hunt_url }}{% if thread_id %}&{% else %}?{% endif %}report={{ item.report_id|urlencode }}">Open report</a></article>{% endfor %}
-        </div>
-      {% else %}
-        <div class="vh-empty-panel"><h3>No completed reports yet</h3><p>Reports appear here after Source Hunt jobs reach a terminal persisted state.</p></div>
-      {% endif %}
+        <div class="vh-source-report-list">{% for item in reports %}<article class="vh-source-report-row"><div><strong>{{ item.report_id }}</strong><small>Revision {{ item.snapshot.revision|truncatechars:24 }} · {{ item.surfaces_examined }} surfaces · {{ item.model_calls }} advisory calls</small></div><span class="vh-status-chip {% if item.stage == 'complete' %}vh-status-safe{% else %}vh-status-warning{% endif %}">{{ item.stage }}</span><a class="vh-button-secondary" href="{{ source_hunt_url }}{% if thread_id %}&{% else %}?{% endif %}report={{ item.report_id|urlencode }}">Open report</a></article>{% endfor %}</div>
+      {% else %}<div class="vh-empty-panel"><h3>No completed reports yet</h3><p>Reports appear here after Source Hunt jobs reach a terminal persisted state.</p></div>{% endif %}
     </div>
   </details>
 </section>

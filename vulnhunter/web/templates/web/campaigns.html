@@ -2,16 +2,16 @@
 {% block content %}
 <section class="vh-page-shell">
   <header class="vh-page-header">
-    <div><p class="vh-eyebrow">Governance</p><h1>Campaigns</h1><p>Scope, applications, scans, review and release state.</p></div>
+    <div><p class="vh-eyebrow">Governance</p><h1>Campaigns</h1><p>Campaigns bind authorised scope, applications, scans, review assignments and release state. They remain specialist governance records rather than a competing assessment dashboard.</p></div>
+    <div class="vh-page-actions"><span class="vh-status-chip">{{ campaigns|length }} campaign{{ campaigns|length|pluralize }}</span></div>
   </header>
 
-  <section class="vh-summary-strip"><article class="vh-summary-item"><small>Campaigns</small><strong>{{ campaigns|length }}</strong><span>Governance records</span></article><article class="vh-summary-item"><small>Scope source</small><strong>Authorizations</strong><span>No scope is inferred by the UI</span></article></section>
+  {% if error_message %}<div class="vh-operational-notice is-danger" role="alert"><strong>Campaign data unavailable</strong><p>{{ error_message }}</p></div>{% endif %}
 
   <section class="vh-surface">
-    <header class="vh-surface-header"><div><h2>Governed campaigns</h2><p>{% if summary_only %}Redacted campaign summaries visible to observer roles.{% else %}Open a campaign for applications, scans, assignments and readiness.{% endif %}</p></div><span class="vh-panel-count">{{ campaigns|length }}</span></header>
-    {% if error_message %}<div class="vh-operational-notice is-danger"><strong>Campaign data unavailable</strong><p>{{ error_message }}</p></div>
-    {% elif campaigns %}<div class="vh-table-wrap"><table class="vh-table"><thead><tr><th>Campaign</th><th>Status</th><th>Scope</th><th>Applications</th><th>Scans</th><th>Release</th>{% if not summary_only %}<th></th>{% endif %}</tr></thead><tbody>{% for campaign in campaigns %}<tr><td>{% if summary_only %}<strong>Campaign summary</strong><small>Identifier withheld</small>{% else %}<strong>{{ campaign.campaign_id }}</strong>{% endif %}</td><td>{{ campaign.status }}</td><td>{% if summary_only %}<small>Restricted</small>{% else %}{% for item in campaign.scope_summary %}<code>{{ item }}</code>{% empty %}<small>No scope summary</small>{% endfor %}{% endif %}</td><td>{{ campaign.application_count }}</td><td>{{ campaign.scan_count }}</td><td>{{ campaign.release_manifest_state }}</td>{% if not summary_only %}<td><a href="{% url 'web-campaign-detail' campaign.campaign_id %}">Open campaign →</a></td>{% endif %}</tr>{% endfor %}</tbody></table></div>
-    {% else %}<div class="vh-empty-panel"><svg aria-hidden="true"><use href="#vh-i-layers"></use></svg><h3>No campaigns</h3><p>No governed campaign records are available.</p></div>{% endif %}
+    <header class="vh-surface-header"><div><h2>Governed campaigns</h2><p>{% if summary_only %}Redacted campaign summaries visible to observer roles.{% else %}Open a campaign to inspect its exact scope, applications, scans, assignments and release readiness.{% endif %}</p></div><span class="vh-panel-count">{{ campaigns|length }}</span></header>
+    {% if campaigns %}<div class="vh-table-wrap"><table class="vh-table"><thead><tr><th>Campaign</th><th>Status</th><th>Scope</th><th>Applications</th><th>Scans</th><th>Release</th>{% if not summary_only %}<th>Action</th>{% endif %}</tr></thead><tbody>{% for campaign in campaigns %}<tr><td>{% if summary_only %}<strong>Campaign summary</strong><small>Identifier withheld</small>{% else %}<strong>{{ campaign.campaign_id }}</strong>{% endif %}</td><td><span class="vh-status-chip">{{ campaign.status }}</span></td><td>{% if summary_only %}<small>Restricted</small>{% else %}{% for item in campaign.scope_summary %}<code>{{ item }}</code>{% empty %}<small>No scope summary</small>{% endfor %}{% endif %}</td><td>{{ campaign.application_count }}</td><td>{{ campaign.scan_count }}</td><td><span class="vh-status-chip">{{ campaign.release_manifest_state }}</span></td>{% if not summary_only %}<td><a class="vh-row-link" href="{% url 'web-campaign-detail' campaign.campaign_id %}">Open campaign</a></td>{% endif %}</tr>{% endfor %}</tbody></table></div>
+    {% elif not error_message %}<div class="vh-empty-panel"><svg aria-hidden="true"><use href="#vh-i-layers"></use></svg><h3>No campaigns</h3><p>No governed campaign records are available to this account.</p></div>{% endif %}
   </section>
 </section>
 {% endblock %}

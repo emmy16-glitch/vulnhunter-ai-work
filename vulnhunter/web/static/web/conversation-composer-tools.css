@@ -228,6 +228,26 @@
     padding-bottom: max(8px, env(safe-area-inset-bottom));
   }
 
+  .vh-chat-composer-meta {
+    flex-wrap: wrap;
+  }
+
+  .vh-composer-advanced[open] {
+    width: 100%;
+    flex: 1 0 100%;
+  }
+
+  .vh-composer-advanced[open] > summary {
+    text-align: right;
+  }
+
+  .vh-composer-advanced[open] .vh-composer-advanced-body {
+    position: static;
+    width: 100%;
+    margin-top: 8px;
+    box-shadow: 2px 2px 0 var(--vh-ink);
+  }
+
   .vh-composer-tools {
     width: 100%;
     grid-column: 1 / -1;

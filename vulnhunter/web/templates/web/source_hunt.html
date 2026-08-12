@@ -5,16 +5,17 @@
 <section class="vh-page-shell vh-source-hunt-page">
   <header class="vh-page-header">
     <div>
-      <p class="vh-eyebrow">Repository analysis</p>
+      <p class="vh-eyebrow">Groq-only source analysis</p>
       <h1>Source Hunt</h1>
       <p>Bind an exact repository snapshot, complete the required source-processing approval, then queue attacker-first analysis. Findings remain evidence-bound and advisory until VulnHunter's independent verification and review contracts say otherwise.</p>
+      {% if thread_id %}<p class="vh-record-kicker">Bound to this chat workspace.</p>{% endif %}
     </div>
     <div class="vh-page-actions"><a class="vh-button-secondary" href="{{ workspace_return_url }}">Return to assessment</a></div>
   </header>
 
   {% if error %}<p class="vh-operational-notice is-danger" role="alert">{{ error }}</p>{% endif %}
   {% if queued_job %}<p class="vh-operational-notice is-safe" role="status">Source Hunt job <code>{{ queued_job.job_id }}</code> is queued. The exact snapshot is bound to this workspace and processing continues independently of this browser session. <a href="{{ workspace_return_url }}">Return to the assessment</a>.</p>{% endif %}
-  {% if not groq_enabled %}<p class="vh-operational-notice is-warning" role="status">Remote advisory source analysis is unavailable until the configured Groq connection is verified. Snapshot and approval requirements remain visible below.</p>{% endif %}
+  {% if not groq_enabled %}<p class="vh-operational-notice is-warning" role="status"><strong>Groq source analysis is currently gated.</strong> Remote advisory source analysis remains unavailable until the configured Groq connection is verified. Snapshot and approval requirements remain visible below.</p>{% endif %}
 
   {% if current_source_hunt %}
     <section class="vh-source-task-card" aria-labelledby="vh-current-source-hunt-title">
@@ -72,7 +73,7 @@
 
       <div class="vh-source-hunt-submit">
         <div><p class="vh-eyebrow">Step 3</p><strong>Queue the exact approved snapshot</strong><span>The worker persists independently from the browser and returns state to the originating workspace.</span></div>
-        <button class="vh-button-primary" type="submit"{% if not groq_enabled %} disabled{% endif %}>Queue Source Hunt</button>
+        <button class="vh-button-primary" type="submit"{% if not groq_enabled %} disabled{% endif %}>Queue exact snapshot and hunt</button>
       </div>
     </form>
   </div>

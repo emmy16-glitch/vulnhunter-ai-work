@@ -145,7 +145,7 @@ def test_contextual_inspector_keeps_report_bound_to_selected_assessment():
     script = (ROOT / "vulnhunter/web/static/web/conversation-mobile-inspector.js").read_text(
         encoding="utf-8"
     )
-    route = (ROOT / "vulnhunter/web/static/web/conversation-mobile-inspector-route.js").read_text(
+    bridge = (ROOT / "vulnhunter/web/static/web/conversation-mobile-deferred-tools.js").read_text(
         encoding="utf-8"
     )
 
@@ -158,5 +158,5 @@ def test_contextual_inspector_keeps_report_bound_to_selected_assessment():
     assert "state.projection?.report" in script
     assert "selectedAssessmentId()" in script
     assert "updateReports();" in script
-    assert "allowedTabs" in route
-    assert "data-inspector-tab" in route
+    assert 'event.target.closest?.("[data-analysis-inspector-open]")' in bridge
+    assert "inspectorController.click()" in bridge

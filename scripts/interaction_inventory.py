@@ -10,13 +10,15 @@ ROOT = Path(__file__).resolve().parents[1]
 STATIC = ROOT / "vulnhunter" / "web" / "static" / "web"
 BASE = ROOT / "vulnhunter" / "web" / "templates" / "web" / "base.html"
 
-_RETIRED_OWNERS = ("workspace-polish.css", "workspace-final-fixes.css")
+_RETIRED_OWNERS = ("workspace-polish.css", "workspace-final-fixes.css", "product-wide.css")
 _REQUIRED_SHELL_OWNERS = (
     "tokens.css",
-    "workspace.css",
-    "premium-interaction.css",
+    "app.css",
+    "product.css",
+    "chat-shell.css",
     "premium-interaction.js",
 )
+_FORBIDDEN_GLOBAL_OWNERS = ("workspace.css", "premium-interaction.css")
 
 
 def _read(paths: Iterable[Path]) -> str:
@@ -54,6 +56,7 @@ def collect_inventory(root: Path = ROOT) -> dict[str, object]:
         "progress_markers": _count(r"\bprogress\b", css + "\n" + javascript, flags=re.I),
     }
     shell_owners = {name: (name in base) for name in _REQUIRED_SHELL_OWNERS}
+    forbidden_loaded = [name for name in _FORBIDDEN_GLOBAL_OWNERS if name in base]
     retired_loaded = [name for name in _RETIRED_OWNERS if name in base]
     retired_present = [name for name in _RETIRED_OWNERS if (static / name).exists()]
 
@@ -61,6 +64,7 @@ def collect_inventory(root: Path = ROOT) -> dict[str, object]:
         "scope": "repository-static-interaction-baseline",
         "metrics": metrics,
         "shell_owners": shell_owners,
+        "forbidden_global_owners": forbidden_loaded,
         "retired_loaded": retired_loaded,
         "retired_present": retired_present,
         "limitations": [
@@ -87,6 +91,9 @@ def validate_inventory(inventory: dict[str, object]) -> list[str]:
     if not all(owners.values()):
         missing = sorted(name for name, loaded in owners.items() if not loaded)
         errors.append(f"missing shared interaction owner(s): {', '.join(missing)}")
+    if inventory["forbidden_global_owners"]:
+        loaded = ", ".join(sorted(inventory["forbidden_global_owners"]))
+        errors.append(f"retired competing global owner(s) loaded: {loaded}")
     if inventory["retired_loaded"] or inventory["retired_present"]:
         errors.append("retired workspace correction layers must remain absent")
     if metrics["reduced_motion_blocks"] < 1:

@@ -1,32 +1,34 @@
 .vh-composer-tools {
   display: inline-flex;
-  align-items: center;
-  gap: .35rem;
   min-width: 0;
+  align-items: center;
+  gap: 6px;
   margin-left: auto;
 }
 
 .vh-composer-tools button {
-  min-height: 30px;
-  border: 1px solid var(--border, #2c302d);
-  border-radius: 999px;
-  padding: .24rem .58rem;
-  background: transparent;
-  color: var(--text-secondary, #a7aca9);
-  font: inherit;
-  font-size: .68rem;
+  min-height: 32px;
+  padding: 5px 8px;
+  border: 1px solid var(--vh-line);
+  border-radius: 2px;
+  background: var(--vh-surface);
+  color: var(--vh-muted);
+  font-family: var(--vh-font-mono);
+  font-size: 9px;
+  font-weight: 680;
   cursor: pointer;
 }
 
-.vh-composer-tools button:hover:not(:disabled) {
-  border-color: rgba(108, 124, 255, .44);
-  background: rgba(108, 124, 255, .08);
-  color: var(--text-primary, #fff);
+.vh-composer-tools button:hover:not(:disabled),
+.vh-composer-tools button:focus-visible {
+  border-color: var(--vh-ink);
+  background: var(--vh-pink-soft);
+  color: var(--vh-ink);
 }
 
 .vh-composer-tools button:focus-visible,
 .vh-composer-prompt-menu button:focus-visible {
-  outline: 2px solid var(--primary, #16b878);
+  outline: 2px solid var(--vh-ink);
   outline-offset: 2px;
 }
 
@@ -34,31 +36,37 @@
   display: none;
 }
 
+.vh-composer-tools button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
 .vh-composer-counter {
   min-width: 4.75rem;
-  color: var(--text-muted, #747a76);
-  font-size: .68rem;
+  color: var(--vh-muted);
+  font-family: var(--vh-font-mono);
+  font-size: 9px;
   text-align: right;
   white-space: nowrap;
 }
 
 .vh-composer-counter[data-state="warning"] {
-  color: var(--warning, #f59e0b);
+  color: var(--vh-warning);
   font-weight: 700;
 }
 
 .vh-composer-prompt-menu {
   position: absolute;
+  right: 0;
+  bottom: calc(100% + 9px);
   z-index: 1450;
-  right: 1rem;
-  bottom: calc(100% + .75rem);
   width: min(30rem, calc(100vw - 2rem));
   overflow: hidden;
-  border: 1px solid var(--border, #2c302d);
-  border-radius: .9rem;
-  background: rgba(8, 12, 20, .98);
-  box-shadow: 0 1.2rem 3rem rgba(0, 0, 0, .45);
-  backdrop-filter: blur(18px);
+  border: 1px solid var(--vh-ink);
+  border-radius: 2px;
+  background: var(--vh-surface);
+  box-shadow: 4px 4px 0 var(--vh-ink);
+  color: var(--vh-ink);
 }
 
 .vh-composer-prompt-menu[hidden] {
@@ -69,56 +77,65 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: .75rem;
-  padding: .7rem .8rem;
-  border-bottom: 1px solid var(--border, #2c302d);
+  gap: 12px;
+  padding: 11px 12px;
+  border-bottom: 1px solid var(--vh-line);
+  background: var(--vh-surface-strong);
 }
 
 .vh-composer-prompt-menu header div {
   display: grid;
-  gap: .12rem;
+  gap: 2px;
 }
 
 .vh-composer-prompt-menu header span {
-  color: var(--text-muted, #747a76);
-  font-size: .64rem;
+  color: var(--vh-muted);
+  font-family: var(--vh-font-mono);
+  font-size: 8.5px;
   font-weight: 700;
-  letter-spacing: .06em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
 .vh-composer-prompt-menu header strong {
-  color: var(--text-primary, #fff);
-  font-size: .85rem;
+  color: var(--vh-ink);
+  font-size: 13px;
 }
 
 .vh-composer-prompt-menu header button {
   min-width: 36px;
   min-height: 36px;
-  border: 1px solid var(--border, #2c302d);
-  border-radius: .55rem;
-  background: transparent;
-  color: var(--text-primary, #fff);
-  font: inherit;
+  padding: 0;
+  border: 1px solid var(--vh-line);
+  border-radius: 2px;
+  background: var(--vh-surface);
+  color: var(--vh-ink);
   cursor: pointer;
+}
+
+.vh-composer-prompt-menu header button:hover {
+  border-color: var(--vh-ink);
+  background: var(--vh-pink-soft);
 }
 
 .vh-composer-prompt-list {
   display: grid;
   max-height: min(50vh, 24rem);
+  gap: 2px;
   overflow-y: auto;
-  padding: .45rem;
+  padding: 6px;
 }
 
 .vh-composer-prompt-option {
   display: grid;
-  gap: .2rem;
   width: 100%;
-  border: 0;
-  border-radius: .7rem;
-  padding: .7rem .75rem;
+  min-height: 52px;
+  gap: 3px;
+  padding: 9px 10px;
+  border: 1px solid transparent;
+  border-radius: 2px;
   background: transparent;
-  color: inherit;
+  color: var(--vh-ink);
   text-align: left;
   cursor: pointer;
 }
@@ -129,25 +146,26 @@
 
 .vh-composer-prompt-option:hover,
 .vh-composer-prompt-option:focus-visible {
-  background: rgba(108, 124, 255, .09);
+  border-color: var(--vh-line);
+  background: var(--vh-pink-soft);
 }
 
 .vh-composer-prompt-option strong {
-  color: var(--text-primary, #fff);
-  font-size: .8rem;
+  color: var(--vh-ink);
+  font-size: 12px;
 }
 
 .vh-composer-prompt-option small {
-  color: var(--text-secondary, #a7aca9);
-  font-size: .7rem;
+  color: var(--vh-muted);
+  font-size: 10px;
   line-height: 1.45;
 }
 
 .vh-composer-prompt-empty {
   margin: 0;
-  padding: 1rem .8rem;
-  color: var(--text-secondary, #a7aca9);
-  font-size: .76rem;
+  padding: 15px 12px;
+  color: var(--vh-muted);
+  font-size: 11px;
   line-height: 1.5;
   text-align: center;
 }
@@ -158,33 +176,41 @@
 
 @media (max-width: 640px) {
   .vh-composer-tools {
-    grid-column: 1 / -1;
     width: 100%;
+    grid-column: 1 / -1;
     margin-left: 0;
   }
 
   .vh-composer-tools button {
-    min-height: 36px;
-    padding-inline: .7rem;
+    min-height: 44px;
+    padding-inline: 10px;
+    font-size: 10px;
   }
 
   .vh-composer-counter {
     margin-left: auto;
+    font-size: 9px;
   }
 
   .vh-composer-prompt-menu {
     position: fixed;
-    right: .65rem;
+    right: 10px;
     bottom: calc(
       var(--vh-phone-composer-clearance, 14.5rem) +
-      max(.75rem, env(safe-area-inset-bottom))
+      max(10px, env(safe-area-inset-bottom))
     );
-    left: .65rem;
+    left: 10px;
     width: auto;
     max-height: min(
-      calc(100dvh - var(--vh-phone-composer-clearance, 14.5rem) - 1.5rem),
+      calc(100dvh - var(--vh-phone-composer-clearance, 14.5rem) - 20px),
       27rem
     );
+    box-shadow: 3px 3px 0 var(--vh-ink);
+  }
+
+  .vh-composer-prompt-menu header button {
+    min-width: 44px;
+    min-height: 44px;
   }
 
   .vh-composer-prompt-list {

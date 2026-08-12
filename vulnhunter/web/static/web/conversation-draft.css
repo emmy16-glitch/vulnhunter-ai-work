@@ -1,37 +1,38 @@
 .vh-draft-status {
   display: inline-flex;
-  align-items: center;
-  gap: .35rem;
   min-width: 0;
-  color: var(--text-muted, #747a76);
-  font-size: .68rem;
+  align-items: center;
+  gap: 6px;
+  color: var(--vh-muted);
+  font-family: var(--vh-font-mono);
+  font-size: 9px;
   white-space: nowrap;
 }
 
 .vh-draft-status::before {
-  width: .42rem;
-  height: .42rem;
+  width: 6px;
+  height: 6px;
   flex: 0 0 auto;
-  border-radius: 50%;
+  border-radius: 1px;
   background: currentColor;
   content: "";
 }
 
 .vh-draft-status[data-state="saved"],
 .vh-draft-status[data-state="sent"] {
-  color: var(--success, #22c55e);
+  color: var(--vh-success);
 }
 
 .vh-draft-status[data-state="restored"] {
-  color: var(--warning, #f59e0b);
+  color: var(--vh-warning);
 }
 
 .vh-draft-status[data-state="sending"] {
-  color: var(--primary, #16b878);
+  color: var(--vh-ink);
 }
 
 .vh-draft-status[data-state="unavailable"] {
-  color: #f87171;
+  color: var(--vh-danger);
 }
 
 .vh-draft-status[hidden] {
@@ -45,16 +46,16 @@
 
   .vh-draft-status {
     position: absolute;
+    bottom: calc(100% + 6px);
+    left: 2px;
     z-index: 4;
-    left: .2rem;
-    bottom: calc(100% + .35rem);
-    max-width: calc(100vw - 2rem);
+    max-width: calc(100vw - 20px);
     overflow: hidden;
-    padding: .25rem .5rem;
-    border: 1px solid var(--border, #2c302d);
-    border-radius: 999px;
-    background: var(--card-bg, #181a19);
-    box-shadow: 0 .45rem 1.2rem rgba(0, 0, 0, .28);
+    padding: 5px 7px;
+    border: 1px solid var(--vh-line);
+    border-radius: 2px;
+    background: var(--vh-surface);
+    box-shadow: 2px 2px 0 var(--vh-ink);
     text-overflow: ellipsis;
   }
 }

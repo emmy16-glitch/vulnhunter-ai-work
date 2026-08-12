@@ -3,16 +3,16 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="dark">
-  <meta name="theme-color" content="#0b0f14">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light">
+  <meta name="theme-color" content="#f5f2ec">
   <title>Sign In | VulnHunter</title>
-  <link rel="stylesheet" href="{% static 'web/app.css' %}?v=20260722-console">
-  <link rel="stylesheet" href="{% static 'web/console.css' %}?v=20260722-console">
-  <link rel="stylesheet" href="{% static 'web/tokens.css' %}?v=20260807-tokens1">
-  <link rel="stylesheet" href="{% static 'web/premium-interaction.css' %}?v=20260807-login1">
+  <link rel="stylesheet" href="{% static 'web/tokens.css' %}?v=20260812-ui2">
+  <link rel="stylesheet" href="{% static 'web/app.css' %}?v=20260812-ui2">
+  <script src="{% static 'web/premium-interaction.js' %}?v=20260812-ui2" defer></script>
 </head>
 <body class="vh-login-body" data-route="login">
+  <a class="vh-skip-link" href="#main-content">Skip to sign in</a>
   <main class="vh-login-main" id="main-content" tabindex="-1">
     <section class="vh-login-card" aria-labelledby="login-title">
       <div class="vh-login-brand">
@@ -22,15 +22,11 @@
           <span class="vh-environment-pill">Private Lab</span>
         </div>
       </div>
-      <p>Authorized, laboratory-only and evidence-driven security operations. Sign in with the local account mapped to your governed identity.</p>
+      <p>Sign in to the local governed security workspace. Your account maps to repository-backed permissions; the browser does not grant authorization or execution authority.</p>
       <form method="post" novalidate data-login-form>
         {% csrf_token %}
-        {% if next %}
-          <input type="hidden" name="next" value="{{ next }}">
-        {% endif %}
-        {% if form.non_field_errors %}
-          <div class="vh-panel vh-panel-danger" role="alert" tabindex="-1" data-login-error>{{ form.non_field_errors }}</div>
-        {% endif %}
+        {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+        {% if form.non_field_errors %}<div class="vh-panel-danger" role="alert" tabindex="-1" data-login-error>{{ form.non_field_errors }}</div>{% endif %}
         <div class="vh-form-field">
           {{ form.username.label_tag }}
           {{ form.username }}
@@ -41,13 +37,10 @@
           {{ form.password }}
           {{ form.password.errors }}
         </div>
-        <button type="submit" data-login-submit data-idle-label="Sign in securely">
-          <span data-login-submit-label>Sign in securely</span>
-        </button>
+        <button type="submit" data-login-submit data-idle-label="Sign in securely"><span data-login-submit-label>Sign in securely</span></button>
       </form>
-      <p class="vh-login-note">Advisory analysis may propose. Authorization, policy, deterministic verification and human decisions remain authoritative.</p>
+      <p class="vh-login-note">Advisory AI may explain or propose. Authorization, policy, persisted task state, deterministic verification and human decisions remain authoritative.</p>
     </section>
   </main>
-  <script src="{% static 'web/premium-interaction.js' %}?v=20260807-login1"></script>
 </body>
 </html>

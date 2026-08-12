@@ -2,16 +2,16 @@
 {% block content %}
 <section class="vh-page-shell">
   <header class="vh-page-header">
-    <div><p class="vh-eyebrow">Data governance</p><h1>Datasets</h1><p>Governed campaign data, review quality, class balance and immutable readiness evidence.</p></div>
+    <div><p class="vh-eyebrow">Data governance</p><h1>Datasets</h1><p>Inspect governed campaign data, review quality, class balance and immutable readiness evidence. This view is read-only; it does not start training or alter human-reviewed labels.</p></div>
+    <div class="vh-page-actions"><span class="vh-status-chip">{{ campaigns|length }} source{{ campaigns|length|pluralize }}</span></div>
   </header>
 
-  <section class="vh-summary-strip"><article class="vh-summary-item"><small>Campaigns</small><strong>{{ campaigns|length }}</strong><span>Available dataset sources</span></article><article class="vh-summary-item"><small>Release dependency</small><strong>Required</strong><span>Training data remains governed</span></article><article class="vh-summary-item"><small>Labels</small><strong>Human reviewed</strong><span>Consensus or adjudication</span></article><article class="vh-summary-item"><small>Actions</small><strong>Read only</strong><span>No training starts here</span></article></section>
+  {% if error_message %}<div class="vh-operational-notice is-danger" role="alert"><strong>Dataset evidence unavailable</strong><p>{{ error_message }}</p></div>{% endif %}
 
   <section class="vh-surface">
-    <header class="vh-surface-header"><div><h2>Dataset readiness</h2><p>Open a quality workspace for sources, review metrics, blockers and integrity hashes.</p></div><span class="vh-panel-count">{{ campaigns|length }}</span></header>
-    {% if error_message %}<div class="vh-operational-notice is-danger"><strong>Dataset evidence unavailable</strong><p>{{ error_message }}</p></div>
-    {% elif campaigns %}<div class="vh-table-wrap"><table class="vh-table"><thead><tr><th>Campaign</th><th>Applications</th><th>Scans</th><th>Release</th><th>Readiness</th><th></th></tr></thead><tbody>{% for item in campaigns %}<tr><td><strong>{{ item.title }}</strong><code>{{ item.campaign_id }}</code></td><td>{{ item.application_count }}</td><td>{{ item.scan_count }}</td><td>{{ item.release_manifest_state }}</td><td><span class="vh-status-chip {% if item.readiness_state == 'pilot_ready' %}vh-status-safe{% else %}vh-status-warning{% endif %}">{{ item.readiness_state }}</span></td><td><a class="vh-row-link" href="{% url 'web-dataset-detail' item.campaign_id %}">Inspect quality →</a></td></tr>{% endfor %}</tbody></table></div>
-    {% else %}<div class="vh-empty-panel"><svg aria-hidden="true"><use href="#vh-i-database"></use></svg><h3>No dataset evidence</h3><p>No governed campaign data is available.</p></div>{% endif %}
+    <header class="vh-surface-header"><div><h2>Dataset readiness</h2><p>Open a campaign quality view for source composition, review metrics, blockers and integrity hashes.</p></div><span class="vh-panel-count">{{ campaigns|length }}</span></header>
+    {% if campaigns %}<div class="vh-table-wrap"><table class="vh-table"><thead><tr><th>Campaign</th><th>Applications</th><th>Scans</th><th>Release</th><th>Readiness</th><th>Action</th></tr></thead><tbody>{% for item in campaigns %}<tr><td><strong>{{ item.title }}</strong><code>{{ item.campaign_id }}</code></td><td>{{ item.application_count }}</td><td>{{ item.scan_count }}</td><td><span class="vh-status-chip">{{ item.release_manifest_state }}</span></td><td><span class="vh-status-chip {% if item.readiness_state == 'pilot_ready' %}vh-status-safe{% else %}vh-status-warning{% endif %}">{{ item.readiness_state }}</span></td><td><a class="vh-row-link" href="{% url 'web-dataset-detail' item.campaign_id %}">Inspect quality</a></td></tr>{% endfor %}</tbody></table></div>
+    {% elif not error_message %}<div class="vh-empty-panel"><svg aria-hidden="true"><use href="#vh-i-database"></use></svg><h3>No dataset evidence</h3><p>No governed campaign data is available to this account.</p></div>{% endif %}
   </section>
 </section>
 {% endblock %}

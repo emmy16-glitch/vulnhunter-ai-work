@@ -81,10 +81,11 @@ def download(request):
     )
 
     assert response.status_code == 200
-    assert b"Queued source-job-" in response.content
-    assert b"Queue exact snapshot and hunt" in response.content
     jobs = SourceHuntJobStore(job_root).list()
     assert len(jobs) == 1
+    assert jobs[0].job_id.encode() in response.content
+    assert b"is queued" in response.content
+    assert b"Queue exact snapshot and hunt" in response.content
     assert jobs[0].status == SourceHuntJobStatus.QUEUED
     assert jobs[0].snapshot.revision == "a" * 40
     assert not report_root.exists()

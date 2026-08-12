@@ -1,93 +1,116 @@
 {% extends "web/base.html" %}
+{% load static %}
+{% block extra_styles %}<link rel="stylesheet" href="{% static 'web/source-hunt.css' %}?v=20260812-ui2">{% endblock %}
 {% block content %}
-<section class="vh-page-shell">
+<section class="vh-page-shell vh-source-hunt-page">
   <header class="vh-page-header">
     <div>
       <p class="vh-eyebrow">Groq-only source analysis</p>
       <h1>Source Hunt</h1>
-      <p>Map attacker-accessible Python entry points to dangerous sinks, challenge every candidate through independent falsification, and retain only evidence-bound results with meaningful attacker capability.</p>
+      <p>Bind an exact repository snapshot, complete the required source-processing approval, then queue attacker-first analysis. Findings remain evidence-bound and advisory until VulnHunter's independent verification and review contracts say otherwise.</p>
+      {% if thread_id %}<p class="vh-record-kicker">Bound to this chat workspace.</p>{% endif %}
     </div>
-    <div class="vh-page-actions"><a class="vh-button-secondary" href="{{ workspace_return_url }}">Return to assessment workspace</a></div>
+    <div class="vh-page-actions"><a class="vh-button-secondary" href="{{ workspace_return_url }}">Return to assessment</a></div>
   </header>
 
-  <section class="vh-summary-strip" aria-label="Source hunt trust boundary">
-    <article class="vh-summary-item"><small>Reasoning provider</small><strong>Groq only</strong><span>Groq is the only configured model provider</span></article>
-    <article class="vh-summary-item"><small>Authority</small><strong>Advisory</strong><span>VulnHunter validates every source reference</span></article>
-    <article class="vh-summary-item"><small>Processing</small><strong>Exact approval</strong><span>Repository, revision and snapshot hash bound</span></article>
-    <article class="vh-summary-item"><small>Workflow</small><strong>Hunt → Disprove</strong><span>Queued worker then capability filter</span></article>
-  </section>
+  {% if error %}<p class="vh-operational-notice is-danger" role="alert">{{ error }}</p>{% endif %}
+  {% if queued_job %}<p class="vh-operational-notice is-safe" role="status">Source Hunt job <code>{{ queued_job.job_id }}</code> is queued. The exact snapshot is bound to this workspace and processing continues independently of this browser session. <a href="{{ workspace_return_url }}">Return to the assessment</a>.</p>{% endif %}
+  {% if not groq_enabled %}<p class="vh-operational-notice is-warning" role="status"><strong>Groq source analysis is currently gated.</strong> Remote advisory source analysis remains unavailable until the configured Groq connection is verified. Snapshot and approval requirements remain visible below.</p>{% endif %}
 
   {% if current_source_hunt %}
-    <section class="vh-surface" aria-label="Workspace-bound Source Hunt">
-      <header class="vh-surface-header">
-        <div><p class="vh-eyebrow">Bound to this chat workspace</p><h2>{{ current_source_hunt.repository.repository_id }}</h2><p>Revision {{ current_source_hunt.repository.revision|truncatechars:32 }} · Snapshot {{ current_source_hunt.repository.snapshot_sha256|truncatechars:28 }}</p></div>
+    <section class="vh-source-task-card" aria-labelledby="vh-current-source-hunt-title">
+      <header class="vh-source-task-head">
+        <div>
+          <p class="vh-eyebrow">Current Source Hunt</p>
+          <h2 id="vh-current-source-hunt-title">{{ current_source_hunt.repository.repository_id }}</h2>
+          <p>Revision <code>{{ current_source_hunt.repository.revision|truncatechars:32 }}</code> · Snapshot <code>{{ current_source_hunt.repository.snapshot_sha256|truncatechars:28 }}</code></p>
+        </div>
         <span class="vh-status-chip {% if current_source_hunt.execution.state == 'completed' %}vh-status-safe{% else %}vh-status-warning{% endif %}">{{ current_source_hunt.execution.state }}</span>
       </header>
-      <div class="vh-summary-strip">
-        <article class="vh-summary-item"><small>Authoritative stage</small><strong>{{ current_source_hunt.assessment_graph.chat_stage }}</strong><span>{{ current_source_hunt.task_graph_id }}</span></article>
-        <article class="vh-summary-item"><small>Files</small><strong>{{ current_source_hunt.repository.file_count }}</strong><span>{{ current_source_hunt.repository.total_bytes }} bounded bytes</span></article>
-        <article class="vh-summary-item"><small>Visibility</small><strong>{{ current_source_hunt.repository.visibility }}</strong><span>Exact permitted paths recorded</span></article>
-        <article class="vh-summary-item"><small>Model</small><strong>{{ current_source_hunt.model }}</strong><span>Advisory only</span></article>
+      <div class="vh-source-task-facts">
+        <div><small>Stage</small><strong>{{ current_source_hunt.assessment_graph.chat_stage }}</strong></div>
+        <div><small>Files</small><strong>{{ current_source_hunt.repository.file_count }}</strong><span>{{ current_source_hunt.repository.total_bytes }} bounded bytes</span></div>
+        <div><small>Visibility</small><strong>{{ current_source_hunt.repository.visibility }}</strong><span>Exact permitted paths recorded</span></div>
+        <div><small>Task</small><strong>{{ current_source_hunt.task_graph_id|truncatechars:30 }}</strong><span>Persisted independently of the browser</span></div>
       </div>
     </section>
   {% endif %}
 
-  {% if error %}<p class="vh-operational-notice is-danger" role="alert">{{ error }}</p>{% endif %}
-  {% if queued_job %}<p class="vh-operational-notice is-safe" role="status">Queued {{ queued_job.job_id }} for the separate Source Hunt worker. The exact job is bound to this workspace and processing continues after you <a href="{{ workspace_return_url }}">return to chat</a>.</p>{% endif %}
-  {% if not groq_enabled %}<p class="vh-operational-notice is-warning">Groq source analysis is currently gated. Configure and verify Groq before submitting a repository.</p>{% endif %}
-
-  <form method="post" class="vh-lab-request-form">
-    {% csrf_token %}
-    {% if thread_id %}<input type="hidden" name="thread_id" value="{{ thread_id }}">{% endif %}
-    <section class="vh-surface">
-      <header class="vh-surface-header"><div><h2>Exact repository snapshot</h2><p>The path must remain inside an operator-approved source-hunt root. Symlinks, generated directories, oversized files and unstable reads fail closed.</p></div></header>
-      <div class="vh-surface-body vh-form-grid">
-        <label class="vh-form-field vh-form-span-2"><span>Repository root</span><input type="text" name="repository_root" value="{{ submitted.repository_root }}" placeholder="/workspaces/authorised-project" autocomplete="off" required><small>Approved roots: {{ approved_roots|join:", " }}</small></label>
-        <label class="vh-form-field"><span>Exact revision</span><input type="text" name="revision" value="{{ submitted.revision }}" placeholder="Optional commit SHA"><small>When omitted, VulnHunter resolves Git HEAD or binds the content snapshot hash.</small></label>
-        <label class="vh-form-field"><span>Repository visibility</span><select name="visibility" required><option value="private"{% if submitted.visibility == 'private' %} selected{% endif %}>Private</option><option value="public"{% if submitted.visibility == 'public' %} selected{% endif %}>Public</option></select><small>Visibility is recorded in the source-processing approval.</small></label>
-        <label class="vh-form-field vh-form-span-2"><span>Permitted repository paths</span><input type="text" name="permitted_paths" value="{{ submitted.permitted_paths }}" placeholder=".,src,app"><small>Comma-separated repository-relative roots. “.” permits the exact bounded snapshot.</small></label>
-        <label class="vh-form-field"><span>Password re-authentication</span><input id="source-hunt-password" type="password" name="password" autocomplete="current-password" aria-label="Password re-authentication" required><small>Required for the exact remote source-processing request.</small></label>
-        <label class="vh-form-field vh-form-span-2"><span>Groq source-processing approval</span><span><input id="source-hunt-remote-approval" type="checkbox" name="approve_remote_processing" value="yes" aria-label="Approve Groq source processing" required> I approve transmission of bounded, hash-bound source excerpts from this exact snapshot to Groq for attacker-first analysis.</span><small>Groq cannot authorize, execute, verify, set severity, merge a fix or publish a finding.</small></label>
-        <label class="vh-form-field vh-form-span-2"><span>Data and retention attestations</span><span><input id="source-hunt-no-customer-data" type="checkbox" name="confirm_no_customer_data" value="yes" aria-label="Confirm customer data is absent" required> I confirm customer data is absent from the permitted source paths.</span><span><input id="source-hunt-retention-reviewed" type="checkbox" name="confirm_retention_reviewed" value="yes" aria-label="Confirm Groq retention review" required> I reviewed Groq retention and data controls for this source-processing request.</span><small>Detected credentials, tokens, emails, payment data and private infrastructure values are removed or redacted before any excerpt is transmitted.</small></label>
-      </div>
+  <div class="vh-source-hunt-layout">
+    <section class="vh-source-hunt-intro" aria-labelledby="vh-source-hunt-start-title">
+      <p class="vh-eyebrow">Start a Source Hunt</p>
+      <h2 id="vh-source-hunt-start-title">Three governed steps</h2>
+      <ol class="vh-source-step-list">
+        <li><span aria-hidden="true">1</span><div><strong>Bind the exact snapshot</strong><p>Choose an approved repository root, revision and permitted repository paths. Symlinks, unstable reads, oversized files and paths outside the approved root fail closed.</p></div></li>
+        <li><span aria-hidden="true">2</span><div><strong>Confirm source processing</strong><p>Re-authenticate and attest that the bounded source excerpts may be sent to the configured advisory provider under the recorded retention/data controls.</p></div></li>
+        <li><span aria-hidden="true">3</span><div><strong>Queue the worker</strong><p>A separate persisted worker performs the hunt → falsification → capability filter. Navigation or a browser timeout does not restart the task.</p></div></li>
+      </ol>
+      <div class="vh-source-boundary-note"><strong>Authority stays with VulnHunter.</strong><p>Groq is advisory only. It cannot authorize a repository, execute code, verify a finding, set final severity, merge a fix or publish a result.</p></div>
     </section>
-    <section class="vh-lab-request-footer"><p>The browser creates the exact snapshot and queues a non-secret job. A separate worker performs the bounded Groq stages, so navigation and request timeouts cannot interrupt the hunt.</p><button class="vh-button-primary" type="submit"{% if not groq_enabled %} disabled{% endif %}>Queue exact snapshot and hunt</button></section>
-  </form>
 
-  <section class="vh-surface">
-    <header class="vh-surface-header"><div><h2>Source Hunt jobs</h2><p>Queued and running states are persisted independently from the browser session.</p></div><span class="vh-panel-count">{{ jobs|length }}</span></header>
+    <form method="post" class="vh-source-hunt-form">
+      {% csrf_token %}
+      {% if thread_id %}<input type="hidden" name="thread_id" value="{{ thread_id }}">{% endif %}
+
+      <section class="vh-surface">
+        <header class="vh-surface-header"><div><p class="vh-eyebrow">Step 1</p><h2>Exact repository snapshot</h2><p>Only the approved bounded snapshot is eligible for analysis.</p></div></header>
+        <div class="vh-surface-body vh-form-grid">
+          <label class="vh-form-field vh-form-span-2"><span>Repository root</span><input type="text" name="repository_root" value="{{ submitted.repository_root }}" placeholder="/workspaces/authorised-project" autocomplete="off" required><small>Approved roots: {{ approved_roots|join:", " }}</small></label>
+          <label class="vh-form-field"><span>Exact revision</span><input type="text" name="revision" value="{{ submitted.revision }}" placeholder="Optional commit SHA"><small>When omitted, VulnHunter resolves Git HEAD or binds the content snapshot hash.</small></label>
+          <label class="vh-form-field"><span>Repository visibility</span><select name="visibility" required><option value="private"{% if submitted.visibility == 'private' %} selected{% endif %}>Private</option><option value="public"{% if submitted.visibility == 'public' %} selected{% endif %}>Public</option></select><small>The visibility value is stored with the source-processing approval.</small></label>
+          <label class="vh-form-field vh-form-span-2"><span>Permitted repository paths</span><input type="text" name="permitted_paths" value="{{ submitted.permitted_paths }}" placeholder=".,src,app"><small>Comma-separated repository-relative roots. “.” permits the exact bounded snapshot.</small></label>
+        </div>
+      </section>
+
+      <section class="vh-surface">
+        <header class="vh-surface-header"><div><p class="vh-eyebrow">Step 2</p><h2>Source-processing confirmation</h2><p>Re-authentication and explicit attestations bind the remote-processing decision to this exact request.</p></div></header>
+        <div class="vh-surface-body vh-form-grid">
+          <label class="vh-form-field vh-form-span-2"><span>Password re-authentication</span><input id="source-hunt-password" type="password" name="password" autocomplete="current-password" aria-label="Password re-authentication" required><small>Required for this exact remote source-processing request.</small></label>
+          <label class="vh-form-field vh-form-span-2"><span>Remote source-processing approval</span><span><input id="source-hunt-remote-approval" type="checkbox" name="approve_remote_processing" value="yes" aria-label="Approve Groq source processing" required> I approve transmission of bounded, hash-bound source excerpts from this exact snapshot to Groq for attacker-first analysis.</span><small>Only eligible bounded excerpts are sent. Groq remains non-authoritative.</small></label>
+          <label class="vh-form-field vh-form-span-2"><span>Data and retention attestations</span><span><input id="source-hunt-no-customer-data" type="checkbox" name="confirm_no_customer_data" value="yes" aria-label="Confirm customer data is absent" required> I confirm customer data is absent from the permitted source paths.</span><span><input id="source-hunt-retention-reviewed" type="checkbox" name="confirm_retention_reviewed" value="yes" aria-label="Confirm Groq retention review" required> I reviewed Groq retention and data controls for this source-processing request.</span><small>Detected credentials, tokens, emails, payment data and private infrastructure values are removed or redacted before an eligible excerpt is transmitted.</small></label>
+        </div>
+      </section>
+
+      <div class="vh-source-hunt-submit">
+        <div><p class="vh-eyebrow">Step 3</p><strong>Queue the exact approved snapshot</strong><span>The worker persists independently from the browser and returns state to the originating workspace.</span></div>
+        <button class="vh-button-primary" type="submit"{% if not groq_enabled %} disabled{% endif %}>Queue exact snapshot and hunt</button>
+      </div>
+    </form>
+  </div>
+
+  <section class="vh-surface vh-source-hunt-jobs">
+    <header class="vh-surface-header"><div><p class="vh-eyebrow">Task history</p><h2>Source Hunt jobs</h2><p>Queued, running and terminal states are persisted independently from this browser session.</p></div><span class="vh-panel-count">{{ jobs|length }}</span></header>
     {% if jobs %}
-      <div class="vh-component-grid">
+      <div class="vh-source-job-list">
         {% for item in jobs %}
-          <article class="vh-component-card">
-            <span class="vh-record-kicker">{{ item.snapshot.revision|truncatechars:24 }}</span>
-            <div class="vh-component-card-head"><h3>{{ item.job_id }}</h3><span class="vh-status-chip {% if item.status == 'completed' %}vh-status-safe{% else %}vh-status-warning{% endif %}">{{ item.status }}</span></div>
-            <p>{{ item.created_at }} · {{ item.snapshot.files|length }} files · {{ item.snapshot.total_bytes }} bounded bytes</p>
-            {% if item.safe_error %}<p class="vh-operational-notice is-warning">{{ item.safe_error }}</p>{% endif %}
+          <article class="vh-source-job-row">
+            <span class="vh-source-job-state {% if item.status == 'completed' %}is-completed{% elif item.status == 'failed' %}is-failed{% else %}is-running{% endif %}" aria-hidden="true">{% if item.status == 'completed' %}✓{% elif item.status == 'failed' %}!{% else %}◌{% endif %}</span>
+            <div><strong>{{ item.job_id }}</strong><small>Revision {{ item.snapshot.revision|truncatechars:24 }} · {{ item.snapshot.files|length }} files · {{ item.snapshot.total_bytes }} bounded bytes</small>{% if item.safe_error %}<p>{{ item.safe_error }}</p>{% endif %}</div>
+            <span class="vh-status-chip {% if item.status == 'completed' %}vh-status-safe{% else %}vh-status-warning{% endif %}">{{ item.status }}</span>
             {% if item.report_id %}<a class="vh-button-secondary" href="{{ source_hunt_url }}{% if thread_id %}&{% else %}?{% endif %}report={{ item.report_id|urlencode }}">Open report</a>{% endif %}
           </article>
         {% endfor %}
       </div>
     {% else %}
-      <div class="vh-empty-panel"><svg aria-hidden="true"><use href="#vh-i-activity"></use></svg><h3>No queued work</h3><p>Create an exact approved snapshot to add the first Source Hunt job.</p></div>
+      <div class="vh-empty-panel"><svg aria-hidden="true"><use href="#vh-i-activity"></use></svg><h3>No Source Hunt jobs yet</h3><p>Bind and approve an exact repository snapshot above to create the first job.</p></div>
     {% endif %}
   </section>
 
   {% if report %}
-    <section class="vh-surface">
-      <header class="vh-surface-header"><div><p class="vh-eyebrow">{{ report.report_id }}</p><h2>Hunt report</h2><p>Revision {{ report.snapshot.revision|truncatechars:28 }} · Snapshot {{ report.snapshot.snapshot_sha256|truncatechars:28 }}</p></div><span class="vh-status-chip {% if report.stage == 'complete' %}vh-status-safe{% else %}vh-status-warning{% endif %}">{{ report.stage }}</span></header>
-      <div class="vh-summary-strip">
-        <article class="vh-summary-item"><small>Files</small><strong>{{ report.snapshot.files|length }}</strong><span>{{ report.snapshot.total_bytes }} bounded bytes</span></article>
-        <article class="vh-summary-item"><small>Attack surfaces</small><strong>{{ report.surfaces_examined }}</strong><span>Deterministically mapped</span></article>
-        <article class="vh-summary-item"><small>Groq calls</small><strong>{{ report.model_calls }}</strong><span>Hard-bounded stages</span></article>
-        <article class="vh-summary-item"><small>Discarded</small><strong>{{ report.rejected_count }}</strong><span>{{ report.abstained_count }} abstained</span></article>
+    <section class="vh-surface vh-source-report">
+      <header class="vh-surface-header"><div><p class="vh-eyebrow">{{ report.report_id }}</p><h2>Source Hunt report</h2><p>Revision <code>{{ report.snapshot.revision|truncatechars:28 }}</code> · Snapshot <code>{{ report.snapshot.snapshot_sha256|truncatechars:28 }}</code></p></div><span class="vh-status-chip {% if report.stage == 'complete' %}vh-status-safe{% else %}vh-status-warning{% endif %}">{{ report.stage }}</span></header>
+      <div class="vh-source-report-facts">
+        <div><small>Files</small><strong>{{ report.snapshot.files|length }}</strong><span>{{ report.snapshot.total_bytes }} bounded bytes</span></div>
+        <div><small>Attack surfaces</small><strong>{{ report.surfaces_examined }}</strong><span>Deterministically mapped</span></div>
+        <div><small>Advisory calls</small><strong>{{ report.model_calls }}</strong><span>Hard-bounded stages</span></div>
+        <div><small>Discarded</small><strong>{{ report.rejected_count }}</strong><span>{{ report.abstained_count }} abstained</span></div>
       </div>
       {% if report.safe_error %}<p class="vh-operational-notice is-warning">{{ report.safe_error }}</p>{% endif %}
-      <div class="vh-component-grid">
+
+      <div class="vh-source-candidate-list">
         {% for candidate in report.candidates %}
-          <article class="vh-component-card">
-            <span class="vh-record-kicker">{{ candidate.hypothesis.vulnerability_class }}</span>
-            <div class="vh-component-card-head"><h3>{{ candidate.hypothesis.title }}</h3><span class="vh-status-chip {% if candidate.falsification.disposition == 'survived' %}vh-status-safe{% else %}vh-status-warning{% endif %}">{{ candidate.falsification.disposition }}</span></div>
+          <article class="vh-source-candidate">
+            <header><div><p class="vh-record-kicker">{{ candidate.hypothesis.vulnerability_class }}</p><h3>{{ candidate.hypothesis.title }}</h3></div><span class="vh-status-chip {% if candidate.falsification.disposition == 'survived' %}vh-status-safe{% else %}vh-status-warning{% endif %}">{{ candidate.falsification.disposition }}</span></header>
             <p>{{ candidate.hypothesis.summary }}</p>
             <dl class="vh-terminal-facts">
               <div><dt>Entry</dt><dd><code>{{ candidate.hypothesis.entry_point.path }}:{{ candidate.hypothesis.entry_point.line_start }}</code></dd></div>
@@ -95,9 +118,7 @@
               <div><dt>Falsification</dt><dd>{{ candidate.falsification.reason }}</dd></div>
               {% if candidate.capability %}<div><dt>Attacker requirement</dt><dd>{{ candidate.capability.required_attacker_capability }}</dd></div><div><dt>Resulting capability</dt><dd>{{ candidate.capability.resulting_capability }}</dd></div>{% endif %}
             </dl>
-            {% if candidate.remediation %}
-              <details class="vh-inline-disclosure"><summary>Evidence-backed remediation plan</summary><div class="vh-disclosure-body"><p>{{ candidate.remediation.summary }}</p><h4>RED regression test</h4><pre><code>{{ candidate.remediation.regression_test }}</code></pre><h4>Independent verification recipe</h4><pre><code>{{ candidate.remediation.verification_recipe }}</code></pre></div></details>
-            {% endif %}
+            {% if candidate.remediation %}<details class="vh-inline-disclosure"><summary>Evidence-backed remediation</summary><div class="vh-disclosure-body"><p>{{ candidate.remediation.summary }}</p><h4>RED regression test</h4><pre><code>{{ candidate.remediation.regression_test }}</code></pre><h4>Independent verification recipe</h4><pre><code>{{ candidate.remediation.verification_recipe }}</code></pre></div></details>{% endif %}
           </article>
         {% empty %}
           <div class="vh-empty-panel"><svg aria-hidden="true"><use href="#vh-i-shield"></use></svg><h3>No retained candidate</h3><p>No source-code candidate survived the current evidence and capability gates.</p></div>
@@ -106,9 +127,13 @@
     </section>
   {% endif %}
 
-  <section class="vh-surface">
-    <header class="vh-surface-header"><div><h2>Recent source-hunt reports</h2><p>Persisted reports display real recorded state only.</p></div><span class="vh-panel-count">{{ reports|length }}</span></header>
-    {% if reports %}<div class="vh-component-grid">{% for item in reports %}<article class="vh-component-card"><span class="vh-record-kicker">{{ item.snapshot.revision|truncatechars:24 }}</span><div class="vh-component-card-head"><h3>{{ item.report_id }}</h3><span class="vh-status-chip {% if item.stage == 'complete' %}vh-status-safe{% else %}vh-status-warning{% endif %}">{{ item.stage }}</span></div><p>{{ item.created_at }} · {{ item.surfaces_examined }} attack surfaces · {{ item.model_calls }} Groq calls</p><a class="vh-button-secondary" href="{{ source_hunt_url }}{% if thread_id %}&{% else %}?{% endif %}report={{ item.report_id|urlencode }}">Open report</a></article>{% endfor %}</div>{% else %}<div class="vh-empty-panel"><svg aria-hidden="true"><use href="#vh-i-assessment"></use></svg><h3>No completed reports yet</h3><p>The separate Source Hunt worker will persist reports after queued jobs reach a terminal state.</p></div>{% endif %}
-  </section>
+  <details class="vh-surface vh-source-report-archive">
+    <summary class="vh-surface-header"><div><p class="vh-eyebrow">Archive</p><h2>Recent Source Hunt reports</h2><p>Persisted reports display recorded state only.</p></div><span class="vh-panel-count">{{ reports|length }}</span></summary>
+    <div class="vh-surface-body">
+      {% if reports %}
+        <div class="vh-source-report-list">{% for item in reports %}<article class="vh-source-report-row"><div><strong>{{ item.report_id }}</strong><small>Revision {{ item.snapshot.revision|truncatechars:24 }} · {{ item.surfaces_examined }} surfaces · {{ item.model_calls }} advisory calls</small></div><span class="vh-status-chip {% if item.stage == 'complete' %}vh-status-safe{% else %}vh-status-warning{% endif %}">{{ item.stage }}</span><a class="vh-button-secondary" href="{{ source_hunt_url }}{% if thread_id %}&{% else %}?{% endif %}report={{ item.report_id|urlencode }}">Open report</a></article>{% endfor %}</div>
+      {% else %}<div class="vh-empty-panel"><h3>No completed reports yet</h3><p>Reports appear here after Source Hunt jobs reach a terminal persisted state.</p></div>{% endif %}
+    </div>
+  </details>
 </section>
 {% endblock %}

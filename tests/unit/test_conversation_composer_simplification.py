@@ -18,7 +18,7 @@ def test_primary_composer_keeps_infrastructure_controls_behind_disclosure() -> N
     assert "data-reasoning-effort" not in input_shell
     assert "data-provider-runtime" not in input_shell
     assert '<details class="vh-composer-advanced" data-composer-advanced>' in template
-    assert "<summary>Advanced settings</summary>" in template
+    assert "<summary>Advanced</summary>" in template
     assert "data-reasoning-effort" in template
     assert "data-provider-runtime" in template
 
@@ -35,7 +35,7 @@ def test_composer_uses_ordinary_language_before_provider_language() -> None:
     template = _template()
 
     assert (
-        'placeholder="Describe an authorised website, attach an APK, or ask about a finding"'
+        'placeholder="Ask VulnHunter about an authorised target, APK, finding or evidence…"'
         in template
     )
     assert "Answer detail" in template

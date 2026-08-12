@@ -1,6 +1,21 @@
 (() => {
   "use strict";
 
+  const current = document.currentScript?.src;
+  if (current && !document.querySelector("script[data-inspector-open-adapter]")) {
+    const adapterUrl = new URL(current, window.location.href);
+    adapterUrl.pathname = adapterUrl.pathname.replace(
+      /conversation-mobile-deferred-tools\.js$/,
+      "conversation-inspector-open.js",
+    );
+    adapterUrl.search = "?v=20260812-ui3";
+    const script = document.createElement("script");
+    script.src = adapterUrl.toString();
+    script.async = false;
+    script.dataset.inspectorOpenAdapter = "true";
+    document.head.append(script);
+  }
+
   const workspace = document.querySelector("[data-conversation-workspace]");
   const toolList = workspace?.querySelector("[data-inspector-tools]");
   const form = workspace?.querySelector("[data-conversation-form]");
@@ -118,7 +133,8 @@
     const kind = kindFor(text(tool.tool_id));
     const packageValue = kind === "runtime" ? packageName() : "";
     if (kind === "runtime" && !packageValue) return;
-    const label = kind === "mobsf" ? "private MobSF analysis" : "disposable ADB and Frida runtime analysis";
+    const label =
+      kind === "mobsf" ? "private MobSF analysis" : "disposable ADB and Frida runtime analysis";
     if (!window.confirm(`Approve this exact ${label} for the current APK and plan digest?`)) return;
     button.disabled = true;
     button.textContent = "Approving…";
@@ -166,7 +182,14 @@
 
       const marker = document.createElement("span");
       marker.className = "vh-inspector-tool-marker";
-      marker.textContent = state === "completed" ? "✓" : state === "failed" ? "!" : state === "approval_required" ? "⌁" : "×";
+      marker.textContent =
+        state === "completed"
+          ? "✓"
+          : state === "failed"
+            ? "!"
+            : state === "approval_required"
+              ? "⌁"
+              : "×";
 
       const copy = document.createElement("div");
       const label = document.createElement("strong");
@@ -179,7 +202,8 @@
       reason.textContent = text(latest?.reason || tool.reason || "Infrastructure is not ready.");
       copy.append(label, gate, reason);
 
-      const mayApprove = approveUrl && state === "approval_required" && (toolId === "mobsf" || toolId === "adb");
+      const mayApprove =
+        approveUrl && state === "approval_required" && (toolId === "mobsf" || toolId === "adb");
       if (mayApprove) {
         const button = document.createElement("button");
         button.type = "button";

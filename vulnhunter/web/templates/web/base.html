@@ -7,26 +7,25 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="color-scheme" content="light">
   <meta name="theme-color" content="#f5f2ec">
   <title>{{ display_title }} | VulnHunter</title>
-  <link rel="stylesheet" href="{% static 'web/tokens.css' %}?v=20260810-contract1">
-  <link rel="stylesheet" href="{% static 'web/app.css' %}?v=20260725-consolidate1">
+
+  {# Canonical tokens first; legacy specialist rules are loaded before their canonical owners. #}
+  <link rel="stylesheet" href="{% static 'web/tokens.css' %}?v=20260812-ui2">
   <link rel="stylesheet" href="{% static 'web/activity.css' %}?v=20260725-consolidate1">
-  <link rel="stylesheet" href="{% static 'web/product.css' %}?v=20260725-consolidate1">
   <link rel="stylesheet" href="{% static 'web/operational.css' %}?v=20260725-consolidate1">
   <link rel="stylesheet" href="{% static 'web/workspaces.css' %}?v=20260725-consolidate1">
   <link rel="stylesheet" href="{% static 'web/intelligence.css' %}?v=20260725-consolidate1">
   <link rel="stylesheet" href="{% static 'web/console.css' %}?v=20260725-consolidate1">
-  <link rel="stylesheet" href="{% static 'web/ui-audit.css' %}?v=20260725-consolidate1">
-  <link rel="stylesheet" href="{% static 'web/unified-mobile.css' %}?v=20260725-consolidate1">
-  <link rel="stylesheet" href="{% static 'web/workspace.css' %}?v=20260807-owner1">
-  <link rel="stylesheet" href="{% static 'web/chat-shell.css' %}?v=20260810-batch2">
+  <link rel="stylesheet" href="{% static 'web/app.css' %}?v=20260812-ui2">
+  <link rel="stylesheet" href="{% static 'web/product.css' %}?v=20260812-ui2">
+  <link rel="stylesheet" href="{% static 'web/chat-shell.css' %}?v=20260812-ui2">
   <link rel="stylesheet" href="{% static 'web/background-uploads.css' %}?v=20260727-phone-acceptance1">
-  <link rel="stylesheet" href="{% static 'web/premium-interaction.css' %}?v=20260807-foundation1">
   {% block extra_styles %}{% endblock %}
-  <script src="{% static 'web/app.js' %}?v=20260725-consolidate1" defer></script>
+
+  <script src="{% static 'web/app.js' %}?v=20260812-ui2" defer></script>
   <script src="{% static 'web/activity.js' %}?v=20260725-consolidate1" defer></script>
   <script src="{% static 'web/json-response-guard.js' %}?v=20260725-consolidate1"></script>
   <script src="{% static 'web/conversation-upload-coordinator.js' %}?v=20260727-phone-acceptance1" defer></script>
@@ -44,7 +43,7 @@
     <symbol id="vh-i-report" viewBox="0 0 24 24"><path d="M6 3.5h8l4 4V20H6z"/><path d="M14 3.5v4h4M9 12h6M9 15h6"/></symbol>
     <symbol id="vh-i-govern" viewBox="0 0 24 24"><path d="M12 3 4 7v3h16V7zM6 10v7M10 10v7M14 10v7M18 10v7M4 20h16"/></symbol>
     <symbol id="vh-i-policy" viewBox="0 0 24 24"><path d="M7 3.5h10v17H7z"/><path d="M10 8h4M10 12h4M10 16h2"/></symbol>
-    <symbol id="vh-i-link" viewBox="0 0 24 24"><path d="M9.5 14.5 14.5 9"/><path d="M7.8 17.2 5.7 19.3a3.5 3.5 0 0 1-5-5l3.1-3.1a3.5 3.5 0 0 1 5 0" transform="translate(2 -2)"/><path d="m16.2 6.8 2.1-2.1a3.5 3.5 0 1 1 5 5l-3.1 3.1a3.5 3.5 0 0 1-5 0" transform="translate(-2 2)"/></symbol>
+    <symbol id="vh-i-link" viewBox="0 0 24 24"><path d="M9.5 14.5 14.5 9"/><path d="M4 16.5 2.8 17.7a3.5 3.5 0 0 0 5 5L11 19.5"/><path d="m13 4.5 3.2-3.2a3.5 3.5 0 1 1 5 5L20 7.5"/></symbol>
     <symbol id="vh-i-audit" viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><path d="M8 9h8M8 13h5M8 17h7"/></symbol>
     <symbol id="vh-i-team" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0M14 19a4 4 0 0 1 7 0"/></symbol>
     <symbol id="vh-i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19 13.5v-3l-2-.7-.7-1.7.9-1.9-2.1-2.1-1.9.9-1.7-.7-.7-2h-3l-.7 2-1.7.7-1.9-.9-2.1 2.1.9 1.9-.7 1.7-2 .7v3l2 .7.7 1.7-.9 1.9 2.1 2.1 1.9-.9 1.7.7.7 2h3l.7-2 1.7-.7 1.9.9 2.1-2.1-.9-1.9.7-1.7z"/></symbol>
@@ -68,17 +67,19 @@
   </svg>
 
   <a class="vh-skip-link" href="#main-content">Skip to content</a>
+
   <div class="vh-app">
     <aside id="vh-sidebar" class="vh-sidebar vh-chat-shell" data-sidebar aria-label="Application sidebar">
       <a class="vh-brand" href="{% url 'web-dashboard' %}" aria-label="VulnHunter assessment workspace">
         <span class="vh-brand-mark" aria-hidden="true"><svg><use href="#vh-i-shield"></use></svg></span>
-        <span><strong>VulnHunter</strong><small>Security workspace</small></span>
+        <span><strong>VulnHunter</strong><small>AI security workspace</small></span>
       </a>
 
       <div class="vh-chat-shell-scroll">
         {% if chat_shell.can_new_assessment %}
           <a class="vh-new-assessment" href="{% url 'web-dashboard' %}">
-            <svg aria-hidden="true"><use href="#vh-i-plus"></use></svg><span>New assessment</span>
+            <svg aria-hidden="true"><use href="#vh-i-plus"></use></svg>
+            <span>New assessment</span>
           </a>
         {% endif %}
 
@@ -86,20 +87,16 @@
           <nav class="vh-chat-section vh-chat-tasks" aria-label="Chats and tasks">
             <h2 class="vh-nav-section-label">Chats / Tasks</h2>
             {% if conversation.active_run %}
-              {% if conversation.active_run.terminal %}
-                <a class="vh-chat-task-row vh-is-current" href="{{ conversation.active_run.detail_url }}" aria-label="Open current assessment">
-              {% else %}
-                <a class="vh-chat-task-row vh-is-running" href="{{ conversation.active_run.detail_url }}" aria-label="Open current assessment">
-              {% endif %}
+              <a class="vh-chat-task-row {% if conversation.active_run.terminal %}vh-is-current{% else %}vh-is-running{% endif %}" href="{{ conversation.active_run.detail_url }}" aria-label="Open current assessment">
                 <span class="vh-chat-task-state">{% if not conversation.active_run.terminal %}<i class="vh-live-dot" aria-hidden="true"></i>{% endif %}{{ conversation.active_run.state }}</span>
                 <strong class="vh-chat-task-title">{{ conversation.active_run.target|default:"Current assessment"|truncatechars:36 }}</strong>
                 <small>{{ conversation.active_run.profile|default:"passive" }}{% if conversation.active_run.scanner %} · {{ conversation.active_run.scanner }}{% endif %}</small>
               </a>
             {% endif %}
-            <ul class="vh-chat-task-list">
+            <ul class="vh-chat-thread-list">
               {% for thread in conversation.threads|slice:":12" %}
                 <li>
-                  <a class="vh-chat-task-row" href="{{ thread.url }}"{% if conversation.thread_id == thread.thread_id %} aria-current="true"{% endif %}>
+                  <a class="vh-chat-task-row" href="{{ thread.url }}"{% if conversation.thread_id == thread.thread_id %} aria-current="page"{% endif %}>
                     <strong class="vh-chat-task-title">{{ thread.title|truncatechars:34 }}</strong>
                     <small>{{ thread.status }}</small>
                   </a>
@@ -112,9 +109,9 @@
         {% if chat_shell.history %}
           <nav class="vh-chat-section vh-chat-history" aria-label="Task history">
             <h2 class="vh-nav-section-label">Task history</h2>
-            <ul class="vh-nav-list">
+            <ul class="vh-chat-history-list">
               {% for item in chat_shell.history %}
-                <li><a href="{% url item.url_name %}"{% if current_route in item.active_routes %} aria-current="page"{% endif %}><svg class="vh-nav-icon" aria-hidden="true"><use href="#vh-i-history"></use></svg><span>{{ item.label }}</span></a></li>
+                <li><a href="{% url item.url_name %}"{% if current_route in item.active_routes %} aria-current="page"{% endif %}><svg aria-hidden="true"><use href="#vh-i-history"></use></svg><span>{{ item.label }}</span></a></li>
               {% endfor %}
             </ul>
           </nav>
@@ -122,11 +119,11 @@
 
         {% if chat_shell.manage %}
           <details class="vh-manage"{% if chat_shell.manage_active %} open{% endif %}>
-            <summary><span class="vh-nav-section-label">Manage</span><svg aria-hidden="true"><use href="#vh-i-chevron"></use></svg></summary>
-            <nav aria-label="Manage" class="vh-nav">
-              <ul class="vh-nav-list">
+            <summary><svg aria-hidden="true"><use href="#vh-i-grid"></use></svg><span>Manage</span><svg aria-hidden="true"><use href="#vh-i-chevron"></use></svg></summary>
+            <nav aria-label="Manage">
+              <ul class="vh-manage-list">
                 {% for item in chat_shell.manage %}
-                  <li><a href="{% url item.url_name %}"{% if current_route in item.active_routes %} aria-current="page"{% endif %}><svg class="vh-nav-icon" aria-hidden="true"><use href="#vh-i-{{ item.icon }}"></use></svg><span>{{ item.label }}</span>{% if item.badge %}<span class="vh-nav-badge" aria-label="{{ item.badge }} pending">{{ item.badge }}</span>{% endif %}</a></li>
+                  <li><a href="{% url item.url_name %}"{% if current_route in item.active_routes %} aria-current="page"{% endif %}><svg aria-hidden="true"><use href="#vh-i-{{ item.icon }}"></use></svg><span>{{ item.label }}</span>{% if item.badge %}<small aria-label="{{ item.badge }} pending">{{ item.badge }}</small>{% endif %}</a></li>
                 {% endfor %}
               </ul>
             </nav>
@@ -134,19 +131,22 @@
         {% endif %}
 
         {% if chat_shell.settings %}
-          <nav class="vh-chat-section vh-chat-settings" aria-label="Settings">
-            <ul class="vh-nav-list">
-              {% for item in chat_shell.settings %}
-                <li><a href="{% url item.url_name %}"{% if current_route in item.active_routes %} aria-current="page"{% endif %}><svg class="vh-nav-icon" aria-hidden="true"><use href="#vh-i-{{ item.icon }}"></use></svg><span>{{ item.label }}</span></a></li>
-              {% endfor %}
-            </ul>
+          <nav class="vh-shell-settings" aria-label="Settings">
+            {% for item in chat_shell.settings %}
+              <a class="vh-settings-link" href="{% url item.url_name %}"{% if current_route in item.active_routes %} aria-current="page"{% endif %}><svg aria-hidden="true"><use href="#vh-i-settings"></use></svg><span>{{ item.label }}</span></a>
+            {% endfor %}
           </nav>
         {% endif %}
-      </div>
 
-      {% if request.user.is_authenticated %}
-        <div class="vh-sidebar-footer vh-shell-footer"><div class="vh-organisation"><span class="vh-organisation-mark" aria-hidden="true"><svg><use href="#vh-i-shield"></use></svg></span><span><strong>{{ request.user.username }}</strong><small>{% if conversation %}Security Analyst{% else %}{{ account_role }}{% endif %}</small></span><span class="vh-environment-pill">Controlled</span></div></div>
-      {% endif %}
+        {% if request.user.is_authenticated %}
+          <div class="vh-shell-footer">
+            <div class="vh-shell-user">
+              <span class="vh-shell-user-avatar" aria-hidden="true">{{ request.user.username|slice:":1"|upper }}</span>
+              <span><strong>{{ request.user.username }}</strong><small>{% if conversation %}Security Analyst{% else %}{{ account_role }}{% endif %}</small></span>
+            </div>
+          </div>
+        {% endif %}
+      </div>
     </aside>
 
     <button class="vh-sidebar-scrim" type="button" data-nav-close aria-label="Close navigation" hidden></button>
@@ -154,36 +154,61 @@
     <div class="vh-main-shell">
       <header class="vh-topbar">
         <button type="button" class="vh-nav-toggle" data-nav-toggle aria-expanded="false" aria-controls="vh-sidebar" aria-label="Open navigation"><svg aria-hidden="true"><use href="#vh-i-menu"></use></svg></button>
-        {% if run %}
-          <div class="vh-context-controls" aria-label="Current assessment context">
-            <a class="vh-context-card" href="{% url 'web-scan-run-detail' run.run_id %}"><svg aria-hidden="true"><use href="#vh-i-globe"></use></svg><span><small>Target</small><strong>{{ run.scope_summary|default:run.objective|truncatechars:30 }}</strong></span></a>
-            <a class="vh-context-card vh-context-profile" href="{% url 'web-advanced-profiles' %}"><svg aria-hidden="true"><use href="#vh-i-assessment"></use></svg><span><small>Profile</small><strong>{{ run.risk_classification|default:run.selected_skill|default:"Not set" }}</strong></span></a>
-            <a class="vh-context-card" href="{% url 'web-security-tool-registry' %}"><svg aria-hidden="true"><use href="#vh-i-radar"></use></svg><span><small>Scanner</small><strong>{{ run.requested_tool|default:"Not selected" }}</strong></span></a>
-            <div class="vh-context-card vh-context-run" aria-label="Current run status"><span><small>Run</small><strong class="vh-live-text"><i></i><span>{{ run.current_state }}</span><time class="vh-run-clock" datetime="{{ run.created_at|date:'c' }}" data-run-clock>00:00:00</time></strong></span></div>
+
+        {% if conversation.active_run %}
+          <div class="vh-topbar-task">
+            <small>Current assessment</small>
+            <div class="vh-topbar-task-row">
+              <strong>{{ conversation.active_run.target|default:"Assessment"|truncatechars:54 }}</strong>
+              <span class="vh-topbar-task-state"><i aria-hidden="true"></i>{{ conversation.active_run.state }}</span>
+            </div>
+          </div>
+        {% elif run %}
+          <div class="vh-topbar-task">
+            <small>Current assessment</small>
+            <div class="vh-topbar-task-row">
+              <strong>{{ run.scope_summary|default:run.objective|default:"Assessment"|truncatechars:54 }}</strong>
+              <span class="vh-topbar-task-state"><i aria-hidden="true"></i>{{ run.current_state }} <time datetime="{{ run.created_at|date:'c' }}" data-run-clock>00:00:00</time></span>
+            </div>
           </div>
         {% else %}
           <div class="vh-topbar-page"><small>VulnHunter</small><strong>{{ display_title }}</strong></div>
         {% endif %}
+
         <div class="vh-top-actions">
           <span class="vh-environment-pill is-topbar">Private Lab</span>
-          <button class="vh-search-trigger" type="button" data-search-toggle aria-haspopup="dialog" aria-controls="vh-command-dialog" aria-expanded="false"><svg aria-hidden="true"><use href="#vh-i-search"></use></svg><span>Search pages</span><kbd>⌘ K</kbd></button>
-          <a class="vh-icon-control vh-notification-control" href="{% url 'web-scan-run-list' %}" aria-label="Open assessment history and pending confirmations"><svg aria-hidden="true"><use href="#vh-i-bell"></use></svg>{% if pending_approval %}<span class="vh-notification-dot" aria-label="1 pending confirmation">1</span>{% endif %}</a>
+          <button class="vh-search-trigger" type="button" data-search-toggle aria-haspopup="dialog" aria-controls="vh-command-dialog" aria-expanded="false"><svg aria-hidden="true"><use href="#vh-i-search"></use></svg><span>Search</span><kbd>⌘ K</kbd></button>
+          <a class="vh-icon-control vh-notification-control" href="{% url 'web-scan-run-list' %}" aria-label="Open task history and pending confirmations"><svg aria-hidden="true"><use href="#vh-i-bell"></use></svg>{% if pending_approval %}<span class="vh-notification-dot" aria-label="1 pending confirmation">1</span>{% endif %}</a>
           {% if request.user.is_authenticated %}
-            <details class="vh-user-menu"><summary aria-label="Open account menu"><span class="vh-avatar" aria-hidden="true">{{ request.user.username|slice:":1"|upper }}</span><svg aria-hidden="true"><use href="#vh-i-chevron"></use></svg></summary><div class="vh-user-popover"><strong>{{ request.user.username }}</strong><small>{% if conversation %}Security Analyst{% else %}{{ account_role }}{% endif %}</small>{% if controls.stop.available and run %}<a class="vh-user-stop-link" href="{% url 'web-agent-run-stop' run.run_id %}">Stop current run</a>{% endif %}<a href="{% url 'web-dashboard' %}">Assessment workspace</a><form action="{% url 'web-logout' %}" method="post">{% csrf_token %}<button type="submit">Sign out</button></form></div></details>
+            <details class="vh-user-menu">
+              <summary aria-label="Open account menu"><span class="vh-avatar" aria-hidden="true">{{ request.user.username|slice:":1"|upper }}</span><svg aria-hidden="true"><use href="#vh-i-chevron"></use></svg></summary>
+              <div class="vh-user-popover">
+                <strong>{{ request.user.username }}</strong>
+                <small>{% if conversation %}Security Analyst{% else %}{{ account_role }}{% endif %}</small>
+                {% if controls.stop.available and run %}<a class="vh-user-stop-link" href="{% url 'web-agent-run-stop' run.run_id %}">Stop current run</a>{% endif %}
+                <a href="{% url 'web-dashboard' %}">Assessment workspace</a>
+                <form action="{% url 'web-logout' %}" method="post">{% csrf_token %}<button type="submit">Sign out</button></form>
+              </div>
+            </details>
           {% endif %}
         </div>
       </header>
 
       <main id="main-content" class="vh-main" tabindex="-1">
-        {% if messages %}<section class="vh-message-stack" aria-label="Notifications" aria-live="polite">{% for message in messages %}<p class="vh-message vh-message-{{ message.tags|default:'info' }}">{{ message }}</p>{% endfor %}</section>{% endif %}
+        {% if messages %}
+          <section class="vh-message-stack" aria-label="Notifications" aria-live="polite">
+            {% for message in messages %}<p class="vh-message vh-message-{{ message.tags|default:'info' }}">{{ message }}</p>{% endfor %}
+          </section>
+        {% endif %}
         {% block content %}{% endblock %}
       </main>
     </div>
   </div>
 
   <dialog id="vh-command-dialog" class="vh-command-dialog" aria-labelledby="vh-command-title">
-    <form method="dialog" class="vh-command-header"><label id="vh-command-title" for="vh-command-input">Search pages</label><button type="submit" aria-label="Close search">Esc</button></form>
-    <div class="vh-command-search"><svg aria-hidden="true"><use href="#vh-i-search"></use></svg><input id="vh-command-input" type="search" autocomplete="off" placeholder="Type a page name" data-command-input></div>
+    <form method="dialog" class="vh-command-header"><label id="vh-command-title" for="vh-command-input">Search VulnHunter</label><button type="submit" aria-label="Close search">Esc</button></form>
+    <div class="vh-command-search"><svg aria-hidden="true"><use href="#vh-i-search"></use></svg><input id="vh-command-input" type="search" autocomplete="off" placeholder="Search pages and workspaces" data-command-input></div>
     <nav aria-label="Search results"><ul class="vh-command-results" data-command-results>{% for item in navigation %}<li><a href="{% url item.url_name %}">{{ item.label }}</a></li>{% endfor %}</ul></nav>
   </dialog>
 </body>
+</html>

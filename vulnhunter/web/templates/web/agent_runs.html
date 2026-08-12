@@ -1,69 +1,44 @@
 {% extends "web/base.html" %}
-{% load vh_navigation %}
 {% block content %}
-{% security_runtime as activation %}
-<section class="vh-page-shell vh-control-centre" aria-labelledby="assessment-page-title">
+<section class="vh-page-shell" aria-labelledby="assessment-page-title">
   <header class="vh-page-header">
     <div>
-      <p class="vh-eyebrow">Workspace records</p>
-      <h1 id="assessment-page-title">Assessment History</h1>
-      <p>{% if summary_only %}Review redacted assessment summaries. Evidence, findings and controls remain restricted.{% else %}Review assessment state, approvals, evidence and findings created from the VulnHunter Workspace.{% endif %}</p>
+      <p class="vh-eyebrow">Task history</p>
+      <h1 id="assessment-page-title">Assessment history</h1>
+      <p>{% if summary_only %}Review redacted assessment summaries. Evidence, findings and controls remain restricted by your role.{% else %}Review persisted assessment state created from the conversational workspace. This is a record/deep view, not a second assessment-creation flow.{% endif %}</p>
     </div>
-    <div class="vh-page-actions">
-      <a class="vh-button-primary" href="{% url 'web-dashboard' %}">{% if summary_only %}Open dashboard{% else %}Open workspace{% endif %}</a>
-    </div>
+    <div class="vh-page-actions"><span class="vh-status-chip">{{ runs|length }} run{{ runs|length|pluralize }}</span><a class="vh-button-primary" href="{% url 'web-dashboard' %}">Open workspace</a></div>
   </header>
 
-  {% if approval_only %}
-    <section class="vh-role-notice is-approval" aria-label="Approver guidance">
-      <svg aria-hidden="true"><use href="#vh-i-shield"></use></svg>
-      <div><strong>Approval mode</strong><p>Open a pending assessment below, review the exact plan digest, then approve or deny it on the same assessment page.</p></div>
-    </section>
-  {% elif can_create_assessment %}
-    <section class="vh-role-notice" aria-label="Operator guidance">
-      <svg aria-hidden="true"><use href="#vh-i-assessment"></use></svg>
-      <div><strong>Workspace-led planning</strong><p>Start web or APK assessments from the conversational workspace. This page is the record and approval view, not a second creation flow.</p></div>
-    </section>
-  {% endif %}
+  {% if approval_only %}<div class="vh-operational-notice is-warning"><strong>Approval mode</strong><p>Open a pending assessment, review its exact plan identity and decide only through the governed approval action provided on that assessment.</p></div>{% elif can_create_assessment %}<div class="vh-operational-notice is-safe"><strong>Workspace-led planning</strong><p>Start website or APK assessments from the conversation. This page keeps history, approval status and persisted outcomes together.</p></div>{% endif %}
 
-  {% if error_message %}<section class="vh-operational-notice is-danger"><strong>Assessment store unavailable</strong><p>{{ error_message }}</p></section>{% endif %}
+  {% if error_message %}<div class="vh-operational-notice is-danger" role="alert"><strong>Assessment store unavailable</strong><p>{{ error_message }}</p></div>{% endif %}
 
   {% if pending_approvals %}
-    <section class="vh-surface vh-pending-approvals" aria-labelledby="pending-approval-title">
-      <header class="vh-surface-header"><div><h2 id="pending-approval-title">Pending approvals</h2><p>Exact-plan decisions waiting for an authorised approver.</p></div><span class="vh-panel-count">{{ pending_approvals|length }}</span></header>
-      <div class="vh-pending-grid">
+    <section class="vh-surface" aria-labelledby="pending-approval-title">
+      <header class="vh-surface-header"><div><h2 id="pending-approval-title">Approval required</h2><p>Exact-plan decisions waiting for an authorised approver.</p></div><span class="vh-panel-count">{{ pending_approvals|length }}</span></header>
+      <div class="vh-component-grid vh-surface-body">
         {% for approval in pending_approvals %}
-          <a class="vh-pending-card" href="{% url 'web-scan-run-detail' approval.run_id %}">
-            <span class="vh-pending-icon" aria-hidden="true"><svg><use href="#vh-i-shield"></use></svg></span>
-            <span><small>Approval required</small><strong>{{ approval.summary|truncatechars:90 }}</strong><code>{{ approval.run_id }}</code></span>
-            <b>Review →</b>
-          </a>
+          <article class="vh-component-card">
+            <span class="vh-record-kicker">Ⅱ approval required</span>
+            <div class="vh-component-card-head"><h3>{{ approval.summary|truncatechars:90 }}</h3><span class="vh-status-chip vh-status-warning">pending</span></div>
+            <p><code>{{ approval.run_id }}</code></p>
+            <a class="vh-button-secondary" href="{% url 'web-scan-run-detail' approval.run_id %}">Review exact plan</a>
+          </article>
         {% endfor %}
       </div>
     </section>
   {% endif %}
 
-  <section class="vh-summary-strip" aria-label="Assessment summary">
-    <article class="vh-summary-item"><small>Runs</small><strong>{{ runs|length }}</strong><span>Visible to this account</span></article>
-    <article class="vh-summary-item"><small>Scanner</small><strong>Nuclei</strong><span>Governed passive execution</span></article>
-    <article class="vh-summary-item"><small>Execution</small><strong>{{ activation.state }}</strong><span>Approval and worker readiness required</span></article>
-    <article class="vh-summary-item"><small>Entry point</small><strong>Workspace</strong><span>Chat → plan → approve → evidence</span></article>
-  </section>
-
   <section class="vh-surface">
-    <header class="vh-surface-header"><div><h2>Assessment runs</h2><p>{% if summary_only %}Redacted state summaries visible to observer roles.{% else %}Open a run for approval, activity, evidence, findings and safety controls.{% endif %}</p></div><span class="vh-panel-count">{{ runs|length }}</span></header>
+    <header class="vh-surface-header"><div><h2>Assessment runs</h2><p>{% if summary_only %}Redacted state summaries visible to observer roles.{% else %}Open a run for persisted activity, evidence, findings, approval state and safe controls.{% endif %}</p></div><span class="vh-panel-count">{{ runs|length }}</span></header>
     {% if runs %}
-      <div class="vh-table-wrap"><table class="vh-table vh-assessment-table"><thead><tr><th>Assessment</th><th>State</th><th>Scanner</th><th>Profile</th><th>Approval</th><th>Updated</th>{% if not summary_only %}<th></th>{% endif %}</tr></thead><tbody>{% for run in runs %}<tr><td data-label="Assessment">{% if summary_only %}<strong>Assessment summary</strong><small>Identifier and scope withheld</small>{% else %}<strong>{{ run.objective }}</strong><code>{{ run.run_id }}</code>{% endif %}</td><td data-label="State"><span class="vh-status-chip">{{ run.current_state }}</span>{% if run.execution_blocking_reason and not summary_only %}<small>{{ run.execution_blocking_reason|truncatechars:80 }}</small>{% endif %}</td><td data-label="Scanner">{{ run.requested_tool|default:"Not selected" }}</td><td data-label="Profile">{% if summary_only %}Restricted{% else %}{{ run.risk_classification|default:run.selected_skill|default:"Not set" }}{% endif %}</td><td data-label="Approval">{{ run.approval_state }}</td><td data-label="Updated">{{ run.updated_at }}</td>{% if not summary_only %}<td data-label="Action"><a class="vh-table-action" href="{% url 'web-scan-run-detail' run.run_id %}">{% if can_decide_approval and run.approval_state.value == 'pending' %}Review plan →{% else %}Open assessment →{% endif %}</a></td>{% endif %}</tr>{% endfor %}</tbody></table></div>
+      <div class="vh-table-wrap"><table class="vh-table vh-assessment-table"><thead><tr><th>Assessment</th><th>State</th><th>Scanner</th><th>Profile</th><th>Approval</th><th>Updated</th>{% if not summary_only %}<th>Action</th>{% endif %}</tr></thead><tbody>{% for run in runs %}<tr><td>{% if summary_only %}<strong>Assessment summary</strong><small>Identifier and scope withheld</small>{% else %}<strong>{{ run.objective }}</strong><code>{{ run.run_id }}</code>{% endif %}</td><td><span class="vh-status-chip">{{ run.current_state }}</span>{% if run.execution_blocking_reason and not summary_only %}<small>{{ run.execution_blocking_reason|truncatechars:80 }}</small>{% endif %}</td><td>{{ run.requested_tool|default:"Not selected" }}</td><td>{% if summary_only %}Restricted{% else %}{{ run.risk_classification|default:run.selected_skill|default:"Not set" }}{% endif %}</td><td><span class="vh-status-chip {% if run.approval_state.value == 'approved' %}vh-status-safe{% elif run.approval_state.value == 'pending' %}vh-status-warning{% endif %}">{{ run.approval_state }}</span></td><td>{{ run.updated_at }}</td>{% if not summary_only %}<td><a class="vh-row-link" href="{% url 'web-scan-run-detail' run.run_id %}">{% if can_decide_approval and run.approval_state.value == 'pending' %}Review plan{% else %}Open assessment{% endif %}</a></td>{% endif %}</tr>{% endfor %}</tbody></table></div>
     {% else %}
-      <div class="vh-empty-panel"><svg aria-hidden="true"><use href="#vh-i-assessment"></use></svg><h3>No assessments yet</h3>{% if can_create_assessment %}<p>Start an authorised web scan or attach an APK in the VulnHunter Workspace. The resulting plan and evidence will appear here.</p><a class="vh-button-primary" href="{% url 'web-dashboard' %}">Open workspace</a>{% elif can_decide_approval %}<p>No assessment currently needs your approval. New workspace-created plans will appear here automatically.</p>{% else %}<p>No assessment is visible to this account.</p>{% endif %}</div>
+      <div class="vh-empty-panel"><svg aria-hidden="true"><use href="#vh-i-assessment"></use></svg><h3>No assessments yet</h3>{% if can_create_assessment %}<p>Start an authorised website assessment or attach an APK in the VulnHunter workspace. Its persisted task state will appear here.</p><a class="vh-button-primary" href="{% url 'web-dashboard' %}">Open workspace</a>{% elif can_decide_approval %}<p>No assessment currently needs your approval.</p>{% else %}<p>No assessment is visible to this account.</p>{% endif %}</div>
     {% endif %}
   </section>
 
-  <template id="vh-bounded-scanner-contract">
-    <select name="scanner_engine" data-engine-select>
-      <option value="automatic">Automatic</option>
-      <option value="nuclei">Nuclei</option>
-    </select>
-  </template>
+  <template id="vh-bounded-scanner-contract"><select name="scanner_engine" data-engine-select><option value="automatic">Automatic</option><option value="nuclei">Nuclei</option></select></template>
 </section>
 {% endblock %}

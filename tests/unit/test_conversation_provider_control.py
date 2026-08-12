@@ -3,7 +3,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "vulnhunter/web/static/web/conversation-provider-control.js"
 RUNTIME = ROOT / "vulnhunter/web/static/web/conversation-runtime-compat.js"
-STYLES = ROOT / "vulnhunter/web/static/web/workspace.css"
+COMPOSER_STYLES = ROOT / "vulnhunter/web/static/web/conversation-composer-tools.css"
+RESPONSE_STYLES = ROOT / "vulnhunter/web/static/web/conversation-response-controls.css"
 UPLOAD_STYLES = ROOT / "vulnhunter/web/static/web/background-uploads.css"
 
 
@@ -48,18 +49,23 @@ def test_actual_provider_and_model_are_taken_from_the_finished_message_badge() -
     assert "AI unavailable · local fallback" in script
 
 
-def test_provider_control_uses_only_self_hosted_static_styles() -> None:
+def test_provider_control_uses_only_self_hosted_live_static_styles() -> None:
     script = SCRIPT.read_text(encoding="utf-8")
-    styles = STYLES.read_text(encoding="utf-8")
+    composer_styles = COMPOSER_STYLES.read_text(encoding="utf-8")
+    response_styles = RESPONSE_STYLES.read_text(encoding="utf-8")
     upload_styles = UPLOAD_STYLES.read_text(encoding="utf-8")
 
     assert 'document.createElement("style")' not in script
     assert ".style.setProperty" not in script
     assert ".style.removeProperty" not in script
     assert "ResizeObserver" not in script
-    assert ".vh-provider-control" in styles
-    assert ".vh-llm-progress" in styles
-    assert ".vh-llm-progress-step.is-active" in styles
+    assert ".vh-provider-control" in composer_styles
+    assert ".vh-provider-control select" in composer_styles
+    assert ".vh-llm-progress" in response_styles
+    assert ".vh-llm-progress-step.is-active" in response_styles
+    assert "background: var(--vh-pink)" in response_styles
+    assert "border-radius: 999px" not in composer_styles + response_styles
+    assert "rgba(108, 124, 255" not in composer_styles + response_styles
     assert "var(--vh-phone-composer-clearance" in upload_styles
     assert "env(safe-area-inset-bottom)" in upload_styles
     assert "100dvh" in upload_styles

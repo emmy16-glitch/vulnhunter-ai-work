@@ -316,18 +316,25 @@ def test_shared_shell_does_not_load_conversation_assets_globally():
 
 def test_final_workspace_contract_is_shared_and_responsive():
     root = Path(__file__).resolve().parents[2]
-    workspace = (root / "vulnhunter/web/static/web/workspace.css").read_text(encoding="utf-8")
     tokens = (root / "vulnhunter/web/static/web/tokens.css").read_text(encoding="utf-8")
+    app = (root / "vulnhunter/web/static/web/app.css").read_text(encoding="utf-8")
+    conversation_css = (root / "vulnhunter/web/static/web/conversation.css").read_text(
+        encoding="utf-8"
+    )
     template = (root / "vulnhunter/web/templates/web/conversation.html").read_text(encoding="utf-8")
+    inspector = (root / "vulnhunter/web/templates/web/_mobile_analysis_inspector.html").read_text(
+        encoding="utf-8"
+    )
 
-    assert "--vh-layout-sidebar: 264px" in tokens
-    assert "grid-template-columns: minmax(0, 1fr) 380px" in workspace
-    assert "@media (max-width: 1279px)" in workspace
-    assert "@media (max-width: 767px)" in workspace
-    assert "data-state-authorization" in template
-    assert "data-state-scope" in template
-    assert "data-state-approval" in template
-    assert "data-state-active" in template
-    assert "Assessment Inspector" in template or "Assessment Inspector" in (
-        root / "vulnhunter/web/templates/web/_mobile_analysis_inspector.html"
-    ).read_text(encoding="utf-8")
+    assert "--vh-layout-sidebar: 280px" in tokens
+    assert "--vh-layout-topbar: 60px" in tokens
+    assert "@media (max-width: 1023px)" in app
+    assert ".vh-sidebar.is-open" in app
+    assert "@media (max-width: 767px)" in conversation_css
+    assert "data-run-stages" in template
+    assert "data-run-tool-chips" in template
+    assert "data-conversation-form" in template
+    assert "data-analysis-inspector-open" in template
+    assert "Assessment details" in inspector
+    assert "vh-state-strip" not in template
+    assert "vh-mobile-workspace-nav" not in template

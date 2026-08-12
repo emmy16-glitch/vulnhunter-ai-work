@@ -29,12 +29,13 @@ def test_interaction_inventory_is_measurable_and_repository_owned() -> None:
     assert metrics["progress_markers"] > 0
 
 
-def test_interaction_inventory_keeps_one_shared_owner_stack() -> None:
+def test_interaction_inventory_keeps_one_canonical_shared_owner_stack() -> None:
     module = _module()
     inventory = module.collect_inventory(ROOT)
 
     assert module.validate_inventory(inventory) == []
     assert all(inventory["shell_owners"].values())
+    assert inventory["forbidden_global_owners"] == []
     assert inventory["retired_loaded"] == []
     assert inventory["retired_present"] == []
 

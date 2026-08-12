@@ -3,7 +3,7 @@
 ## Purpose
 
 The VulnHunter web application is a local, authenticated, server-rendered
-security-operations console for authorized private-laboratory work. It exposes
+security-operations workspace for authorized private-laboratory work. It exposes
 real repository-backed authorization, assessment, approval, evidence,
 verification, independent review, adjudication, campaign, release, dataset,
 reporting, role, skill, mobile-analysis, and audit state.
@@ -17,26 +17,39 @@ console, or an autonomous publication system.
 
 ## UI implementation
 
-The current console uses the approved VulnHunter dark operational design:
+The current product follows the locked `docs/design/VULNHUNTER_UI_CONTRACT.md`
+and is conversation/task-first rather than dashboard-first:
 
-- `264px` desktop sidebar and `64px` top bar;
-- maximum content width of `1600px`;
-- reusable metric cards, status badges, tables, evidence panels, timelines,
-  forms, empty states, and responsive workspaces;
-- a private-lab environment marker;
+- `280px` desktop task/sidebar shell and `60px` top bar;
+- warm cream dotted working canvas, near-black text/borders, dusty-pink accent,
+  and compact dark task-focused sidebar;
+- square or nearly-square controls with hard zero-blur offset shadows;
+- conversation as the primary operating surface, with task stages, tool receipts,
+  approvals, findings, evidence and recovery shown contextually when practical;
+- dedicated pages as deep views of the same persisted state rather than competing
+  workflows;
+- maximum content width of `1600px` on specialist pages while the conversation
+  workspace may use the full governed application frame;
 - stage-based status rather than invented progress percentages;
 - backend-derived counts and states rather than demonstration records;
-- accessible focus indicators and reduced-motion support.
+- accessible focus indicators, keyboard-operable contextual panels and
+  reduced-motion support;
+- responsive mobile behavior based on an off-canvas task drawer and one-column
+  conversation workspace rather than a compressed desktop dashboard.
 
-The standalone frontend prototype was used only as a visual reference. The
-following prototype behaviours were intentionally not carried into production:
+The standalone frontend prototype and external references are interaction or
+visual references only. The following behaviours are intentionally not carried
+into production:
 
 - JavaScript-only authentication;
 - prefilled demonstration credentials;
 - browser-controlled role switching;
 - hard-coded findings, approvals, scans, or activity;
 - inline event handlers;
-- simulated execution or publication controls.
+- simulated execution or publication controls;
+- hidden chain-of-thought rendering;
+- unsupported provider/model/account-tier controls;
+- decorative blue glow, glassmorphism or generic rounded SaaS styling.
 
 All state-changing forms are Django POST requests with CSRF protection and
 server-side permission enforcement. Website and APK work now begin in the same
@@ -48,7 +61,7 @@ form, upload surface, or backend workflow.
 
 Implemented browser surfaces include:
 
-- authenticated dashboard and system readiness;
+- authenticated assessment workspace and system readiness;
 - authorization registry and detail inspection with confirmed, append-only revocation;
 - bounded assessment creation and assessment workspaces;
 - exact digest-bound approval decisions;
@@ -138,199 +151,9 @@ not persisted by the web application.
 - Django authentication and session middleware;
 - `HttpOnly` session and CSRF cookies;
 - `SameSite=Lax` cookies;
-- secure cookies when HTTPS mode is enabled;
-- CSRF middleware for state-changing requests;
-- `X-Frame-Options: DENY`;
-- `X-Content-Type-Options: nosniff`;
-- strict same-origin Content Security Policy;
-- template auto-escaping;
-- no inline JavaScript requirement;
-- private, no-store caching on sensitive workspaces;
-- backend redaction before persistence and presentation;
-- only health, readiness, and login endpoints are unauthenticated as configured.
-
-## Canonical routes
-
-### Overview and collection
-
-- `/`
-- `/status/`
-- `/audit/`
-- `/authorizations/`
-- `/authorizations/<authorization_id>/`
-- `/authorizations/<authorization_id>/revoke/` (POST only; system-administrator recovery action)
-- `/scans/new/` (compatibility redirect to `/?intent=new-assessment`)
-- `/scans/`
-- `/scans/<run_id>/`
-- `/agent/runs/<run_id>/activity/`
-- `/agent/runs/<run_id>/activity/stream/`
-- `/agent/runs/<run_id>/stop/`
-
-### Findings and independent review
-
-- `/findings/`
-- `/findings/<finding_id>/`
-- `/reviews/`
-- `/reviews/<assignment_reference>/`
-- `/adjudications/`
-- `/adjudications/<assignment_reference>/`
-
-Finding identifiers are resolved against findings visible to the current actor.
-Review and adjudication references are bounded prefixes of integrity-checked
-assignment hashes and must resolve to exactly one stored assignment.
-
-### Governance and intelligence
-
-- `/campaigns/`
-- `/campaigns/<campaign_id>/`
-- `/readiness/<campaign_id>/`
-- `/releases/`
-- `/releases/<campaign_id>/`
-- `/datasets/`
-- `/datasets/<campaign_id>/`
-- `/models/`
-- `/models/<component_id>/`
-
-The release and dataset detail pages are currently read-only assessments. They
-do not expose decorative publication, export, training, or promotion actions
-without a safe backend contract.
-
-### Operations and assurance
-
-- `/approvals/`
-- `/approvals/<request_id>/`
-- `/approvals/<request_id>/decision/`
-- `/reports/`
-- `/security-tools/`
-- `/advanced-assessment/`
-- `/mobile-analysis/` (compatibility alias for the unified assessment workspace)
-- `/active-validation/<lab_id>/`
-- `/roles/`
-- `/skills/`
-- `/settings/`
-
-## Approval and cancellation boundaries
-
-Supported now:
-
-- exact plan-digest approval decisions from the browser;
-- rejection, information-required, and conditional decision states supported by
-  the approval ledger;
-- CSRF-protected decision submission;
-- bounded run cancellation;
-- signed worker-spool cancellation requests;
-- append-only activity and approval audit events.
-
-Not provided as general browser controls:
-
-- arbitrary reconstruction and resume of any persisted runtime task;
-- manual operator pause without a backend transition contract;
-- alteration of an already recorded immutable review or adjudication;
-- release publication without a dedicated authorized service contract.
-
-Approval of a plan does not itself execute a scanner. Execution still requires
-worker readiness, explicit activation, and the isolated worker boundary.
-
-## Findings, review, and adjudication
-
-The finding workspace displays only data exposed by the authenticated product
-read model. Scanner output remains candidate evidence.
-
-The review workspace:
-
-- verifies that the signed-in governed identity is one of the assigned primary
-  reviewers;
-- opens only the integrity-bound scan repository referenced by the assignment;
-- rejects a symbolic-link database target;
-- hides other reviewers' decisions until the current reviewer submits;
-- requires the governance credential;
-- records one immutable decision and attestation.
-
-The adjudication workspace:
-
-- verifies the assigned adjudicator identity;
-- requires exactly two conflicting primary decisions;
-- requires the adjudicator to remain distinct from both primary reviewers;
-- records an immutable final outcome, rationale, and attestation.
-
-## Intelligence boundary
-
-The interface is model-neutral. Intelligence components may provide bounded
-context, sanitized advisory proposals, or deterministic verification status.
-They cannot:
-
-- authorize targets;
-- expand scope;
-- approve plans;
-- execute scanners, shells, browsers, or connectors;
-- declare a candidate finding final by themselves;
-- adjudicate human disagreement;
-- publish findings or datasets;
-- modify policy.
-
-Private source code, credentials, tokens, customer data, private targets,
-authorization records, unpublished findings, and raw evidence remain denied
-from remote advisory routing. Deterministic workflows continue when optional
-advisory analysis is disabled or unavailable.
-
-## Static assets
-
-Primary style and interaction files include:
-
-```text
-web/app.css
-web/activity.css
-web/product.css
-web/operational.css
-web/workspaces.css
-web/console.css
-web/intelligence.css
-web/app.js
-web/activity.js
-web/conversation.js
-web/workspace-state.js
-```
-
-The Content Security Policy requires scripts and styles to be served from the
-application origin. New UI behaviour should use these static files instead of
-inline handlers.
-
-## Verification commands
-
-Focused checks:
-
-```bash
-python -m ruff check vulnhunter/web tests/unit/test_web_app.py
-python -m ruff format --check vulnhunter/web tests/unit/test_web_app.py
-python -m compileall -q vulnhunter/web
-VULNHUNTER_WEB_SECRET_KEY=local-check-secret python manage.py check
-VULNHUNTER_WEB_SECRET_KEY=local-check-secret python manage.py findstatic \
-  web/app.css web/console.css web/workspaces.css web/intelligence.css
-python -m pytest -q tests/unit/test_web_app.py
-```
-
-Repository verification remains the final gate:
-
-```bash
-python -m ruff check .
-python -m ruff format --check .
-python -m compileall -q vulnhunter scripts
-python scripts/validate_scanner_compatibility.py
-python scripts/project_audit.py --strict
-python -m pytest -q
-```
-
-## Known limitations
-
-- The web product is local/private-lab oriented and is not yet approved for
-  public Internet exposure.
-- Real scanner, advisory-provider, PDF-renderer, graph-refresh, and dynamic
-  Android acceptance depend on the operator environment.
-- Finding evidence detail is limited to fields and artifacts exposed by the
-  current product read model.
-- Release and dataset workspaces are read-only until dedicated authorized write
-  contracts are implemented.
-- Formal backup, external signing, retention, migration, and disaster recovery
-  remain operational work.
-- Production SSO, MFA, hardware-backed identity, and independently protected
-  signing keys are not yet implemented.
+- CSRF tokens on state-changing forms;
+- no browser-owned authorization or approval authority;
+- private-laboratory targeting rules enforced by backend validators;
+- no fake progress, findings, evidence, review or release state;
+- no hidden chain-of-thought or private reasoning rendered to the browser;
+- CSP and other web hardening remain backend/middleware owned.

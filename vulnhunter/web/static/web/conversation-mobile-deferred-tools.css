@@ -1,76 +1,81 @@
+/* Deferred mobile tool approval control.
+   Component-specific compatibility stylesheet retained for the existing mobile
+   extension contract; it consumes canonical VulnHunter tokens only. */
+
 .vh-inspector-tool.is-approval_required .vh-inspector-tool-marker {
-  border-color: rgba(252, 211, 77, .42);
-  background: rgba(180, 83, 9, .12);
-  color: #fcd34d;
+  border-color: var(--vh-warning);
+  background: transparent;
+  color: var(--vh-warning);
 }
 
 .vh-inspector-tool.is-gated .vh-inspector-tool-marker {
-  border-color: rgba(148, 163, 184, .24);
-  background: rgba(71, 85, 105, .12);
-  color: #94a3b8;
+  border-color: var(--vh-line-strong);
+  background: transparent;
+  color: var(--vh-muted);
 }
 
 .vh-inspector-tool.is-queued .vh-inspector-tool-marker,
 .vh-inspector-tool.is-running .vh-inspector-tool-marker {
-  border-color: rgba(103, 232, 249, .44);
-  background: rgba(8, 145, 178, .12);
-  color: #67e8f9;
+  border-color: var(--vh-pink);
+  background: var(--vh-pink-soft);
+  color: var(--vh-ink);
 }
 
 .vh-inspector-tool.is-completed .vh-inspector-tool-marker {
-  border-color: rgba(134, 239, 172, .44);
-  background: rgba(22, 163, 74, .12);
-  color: #86efac;
+  border-color: var(--vh-success);
+  background: transparent;
+  color: var(--vh-success);
 }
 
 .vh-inspector-tool.is-failed .vh-inspector-tool-marker,
 .vh-inspector-tool.is-rejected .vh-inspector-tool-marker {
-  border-color: rgba(252, 165, 165, .44);
-  background: rgba(220, 38, 38, .12);
-  color: #fca5a5;
+  border-color: var(--vh-danger);
+  background: transparent;
+  color: var(--vh-danger);
 }
 
 .vh-inspector-tool em {
   display: block;
-  margin-top: 4px;
-  color: #64748b;
-  font-size: .72rem;
+  margin-top: 3px;
+  color: var(--vh-muted);
+  font-family: var(--vh-font-mono);
+  font-size: 9px;
   font-style: normal;
-  line-height: 1.4;
+  line-height: 1.45;
 }
 
 .vh-inspector-extension-approve {
-  min-height: 36px;
+  min-height: 40px;
   margin-top: 8px;
-  padding: 8px 12px;
-  border: 1px solid rgba(252, 211, 77, .3);
-  border-radius: 9px;
-  background: rgba(180, 83, 9, .1);
-  color: #fde68a;
-  font-size: .75rem;
-  font-weight: 800;
-  line-height: 1.25;
+  padding: 7px 10px;
+  border: 1px solid var(--vh-warning);
+  border-radius: var(--vh-radius-control);
+  background: var(--vh-pink-soft);
+  color: var(--vh-ink);
+  font-family: var(--vh-font-mono);
+  font-size: 9.5px;
+  font-weight: 700;
+  line-height: 1.3;
   cursor: pointer;
   touch-action: manipulation;
 }
 
 .vh-inspector-extension-approve:hover,
 .vh-inspector-extension-approve:focus-visible {
-  border-color: rgba(252, 211, 77, .58);
-  background: rgba(180, 83, 9, .18);
-  outline: 2px solid rgba(103, 232, 249, .45);
-  outline-offset: 2px;
+  border-color: var(--vh-ink);
+  background: var(--vh-surface-strong);
 }
 
 .vh-inspector-extension-approve:disabled {
-  cursor: wait;
-  opacity: .6;
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 @media (max-width: 720px) {
   .vh-inspector-extension-approve {
     width: 100%;
+    min-width: 44px;
     min-height: 44px;
-    font-size: .82rem;
+    font-size: 10.5px;
   }
 }

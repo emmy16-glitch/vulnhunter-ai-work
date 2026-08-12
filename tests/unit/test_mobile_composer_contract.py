@@ -28,7 +28,8 @@ def test_repeated_browser_lifecycle_uses_a_fresh_workspace_and_configured_eviden
     root = Path(__file__).resolve().parents[2]
     script = (root / "tests/ui/conversation_e2e.cjs").read_text()
 
-    assert "name: /new workspace/i" in script
+    assert 'locator(".vh-task-menu > summary")' in script
+    assert 'locator("[data-thread-create]")' in script
     assert 'url.searchParams.has("thread")' in script
     assert 'locator("[data-run-card]").last()' in script
     assert "process.env.VULNHUNTER_UI_OUTPUT" in script

@@ -1,18 +1,12 @@
 {% extends "web/base.html" %}
 {% block content %}
 <section class="vh-page-shell">
-  <header class="vh-page-header">
-    <div><p class="vh-eyebrow">Governance</p><h1>Roles</h1><p>Permissions, risk and connector policy from the role registry.</p></div>
-  </header>
-  <p class="vh-visually-hidden">Specialist instructions do not make a role automatically trustworthy</p>
-
-  {% if error_message %}<section class="vh-operational-notice is-danger"><strong>Role registry unavailable</strong><p>{{ error_message }}</p></section>{% endif %}
-
-  <section class="vh-summary-strip"><article class="vh-summary-item"><small>Roles</small><strong>{{ roles|length }}</strong><span>Registry entries</span></article><article class="vh-summary-item"><small>Trust</small><strong>Explicit</strong><span>No role is trusted by name alone</span></article></section>
-
+  <header class="vh-page-header"><div><p class="vh-eyebrow">Governance</p><h1>Roles</h1><p>Inspect the permission, risk and connector policy stored in the role registry. Role names alone never grant trust or authority.</p></div><div class="vh-page-actions"><span class="vh-status-chip">{{ roles|length }} role{{ roles|length|pluralize }}</span></div></header>
+  <p class="vh-visually-hidden">Specialist instructions do not make a role automatically trustworthy.</p>
+  {% if error_message %}<div class="vh-operational-notice is-danger" role="alert"><strong>Role registry unavailable</strong><p>{{ error_message }}</p></div>{% endif %}
   <section class="vh-surface">
-    <header class="vh-surface-header"><div><h2>Role registry</h2><p>Open a role for actions, tools and approval points.</p></div><span class="vh-panel-count">{{ roles|length }}</span></header>
-    {% if roles %}<div class="vh-table-wrap"><table class="vh-table"><thead><tr><th>Role</th><th>Status</th><th>Risk</th><th>Connector policy</th><th>Reviewed</th><th></th></tr></thead><tbody>{% for role in roles %}<tr><td><strong>{{ role.display_name }}</strong><code>{{ role.role_id }}</code></td><td>{{ role.operational_state }}</td><td>{{ role.risk_level }}</td><td>{{ role.connector_policy }}</td><td>{{ role.last_reviewed_on }}</td><td><a href="{% url 'web-role-detail' role.role_id %}">Open role →</a></td></tr>{% endfor %}</tbody></table></div>{% else %}<div class="vh-empty-panel"><svg aria-hidden="true"><use href="#vh-i-team"></use></svg><h3>No roles</h3><p>The role registry is empty.</p></div>{% endif %}
+    <header class="vh-surface-header"><div><h2>Role registry</h2><p>Open a role to inspect its allowed actions, tool boundaries, risk classification and approval points.</p></div><span class="vh-panel-count">{{ roles|length }}</span></header>
+    {% if roles %}<div class="vh-table-wrap"><table class="vh-table"><thead><tr><th>Role</th><th>Status</th><th>Risk</th><th>Connector policy</th><th>Reviewed</th><th>Action</th></tr></thead><tbody>{% for role in roles %}<tr><td><strong>{{ role.display_name }}</strong><code>{{ role.role_id }}</code></td><td><span class="vh-status-chip">{{ role.operational_state }}</span></td><td>{{ role.risk_level }}</td><td>{{ role.connector_policy }}</td><td>{{ role.last_reviewed_on }}</td><td><a class="vh-row-link" href="{% url 'web-role-detail' role.role_id %}">Open role</a></td></tr>{% endfor %}</tbody></table></div>{% else %}<div class="vh-empty-panel"><svg aria-hidden="true"><use href="#vh-i-team"></use></svg><h3>No roles</h3><p>The governed role registry is empty.</p></div>{% endif %}
   </section>
 </section>
 {% endblock %}

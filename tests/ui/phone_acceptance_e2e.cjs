@@ -30,11 +30,28 @@ async function openAdvancedSettings(page) {
   await page.locator("select[data-provider-preference]").waitFor({ state: "visible" });
 }
 
+async function verifyContextualSearchAccess(page) {
+  const menu = page.locator(".vh-task-menu");
+  const summary = menu.locator("summary");
+  const searchTrigger = page.locator("[data-conversation-search-toggle]");
+  await searchTrigger.waitFor({ state: "attached" });
+  const placement = await searchTrigger.evaluate((element) => ({
+    inOverflow: Boolean(element.closest(".vh-task-menu-popover")),
+    headerToolbar: Boolean(element.closest(".vh-chat-runtime")?.matches(".vh-chat-actions")),
+  }));
+  if (!placement.inOverflow || placement.headerToolbar) {
+    throw new Error(`Search is not contextual: ${JSON.stringify(placement)}`);
+  }
+  if (!(await menu.evaluate((element) => element.open))) await summary.click();
+  await searchTrigger.waitFor({ state: "visible" });
+  if (await menu.evaluate((element) => element.open)) await summary.click();
+}
+
 (async () => {
   const browser = await chromium.launch({ headless: true });
   try {
     for (const viewport of viewports) {
-      const context = await browser.newContext({ viewport, colorScheme: "dark" });
+      const context = await browser.newContext({ viewport, colorScheme: "light" });
       const page = await context.newPage();
       await login(page);
       await page.goto(`${baseUrl}/`, { waitUntil: "domcontentloaded" });
@@ -42,7 +59,7 @@ async function openAdvancedSettings(page) {
       await openAdvancedSettings(page);
       await page.locator("[data-stop-response]").waitFor({ state: "attached" });
       await page.locator("[data-draft-status]").waitFor({ state: "attached" });
-      await page.locator("[data-conversation-search-trigger]").waitFor({ state: "visible" });
+      await verifyContextualSearchAccess(page);
 
       const draftProbe = `Recovered phone draft ${viewport.width}`;
       let input = page.locator("[data-conversation-input]");
@@ -53,7 +70,7 @@ async function openAdvancedSettings(page) {
       await openAdvancedSettings(page);
       await page.locator("[data-stop-response]").waitFor({ state: "attached" });
       await page.locator("[data-draft-status]").waitFor({ state: "attached" });
-      await page.locator("[data-conversation-search-trigger]").waitFor({ state: "visible" });
+      await verifyContextualSearchAccess(page);
       input = page.locator("[data-conversation-input]");
       if ((await input.inputValue()) !== draftProbe) {
         throw new Error(`The phone draft was not restored after reload at ${viewport.width}px`);
@@ -66,7 +83,7 @@ async function openAdvancedSettings(page) {
         const providerPreference = document.querySelector("select[data-provider-preference]");
         const stopResponse = document.querySelector("[data-stop-response]");
         const draftStatus = document.querySelector("[data-draft-status]");
-        const searchTrigger = document.querySelector("[data-conversation-search-trigger]");
+        const searchTrigger = document.querySelector("[data-conversation-search-toggle]");
         if (
           !composer ||
           !reasoning ||
@@ -94,7 +111,6 @@ async function openAdvancedSettings(page) {
         const reasoningRect = reasoning.getBoundingClientRect();
         const providerRect = provider.getBoundingClientRect();
         const providerPreferenceRect = providerPreference.getBoundingClientRect();
-        const searchTriggerRect = searchTrigger.getBoundingClientRect();
         const stopResponseStyle = getComputedStyle(stopResponse);
         const draftStatusStyle = getComputedStyle(draftStatus);
         const dockStyle = getComputedStyle(dock);
@@ -142,9 +158,9 @@ async function openAdvancedSettings(page) {
           searchStylePresent: Boolean(
             document.querySelector("link[data-conversation-search-styles]"),
           ),
+          searchTriggerInOverflow: Boolean(searchTrigger.closest(".vh-task-menu-popover")),
           stopResponseMinimumHeight: Number.parseFloat(stopResponseStyle.minHeight || "0"),
           draftStatusFontSize: Number.parseFloat(draftStatusStyle.fontSize || "0"),
-          searchTriggerVisible: searchTriggerRect.width > 0 && searchTriggerRect.height > 0,
           composerVisible: composerRect.width > 0 && composerRect.height > 0,
           composerInsideViewport:
             composerRect.left >= -1 &&
@@ -199,7 +215,7 @@ async function openAdvancedSettings(page) {
         !layout.richStylePresent ||
         !layout.draftStylePresent ||
         !layout.searchStylePresent ||
-        !layout.searchTriggerVisible ||
+        !layout.searchTriggerInOverflow ||
         layout.stopResponseMinimumHeight < 32 ||
         layout.draftStatusFontSize <= 0
       ) {
@@ -321,7 +337,9 @@ async function openAdvancedSettings(page) {
         return { key, value: key ? window.sessionStorage.getItem(key) : "missing-api" };
       });
       if (!draftState.key || draftState.value !== null) {
-        throw new Error(`The successful response did not clear its session draft: ${JSON.stringify(draftState)}`);
+        throw new Error(
+          `The successful response did not clear its session draft: ${JSON.stringify(draftState)}`,
+        );
       }
       const runtimeText = await page.locator("[data-provider-runtime]").textContent();
       if (!/Hugging Face answered/i.test(runtimeText || "")) {
@@ -348,24 +366,23 @@ async function openAdvancedSettings(page) {
         throw new Error("The original assistant answer was not preserved for whole-message copying");
       }
 
+      await input.focus();
       await page.keyboard.press("Control+f");
-      const searchPanel = page.locator("[data-conversation-search]");
+      const searchPanel = page.locator("[data-conversation-search-panel]");
       await searchPanel.waitFor({ state: "visible" });
       const searchInput = searchPanel.locator("[data-conversation-search-input]");
       await searchInput.fill("vh_verify_llm");
+      const searchPosition = searchPanel.locator("[data-conversation-search-position]");
       for (let attempt = 0; attempt < 40; attempt += 1) {
-        if ((await searchPanel.locator("[data-conversation-search-count]").textContent()) === "1 of 1") {
-          break;
-        }
+        if ((await searchPosition.textContent()) === "1 of 1") break;
         await page.waitForTimeout(50);
       }
-      const searchCount = await searchPanel.locator("[data-conversation-search-count]").textContent();
+      const searchCount = await searchPosition.textContent();
       if (searchCount !== "1 of 1") {
         throw new Error(`Conversation search did not find the fenced command: ${searchCount}`);
       }
-      if (!(await finalAnswer.evaluate((element) => element.classList.contains("is-search-active")))) {
-        throw new Error("Conversation search did not activate the matching assistant answer");
-      }
+      const activeMatch = finalAnswer.locator("mark[data-vh-search-match].is-vh-search-active");
+      await activeMatch.waitFor({ state: "visible" });
       const searchGeometry = await searchPanel.evaluate((element) => {
         const rect = element.getBoundingClientRect();
         return {
@@ -387,12 +404,14 @@ async function openAdvancedSettings(page) {
         searchGeometry.top < -1 ||
         searchGeometry.bottom > searchGeometry.innerHeight + 1
       ) {
-        throw new Error(`Conversation search is outside the phone viewport: ${JSON.stringify(searchGeometry)}`);
+        throw new Error(
+          `Conversation search is outside the phone viewport: ${JSON.stringify(searchGeometry)}`,
+        );
       }
       await page.keyboard.press("Escape");
       await searchPanel.waitFor({ state: "hidden" });
-      if (await finalAnswer.evaluate((element) => element.classList.contains("is-search-active"))) {
-        throw new Error("Closing conversation search left the answer highlighted");
+      if ((await finalAnswer.locator("mark[data-vh-search-match]").count()) !== 0) {
+        throw new Error("Closing conversation search left matching markup behind");
       }
 
       await finalAnswer.getByRole("button", { name: "Copy this answer" }).waitFor({ state: "visible" });
@@ -481,7 +500,7 @@ async function openAdvancedSettings(page) {
       await context.close();
     }
     console.log(
-      "Phone advanced provider selection, session drafts, stop waiting, retry, rich answers, in-thread search, copy/edit controls, upload recovery and layout acceptance passed.",
+      "Phone contextual search, provider selection, drafts, stop/retry, rich answers, upload recovery and layout acceptance passed.",
     );
   } finally {
     await browser.close();

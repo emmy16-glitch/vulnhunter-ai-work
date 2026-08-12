@@ -50,7 +50,8 @@ def test_export_uses_static_dom_and_self_hosted_responsive_styles() -> None:
     assert "conversation-export.css" in script
     assert ".vh-conversation-export" in styles
     assert ".vh-conversation-export-actions" in styles
-    assert "@media (max-width: 760px)" in styles
+    assert "@media (max-width: 767px)" in styles
+    assert "min-height: 44px" in styles
 
 
 def test_export_exposes_reusable_current_thread_api() -> None:

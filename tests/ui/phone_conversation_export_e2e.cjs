@@ -27,7 +27,7 @@ async function login(page) {
     for (const viewport of viewports) {
       const context = await browser.newContext({
         viewport,
-        colorScheme: "dark",
+        colorScheme: "light",
         permissions: ["clipboard-read", "clipboard-write"],
       });
       const page = await context.newPage();
@@ -35,9 +35,17 @@ async function login(page) {
       await page.goto(`${baseUrl}/`, { waitUntil: "domcontentloaded" });
 
       const feed = page.locator("[data-conversation-feed]");
+      const menu = page.locator(".vh-task-menu");
+      const menuSummary = menu.locator("summary");
       const trigger = page.locator("[data-conversation-export-trigger]");
       const panel = page.locator("[data-conversation-export]");
       await feed.waitFor({ state: "visible" });
+      await trigger.waitFor({ state: "attached" });
+      const contextual = await trigger.evaluate((element) =>
+        Boolean(element.closest(".vh-task-menu-popover")),
+      );
+      if (!contextual) throw new Error("Conversation export is not in the contextual overflow");
+      await menuSummary.click();
       await trigger.waitFor({ state: "visible" });
 
       const userPrompt = "Export this exact authorised phone-test prompt.";
@@ -99,6 +107,9 @@ async function login(page) {
       await panel.waitFor({ state: "visible" });
       if ((await trigger.getAttribute("aria-expanded")) !== "true") {
         throw new Error("Export trigger did not expose its expanded state");
+      }
+      if (await menu.evaluate((element) => element.open)) {
+        throw new Error("Opening export left the overflow menu expanded behind the panel");
       }
       const geometry = await panel.evaluate((element) => {
         const rect = element.getBoundingClientRect();
@@ -174,12 +185,18 @@ async function login(page) {
       if ((await trigger.getAttribute("aria-expanded")) !== "false") {
         throw new Error("Escape did not close conversation export accessibly");
       }
+      const focusReturned = await menuSummary.evaluate(
+        (element) => document.activeElement === element,
+      );
+      if (!focusReturned) {
+        throw new Error("Closing export did not return focus to the visible overflow control");
+      }
       if (postCount !== 0) {
         throw new Error(`Conversation export made ${postCount} unexpected POST request(s)`);
       }
       await context.close();
     }
-    console.log("Phone conversation copy and Markdown download acceptance passed.");
+    console.log("Phone contextual conversation copy and Markdown download acceptance passed.");
   } finally {
     await browser.close();
   }

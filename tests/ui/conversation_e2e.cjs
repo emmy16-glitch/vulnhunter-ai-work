@@ -32,13 +32,18 @@ let page;
       page.getByRole("button", { name: /sign in securely/i }).click(),
     ]);
 
+    await page.locator("[data-conversation-workspace]").waitFor({ timeout: 15000 });
     const previousWorkspaceUrl = page.url();
+    const overflow = page.locator(".vh-task-menu > summary");
+    await overflow.click();
+    const newAssessment = page.locator("[data-thread-create]");
+    await newAssessment.waitFor({ state: "visible", timeout: 5000 });
     await Promise.all([
       page.waitForURL(
         (url) => url.toString() !== previousWorkspaceUrl && url.searchParams.has("thread"),
         { timeout: 15000 },
       ),
-      page.getByRole("button", { name: /new workspace/i }).click(),
+      newAssessment.click(),
     ]);
     await page.locator("[data-conversation-workspace]").waitFor({ timeout: 15000 });
 

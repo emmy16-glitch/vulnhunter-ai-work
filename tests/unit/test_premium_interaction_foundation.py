@@ -9,19 +9,20 @@ def _text(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
 
-def test_shared_interaction_assets_are_loaded_by_the_product_shell() -> None:
+def test_shared_interaction_runtime_is_loaded_without_restoring_competing_visual_owner() -> None:
     base = _text(BASE)
 
     css_asset = "web/premium-interaction.css"
     js_asset = "web/premium-interaction.js"
-    assert css_asset in base
+    assert css_asset not in base
     assert js_asset in base
-    assert base.index(css_asset) > base.index("web/background-uploads.css")
-    assert base.index(css_asset) < base.index("{% block extra_styles %}")
     assert base.index(js_asset) < base.index("{% block extra_scripts %}")
+    assert "web/app.css" in base
+    assert "web/product.css" in base
+    assert "web/chat-shell.css" in base
 
 
-def test_motion_tokens_have_one_shared_semantic_vocabulary() -> None:
+def test_repository_interaction_reference_keeps_semantic_motion_vocabulary() -> None:
     css = _text(CSS)
 
     for token in (
@@ -50,7 +51,7 @@ def test_motion_tokens_have_one_shared_semantic_vocabulary() -> None:
     assert "animation: vh-motion-exit var(--vh-motion-duration-fast)" in css
 
 
-def test_shared_primitive_states_preserve_truthful_authoritative_state() -> None:
+def test_shared_primitive_reference_preserves_truthful_authoritative_state() -> None:
     css = _text(CSS)
 
     assert "--vh-interaction-target-min: 44px" in css
@@ -75,7 +76,7 @@ def test_shared_primitive_states_preserve_truthful_authoritative_state() -> None
     assert "cursor: not-allowed" in css
 
 
-def test_reduced_motion_is_a_complete_semantic_alternative() -> None:
+def test_reduced_motion_runtime_and_reference_remain_semantically_safe() -> None:
     css = _text(CSS)
     javascript = _text(JS)
 
@@ -85,7 +86,6 @@ def test_reduced_motion_is_a_complete_semantic_alternative() -> None:
     assert "--vh-motion-scale-press: 1" in css
     assert "scroll-behavior: auto" in css
     assert "animation-iteration-count: 1" in css
-    assert "transition: none" not in css
 
     assert 'matchMedia("(prefers-reduced-motion: reduce)")' in javascript
     assert "root.dataset.motion = motion" in javascript

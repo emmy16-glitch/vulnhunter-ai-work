@@ -19,11 +19,12 @@ def _user(username: str = "premium-login"):
     return get_user_model().objects.create_user(username=username, password="correct-password")
 
 
-def test_login_template_uses_shared_interaction_and_preserves_return_destination() -> None:
+def test_login_template_uses_canonical_assets_and_preserves_return_destination() -> None:
     template = _text(LOGIN)
 
     assert "tokens.css" in template
-    assert "premium-interaction.css" in template
+    assert "app.css" in template
+    assert "premium-interaction.css" not in template
     assert "premium-interaction.js" in template
     assert 'data-route="login"' in template
     assert 'id="main-content"' in template

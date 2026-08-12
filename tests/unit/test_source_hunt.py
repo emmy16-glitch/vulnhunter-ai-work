@@ -269,7 +269,7 @@ def test_source_hunt_url_and_template_contract():
     assert reverse("web-source-hunt") == "/source-hunt/"
     assert 'name="password"' in template
     assert 'name="approve_remote_processing"' in template
-    assert "Groq only" in template
-    assert "Hunt → Disprove" in template
+    assert "Groq-only source analysis" in template
+    assert "hunt → falsification → capability filter" in template
     assert "<style" not in template
     assert "<script" not in template

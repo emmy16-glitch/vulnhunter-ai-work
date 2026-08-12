@@ -321,12 +321,10 @@ def test_final_workspace_contract_is_shared_and_responsive():
     conversation_css = (root / "vulnhunter/web/static/web/conversation.css").read_text(
         encoding="utf-8"
     )
-    template = (root / "vulnhunter/web/templates/web/conversation.html").read_text(
+    template = (root / "vulnhunter/web/templates/web/conversation.html").read_text(encoding="utf-8")
+    inspector = (root / "vulnhunter/web/templates/web/_mobile_analysis_inspector.html").read_text(
         encoding="utf-8"
     )
-    inspector = (
-        root / "vulnhunter/web/templates/web/_mobile_analysis_inspector.html"
-    ).read_text(encoding="utf-8")
 
     assert "--vh-layout-sidebar: 280px" in tokens
     assert "--vh-layout-topbar: 60px" in tokens

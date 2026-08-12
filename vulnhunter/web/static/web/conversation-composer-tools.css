@@ -216,6 +216,14 @@
 }
 
 @media (max-width: 640px) {
+  .vh-conversation-body .vh-topbar {
+    min-height: 60px;
+  }
+
+  .vh-conversation-body .vh-chat-workspace {
+    height: calc(100dvh - 60px);
+  }
+
   .vh-chat-composer {
     padding-bottom: max(8px, env(safe-area-inset-bottom));
   }

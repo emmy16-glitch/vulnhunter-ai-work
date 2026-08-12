@@ -1,24 +1,17 @@
 {% extends "web/base.html" %}
-{% load static %}
 {% block content %}
-<section class="vh-product-page">
-  <header class="vh-product-heading">
-    <div><p class="vh-eyebrow">Human control</p><h1>Approval Centre</h1><p>Review persisted requests, inspect their exact action binding and open the decision surface permitted by your governed role.</p></div>
+<section class="vh-page-shell">
+  <header class="vh-page-header">
+    <div><p class="vh-eyebrow">Human control</p><h1>Approval centre</h1><p>Review persisted requests, inspect the exact action/digest binding and make only the decision your governed role is allowed to make. This list reflects the approval ledger; it does not create approval state in the browser.</p></div>
+    <div class="vh-page-actions"><span class="vh-status-chip">{{ approvals|length }} request{{ approvals|length|pluralize }}</span></div>
   </header>
 
-  <section class="vh-ops-metric-grid" aria-label="Approval summary">
-    <article class="vh-ops-metric"><span class="vh-ops-metric-icon"><svg><use href="#vh-i-shield"></use></svg></span><div class="vh-ops-metric-copy"><span>Recorded requests</span><strong>{{ approvals|length }}</strong><small>Read directly from the approval ledger</small></div></article>
-    <article class="vh-ops-metric"><span class="vh-ops-metric-icon"><svg><use href="#vh-i-checkdoc"></use></svg></span><div class="vh-ops-metric-copy"><span>Decision binding</span><strong>Digest</strong><small>Plan changes invalidate the decision path</small></div></article>
-    <article class="vh-ops-metric"><span class="vh-ops-metric-icon"><svg><use href="#vh-i-team"></use></svg></span><div class="vh-ops-metric-copy"><span>Authority</span><strong>Role based</strong><small>The backend checks the deciding identity</small></div></article>
-    <article class="vh-ops-metric"><span class="vh-ops-metric-icon"><svg><use href="#vh-i-audit"></use></svg></span><div class="vh-ops-metric-copy"><span>Decision history</span><strong>Append only</strong><small>Events remain available on each request</small></div></article>
-  </section>
-
-  <section class="vh-product-panel">
-    <div class="vh-table-toolbar"><div><h2>Approval requests</h2><p>Open a request to review its full facts and submit a real backend decision.</p></div><span class="vh-panel-count">{{ approvals|length }}</span></div>
+  <section class="vh-surface">
+    <header class="vh-surface-header"><div><h2>Approval requests</h2><p>Open a request to review its exact facts, expiry and existing decision history before acting.</p></div><span class="vh-panel-count">{{ approvals|length }}</span></header>
     {% if approvals %}
-      <div class="vh-table-wrap"><table class="vh-table"><thead><tr><th>Request</th><th>Campaign / run</th><th>Status</th><th>Requested by</th><th>Expires</th><th></th></tr></thead><tbody>{% for approval in approvals %}<tr><td><strong>{{ approval.request_id }}</strong><small>{{ approval.summary|truncatechars:72 }}</small></td><td><strong>{{ approval.campaign_id }}</strong><small>{{ approval.run_id }}</small></td><td><span class="vh-status-chip">{{ approval.status.value }}</span></td><td>{{ approval.requested_by }}</td><td>{{ approval.expires_at }}</td><td><a class="vh-table-primary-link" href="{% url 'web-approval-detail' approval.request_id %}">Review request →</a></td></tr>{% endfor %}</tbody></table></div>
+      <div class="vh-table-wrap"><table class="vh-table"><thead><tr><th>Request</th><th>Campaign / run</th><th>Status</th><th>Requested by</th><th>Expires</th><th>Action</th></tr></thead><tbody>{% for approval in approvals %}<tr><td><strong>{{ approval.request_id }}</strong><small>{{ approval.summary|truncatechars:72 }}</small></td><td><strong>{{ approval.campaign_id }}</strong><small>{{ approval.run_id }}</small></td><td><span class="vh-status-chip {% if approval.status.value == 'approved' %}vh-status-safe{% elif approval.status.value == 'pending' %}vh-status-warning{% elif approval.status.value == 'denied' %}vh-status-danger{% endif %}">{{ approval.status.value }}</span></td><td>{{ approval.requested_by }}</td><td>{{ approval.expires_at }}</td><td><a class="vh-row-link" href="{% url 'web-approval-detail' approval.request_id %}">Review request</a></td></tr>{% endfor %}</tbody></table></div>
     {% else %}
-      <div class="vh-product-empty"><svg aria-hidden="true"><use href="#vh-i-shield"></use></svg><h3>No approval requests</h3><p>Requests appear only after a governed assessment creates an approval-bound plan.</p></div>
+      <div class="vh-empty-panel"><svg aria-hidden="true"><use href="#vh-i-shield"></use></svg><h3>No approval requests</h3><p>Requests appear only when a governed workflow creates an approval-bound action.</p></div>
     {% endif %}
   </section>
 </section>

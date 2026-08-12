@@ -17,8 +17,8 @@
   "layout": {
     "collapsed_sidebar_width_px": 80,
     "content_max_width_px": 1600,
-    "sidebar_width_px": 264,
-    "topbar_height_px": 64
+    "sidebar_width_px": 280,
+    "topbar_height_px": 60
   },
   "principles": [
     "calm-not-gimmicky",

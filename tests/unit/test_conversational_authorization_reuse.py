@@ -77,6 +77,7 @@ def test_expired_private_target_authorization_is_not_reused(tmp_path):
 
 def test_chat_cannot_issue_authorization_for_public_target(tmp_path):
     store = AuthorizationStore.from_path(tmp_path / "authorizations.db")
+    store.initialize()
 
     with pytest.raises(
         ConversationalAuthorizationError,

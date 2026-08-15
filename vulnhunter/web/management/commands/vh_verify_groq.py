@@ -17,7 +17,7 @@ from vulnhunter.providers import (
 
 
 class Command(BaseCommand):
-    help = "Run one bounded harmless Groq advisory inference through VulnHunter."
+    help = "Run one bounded harmless inference through the configured high-reasoning Groq model."
 
     def add_arguments(self, parser) -> None:
         parser.add_argument("--model", default=settings.VULNHUNTER_GROQ_MODEL)
@@ -25,13 +25,18 @@ class Command(BaseCommand):
         parser.add_argument(
             "--conversation-smoke",
             action="store_true",
-            help="Also verify the exact conversational interpretation path used by the web UI.",
+            help="Also verify the exact high-reasoning conversation path used by the web UI.",
         )
 
     def handle(self, *args, **options) -> None:
         if not settings.VULNHUNTER_GROQ_ENABLED:
             raise CommandError("Groq is disabled by configuration.")
         model = str(options["model"]).strip()
+        if model != settings.VULNHUNTER_GROQ_MODEL:
+            raise CommandError(
+                "Groq verification is pinned to VULNHUNTER_GROQ_MODEL; model downgrade is not "
+                "allowed."
+            )
         timeout = int(options["timeout"])
         if not 5 <= timeout <= 300:
             raise CommandError("timeout must be between 5 and 300 seconds")
@@ -56,14 +61,12 @@ class Command(BaseCommand):
             maximum_input_tokens=1_000,
             maximum_output_tokens=1024,
             timeout_seconds=timeout,
+            reasoning_effort="high",
         )
         try:
             provider = GroqProvider.from_key_file(
                 Path(settings.VULNHUNTER_GROQ_API_KEY_FILE),
-                approved_models=(
-                    settings.VULNHUNTER_GROQ_MODEL,
-                    settings.VULNHUNTER_GROQ_FALLBACK_MODEL,
-                ),
+                approved_models=(model,),
                 api_base=settings.VULNHUNTER_GROQ_API_BASE,
             )
             health = provider.health()
@@ -72,12 +75,16 @@ class Command(BaseCommand):
         if not health.reachable or health.model is None:
             raise CommandError(health.reason)
         if health.model != model:
-            model = health.model
-            invocation = invocation.model_copy(update={"model": model})
+            raise CommandError(
+                "Groq readiness returned a different model than the configured high-reasoning "
+                "model."
+            )
 
         response = provider.invoke(invocation, content)
         if response.output_kind == ProviderOutputKind.ABSTAIN:
             raise CommandError(response.safe_error or "Groq abstained during readiness test")
+        if response.model != model:
+            raise CommandError("Groq response model did not match the configured reasoning model")
         if "VULNHUNTER_GROQ_READY" not in response.content:
             raise CommandError("Groq response passed schema validation but missed the marker")
 
@@ -92,13 +99,18 @@ class Command(BaseCommand):
                     f"message must include the exact marker {marker}."
                 ),
                 available_profiles=("passive",),
-                reasoning_effort="low",
+                reasoning_effort="high",
                 provider_preference="groq",
             )
-            if interpreted.provider != "groq" or marker not in (interpreted.assistant_copy or ""):
+            if (
+                interpreted.provider != "groq"
+                or interpreted.model != model
+                or marker not in (interpreted.assistant_copy or "")
+            ):
                 raise CommandError(
                     "Groq conversation smoke test failed safely: "
-                    f"provider={interpreted.provider} detail={interpreted.provider_detail}"
+                    f"provider={interpreted.provider} model={interpreted.model} "
+                    f"detail={interpreted.provider_detail}"
                 )
             conversation_ready = True
 
@@ -106,7 +118,7 @@ class Command(BaseCommand):
         self.stdout.write(
             self.style.SUCCESS(
                 "Groq verified: "
-                f"model={response.model} output_kind={response.output_kind.value} "
+                f"model={response.model} reasoning=high output_kind={response.output_kind.value} "
                 f"trusted={response.trusted}.{suffix}"
             )
         )

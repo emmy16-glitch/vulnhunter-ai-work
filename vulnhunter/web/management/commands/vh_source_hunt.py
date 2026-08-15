@@ -47,7 +47,7 @@ def _approved_roots() -> tuple[Path, ...]:
 
 
 class Command(BaseCommand):
-    help = "Run one exact, Groq-only attacker-first source-code hunt."
+    help = "Run one exact, high-reasoning Groq attacker-first source-code hunt."
 
     def add_arguments(self, parser) -> None:
         parser.add_argument("--repo", required=True)
@@ -64,6 +64,11 @@ class Command(BaseCommand):
     def handle(self, *args, **options) -> None:
         if not settings.VULNHUNTER_GROQ_ENABLED:
             raise CommandError("Groq is disabled by configuration.")
+        model = str(options["model"]).strip()
+        if model != settings.VULNHUNTER_GROQ_MODEL:
+            raise CommandError(
+                "Source Hunt is pinned to VULNHUNTER_GROQ_MODEL; model downgrade is not allowed."
+            )
         if not options["approve_groq_source_processing"]:
             raise CommandError(
                 "source code is not transmitted until --approve-groq-source-processing is supplied"
@@ -83,7 +88,7 @@ class Command(BaseCommand):
         )
         policy = SourceHuntPolicy(
             approved_roots=_approved_roots(),
-            model=str(options["model"]),
+            model=model,
             maximum_prompt_bytes=min(settings.VULNHUNTER_GROQ_MAX_INPUT_BYTES, 100_000),
             maximum_output_tokens=min(settings.VULNHUNTER_GROQ_MAX_OUTPUT_TOKENS, 4_000),
             timeout_seconds=min(settings.VULNHUNTER_GROQ_TIMEOUT_SECONDS, 180),
@@ -109,10 +114,7 @@ class Command(BaseCommand):
         try:
             provider = GroqProvider.from_key_file(
                 Path(settings.VULNHUNTER_GROQ_API_KEY_FILE),
-                approved_models=(
-                    settings.VULNHUNTER_GROQ_MODEL,
-                    settings.VULNHUNTER_GROQ_FALLBACK_MODEL,
-                ),
+                approved_models=(model,),
                 api_base=settings.VULNHUNTER_GROQ_API_BASE,
             )
             report = GroqSourceHunt(connector=provider, policy=policy).run(
@@ -138,6 +140,6 @@ class Command(BaseCommand):
             self.style.SUCCESS(
                 f"source hunt {report.report_id}: stage={report.stage.value} "
                 f"surfaces={report.surfaces_examined} survived={survived} "
-                f"model_calls={report.model_calls} report={destination}"
+                f"model_calls={report.model_calls} model={model} report={destination}"
             )
         )

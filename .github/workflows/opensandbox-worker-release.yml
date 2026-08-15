@@ -1,0 +1,328 @@
+name: OpenSandbox production worker release candidate
+
+on:
+  workflow_dispatch:
+    inputs:
+      worker:
+        description: Worker to publish
+        required: true
+        type: choice
+        options:
+          - bandit
+          - nuclei
+      release_id:
+        description: Stable lowercase release ID
+        required: true
+        type: string
+      confirmation:
+        description: Type PUBLISH_OPEN_SANDBOX_WORKER
+        required: true
+        type: string
+
+permissions: {}
+
+concurrency:
+  group: opensandbox-production-worker-release
+  cancel-in-progress: false
+
+jobs:
+  publish-candidate:
+    name: Publish attested worker candidate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    steps:
+      - name: Check out exact release source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Enforce reviewed main release source
+        id: meta
+        shell: bash
+        env:
+          RELEASE_WORKER: ${{ inputs.worker }}
+          RELEASE_ID: ${{ inputs.release_id }}
+          RELEASE_CONFIRMATION: ${{ inputs.confirmation }}
+        run: |
+          set -euo pipefail
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "Production worker candidates may only be published from refs/heads/main" >&2
+            exit 1
+          fi
+          if [ "$RELEASE_CONFIRMATION" != "PUBLISH_OPEN_SANDBOX_WORKER" ]; then
+            echo "Exact production publication confirmation was not supplied" >&2
+            exit 1
+          fi
+          if [ "$(git rev-parse HEAD)" != "$GITHUB_SHA" ]; then
+            echo "Checked-out release source does not match GITHUB_SHA" >&2
+            exit 1
+          fi
+          if [ "${#RELEASE_ID}" -lt 2 ] || [ "${#RELEASE_ID}" -gt 128 ]; then
+            echo "Release ID length is invalid" >&2
+            exit 1
+          fi
+          case "$RELEASE_ID" in
+            [a-z0-9]*) ;;
+            *) echo "Release ID must begin with a lowercase letter or digit" >&2; exit 1 ;;
+          esac
+          case "$RELEASE_ID" in
+            *[!a-z0-9._-]*) echo "Release ID contains invalid characters" >&2; exit 1 ;;
+          esac
+          case "$RELEASE_WORKER" in
+            bandit)
+              containerfile="deploy/opensandbox-workers/bandit/Containerfile"
+              ;;
+            nuclei)
+              containerfile="deploy/opensandbox-workers/nuclei/Containerfile"
+              ;;
+            *)
+              echo "Unsupported production worker" >&2
+              exit 1
+              ;;
+          esac
+          owner="${GITHUB_REPOSITORY_OWNER,,}"
+          image_name="ghcr.io/${owner}/vulnhunter-opensandbox-${RELEASE_WORKER}"
+          source_commit="$(git rev-parse HEAD)"
+          short_sha="${source_commit:0:12}"
+          signer="github.com/${GITHUB_REPOSITORY}/.github/workflows/opensandbox-worker-release.yml"
+          builder_id="https://${signer}"
+          {
+            echo "worker=$RELEASE_WORKER"
+            echo "release_id=$RELEASE_ID"
+            echo "containerfile=$containerfile"
+            echo "image_name=$image_name"
+            echo "source_commit=$source_commit"
+            echo "short_sha=$short_sha"
+            echo "signer=$signer"
+            echo "builder_id=$builder_id"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install release verifier dependencies
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install -e '.[opensandbox]'
+
+      - name: Authenticate to GHCR
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Reject reused candidate release tag
+        shell: bash
+        env:
+          IMAGE_NAME: ${{ steps.meta.outputs.image_name }}
+          RELEASE_ID: ${{ steps.meta.outputs.release_id }}
+        run: |
+          set -euo pipefail
+          if docker manifest inspect "$IMAGE_NAME:candidate-$RELEASE_ID" >/dev/null 2>&1; then
+            echo "Candidate release tag already exists; release IDs must not be reused" >&2
+            exit 1
+          fi
+
+      - name: Build and publish immutable worker candidate
+        id: push
+        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf
+        with:
+          context: .
+          file: ${{ steps.meta.outputs.containerfile }}
+          push: true
+          pull: true
+          no-cache: true
+          platforms: linux/amd64
+          provenance: false
+          sbom: false
+          tags: |
+            ${{ steps.meta.outputs.image_name }}:candidate-${{ steps.meta.outputs.release_id }}
+            ${{ steps.meta.outputs.image_name }}:sha-${{ steps.meta.outputs.short_sha }}
+          labels: |
+            org.opencontainers.image.revision=${{ steps.meta.outputs.source_commit }}
+            org.opencontainers.image.version=${{ steps.meta.outputs.release_id }}
+
+      - name: Generate deterministic release evidence
+        id: evidence
+        shell: bash
+        env:
+          WORKER_ID: ${{ steps.meta.outputs.worker }}
+          RELEASE_ID: ${{ steps.meta.outputs.release_id }}
+          IMAGE_NAME: ${{ steps.meta.outputs.image_name }}
+          IMAGE_DIGEST: ${{ steps.push.outputs.digest }}
+          CONTAINERFILE: ${{ steps.meta.outputs.containerfile }}
+          SOURCE_COMMIT: ${{ steps.meta.outputs.source_commit }}
+          BUILDER_ID: ${{ steps.meta.outputs.builder_id }}
+        run: |
+          set -euo pipefail
+          case "$IMAGE_DIGEST" in
+            sha256:[0-9a-f][0-9a-f]*) ;;
+            *) echo "Build action did not return a sha256 image digest" >&2; exit 1 ;;
+          esac
+          image="$IMAGE_NAME@$IMAGE_DIGEST"
+          release_dir="$RUNNER_TEMP/opensandbox-production-release"
+          mkdir -p "$release_dir"
+          docker pull "$image"
+          python scripts/opensandbox_worker_release.py sbom \
+            --worker-id "$WORKER_ID" \
+            --image "$image" \
+            --output "$release_dir/sbom.spdx.json"
+          python scripts/opensandbox_worker_release.py provenance \
+            --worker-id "$WORKER_ID" \
+            --image "$image" \
+            --containerfile "$CONTAINERFILE" \
+            --source-commit "$SOURCE_COMMIT" \
+            --builder-id "$BUILDER_ID" \
+            --output "$release_dir/provenance.json"
+          printf '%s\n' "$image" > "$release_dir/image.txt"
+          {
+            echo "dir=$release_dir"
+            echo "image=$image"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Generate GitHub SLSA provenance attestation
+        id: github-provenance
+        uses: actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d
+        with:
+          subject-name: ${{ steps.meta.outputs.image_name }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true
+          create-storage-record: false
+
+      - name: Generate GitHub SPDX SBOM attestation
+        id: github-sbom
+        uses: actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d
+        with:
+          subject-name: ${{ steps.meta.outputs.image_name }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          sbom-path: ${{ steps.evidence.outputs.dir }}/sbom.spdx.json
+          push-to-registry: true
+          create-storage-record: false
+
+      - name: Preserve and verify exact GitHub attestation bundles
+        shell: bash
+        env:
+          IMAGE: ${{ steps.evidence.outputs.image }}
+          RELEASE_DIR: ${{ steps.evidence.outputs.dir }}
+          SIGNER_WORKFLOW: ${{ steps.meta.outputs.signer }}
+          PROVENANCE_BUNDLE: ${{ steps.github-provenance.outputs.bundle-path }}
+          SBOM_BUNDLE: ${{ steps.github-sbom.outputs.bundle-path }}
+        run: |
+          set -euo pipefail
+          cp "$PROVENANCE_BUNDLE" "$RELEASE_DIR/github-provenance.attestation.jsonl"
+          cp "$SBOM_BUNDLE" "$RELEASE_DIR/github-sbom.attestation.jsonl"
+          gh attestation verify "oci://$IMAGE" \
+            --repo "$GITHUB_REPOSITORY" \
+            --bundle "$RELEASE_DIR/github-provenance.attestation.jsonl" \
+            --signer-workflow "$SIGNER_WORKFLOW" \
+            --source-ref "$GITHUB_REF" \
+            --source-digest "$GITHUB_SHA" \
+            --deny-self-hosted-runners \
+            --format json \
+            > "$RELEASE_DIR/github-provenance.verification.json"
+          gh attestation verify "oci://$IMAGE" \
+            --repo "$GITHUB_REPOSITORY" \
+            --bundle "$RELEASE_DIR/github-sbom.attestation.jsonl" \
+            --signer-workflow "$SIGNER_WORKFLOW" \
+            --source-ref "$GITHUB_REF" \
+            --source-digest "$GITHUB_SHA" \
+            --deny-self-hosted-runners \
+            --predicate-type "https://spdx.dev/Document/v2.3" \
+            --format json \
+            > "$RELEASE_DIR/github-sbom.verification.json"
+
+      - name: Create non-authoritative production candidate record
+        shell: bash
+        env:
+          WORKER_ID: ${{ steps.meta.outputs.worker }}
+          RELEASE_ID: ${{ steps.meta.outputs.release_id }}
+          IMAGE: ${{ steps.evidence.outputs.image }}
+          RELEASE_DIR: ${{ steps.evidence.outputs.dir }}
+          SOURCE_COMMIT: ${{ steps.meta.outputs.source_commit }}
+          SIGNER_WORKFLOW: ${{ steps.meta.outputs.signer }}
+        run: |
+          set -euo pipefail
+          python scripts/opensandbox_worker_release.py record \
+            --worker-id "$WORKER_ID" \
+            --release-id "$RELEASE_ID" \
+            --image "$IMAGE" \
+            --sbom "$RELEASE_DIR/sbom.spdx.json" \
+            --provenance "$RELEASE_DIR/provenance.json" \
+            --source-commit "$SOURCE_COMMIT" \
+            --status candidate \
+            --github-provenance-attestation \
+              "$RELEASE_DIR/github-provenance.attestation.jsonl" \
+            --github-sbom-attestation \
+              "$RELEASE_DIR/github-sbom.attestation.jsonl" \
+            --github-attestation-signer "$SIGNER_WORKFLOW" \
+            --output "$RELEASE_DIR/candidate.json"
+          (cd "$RELEASE_DIR" && sha256sum \
+            image.txt \
+            sbom.spdx.json \
+            provenance.json \
+            github-provenance.attestation.jsonl \
+            github-sbom.attestation.jsonl \
+            github-provenance.verification.json \
+            github-sbom.verification.json \
+            candidate.json \
+            > checksums.txt)
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          release_dir = Path(os.environ["RELEASE_DIR"])
+          candidate = json.loads((release_dir / "candidate.json").read_text())
+          if candidate.get("status") != "candidate":
+              raise SystemExit("GitHub workflow must never emit an approved release record")
+          if candidate.get("image") != os.environ["IMAGE"]:
+              raise SystemExit("Candidate image identity changed before publication")
+          for field in (
+              "github_provenance_attestation_sha256",
+              "github_sbom_attestation_sha256",
+              "github_attestation_signer",
+          ):
+              if not candidate.get(field):
+                  raise SystemExit(f"Candidate release omitted required evidence: {field}")
+          print(json.dumps(candidate, sort_keys=True))
+          PY
+
+      - name: Upload offline-review candidate evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: opensandbox-production-${{ steps.meta.outputs.worker }}-${{ steps.meta.outputs.release_id }}
+          path: |
+            ${{ steps.evidence.outputs.dir }}/image.txt
+            ${{ steps.evidence.outputs.dir }}/sbom.spdx.json
+            ${{ steps.evidence.outputs.dir }}/provenance.json
+            ${{ steps.evidence.outputs.dir }}/github-provenance.attestation.jsonl
+            ${{ steps.evidence.outputs.dir }}/github-sbom.attestation.jsonl
+            ${{ steps.evidence.outputs.dir }}/github-provenance.verification.json
+            ${{ steps.evidence.outputs.dir }}/github-sbom.verification.json
+            ${{ steps.evidence.outputs.dir }}/candidate.json
+            ${{ steps.evidence.outputs.dir }}/checksums.txt
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: State offline promotion boundary
+        shell: bash
+        env:
+          IMAGE: ${{ steps.evidence.outputs.image }}
+          RELEASE_ID: ${{ steps.meta.outputs.release_id }}
+        run: |
+          set -euo pipefail
+          echo "Published non-authoritative worker candidate: $IMAGE"
+          echo "Candidate release ID: $RELEASE_ID"
+          echo "This workflow cannot approve, sign, or activate the worker."
+          echo "Offline review and Ed25519 signing are still required."

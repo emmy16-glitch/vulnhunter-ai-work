@@ -1,0 +1,48 @@
+name: Independent web verifier contracts
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/web-verification.yml"
+      - "vulnhunter/web_verification/**"
+      - "vulnhunter/web_hunters/**"
+      - "vulnhunter/web_perception/**"
+      - "tests/unit/test_web_verification.py"
+      - "docs/intelligence/INDEPENDENT_WEB_VERIFIER.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contracts:
+    name: Python ${{ matrix.python-version }} verifier contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install focused test dependencies
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install -e . pytest cryptography ruff
+
+      - name: Run verifier contract gates
+        run: |
+          set -euo pipefail
+          python -m ruff check vulnhunter/web_verification tests/unit/test_web_verification.py
+          python -m ruff format --check vulnhunter/web_verification tests/unit/test_web_verification.py
+          python -m compileall -q vulnhunter/web_verification
+          python -m pytest -q tests/unit/test_web_verification.py

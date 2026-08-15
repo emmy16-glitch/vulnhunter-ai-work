@@ -1,0 +1,47 @@
+name: Adaptive web hunter contracts
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/web-hunter.yml"
+      - "vulnhunter/web_hunters/**"
+      - "tests/unit/test_web_hunters.py"
+      - "docs/intelligence/ADAPTIVE_WEB_HUNTERS.md"
+      - "vulnhunter/web_perception/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contracts:
+    name: Python ${{ matrix.python-version }} hunter contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install focused test dependencies
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install -e . pytest cryptography ruff
+
+      - name: Run hunter contract gates
+        run: |
+          set -euo pipefail
+          python -m ruff check vulnhunter/web_hunters tests/unit/test_web_hunters.py
+          python -m ruff format --check vulnhunter/web_hunters tests/unit/test_web_hunters.py
+          python -m compileall -q vulnhunter/web_hunters
+          python -m pytest -q tests/unit/test_web_hunters.py

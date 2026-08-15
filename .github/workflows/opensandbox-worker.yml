@@ -1,0 +1,556 @@
+name: OpenSandbox worker acceptance
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/opensandbox-worker.yml"
+      - "config/security_tools/nuclei_template_manifest.json"
+      - "config/security_tools/pilot_templates/**"
+      - "deploy/opensandbox-workers/**"
+      - "scripts/opensandbox_bandit_acceptance.py"
+      - "scripts/opensandbox_network_boundary_acceptance.py"
+      - "scripts/opensandbox_nuclei_acceptance.py"
+      - "scripts/opensandbox_worker_release.py"
+      - "tests/unit/test_opensandbox_activation.py"
+      - "tests/unit/test_opensandbox_network_backend.py"
+      - "tests/unit/test_opensandbox_supply_chain.py"
+      - "vulnhunter/security_tools/execution_backend.py"
+      - "vulnhunter/security_tools/executor.py"
+      - "vulnhunter/security_tools/models.py"
+      - "vulnhunter/security_tools/opensandbox_activation.py"
+      - "vulnhunter/security_tools/opensandbox_network_backend.py"
+      - "vulnhunter/security_tools/opensandbox_supply_chain.py"
+      - "vulnhunter/security_tools/__init__.py"
+      - "pyproject.toml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  hardened-container-smoke:
+    name: Hardened Bandit worker smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Build pinned-version Bandit worker
+        run: |
+          set -euo pipefail
+          docker build \
+            -f deploy/opensandbox-workers/bandit/Containerfile \
+            -t vulnhunter-opensandbox-bandit:ci \
+            .
+
+      - name: Exercise worker without network or privileges
+        run: |
+          set -euo pipefail
+          mkdir -p .ci-opensandbox
+          cat > .ci-opensandbox/fixture.py <<'PY'
+          import subprocess
+
+          subprocess.run("echo container-smoke", shell=True, check=False)
+          PY
+          docker run --rm \
+            --network none \
+            --read-only \
+            --cap-drop ALL \
+            --security-opt no-new-privileges \
+            --user 65532:65532 \
+            --tmpfs /tmp:rw,nosuid,nodev,size=32m \
+            --mount type=bind,src="$PWD/.ci-opensandbox/fixture.py",dst=/input/fixture.py,readonly \
+            --entrypoint /usr/local/bin/bandit \
+            vulnhunter-opensandbox-bandit:ci \
+            -r /input/fixture.py --format json --exit-zero --quiet \
+            > .ci-opensandbox/bandit.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          payload = json.loads(Path('.ci-opensandbox/bandit.json').read_text())
+          results = payload.get('results')
+          if not isinstance(results, list) or not results:
+              raise SystemExit('Bandit worker smoke produced no findings')
+          if not any(item.get('test_id') for item in results if isinstance(item, dict)):
+              raise SystemExit('Bandit worker smoke findings have no test IDs')
+          print(f"Bandit worker smoke accepted {len(results)} finding(s)")
+          PY
+
+  genuine-opensandbox:
+    name: Genuine signed VulnHunter OpenSandbox Bandit acceptance
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install VulnHunter, OpenSandbox SDK, and server
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install -e '.[opensandbox]' 'opensandbox-server==0.2.2'
+
+      - name: Build and publish worker to ephemeral local registry
+        id: worker
+        run: |
+          set -euo pipefail
+          docker run -d --name vulnhunter-registry -p 5000:5000 registry:2
+          docker build \
+            -f deploy/opensandbox-workers/bandit/Containerfile \
+            -t localhost:5000/vulnhunter-bandit:ci \
+            .
+          docker push localhost:5000/vulnhunter-bandit:ci
+          image="$(docker image inspect \
+            --format='{{index .RepoDigests 0}}' \
+            localhost:5000/vulnhunter-bandit:ci)"
+          case "$image" in
+            localhost:5000/vulnhunter-bandit@sha256:*) ;;
+            *) echo "Expected immutable repository digest, got: $image" >&2; exit 1 ;;
+          esac
+          echo "image=$image" >> "$GITHUB_OUTPUT"
+
+      - name: Generate and sign Bandit release evidence
+        id: release
+        run: |
+          set -euo pipefail
+          release_dir="$RUNNER_TEMP/bandit-release"
+          mkdir -p "$release_dir"
+          source_commit="$(git rev-parse HEAD)"
+          release_id="bandit-ci-${source_commit:0:12}"
+          python scripts/opensandbox_worker_release.py keygen \
+            --private-key "$release_dir/private.pem" \
+            --public-key "$release_dir/public.pem"
+          python scripts/opensandbox_worker_release.py sbom \
+            --worker-id bandit \
+            --image '${{ steps.worker.outputs.image }}' \
+            --output "$release_dir/sbom.spdx.json"
+          python scripts/opensandbox_worker_release.py provenance \
+            --worker-id bandit \
+            --image '${{ steps.worker.outputs.image }}' \
+            --containerfile deploy/opensandbox-workers/bandit/Containerfile \
+            --source-commit "$source_commit" \
+            --output "$release_dir/provenance.json"
+          python scripts/opensandbox_worker_release.py record \
+            --worker-id bandit \
+            --release-id "$release_id" \
+            --image '${{ steps.worker.outputs.image }}' \
+            --sbom "$release_dir/sbom.spdx.json" \
+            --provenance "$release_dir/provenance.json" \
+            --source-commit "$source_commit" \
+            --output "$release_dir/record.json"
+          python scripts/opensandbox_worker_release.py registry \
+            --record "$release_dir/record.json" \
+            --output "$release_dir/registry.json"
+          python scripts/opensandbox_worker_release.py sign \
+            --registry "$release_dir/registry.json" \
+            --private-key "$release_dir/private.pem" \
+            --public-key "$release_dir/public.pem" \
+            --signature "$release_dir/registry.sig.json"
+          python scripts/opensandbox_worker_release.py verify \
+            --registry "$release_dir/registry.json" \
+            --signature "$release_dir/registry.sig.json" \
+            --public-key "$release_dir/public.pem" \
+            --worker-id bandit \
+            --image '${{ steps.worker.outputs.image }}' \
+            | tee "$release_dir/verification.json"
+          rm -f "$release_dir/private.pem"
+          echo "dir=$release_dir" >> "$GITHUB_OUTPUT"
+
+      - name: Configure local OpenSandbox server
+        run: |
+          set -euo pipefail
+          cat > "$RUNNER_TEMP/opensandbox.toml" <<'TOML'
+          [server]
+          host = "127.0.0.1"
+          port = 8080
+          max_sandbox_timeout_seconds = 600
+
+          [log]
+          level = "INFO"
+
+          [runtime]
+          type = "docker"
+          execd_image = "opensandbox/execd:v1.0.22"
+
+          [storage]
+          allowed_host_paths = []
+          volume_default_size = "1Gi"
+
+          [store]
+          type = "sqlite"
+          path = "/tmp/vulnhunter-opensandbox.db"
+
+          [docker]
+          network_mode = "bridge"
+          port_range_min = 40000
+          port_range_max = 41000
+          drop_capabilities = ["AUDIT_WRITE", "MKNOD", "NET_ADMIN", "NET_RAW", "SYS_ADMIN", "SYS_MODULE", "SYS_PTRACE", "SYS_TIME", "SYS_TTY_CONFIG"]
+          no_new_privileges = true
+          apparmor_profile = ""
+          pids_limit = 512
+          seccomp_profile = ""
+
+          [ingress]
+          mode = "direct"
+
+          [egress]
+          image = "opensandbox/egress:v1.1.6"
+          mode = "dns"
+
+          [renew_intent]
+          enabled = false
+          min_interval_seconds = 60
+          TOML
+
+      - name: Start OpenSandbox control plane
+        env:
+          OPENSANDBOX_INSECURE_SERVER: "YES"
+          SANDBOX_CONFIG_PATH: ${{ runner.temp }}/opensandbox.toml
+        run: |
+          set -euo pipefail
+          opensandbox-server > "$RUNNER_TEMP/opensandbox-server.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/opensandbox-server.pid"
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent http://127.0.0.1:8080/health > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "OpenSandbox server did not become healthy" >&2
+          tail -n 200 "$RUNNER_TEMP/opensandbox-server.log" >&2 || true
+          exit 1
+
+      - name: Run governed end-to-end Bandit acceptance
+        env:
+          OPENSANDBOX_DISABLE_METRICS: "1"
+        run: |
+          set -euo pipefail
+          python scripts/opensandbox_bandit_acceptance.py \
+            --image '${{ steps.worker.outputs.image }}' \
+            --release-registry '${{ steps.release.outputs.dir }}/registry.json' \
+            --release-signature '${{ steps.release.outputs.dir }}/registry.sig.json' \
+            --release-public-key '${{ steps.release.outputs.dir }}/public.pem' \
+            --domain 127.0.0.1:8080 \
+            --protocol http \
+            | tee "$RUNNER_TEMP/opensandbox-acceptance.json"
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          receipt = json.loads(
+              (Path(os.environ['RUNNER_TEMP']) / 'opensandbox-acceptance.json').read_text()
+          )
+          if receipt.get('status') != 'accepted':
+              raise SystemExit('OpenSandbox acceptance receipt is not accepted')
+          if receipt.get('tool_id') != 'bandit':
+              raise SystemExit('OpenSandbox acceptance used an unexpected tool')
+          if not receipt.get('finding_count'):
+              raise SystemExit('OpenSandbox acceptance normalized no findings')
+          for field in ('release_id', 'sbom_sha256', 'provenance_sha256', 'release_key_id'):
+              if not receipt.get(field):
+                  raise SystemExit(f'OpenSandbox acceptance omitted supply-chain field: {field}')
+          PY
+
+      - name: Upload Bandit release evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: opensandbox-bandit-release-evidence
+          path: |
+            ${{ steps.release.outputs.dir }}/sbom.spdx.json
+            ${{ steps.release.outputs.dir }}/provenance.json
+            ${{ steps.release.outputs.dir }}/record.json
+            ${{ steps.release.outputs.dir }}/registry.json
+            ${{ steps.release.outputs.dir }}/registry.sig.json
+            ${{ steps.release.outputs.dir }}/public.pem
+            ${{ steps.release.outputs.dir }}/verification.json
+            ${{ runner.temp }}/opensandbox-acceptance.json
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Print OpenSandbox diagnostics on failure
+        if: failure()
+        run: |
+          tail -n 250 "$RUNNER_TEMP/opensandbox-server.log" || true
+          docker ps -a || true
+
+      - name: Clean up OpenSandbox and registry
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/opensandbox-server.pid" ]; then
+            kill "$(cat "$RUNNER_TEMP/opensandbox-server.pid")" 2>/dev/null || true
+          fi
+          docker rm -f vulnhunter-registry 2>/dev/null || true
+
+  genuine-opensandbox-nuclei:
+    name: Genuine signed exact-target OpenSandbox Nuclei acceptance
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install VulnHunter, OpenSandbox SDK, and server
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install -e '.[opensandbox]' 'opensandbox-server==0.2.2'
+
+      - name: Build and publish checksum-pinned Nuclei worker
+        id: worker
+        run: |
+          set -euo pipefail
+          docker run -d --name vulnhunter-nuclei-registry -p 5000:5000 registry:2
+          docker build \
+            -f deploy/opensandbox-workers/nuclei/Containerfile \
+            -t localhost:5000/vulnhunter-nuclei:ci \
+            .
+          docker push localhost:5000/vulnhunter-nuclei:ci
+          image="$(docker image inspect \
+            --format='{{index .RepoDigests 0}}' \
+            localhost:5000/vulnhunter-nuclei:ci)"
+          case "$image" in
+            localhost:5000/vulnhunter-nuclei@sha256:*) ;;
+            *) echo "Expected immutable Nuclei repository digest, got: $image" >&2; exit 1 ;;
+          esac
+          echo "image=$image" >> "$GITHUB_OUTPUT"
+
+      - name: Generate and sign Nuclei release evidence
+        id: release
+        run: |
+          set -euo pipefail
+          release_dir="$RUNNER_TEMP/nuclei-release"
+          mkdir -p "$release_dir"
+          source_commit="$(git rev-parse HEAD)"
+          release_id="nuclei-ci-${source_commit:0:12}"
+          python scripts/opensandbox_worker_release.py keygen \
+            --private-key "$release_dir/private.pem" \
+            --public-key "$release_dir/public.pem"
+          python scripts/opensandbox_worker_release.py sbom \
+            --worker-id nuclei \
+            --image '${{ steps.worker.outputs.image }}' \
+            --output "$release_dir/sbom.spdx.json"
+          python scripts/opensandbox_worker_release.py provenance \
+            --worker-id nuclei \
+            --image '${{ steps.worker.outputs.image }}' \
+            --containerfile deploy/opensandbox-workers/nuclei/Containerfile \
+            --source-commit "$source_commit" \
+            --output "$release_dir/provenance.json"
+          python scripts/opensandbox_worker_release.py record \
+            --worker-id nuclei \
+            --release-id "$release_id" \
+            --image '${{ steps.worker.outputs.image }}' \
+            --sbom "$release_dir/sbom.spdx.json" \
+            --provenance "$release_dir/provenance.json" \
+            --source-commit "$source_commit" \
+            --output "$release_dir/record.json"
+          python scripts/opensandbox_worker_release.py registry \
+            --record "$release_dir/record.json" \
+            --output "$release_dir/registry.json"
+          python scripts/opensandbox_worker_release.py sign \
+            --registry "$release_dir/registry.json" \
+            --private-key "$release_dir/private.pem" \
+            --public-key "$release_dir/public.pem" \
+            --signature "$release_dir/registry.sig.json"
+          python scripts/opensandbox_worker_release.py verify \
+            --registry "$release_dir/registry.json" \
+            --signature "$release_dir/registry.sig.json" \
+            --public-key "$release_dir/public.pem" \
+            --worker-id nuclei \
+            --image '${{ steps.worker.outputs.image }}' \
+            | tee "$release_dir/verification.json"
+          rm -f "$release_dir/private.pem"
+          echo "dir=$release_dir" >> "$GITHUB_OUTPUT"
+
+      - name: Start deliberate authorized target and identify denied control endpoint
+        id: target
+        shell: bash
+        run: |
+          set -euo pipefail
+          ADDRESS="$(python scripts/phone_lab_target.py --print-address)"
+          DENIED_HOST="$(docker network inspect bridge --format '{{(index .IPAM.Config 0).Gateway}}')"
+          if [[ "$ADDRESS" == "$DENIED_HOST" ]]; then
+            echo "Approved and denied boundary addresses unexpectedly match" >&2
+            exit 1
+          fi
+          echo "address=$ADDRESS" >> "$GITHUB_OUTPUT"
+          echo "denied_host=$DENIED_HOST" >> "$GITHUB_OUTPUT"
+          python scripts/phone_lab_target.py --host "$ADDRESS" --port 8011 \
+            > "$RUNNER_TEMP/opensandbox-nuclei-target.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/opensandbox-nuclei-target.pid"
+          for attempt in $(seq 1 40); do
+            if curl --fail --silent "http://$ADDRESS:8011/healthz" >/dev/null; then
+              break
+            fi
+            sleep 0.25
+          done
+          curl --fail --silent "http://$ADDRESS:8011/healthz" >/dev/null
+          docker run --rm --entrypoint python3 localhost:5000/vulnhunter-nuclei:ci -c \
+            "import socket; s=socket.create_connection(('$DENIED_HOST',5000),3); s.close()"
+
+      - name: Configure local OpenSandbox server with IP-enforcing egress
+        run: |
+          set -euo pipefail
+          cat > "$RUNNER_TEMP/opensandbox-nuclei.toml" <<'TOML'
+          [server]
+          host = "127.0.0.1"
+          port = 8080
+          max_sandbox_timeout_seconds = 600
+
+          [log]
+          level = "INFO"
+
+          [runtime]
+          type = "docker"
+          execd_image = "opensandbox/execd:v1.0.22"
+
+          [storage]
+          allowed_host_paths = []
+          volume_default_size = "1Gi"
+
+          [store]
+          type = "sqlite"
+          path = "/tmp/vulnhunter-opensandbox-nuclei.db"
+
+          [docker]
+          network_mode = "bridge"
+          port_range_min = 40000
+          port_range_max = 41000
+          drop_capabilities = ["AUDIT_WRITE", "MKNOD", "NET_ADMIN", "NET_RAW", "SYS_ADMIN", "SYS_MODULE", "SYS_PTRACE", "SYS_TIME", "SYS_TTY_CONFIG"]
+          no_new_privileges = true
+          apparmor_profile = ""
+          pids_limit = 512
+          seccomp_profile = ""
+
+          [ingress]
+          mode = "direct"
+
+          [egress]
+          image = "opensandbox/egress:v1.1.6"
+          mode = "dns+nft"
+
+          [renew_intent]
+          enabled = false
+          min_interval_seconds = 60
+          TOML
+
+      - name: Start OpenSandbox Nuclei control plane
+        env:
+          OPENSANDBOX_INSECURE_SERVER: "YES"
+          SANDBOX_CONFIG_PATH: ${{ runner.temp }}/opensandbox-nuclei.toml
+        run: |
+          set -euo pipefail
+          opensandbox-server > "$RUNNER_TEMP/opensandbox-nuclei-server.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/opensandbox-nuclei-server.pid"
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent http://127.0.0.1:8080/health > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "OpenSandbox Nuclei server did not become healthy" >&2
+          tail -n 250 "$RUNNER_TEMP/opensandbox-nuclei-server.log" >&2 || true
+          exit 1
+
+      - name: Prove exact IPv4 boundary blocks another reachable endpoint
+        env:
+          OPENSANDBOX_DISABLE_METRICS: "1"
+        run: |
+          set -euo pipefail
+          python scripts/opensandbox_network_boundary_acceptance.py \
+            --image '${{ steps.worker.outputs.image }}' \
+            --approved-host '${{ steps.target.outputs.address }}' \
+            --approved-port 8011 \
+            --denied-host '${{ steps.target.outputs.denied_host }}' \
+            --denied-port 5000 \
+            --domain 127.0.0.1:8080 \
+            --protocol http \
+            | tee "$RUNNER_TEMP/opensandbox-network-boundary.json"
+
+      - name: Run governed end-to-end Nuclei website acceptance
+        env:
+          OPENSANDBOX_DISABLE_METRICS: "1"
+        run: |
+          set -euo pipefail
+          python scripts/opensandbox_nuclei_acceptance.py \
+            --image '${{ steps.worker.outputs.image }}' \
+            --target-url 'http://${{ steps.target.outputs.address }}:8011/' \
+            --release-registry '${{ steps.release.outputs.dir }}/registry.json' \
+            --release-signature '${{ steps.release.outputs.dir }}/registry.sig.json' \
+            --release-public-key '${{ steps.release.outputs.dir }}/public.pem' \
+            --domain 127.0.0.1:8080 \
+            --protocol http \
+            | tee "$RUNNER_TEMP/opensandbox-nuclei-acceptance.json"
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          receipt = json.loads(
+              (Path(os.environ['RUNNER_TEMP']) / 'opensandbox-nuclei-acceptance.json').read_text()
+          )
+          if receipt.get('status') != 'accepted':
+              raise SystemExit('OpenSandbox Nuclei acceptance receipt is not accepted')
+          if receipt.get('tool_id') != 'nuclei':
+              raise SystemExit('OpenSandbox Nuclei acceptance used an unexpected tool')
+          if not receipt.get('finding_count'):
+              raise SystemExit('OpenSandbox Nuclei acceptance normalized no findings')
+          if receipt.get('bound_ip') != '${{ steps.target.outputs.address }}':
+              raise SystemExit('OpenSandbox Nuclei acceptance did not preserve the authorized IP')
+          for field in ('release_id', 'sbom_sha256', 'provenance_sha256', 'release_key_id'):
+              if not receipt.get(field):
+                  raise SystemExit(f'Nuclei acceptance omitted supply-chain field: {field}')
+          PY
+
+      - name: Upload Nuclei release evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: opensandbox-nuclei-release-evidence
+          path: |
+            ${{ steps.release.outputs.dir }}/sbom.spdx.json
+            ${{ steps.release.outputs.dir }}/provenance.json
+            ${{ steps.release.outputs.dir }}/record.json
+            ${{ steps.release.outputs.dir }}/registry.json
+            ${{ steps.release.outputs.dir }}/registry.sig.json
+            ${{ steps.release.outputs.dir }}/public.pem
+            ${{ steps.release.outputs.dir }}/verification.json
+            ${{ runner.temp }}/opensandbox-network-boundary.json
+            ${{ runner.temp }}/opensandbox-nuclei-acceptance.json
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Print Nuclei/OpenSandbox diagnostics on failure
+        if: failure()
+        run: |
+          cat "$RUNNER_TEMP/opensandbox-network-boundary.json" 2>/dev/null || true
+          cat "$RUNNER_TEMP/opensandbox-nuclei-acceptance.json" 2>/dev/null || true
+          cat "$RUNNER_TEMP/opensandbox-nuclei-target.log" 2>/dev/null || true
+          tail -n 300 "$RUNNER_TEMP/opensandbox-nuclei-server.log" 2>/dev/null || true
+          docker ps -a || true
+
+      - name: Clean up Nuclei target, OpenSandbox, and registry
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/opensandbox-nuclei-target.pid" ]; then
+            kill "$(cat "$RUNNER_TEMP/opensandbox-nuclei-target.pid")" 2>/dev/null || true
+          fi
+          if [ -f "$RUNNER_TEMP/opensandbox-nuclei-server.pid" ]; then
+            kill "$(cat "$RUNNER_TEMP/opensandbox-nuclei-server.pid")" 2>/dev/null || true
+          fi
+          docker rm -f vulnhunter-nuclei-registry 2>/dev/null || true

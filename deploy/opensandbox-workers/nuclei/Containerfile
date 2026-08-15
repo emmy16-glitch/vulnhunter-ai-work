@@ -1,0 +1,45 @@
+ARG PYTHON_BASE_IMAGE=python:3.12-slim-bookworm@sha256:a116514e19457bcb7af7efe9c3dd0b9b71e85b317694e7882a1c52aa15a78134
+FROM ${PYTHON_BASE_IMAGE} AS nuclei-fetch
+
+ARG NUCLEI_VERSION=3.8.0
+ARG NUCLEI_ARCHIVE_SHA256=cd4ea43c88b50af8ab96eb6ad3fb4debd8e9d51efaff4d4c2d99106041578943
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates curl unzip \
+    && rm -rf /var/lib/apt/lists/* \
+    && curl --fail --location --retry 4 --retry-delay 2 \
+       --output /tmp/nuclei.zip \
+       "https://github.com/projectdiscovery/nuclei/releases/download/v${NUCLEI_VERSION}/nuclei_${NUCLEI_VERSION}_linux_amd64.zip" \
+    && printf '%s  %s\n' "${NUCLEI_ARCHIVE_SHA256}" /tmp/nuclei.zip | sha256sum --check --strict \
+    && unzip -q /tmp/nuclei.zip nuclei -d /tmp/nuclei-bin \
+    && chmod 0555 /tmp/nuclei-bin/nuclei \
+    && /tmp/nuclei-bin/nuclei -version 2>&1 | grep -F "3.8.0"
+
+FROM ${PYTHON_BASE_IMAGE}
+
+LABEL org.opencontainers.image.title="VulnHunter OpenSandbox Nuclei Worker" \
+      org.opencontainers.image.description="Exact-target passive Nuclei worker for governed VulnHunter website scans" \
+      org.opencontainers.image.source="https://github.com/emmy16-glitch/vulnhunter-ai-work" \
+      org.opencontainers.image.licenses="MIT"
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    HOME=/tmp \
+    XDG_CONFIG_HOME=/tmp/.config \
+    XDG_CACHE_HOME=/tmp/.cache
+
+COPY --from=nuclei-fetch /tmp/nuclei-bin/nuclei /usr/local/bin/nuclei
+COPY config/security_tools/pilot_templates /opt/vulnhunter/templates
+COPY config/security_tools/nuclei_template_manifest.json /opt/vulnhunter/nuclei_template_manifest.json
+
+RUN chmod 0555 /usr/local/bin/nuclei \
+    && find /opt/vulnhunter/templates -type d -exec chmod 0555 {} + \
+    && find /opt/vulnhunter/templates -type f -exec chmod 0444 {} + \
+    && chmod 0444 /opt/vulnhunter/nuclei_template_manifest.json
+
+WORKDIR /tmp
+
+# OpenSandbox injects execd into the container. The container itself keeps the
+# control-process ceiling required by execd; RunCommandOpts explicitly launches
+# VulnHunter's fixed runner and Nuclei child as uid/gid 65532:65532.
+CMD ["python3", "-c", "import time; time.sleep(86400)"]

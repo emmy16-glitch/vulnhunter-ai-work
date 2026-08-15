@@ -8,9 +8,7 @@ from vulnhunter.web.conversation_service import interpret_request
 
 
 class Command(BaseCommand):
-    help = (
-        "Verify one configured high-reasoning LLM through the exact web conversation path."
-    )
+    help = "Verify one configured high-reasoning LLM through the exact web conversation path."
 
     def add_arguments(self, parser) -> None:
         parser.add_argument(

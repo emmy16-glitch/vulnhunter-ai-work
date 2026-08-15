@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import ipaddress
 import re
 from datetime import UTC, datetime
 from enum import StrEnum
 from pathlib import Path
+from typing import Literal
+from urllib.parse import urlsplit
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -13,6 +16,7 @@ from vulnhunter.actions.models import ActionClass, sha256_json
 
 _IDENTIFIER = re.compile(r"^[a-z0-9][a-z0-9._-]{1,127}$")
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
+_IMAGE_DIGEST = re.compile(r"^.+@sha256:[0-9a-f]{64}$")
 
 
 def utc_now() -> datetime:
@@ -120,6 +124,37 @@ class SecurityToolRequest(BaseModel):
         return value
 
 
+class NetworkTargetBinding(BaseModel):
+    """One immutable network destination selected before execution authorization."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    scheme: Literal["http", "https"]
+    hostname: str = Field(min_length=1, max_length=253)
+    ip_address: str
+    port: int = Field(ge=1, le=65_535)
+    connect_url: str = Field(min_length=1, max_length=2048)
+    host_header: str = Field(min_length=1, max_length=512)
+    tls_server_name: str | None = Field(default=None, max_length=253)
+
+    @model_validator(mode="after")
+    def validate_binding(self):
+        try:
+            address = ipaddress.ip_address(self.ip_address)
+        except ValueError as exc:
+            raise ValueError("network binding IP address is invalid") from exc
+        if address.version != 4:
+            raise ValueError("first-stage OpenSandbox network binding supports IPv4 only")
+        parsed = urlsplit(self.connect_url)
+        if parsed.scheme != self.scheme or parsed.hostname != self.ip_address:
+            raise ValueError("network binding connect URL must use the pinned IP and scheme")
+        if (parsed.port or (443 if self.scheme == "https" else 80)) != self.port:
+            raise ValueError("network binding connect URL port does not match the pinned port")
+        if self.scheme == "http" and self.tls_server_name is not None:
+            raise ValueError("HTTP network bindings must not carry a TLS server name")
+        return self
+
+
 class CommandPlan(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
@@ -129,6 +164,9 @@ class CommandPlan(BaseModel):
     argv: tuple[str, ...] = Field(min_length=1)
     target: str | None = None
     target_kind: ToolTargetKind = ToolTargetKind.NETWORK
+    runtime_image: str | None = None
+    template_manifest_sha256: str | None = None
+    network_binding: NetworkTargetBinding | None = None
     output_files: tuple[Path, ...] = ()
     stdout_file: Path | None = None
     stderr_file: Path | None = None
@@ -149,6 +187,15 @@ class CommandPlan(BaseModel):
             raise ValueError("command arguments must not contain NUL bytes")
         if self.target is not None and "\x00" in self.target:
             raise ValueError("command target must not contain NUL bytes")
+        if self.runtime_image is not None and _IMAGE_DIGEST.fullmatch(self.runtime_image) is None:
+            raise ValueError("runtime_image must be pinned by sha256 digest")
+        if (
+            self.template_manifest_sha256 is not None
+            and _SHA256.fullmatch(self.template_manifest_sha256) is None
+        ):
+            raise ValueError("template_manifest_sha256 must be a SHA-256 digest")
+        if self.network_binding is not None and self.target_kind != ToolTargetKind.NETWORK:
+            raise ValueError("network binding is valid only for network targets")
         return self
 
     def fingerprint(self) -> str:

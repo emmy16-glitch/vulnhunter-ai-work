@@ -20,6 +20,9 @@ def _parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--image", required=True, help="Digest-pinned Nuclei worker image")
     parser.add_argument("--target-url", required=True, help="Authorized HTTP target URL")
+    parser.add_argument("--release-registry", type=Path, required=True)
+    parser.add_argument("--release-signature", type=Path, required=True)
+    parser.add_argument("--release-public-key", type=Path, required=True)
     parser.add_argument("--domain", default="localhost:8080", help="OpenSandbox host:port")
     parser.add_argument(
         "--protocol",
@@ -30,7 +33,16 @@ def _parser() -> argparse.ArgumentParser:
     return parser
 
 
-def run_acceptance(*, image: str, target_url: str, domain: str, protocol: str) -> dict[str, object]:
+def run_acceptance(
+    *,
+    image: str,
+    target_url: str,
+    release_registry: Path,
+    release_signature: Path,
+    release_public_key: Path,
+    domain: str,
+    protocol: str,
+) -> dict[str, object]:
     parsed = urlsplit(target_url)
     if parsed.scheme not in {"http", "https"} or parsed.hostname is None:
         raise RuntimeError("acceptance target must be one HTTP or HTTPS URL")
@@ -41,6 +53,9 @@ def run_acceptance(*, image: str, target_url: str, domain: str, protocol: str) -
         protocol=protocol,
         nuclei_image=image,
         maximum_input_bytes=1_000_000,
+        release_registry_file=release_registry,
+        release_signature_file=release_signature,
+        release_public_key_file=release_public_key,
     )
     backend = config.build_backend()
     if backend is None:
@@ -55,6 +70,7 @@ def run_acceptance(*, image: str, target_url: str, domain: str, protocol: str) -
             return bool(
                 plan.tool_id == "nuclei"
                 and plan.runtime_image == image
+                and plan.runtime_release_id is not None
                 and binding is not None
                 and binding.hostname == parsed.hostname.casefold()
                 and binding.port == (parsed.port or (443 if parsed.scheme == "https" else 80))
@@ -96,6 +112,10 @@ def run_acceptance(*, image: str, target_url: str, domain: str, protocol: str) -
             raise RuntimeError("Nuclei acceptance plan did not bind its worker digest")
         if plan.template_manifest_sha256 is None:
             raise RuntimeError("Nuclei acceptance plan did not bind reviewed template identity")
+        if plan.runtime_release_id is None or plan.runtime_sbom_sha256 is None:
+            raise RuntimeError("Nuclei acceptance plan did not bind signed release identity")
+        if plan.runtime_provenance_sha256 is None or plan.runtime_release_key_id is None:
+            raise RuntimeError("Nuclei acceptance plan did not bind supply-chain evidence")
         if "-disable-redirects" not in plan.argv or "-no-httpx" not in plan.argv:
             raise RuntimeError(
                 "Nuclei acceptance plan did not retain exact-target scanner controls"
@@ -130,6 +150,11 @@ def run_acceptance(*, image: str, target_url: str, domain: str, protocol: str) -
             "status": "accepted",
             "tool_id": result.tool_id,
             "worker_image": image,
+            "release_id": plan.runtime_release_id,
+            "sbom_sha256": plan.runtime_sbom_sha256,
+            "provenance_sha256": plan.runtime_provenance_sha256,
+            "release_registry_sha256": plan.runtime_release_registry_sha256,
+            "release_key_id": plan.runtime_release_key_id,
             "template_manifest_sha256": plan.template_manifest_sha256,
             "bound_ip": plan.network_binding.ip_address,
             "bound_port": plan.network_binding.port,
@@ -145,6 +170,9 @@ def main() -> None:
     receipt = run_acceptance(
         image=args.image,
         target_url=args.target_url,
+        release_registry=args.release_registry,
+        release_signature=args.release_signature,
+        release_public_key=args.release_public_key,
         domain=args.domain,
         protocol=args.protocol,
     )

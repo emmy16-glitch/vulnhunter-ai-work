@@ -146,9 +146,7 @@ class OpenSandboxActivationConfig:
         enabled = _parse_bool(values.get(_ENABLED_ENV), name=_ENABLED_ENV, default=False)
         protocol = values.get(_PROTOCOL_ENV, "http").strip().lower()
         if protocol not in {"http", "https"}:
-            raise OpenSandboxActivationError(
-                f"{_PROTOCOL_ENV} must be either http or https"
-            )
+            raise OpenSandboxActivationError(f"{_PROTOCOL_ENV} must be either http or https")
         maximum_input_bytes = _parse_positive_int(
             values.get(_MAX_INPUT_ENV),
             name=_MAX_INPUT_ENV,

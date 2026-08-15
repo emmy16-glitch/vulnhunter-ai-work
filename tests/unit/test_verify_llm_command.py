@@ -14,26 +14,30 @@ from vulnhunter.web.management.commands import vh_verify_llm
 def _interpreted(
     *,
     provider: str = "groq",
-    model: str | None = "openai/gpt-oss-20b",
+    model: str | None = "openai/gpt-oss-120b",
     answer: str = "VULNHUNTER_LLM_READY",
-    detail: str = "Groq model: openai/gpt-oss-20b",
+    detail: str = "Groq high-reasoning model: openai/gpt-oss-120b",
 ):
     return SimpleNamespace(
         provider=provider,
         model=model,
         assistant_copy=answer,
         provider_detail=detail,
-        reasoning_effort="low",
+        reasoning_effort="high",
     )
 
 
-def test_verify_llm_uses_exact_conversation_path_and_emits_json(monkeypatch) -> None:
+def test_verify_llm_uses_exact_high_reasoning_conversation_path_and_emits_json(monkeypatch) -> None:
     captured: dict[str, object] = {}
 
     def fake_interpret_request(text: str, **kwargs):
         captured["text"] = text
         captured.update(kwargs)
-        return _interpreted(provider="huggingface", model="openai/gpt-oss-20b:groq")
+        return _interpreted(
+            provider="huggingface",
+            model="openai/gpt-oss-120b:groq",
+            detail="Hugging Face high-reasoning model: openai/gpt-oss-120b:groq",
+        )
 
     monkeypatch.setattr(vh_verify_llm, "interpret_request", fake_interpret_request)
     stdout = StringIO()
@@ -41,39 +45,39 @@ def test_verify_llm_uses_exact_conversation_path_and_emits_json(monkeypatch) -> 
     call_command(
         "vh_verify_llm",
         provider="huggingface",
-        reasoning="low",
+        reasoning="high",
         json_output=True,
         stdout=stdout,
     )
 
     payload = json.loads(stdout.getvalue())
     assert payload == {
-        "detail": "Groq model: openai/gpt-oss-20b",
-        "model": "openai/gpt-oss-20b:groq",
+        "detail": "Hugging Face high-reasoning model: openai/gpt-oss-120b:groq",
+        "model": "openai/gpt-oss-120b:groq",
         "provider": "huggingface",
         "ready": True,
-        "reasoning_effort": "low",
+        "reasoning_effort": "high",
     }
     assert "VULNHUNTER_LLM_READY" in str(captured["text"])
     assert captured["provider_preference"] == "huggingface"
-    assert captured["reasoning_effort"] == "low"
+    assert captured["reasoning_effort"] == "high"
     assert captured["available_profiles"] == ("passive",)
 
 
-def test_verify_llm_fails_when_only_deterministic_fallback_answers(monkeypatch) -> None:
+def test_verify_llm_fails_when_high_reasoning_provider_is_unavailable(monkeypatch) -> None:
     monkeypatch.setattr(
         vh_verify_llm,
         "interpret_request",
         lambda *args, **kwargs: _interpreted(
-            provider="deterministic",
+            provider="groq",
             model=None,
-            answer="Local fallback answer",
-            detail="Groq is disabled. Hugging Face token is missing.",
+            answer="High-reasoning AI is unavailable",
+            detail="Configured high-reasoning model unavailable.",
         ),
     )
 
-    with pytest.raises(CommandError, match="No configured remote LLM"):
-        call_command("vh_verify_llm", provider="auto", reasoning="low")
+    with pytest.raises(CommandError, match="high-reasoning provider did not complete"):
+        call_command("vh_verify_llm", provider="auto", reasoning="high")
 
 
 def test_verify_llm_fails_when_requested_provider_is_not_used(monkeypatch) -> None:
@@ -84,7 +88,7 @@ def test_verify_llm_fails_when_requested_provider_is_not_used(monkeypatch) -> No
     )
 
     with pytest.raises(CommandError, match="requested huggingface provider was not used"):
-        call_command("vh_verify_llm", provider="huggingface", reasoning="low")
+        call_command("vh_verify_llm", provider="huggingface", reasoning="high")
 
 
 def test_verify_llm_fails_when_answer_misses_marker(monkeypatch) -> None:
@@ -95,4 +99,9 @@ def test_verify_llm_fails_when_answer_misses_marker(monkeypatch) -> None:
     )
 
     with pytest.raises(CommandError, match="missed the readiness marker"):
+        call_command("vh_verify_llm", provider="groq", reasoning="high")
+
+
+def test_verify_llm_rejects_low_reasoning_cli_value() -> None:
+    with pytest.raises(CommandError):
         call_command("vh_verify_llm", provider="groq", reasoning="low")

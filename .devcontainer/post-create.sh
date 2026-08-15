@@ -144,8 +144,7 @@ export VULNHUNTER_GROQ_ENABLED=true
 export VULNHUNTER_GROQ_API_KEY_FILE="$GROQ_KEY"
 export VULNHUNTER_INTELLIGENCE_ENABLED=true
 export VULNHUNTER_INTELLIGENCE_ROOT="$ROOT/.local/intelligence"
-export VULNHUNTER_INTELLIGENCE_PRIMARY_MODEL="openai/gpt-oss-20b"
-export VULNHUNTER_INTELLIGENCE_DEEP_MODEL="openai/gpt-oss-120b"
+export VULNHUNTER_INTELLIGENCE_MODEL="openai/gpt-oss-120b"
 export VULNHUNTER_INTELLIGENCE_MAX_ATTEMPTS=2
 export VULNHUNTER_INTELLIGENCE_TIMEOUT_SECONDS=90
 export VULNHUNTER_INTELLIGENCE_MAX_INPUT_BYTES=64000
@@ -189,7 +188,7 @@ python scripts/nuclei_readiness.py \
 python manage.py migrate --noinput
 python manage.py vh_init_agent_store
 
-printf '\nVulnHunter Codespace is prepared with Codex, bounded reasoning, the pinned Nuclei worker, and the governed mobile worker stack.\n'
+printf '\nVulnHunter Codespace is prepared with Codex, high-only bounded reasoning, the pinned Nuclei worker, and the governed mobile worker stack.\n'
 printf 'Codex: %s\n' "$(codex --version)"
 printf 'Mobile APK upload limit: %s bytes\n' "$VULNHUNTER_MOBILE_MAX_APK_BYTES"
 printf 'Mobile static enqueue enabled: %s\n' "$VULNHUNTER_MOBILE_STATIC_ENQUEUE_ENABLED"

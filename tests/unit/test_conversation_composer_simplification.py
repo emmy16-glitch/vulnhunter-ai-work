@@ -31,20 +31,21 @@ def test_provider_preference_control_stays_inside_advanced_container() -> None:
     assert "composerMeta.insertBefore(control, runtime);" not in client
 
 
-def test_composer_uses_ordinary_language_before_provider_language() -> None:
+def test_composer_exposes_only_the_enforced_high_reasoning_mode() -> None:
     template = _template()
 
     assert (
         'placeholder="Ask VulnHunter about an authorised target, APK, finding or evidence…"'
         in template
     )
-    assert "Answer detail" in template
-    assert ">Brief</option>" in template
-    assert ">Balanced</option>" in template
-    assert ">Detailed</option>" in template
-    assert "Groq live" not in template
+    assert "Reasoning mode" in template
+    assert ">High</option>" in template
+    assert ">Brief</option>" not in template
+    assert ">Balanced</option>" not in template
+    assert ">Detailed</option>" not in template
+    assert "High reasoning enforced" in template
     assert "Groq unavailable" not in template
-    assert "Advisory provider ready" in template
+    assert "High-reasoning provider ready" in template
     assert "deterministic workflows remain available" in template
 
 

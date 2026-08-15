@@ -26,9 +26,7 @@ def test_activation_is_disabled_by_default() -> None:
 
 def test_enabled_activation_requires_digest_pinned_bandit_image() -> None:
     with pytest.raises(OpenSandboxActivationError, match="BANDIT_IMAGE"):
-        OpenSandboxActivationConfig.from_environment(
-            {"VULNHUNTER_OPENSANDBOX_ENABLED": "true"}
-        )
+        OpenSandboxActivationConfig.from_environment({"VULNHUNTER_OPENSANDBOX_ENABLED": "true"})
 
     with pytest.raises(OpenSandboxActivationError, match="pinned by sha256 digest"):
         OpenSandboxActivationConfig.from_environment(

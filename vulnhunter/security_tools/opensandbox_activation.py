@@ -1,4 +1,4 @@
-"""Strict environment activation for digest-pinned OpenSandbox scanner workers."""
+"""Strict environment activation for signed digest-pinned OpenSandbox scanner workers."""
 
 from __future__ import annotations
 
@@ -23,6 +23,11 @@ from vulnhunter.security_tools.opensandbox_network_backend import (
     NucleiOpenSandboxRuntimeSpec,
     OpenSandboxNucleiExecutionBackend,
 )
+from vulnhunter.security_tools.opensandbox_supply_chain import (
+    ApprovedWorkerRelease,
+    WorkerReleaseVerificationError,
+    load_verified_worker_release_registry,
+)
 
 _ENABLED_ENV = "VULNHUNTER_OPENSANDBOX_ENABLED"
 _DOMAIN_ENV = "VULNHUNTER_OPENSANDBOX_DOMAIN"
@@ -30,6 +35,9 @@ _PROTOCOL_ENV = "VULNHUNTER_OPENSANDBOX_PROTOCOL"
 _BANDIT_IMAGE_ENV = "VULNHUNTER_OPENSANDBOX_BANDIT_IMAGE"
 _NUCLEI_IMAGE_ENV = "VULNHUNTER_OPENSANDBOX_NUCLEI_IMAGE"
 _MAX_INPUT_ENV = "VULNHUNTER_OPENSANDBOX_MAX_INPUT_BYTES"
+_RELEASE_REGISTRY_ENV = "VULNHUNTER_OPENSANDBOX_RELEASE_REGISTRY_FILE"
+_RELEASE_SIGNATURE_ENV = "VULNHUNTER_OPENSANDBOX_RELEASE_SIGNATURE_FILE"
+_RELEASE_PUBLIC_KEY_ENV = "VULNHUNTER_OPENSANDBOX_RELEASE_PUBLIC_KEY_FILE"
 _NUCLEI_TEMPLATE_MANIFEST_SHA256 = (
     "088f533aaa631f178bde29c3589d286b3bb136f839772a39d9276f16b545d35c"
 )
@@ -108,7 +116,7 @@ class _PermissionModeSdkAdapter:
 
 
 class ConfiguredOpenSandboxExecutionBackend(OpenSandboxExecutionBackend):
-    """Configured router for offline file workers and exact-target network workers."""
+    """Configured router for signed offline and exact-target network workers."""
 
     def __init__(
         self,
@@ -116,6 +124,9 @@ class ConfiguredOpenSandboxExecutionBackend(OpenSandboxExecutionBackend):
         runtimes: Mapping[str, OpenSandboxRuntimeSpec],
         connection: OpenSandboxConnection,
         maximum_input_bytes: int,
+        approved_releases: Mapping[str, ApprovedWorkerRelease],
+        release_registry_sha256: str,
+        release_key_id: str,
         nuclei_runtime: NucleiOpenSandboxRuntimeSpec | None = None,
     ) -> None:
         super().__init__(
@@ -123,10 +134,10 @@ class ConfiguredOpenSandboxExecutionBackend(OpenSandboxExecutionBackend):
             connection=connection,
             maximum_input_bytes=maximum_input_bytes,
         )
-        # SDK 0.1.15 models permissions as integers such as 755/444 while the
-        # backend uses normal Python permission constants such as 0o755/0o444.
-        # The same seam also rejects the SDK's ambiguous exit_code=None state.
         self._sdk = _PermissionModeSdkAdapter(self._sdk)
+        self.approved_releases = dict(approved_releases)
+        self.release_registry_sha256 = release_registry_sha256
+        self.release_key_id = release_key_id
         self.nuclei_runtime = nuclei_runtime
         self._nuclei_backend = (
             OpenSandboxNucleiExecutionBackend(runtime=nuclei_runtime, connection=connection)
@@ -141,16 +152,19 @@ class ConfiguredOpenSandboxExecutionBackend(OpenSandboxExecutionBackend):
         return runtime.executable if runtime is not None else None
 
     def bind_plan(self, plan: CommandPlan, request: SecurityToolRequest) -> CommandPlan:
+        release = self._release_for(plan.tool_id)
         if plan.tool_id == "nuclei":
             if self._nuclei_backend is None:
                 raise ExecutionBackendError("OpenSandbox does not provide a Nuclei network runtime")
-            return self._nuclei_backend.bind_plan(plan, request)
+            bound = self._nuclei_backend.bind_plan(plan, request)
+            return self._bind_release_identity(bound, release)
         runtime = self.runtimes.get(plan.tool_id)
         if runtime is None:
             raise ExecutionBackendError(
                 f"No digest-pinned OpenSandbox runtime is registered for {plan.tool_id}"
             )
-        return plan.model_copy(update={"runtime_image": runtime.image})
+        bound = plan.model_copy(update={"runtime_image": runtime.image})
+        return self._bind_release_identity(bound, release)
 
     def execute(
         self,
@@ -158,6 +172,8 @@ class ConfiguredOpenSandboxExecutionBackend(OpenSandboxExecutionBackend):
         *,
         approved_input_roots: tuple[Path, ...],
     ) -> BackendExecutionResult:
+        release = self._release_for(plan.tool_id)
+        self._assert_release_identity(plan, release)
         if plan.tool_id == "nuclei":
             if self._nuclei_backend is None:
                 raise ExecutionBackendError("OpenSandbox Nuclei runtime is not configured")
@@ -172,10 +188,66 @@ class ConfiguredOpenSandboxExecutionBackend(OpenSandboxExecutionBackend):
             )
         return super().execute(plan, approved_input_roots=approved_input_roots)
 
+    def _release_for(self, tool_id: str) -> ApprovedWorkerRelease:
+        release = self.approved_releases.get(tool_id)
+        if release is None:
+            raise ExecutionBackendError(
+                f"OpenSandbox worker {tool_id} has no verified approved release"
+            )
+        return release
+
+    def _bind_release_identity(
+        self,
+        plan: CommandPlan,
+        release: ApprovedWorkerRelease,
+    ) -> CommandPlan:
+        if plan.runtime_image != release.image:
+            raise ExecutionBackendError(
+                "OpenSandbox runtime image does not match its signed approved release"
+            )
+        return plan.model_copy(
+            update={
+                "runtime_release_id": release.release_id,
+                "runtime_sbom_sha256": release.sbom_sha256,
+                "runtime_provenance_sha256": release.provenance_sha256,
+                "runtime_source_commit": release.source_commit,
+                "runtime_release_registry_sha256": self.release_registry_sha256,
+                "runtime_release_key_id": self.release_key_id,
+            }
+        )
+
+    def _assert_release_identity(
+        self,
+        plan: CommandPlan,
+        release: ApprovedWorkerRelease,
+    ) -> None:
+        expected = (
+            release.image,
+            release.release_id,
+            release.sbom_sha256,
+            release.provenance_sha256,
+            release.source_commit,
+            self.release_registry_sha256,
+            self.release_key_id,
+        )
+        actual = (
+            plan.runtime_image,
+            plan.runtime_release_id,
+            plan.runtime_sbom_sha256,
+            plan.runtime_provenance_sha256,
+            plan.runtime_source_commit,
+            plan.runtime_release_registry_sha256,
+            plan.runtime_release_key_id,
+        )
+        if actual != expected:
+            raise ExecutionBackendError(
+                "OpenSandbox worker supply-chain identity changed after plan issuance"
+            )
+
 
 @dataclass(frozen=True)
 class OpenSandboxActivationConfig:
-    """Environment-derived activation state for reviewed OpenSandbox workers."""
+    """Environment-derived activation state for signed reviewed OpenSandbox workers."""
 
     enabled: bool = False
     domain: str = "localhost:8080"
@@ -183,6 +255,9 @@ class OpenSandboxActivationConfig:
     bandit_image: str | None = None
     nuclei_image: str | None = None
     maximum_input_bytes: int = 50_000_000
+    release_registry_file: Path | None = None
+    release_signature_file: Path | None = None
+    release_public_key_file: Path | None = None
 
     def __post_init__(self) -> None:
         if self.maximum_input_bytes < 1024:
@@ -195,6 +270,20 @@ class OpenSandboxActivationConfig:
                 f"at least one of {_BANDIT_IMAGE_ENV} or {_NUCLEI_IMAGE_ENV} is required "
                 "when OpenSandbox is enabled"
             )
+        if self.enabled:
+            missing = [
+                name
+                for name, value in (
+                    (_RELEASE_REGISTRY_ENV, self.release_registry_file),
+                    (_RELEASE_SIGNATURE_ENV, self.release_signature_file),
+                    (_RELEASE_PUBLIC_KEY_ENV, self.release_public_key_file),
+                )
+                if value is None
+            ]
+            if missing:
+                raise OpenSandboxActivationError(
+                    "signed OpenSandbox worker releases are required; missing " + ", ".join(missing)
+                )
         try:
             if self.bandit_image:
                 _bandit_runtime(self.bandit_image)
@@ -225,11 +314,40 @@ class OpenSandboxActivationConfig:
             bandit_image=_optional_text(values.get(_BANDIT_IMAGE_ENV)),
             nuclei_image=_optional_text(values.get(_NUCLEI_IMAGE_ENV)),
             maximum_input_bytes=maximum_input_bytes,
+            release_registry_file=_optional_path(values.get(_RELEASE_REGISTRY_ENV)),
+            release_signature_file=_optional_path(values.get(_RELEASE_SIGNATURE_ENV)),
+            release_public_key_file=_optional_path(values.get(_RELEASE_PUBLIC_KEY_ENV)),
         )
 
     def build_backend(self) -> ConfiguredOpenSandboxExecutionBackend | None:
         if not self.enabled:
             return None
+        if (
+            self.release_registry_file is None
+            or self.release_signature_file is None
+            or self.release_public_key_file is None
+        ):
+            raise OpenSandboxActivationError("signed OpenSandbox release files are required")
+        try:
+            registry = load_verified_worker_release_registry(
+                self.release_registry_file,
+                self.release_signature_file,
+                self.release_public_key_file,
+            )
+            approved_releases: dict[str, ApprovedWorkerRelease] = {}
+            if self.bandit_image is not None:
+                approved_releases["bandit"] = registry.approved_release(
+                    "bandit",
+                    self.bandit_image,
+                )
+            if self.nuclei_image is not None:
+                approved_releases["nuclei"] = registry.approved_release(
+                    "nuclei",
+                    self.nuclei_image,
+                )
+        except WorkerReleaseVerificationError as exc:
+            raise OpenSandboxActivationError(str(exc)) from exc
+
         connection = OpenSandboxConnection(
             domain=self.domain,
             protocol=self.protocol,
@@ -247,6 +365,9 @@ class OpenSandboxActivationConfig:
             runtimes=runtimes,
             connection=connection,
             maximum_input_bytes=self.maximum_input_bytes,
+            approved_releases=approved_releases,
+            release_registry_sha256=registry.registry_sha256,
+            release_key_id=registry.key_id,
             nuclei_runtime=nuclei_runtime,
         )
 
@@ -346,3 +467,8 @@ def _optional_text(value: str | None) -> str | None:
         return None
     stripped = value.strip()
     return stripped or None
+
+
+def _optional_path(value: str | None) -> Path | None:
+    text = _optional_text(value)
+    return Path(text) if text is not None else None

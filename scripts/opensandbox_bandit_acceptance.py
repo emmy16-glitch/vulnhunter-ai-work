@@ -24,6 +24,9 @@ def _parser() -> argparse.ArgumentParser:
         description="Run VulnHunter -> OpenSandbox -> Bandit -> evidence acceptance."
     )
     parser.add_argument("--image", required=True, help="Digest-pinned Bandit worker image")
+    parser.add_argument("--release-registry", type=Path, required=True)
+    parser.add_argument("--release-signature", type=Path, required=True)
+    parser.add_argument("--release-public-key", type=Path, required=True)
     parser.add_argument("--domain", default="localhost:8080", help="OpenSandbox host:port")
     parser.add_argument(
         "--protocol",
@@ -34,13 +37,24 @@ def _parser() -> argparse.ArgumentParser:
     return parser
 
 
-def run_acceptance(*, image: str, domain: str, protocol: str) -> dict[str, object]:
+def run_acceptance(
+    *,
+    image: str,
+    release_registry: Path,
+    release_signature: Path,
+    release_public_key: Path,
+    domain: str,
+    protocol: str,
+) -> dict[str, object]:
     config = OpenSandboxActivationConfig(
         enabled=True,
         domain=domain,
         protocol=protocol,
         bandit_image=image,
         maximum_input_bytes=1_000_000,
+        release_registry_file=release_registry,
+        release_signature_file=release_signature,
+        release_public_key_file=release_public_key,
     )
     backend = config.build_backend()
     if backend is None:
@@ -61,8 +75,6 @@ def run_acceptance(*, image: str, domain: str, protocol: str) -> dict[str, objec
             approved_output_root=evidence_root,
             approved_input_roots=(input_root,),
             execution_backend=backend,
-            # This authorizer is intentionally acceptance-only. Production callers
-            # must use the real VulnHunter authorization/policy gate.
             execution_authorizer=lambda _plan, _execution_id: True,
         )
         request = SecurityToolRequest(
@@ -79,6 +91,10 @@ def run_acceptance(*, image: str, domain: str, protocol: str) -> dict[str, objec
         )
 
         plan = executor.plan(request)
+        if plan.runtime_release_id is None or plan.runtime_sbom_sha256 is None:
+            raise RuntimeError("Bandit acceptance plan did not bind signed release identity")
+        if plan.runtime_provenance_sha256 is None or plan.runtime_release_key_id is None:
+            raise RuntimeError("Bandit acceptance plan did not bind supply-chain evidence")
         result = executor.execute(
             plan,
             approval_consumed=False,
@@ -114,6 +130,11 @@ def run_acceptance(*, image: str, domain: str, protocol: str) -> dict[str, objec
             "status": "accepted",
             "tool_id": result.tool_id,
             "worker_image": image,
+            "release_id": plan.runtime_release_id,
+            "sbom_sha256": plan.runtime_sbom_sha256,
+            "provenance_sha256": plan.runtime_provenance_sha256,
+            "release_registry_sha256": plan.runtime_release_registry_sha256,
+            "release_key_id": plan.runtime_release_key_id,
             "command_plan_sha256": result.command_plan_sha256,
             "evidence_sha256": result.evidence_sha256,
             "finding_count": len(findings),
@@ -125,6 +146,9 @@ def main() -> None:
     args = _parser().parse_args()
     receipt = run_acceptance(
         image=args.image,
+        release_registry=args.release_registry,
+        release_signature=args.release_signature,
+        release_public_key=args.release_public_key,
         domain=args.domain,
         protocol=args.protocol,
     )

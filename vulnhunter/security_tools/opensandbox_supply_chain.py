@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
+import os
 import re
 import stat
 from dataclasses import dataclass
@@ -132,17 +133,13 @@ def load_verified_worker_release_registry(
         raise WorkerReleaseVerificationError("worker release signature key_id does not match key")
     signature = _decode_signature(signature_payload.get("signature"))
     try:
+        from cryptography.exceptions import InvalidSignature
+
         public_key.verify(signature, canonical_registry)
-    except Exception as exc:
-        try:
-            from cryptography.exceptions import InvalidSignature
-        except ImportError:  # pragma: no cover - import already required by key loading
-            InvalidSignature = ()  # type: ignore[assignment]
-        if InvalidSignature and isinstance(exc, InvalidSignature):
-            raise WorkerReleaseVerificationError(
-                "worker release registry signature verification failed"
-            ) from exc
-        raise
+    except InvalidSignature as exc:
+        raise WorkerReleaseVerificationError(
+            "worker release registry signature verification failed"
+        ) from exc
 
     return VerifiedWorkerReleaseRegistry(
         releases=releases,
@@ -286,18 +283,34 @@ def _load_json_object(data: bytes, *, label: str) -> dict[str, object]:
 
 
 def _read_regular_file(path: Path, *, maximum_bytes: int) -> bytes:
+    flags = os.O_RDONLY
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
     try:
-        metadata = path.lstat()
+        descriptor = os.open(path, flags)
     except OSError as exc:
         raise WorkerReleaseVerificationError(f"worker release file is unavailable: {path}") from exc
-    if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISREG(metadata.st_mode):
-        raise WorkerReleaseVerificationError("worker release inputs must be regular non-symlink files")
-    if metadata.st_size > maximum_bytes:
-        raise WorkerReleaseVerificationError("worker release input exceeds its maximum size")
     try:
-        data = path.read_bytes()
-    except OSError as exc:
-        raise WorkerReleaseVerificationError(f"worker release file could not be read: {path}") from exc
-    if len(data) != metadata.st_size:
-        raise WorkerReleaseVerificationError("worker release input changed while being read")
-    return data
+        metadata = os.fstat(descriptor)
+        if not stat.S_ISREG(metadata.st_mode):
+            raise WorkerReleaseVerificationError(
+                "worker release inputs must be regular non-symlink files"
+            )
+        if metadata.st_size > maximum_bytes:
+            raise WorkerReleaseVerificationError("worker release input exceeds its maximum size")
+        chunks: list[bytes] = []
+        remaining = maximum_bytes + 1
+        while remaining > 0:
+            chunk = os.read(descriptor, min(65_536, remaining))
+            if not chunk:
+                break
+            chunks.append(chunk)
+            remaining -= len(chunk)
+        data = b"".join(chunks)
+        if len(data) > maximum_bytes:
+            raise WorkerReleaseVerificationError("worker release input exceeds its maximum size")
+        if len(data) != metadata.st_size:
+            raise WorkerReleaseVerificationError("worker release input changed while being read")
+        return data
+    finally:
+        os.close(descriptor)

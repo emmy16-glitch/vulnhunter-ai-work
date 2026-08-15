@@ -102,7 +102,11 @@ def _release():
 def test_operational_draft_rejects_recomputed_production_accuracy_claim() -> None:
     payload = _draft().model_dump(mode="json")
     payload["production_accuracy_claim_permitted"] = True
-    canonical = {key: value for key, value in payload.items() if key not in {"draft_id", "draft_sha256"}}
+    canonical = {
+        key: value
+        for key, value in payload.items()
+        if key not in {"draft_id", "draft_sha256"}
+    }
     digest = _sha(canonical)
     payload["draft_sha256"] = digest
     payload["draft_id"] = f"source-corpus-draft-{digest[:24]}"

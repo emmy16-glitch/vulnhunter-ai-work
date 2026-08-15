@@ -196,9 +196,7 @@ class SecurityToolExecutor:
             request,
             executable=availability.executable_path,
             catalog=self.catalog,
-        ).model_copy(
-            update={"target": bound_target, "target_kind": request.target_kind}
-        )
+        ).model_copy(update={"target": bound_target, "target_kind": request.target_kind})
         self._issued_plans[plan.fingerprint()] = plan
         return plan
 

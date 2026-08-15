@@ -106,7 +106,7 @@ class OpenSandboxActivationConfig:
     def from_environment(
         cls,
         environ: Mapping[str, str] | None = None,
-    ) -> "OpenSandboxActivationConfig":
+    ) -> OpenSandboxActivationConfig:
         values = os.environ if environ is None else environ
         enabled = _parse_bool(values.get(_ENABLED_ENV), name=_ENABLED_ENV, default=False)
         protocol = values.get(_PROTOCOL_ENV, "http").strip().lower()
@@ -131,7 +131,9 @@ class OpenSandboxActivationConfig:
         if not self.enabled:
             return None
         if self.bandit_image is None:
-            raise OpenSandboxActivationError("Enabled OpenSandbox configuration has no worker image")
+            raise OpenSandboxActivationError(
+                "Enabled OpenSandbox configuration has no worker image"
+            )
         return ConfiguredOpenSandboxExecutionBackend(
             runtimes={"bandit": _bandit_runtime(self.bandit_image)},
             connection=OpenSandboxConnection(

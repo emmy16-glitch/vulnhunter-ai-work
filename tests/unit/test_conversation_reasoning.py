@@ -110,7 +110,7 @@ def test_failed_high_reasoning_does_not_fall_back_to_another_provider_or_canned_
         patch.object(conversation_service, "_huggingface_advisory") as huggingface,
     ):
         interpreted = conversation_service.interpret_request(
-            "Explain how this security finding could be a false positive",
+            "Explain how this security behavior could be a false positive",
             available_profiles=("passive",),
             reasoning_effort="low",
             provider_preference="auto",

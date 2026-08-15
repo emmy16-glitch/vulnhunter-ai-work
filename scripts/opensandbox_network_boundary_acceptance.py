@@ -98,7 +98,7 @@ def main() -> None:
         if execution.exit_code != 0:
             detail = execution.error.value if execution.error is not None else execution.exit_code
             raise RuntimeError(f"network boundary probe failed to execute: {detail}")
-        receipt = json.loads(sandbox.files.read_text(f"{root}/receipt.json"))
+        receipt = json.loads(sandbox.files.read_file(f"{root}/receipt.json"))
     finally:
         sandbox.destroy()
 

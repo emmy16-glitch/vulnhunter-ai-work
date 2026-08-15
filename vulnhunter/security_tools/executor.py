@@ -190,6 +190,19 @@ class SecurityToolExecutor:
             executable=executable,
             catalog=self.catalog,
         ).model_copy(update={"target": bound_target, "target_kind": request.target_kind})
+        if self.execution_backend is not None:
+            binder = getattr(self.execution_backend, "bind_plan", None)
+            if binder is not None:
+                if not callable(binder):
+                    raise SecurityToolExecutionError("Execution backend plan binder is invalid.")
+                try:
+                    plan = binder(plan, request)
+                except ExecutionBackendError as exc:
+                    raise SecurityToolExecutionError(str(exc)) from exc
+                if not isinstance(plan, CommandPlan):
+                    raise SecurityToolExecutionError(
+                        "Execution backend returned an invalid immutable command plan."
+                    )
         self._issued_plans[plan.fingerprint()] = plan
         return plan
 

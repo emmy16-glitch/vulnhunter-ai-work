@@ -13,15 +13,15 @@ from pathlib import Path
 from urllib.parse import urlsplit, urlunsplit
 
 from vulnhunter.security_tools.execution_backend import (
-    BackendExecutionResult,
-    ExecutionBackendError,
-    OpenSandboxConnection,
     _CONTROL,
     _PLAN,
     _ROOT,
     _RUNNER,
     _RUNNER_SOURCE,
     _WORK,
+    BackendExecutionResult,
+    ExecutionBackendError,
+    OpenSandboxConnection,
     _bounded_sandbox_read,
     _collect_artifacts,
     _output_mapping,
@@ -195,9 +195,14 @@ class OpenSandboxNucleiExecutionBackend:
         if plan.tool_id != "nuclei" or request.tool_id != "nuclei":
             raise ExecutionBackendError("OpenSandbox Nuclei backend received a non-Nuclei plan")
         if request.target_kind != ToolTargetKind.NETWORK:
-            raise ExecutionBackendError("OpenSandbox Nuclei worker accepts network URL targets only")
-        if str(request.parameters.get("scan_profile", "passive")).strip().lower() != "passive":
-            raise ExecutionBackendError("first OpenSandbox Nuclei worker supports passive scans only")
+            raise ExecutionBackendError(
+                "OpenSandbox Nuclei worker accepts network URL targets only"
+            )
+        scan_profile = str(request.parameters.get("scan_profile", "passive")).strip().lower()
+        if scan_profile != "passive":
+            raise ExecutionBackendError(
+                "first OpenSandbox Nuclei worker supports passive scans only"
+            )
         if request.parameters.get("template_ids"):
             raise ExecutionBackendError(
                 "first OpenSandbox Nuclei worker uses only its baked reviewed template bundle"
@@ -208,7 +213,12 @@ class OpenSandboxNucleiExecutionBackend:
             approved_ip=request.parameters.get("approved_ip"),
             resolver=self._resolver,
         )
-        argv = _bind_nuclei_argv(plan.argv, original_target=request.target, binding=binding, runtime=self.runtime)
+        argv = _bind_nuclei_argv(
+            plan.argv,
+            original_target=request.target,
+            binding=binding,
+            runtime=self.runtime,
+        )
         return plan.model_copy(
             update={
                 "argv": argv,
@@ -300,15 +310,21 @@ class OpenSandboxNucleiExecutionBackend:
 
     def _validate_bound_plan(self, plan: CommandPlan) -> None:
         if plan.tool_id != "nuclei" or plan.target_kind != ToolTargetKind.NETWORK:
-            raise ExecutionBackendError("OpenSandbox Nuclei backend accepts only Nuclei network plans")
+            raise ExecutionBackendError(
+                "OpenSandbox Nuclei backend accepts only Nuclei network plans"
+            )
         if plan.runtime_image != self.runtime.image:
-            raise ExecutionBackendError("OpenSandbox Nuclei runtime image changed after plan issuance")
+            raise ExecutionBackendError(
+                "OpenSandbox Nuclei runtime image changed after plan issuance"
+            )
         if plan.template_manifest_sha256 != self.runtime.template_manifest_sha256:
             raise ExecutionBackendError(
                 "OpenSandbox Nuclei reviewed-template identity changed after plan issuance"
             )
         if plan.network_binding is None:
-            raise ExecutionBackendError("OpenSandbox Nuclei plan is missing its bound network target")
+            raise ExecutionBackendError(
+                "OpenSandbox Nuclei plan is missing its bound network target"
+            )
         if plan.executable != self.runtime.executable or plan.argv[0] != self.runtime.executable:
             raise ExecutionBackendError("OpenSandbox Nuclei executable identity changed")
 
@@ -463,7 +479,14 @@ def _revalidate_binding(binding: NetworkTargetBinding, *, resolver: Resolver) ->
         if str(literal) != binding.ip_address:
             raise ExecutionBackendError("literal network target changed after plan issuance")
         return
-    addresses = tuple(sorted({_validated_ipv4(value) for value in resolver(binding.hostname, binding.port)}))
+    addresses = tuple(
+        sorted(
+            {
+                _validated_ipv4(value)
+                for value in resolver(binding.hostname, binding.port)
+            }
+        )
+    )
     if binding.ip_address not in addresses:
         raise ExecutionBackendError(
             "OpenSandbox Nuclei target DNS changed after authorization; execution denied"
@@ -507,9 +530,19 @@ def _bind_nuclei_argv(
         rewritten.append(binding.connect_url if value == original_target else value)
         index += 1
 
-    forbidden = {"-templates", "-template", "-header", "-H", "-sni", "-disable-redirects", "-no-httpx"}
+    forbidden = {
+        "-templates",
+        "-template",
+        "-header",
+        "-H",
+        "-sni",
+        "-disable-redirects",
+        "-no-httpx",
+    }
     if any(value in forbidden for value in rewritten):
-        raise ExecutionBackendError("Nuclei adapter unexpectedly pre-bound sandbox-only arguments")
+        raise ExecutionBackendError(
+            "Nuclei adapter unexpectedly pre-bound sandbox-only arguments"
+        )
     rewritten.extend(("-templates", runtime.template_root, "-disable-redirects", "-no-httpx"))
     if binding.hostname != binding.ip_address:
         rewritten.extend(("-header", f"Host: {binding.host_header}"))

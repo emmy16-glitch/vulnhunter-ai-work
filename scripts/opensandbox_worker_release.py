@@ -36,8 +36,7 @@ _RECORD_V2_FIELDS = {
     "github_attestation_signer",
 }
 _DEFAULT_BUILDER_ID = (
-    "https://github.com/emmy16-glitch/vulnhunter-ai-work/"
-    ".github/workflows/opensandbox-worker.yml"
+    "https://github.com/emmy16-glitch/vulnhunter-ai-work/.github/workflows/opensandbox-worker.yml"
 )
 
 

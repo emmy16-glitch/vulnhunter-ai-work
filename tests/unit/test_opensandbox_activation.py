@@ -67,12 +67,8 @@ def _signed_release_environment(
                 "github_provenance_attestation_sha256": (
                     "7" * 64 if with_github_attestations else None
                 ),
-                "github_sbom_attestation_sha256": (
-                    "8" * 64 if with_github_attestations else None
-                ),
-                "github_attestation_signer": (
-                    _GITHUB_SIGNER if with_github_attestations else None
-                ),
+                "github_sbom_attestation_sha256": ("8" * 64 if with_github_attestations else None),
+                "github_attestation_signer": (_GITHUB_SIGNER if with_github_attestations else None),
             }
         )
     registry_payload = {"schema_version": 2, "releases": releases}

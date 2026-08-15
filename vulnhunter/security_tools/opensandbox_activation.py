@@ -216,9 +216,7 @@ class ConfiguredOpenSandboxExecutionBackend(OpenSandboxExecutionBackend):
                 "runtime_github_provenance_attestation_sha256": (
                     release.github_provenance_attestation_sha256
                 ),
-                "runtime_github_sbom_attestation_sha256": (
-                    release.github_sbom_attestation_sha256
-                ),
+                "runtime_github_sbom_attestation_sha256": (release.github_sbom_attestation_sha256),
                 "runtime_github_attestation_signer": release.github_attestation_signer,
             }
         )

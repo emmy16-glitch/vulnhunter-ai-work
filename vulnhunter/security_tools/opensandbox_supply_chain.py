@@ -177,9 +177,7 @@ def load_verified_worker_release_registry(
     if not isinstance(raw_releases, list) or not raw_releases:
         raise WorkerReleaseVerificationError("worker release registry must contain releases")
 
-    releases = tuple(
-        _parse_release(value, schema_version=schema_version) for value in raw_releases
-    )
+    releases = tuple(_parse_release(value, schema_version=schema_version) for value in raw_releases)
     _validate_release_history(releases)
     canonical_registry = canonical_json_bytes(registry_payload)
 
@@ -267,11 +265,15 @@ def _parse_release(value: object, *, schema_version: int) -> ApprovedWorkerRelea
     if rollback_of is not None and not isinstance(rollback_of, str):
         raise WorkerReleaseVerificationError("worker release rollback_of must be text or null")
     status = value["status"]
-    allowed_statuses = {"approved", "revoked"} if schema_version == 1 else {
-        "candidate",
-        "approved",
-        "revoked",
-    }
+    allowed_statuses = (
+        {"approved", "revoked"}
+        if schema_version == 1
+        else {
+            "candidate",
+            "approved",
+            "revoked",
+        }
+    )
     if status not in allowed_statuses:
         raise WorkerReleaseVerificationError("worker release status is unsupported")
 

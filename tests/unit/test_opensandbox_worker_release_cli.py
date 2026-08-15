@@ -75,9 +75,7 @@ def test_candidate_can_only_become_runtime_selectable_after_offline_promotion_an
     )
     candidate_payload = json.loads(candidate.read_text(encoding="utf-8"))
     assert candidate_payload["status"] == "candidate"
-    assert candidate_payload["github_provenance_attestation_sha256"] == _sha256(
-        github_provenance
-    )
+    assert candidate_payload["github_provenance_attestation_sha256"] == _sha256(github_provenance)
     assert candidate_payload["github_sbom_attestation_sha256"] == _sha256(github_sbom)
     assert candidate_payload["github_attestation_signer"] == _SIGNER
 
@@ -93,9 +91,10 @@ def test_candidate_can_only_become_runtime_selectable_after_offline_promotion_an
     approved_payload = json.loads(approved.read_text(encoding="utf-8"))
     assert approved_payload["status"] == "approved"
     assert approved_payload["image"] == candidate_payload["image"]
-    assert approved_payload["github_provenance_attestation_sha256"] == candidate_payload[
-        "github_provenance_attestation_sha256"
-    ]
+    assert (
+        approved_payload["github_provenance_attestation_sha256"]
+        == candidate_payload["github_provenance_attestation_sha256"]
+    )
 
     _run("registry", "--record", str(approved), "--output", str(registry))
     assert json.loads(registry.read_text(encoding="utf-8"))["schema_version"] == 2

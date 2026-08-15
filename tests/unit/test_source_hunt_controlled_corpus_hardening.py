@@ -51,9 +51,9 @@ def _draft():
     specs = TypeAdapter(tuple[ControlledGroundTruthSpec, ...]).validate_json(
         (_FIXTURE / "cases.json").read_text(encoding="utf-8")
     )
-    snapshot = RepositorySnapshotBuilder(
-        SourceHuntPolicy(approved_roots=(_FIXTURE.parent,))
-    ).build(_FIXTURE, revision="c" * 40)
+    snapshot = RepositorySnapshotBuilder(SourceHuntPolicy(approved_roots=(_FIXTURE.parent,))).build(
+        _FIXTURE, revision="c" * 40
+    )
     return ControlledCorpusDraftBuilder().build(
         corpus_id="python-core-v1",
         snapshot=snapshot,
@@ -103,9 +103,7 @@ def test_operational_draft_rejects_recomputed_production_accuracy_claim() -> Non
     payload = _draft().model_dump(mode="json")
     payload["production_accuracy_claim_permitted"] = True
     canonical = {
-        key: value
-        for key, value in payload.items()
-        if key not in {"draft_id", "draft_sha256"}
+        key: value for key, value in payload.items() if key not in {"draft_id", "draft_sha256"}
     }
     digest = _sha(canonical)
     payload["draft_sha256"] = digest
@@ -130,9 +128,7 @@ def test_operational_release_rejects_recomputed_review_from_other_draft() -> Non
     review["attestation_id"] = f"source-corpus-review-{review_digest[:24]}"
 
     canonical = {
-        key: value
-        for key, value in payload.items()
-        if key not in {"release_id", "release_sha256"}
+        key: value for key, value in payload.items() if key not in {"release_id", "release_sha256"}
     }
     release_digest = _sha(canonical)
     payload["release_sha256"] = release_digest

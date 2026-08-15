@@ -43,7 +43,7 @@ def test_composer_exposes_only_the_enforced_high_reasoning_mode() -> None:
     assert ">Brief</option>" not in template
     assert ">Balanced</option>" not in template
     assert ">Detailed</option>" not in template
-    assert "High reasoning enforced" in template
+    assert "data-reasoning-copy>High</b> reasoning enforced" in template
     assert "Groq unavailable" not in template
     assert "High-reasoning provider ready" in template
     assert "deterministic workflows remain available" in template

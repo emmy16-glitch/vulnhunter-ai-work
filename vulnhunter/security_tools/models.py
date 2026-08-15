@@ -225,7 +225,9 @@ class CommandPlan(BaseModel):
         )
         if any(value is not None for value in release_values):
             if self.runtime_image is None or any(value is None for value in release_values):
-                raise ValueError("runtime release identity must be complete and include runtime_image")
+                raise ValueError(
+                    "runtime release identity must be complete and include runtime_image"
+                )
             if _IDENTIFIER.fullmatch(self.runtime_release_id or "") is None:
                 raise ValueError("runtime_release_id must be a stable lowercase identifier")
             for value, label in (

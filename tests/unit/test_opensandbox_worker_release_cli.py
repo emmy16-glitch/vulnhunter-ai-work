@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import hashlib
 import json
+import pathlib
 import subprocess
 import sys
-from pathlib import Path
 
 
-_REPO_ROOT = Path(__file__).resolve().parents[2]
+_REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
 _SCRIPT = _REPO_ROOT / "scripts" / "opensandbox_worker_release.py"
 _SIGNER = (
     "github.com/emmy16-glitch/vulnhunter-ai-work/.github/workflows/opensandbox-worker-release.yml"
@@ -26,12 +26,12 @@ def _run(*arguments: str, check: bool = True) -> subprocess.CompletedProcess[str
     )
 
 
-def _sha256(path: Path) -> str:
+def _sha256(path: pathlib.Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def test_candidate_can_only_become_runtime_selectable_after_offline_promotion_and_signing(
-    tmp_path: Path,
+    tmp_path: pathlib.Path,
 ) -> None:
     sbom = tmp_path / "sbom.spdx.json"
     provenance = tmp_path / "provenance.json"
@@ -134,7 +134,7 @@ def test_candidate_can_only_become_runtime_selectable_after_offline_promotion_an
     assert receipt["github_sbom_attestation_sha256"] == _sha256(github_sbom)
 
 
-def test_promote_refuses_non_candidate_record(tmp_path: Path) -> None:
+def test_promote_refuses_non_candidate_record(tmp_path: pathlib.Path) -> None:
     record = tmp_path / "approved.json"
     record.write_text(
         json.dumps(
@@ -170,7 +170,7 @@ def test_promote_refuses_non_candidate_record(tmp_path: Path) -> None:
     assert "only a candidate" in result.stderr
 
 
-def test_provenance_binds_immutable_base_image(tmp_path: Path) -> None:
+def test_provenance_binds_immutable_base_image(tmp_path: pathlib.Path) -> None:
     containerfile = tmp_path / "Containerfile"
     output = tmp_path / "provenance.json"
     base_digest = "b" * 64
@@ -206,7 +206,7 @@ def test_provenance_binds_immutable_base_image(tmp_path: Path) -> None:
     )
 
 
-def test_provenance_refuses_mutable_base_image(tmp_path: Path) -> None:
+def test_provenance_refuses_mutable_base_image(tmp_path: pathlib.Path) -> None:
     containerfile = tmp_path / "Containerfile"
     containerfile.write_text(
         "ARG PYTHON_BASE_IMAGE=python:3.12-slim-bookworm\nFROM ${PYTHON_BASE_IMAGE}\n",

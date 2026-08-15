@@ -173,7 +173,10 @@ def test_partial_github_attestation_identity_is_rejected(tmp_path: Path) -> None
         schema_version=2,
     )
 
-    with pytest.raises(WorkerReleaseVerificationError, match="attestation identity must be complete"):
+    with pytest.raises(
+        WorkerReleaseVerificationError,
+        match="attestation identity must be complete",
+    ):
         load_verified_worker_release_registry(
             registry_file,
             signature_file,

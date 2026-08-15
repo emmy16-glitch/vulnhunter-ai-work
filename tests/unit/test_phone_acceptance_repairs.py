@@ -109,11 +109,11 @@ def test_phone_runtime_contracts_are_wired():
     assert "VULNHUNTER_GROQ_RUNTIME_VERIFIED=true" in start
     assert "VULNHUNTER_WEB_SECRET_KEY_FILE" in start
     assert "WEB_SECRET_KEY" in post_create
-    assert "VULNHUNTER_INTELLIGENCE_MODEL=\"openai/gpt-oss-120b\"" in post_create
+    assert 'VULNHUNTER_INTELLIGENCE_MODEL="openai/gpt-oss-120b"' in post_create
     assert "input[name='csrfmiddlewaretoken']" in upload
     assert "refreshSessionProtection" in upload
     assert "VulnHunterUploads = { enqueue, retry, cancel" in upload
-    assert "selectedEffort === \"high\"" in conversation
+    assert 'selectedEffort === "high"' in conversation
     assert "data-provider-runtime" in template
     assert "var(--vh-phone-composer-clearance" in upload_css
     assert "env(safe-area-inset-bottom)" in upload_css

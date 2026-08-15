@@ -6,10 +6,12 @@ import ipaddress
 import os
 from collections.abc import Mapping
 from dataclasses import dataclass
+from datetime import timedelta
 from typing import Literal
 from urllib.parse import urlsplit
 
 from vulnhunter.security_tools.execution_backend import (
+    ExecutionBackendError,
     OpenSandboxConnection,
     OpenSandboxExecutionBackend,
     OpenSandboxRuntimeSpec,
@@ -23,6 +25,7 @@ _MAX_INPUT_ENV = "VULNHUNTER_OPENSANDBOX_MAX_INPUT_BYTES"
 
 _TRUE_VALUES = frozenset({"1", "true", "yes", "on"})
 _FALSE_VALUES = frozenset({"0", "false", "no", "off", ""})
+_FIXED_RUNNER = "/tmp/vulnhunter/control/runner.py"
 
 
 class OpenSandboxActivationError(ValueError):
@@ -30,7 +33,7 @@ class OpenSandboxActivationError(ValueError):
 
 
 class _PermissionModeSdkAdapter:
-    """Translate Python permission integers to OpenSandbox's documented 755 form."""
+    """Normalize SDK wire details and reject ambiguous command completion."""
 
     def __init__(self, delegate: object) -> None:
         self._delegate = delegate
@@ -57,6 +60,38 @@ class _PermissionModeSdkAdapter:
             mode=_opensandbox_permission_mode(mode),
         )
 
+    def run_fixed_runner(
+        self,
+        sandbox: object,
+        *,
+        runtime: OpenSandboxRuntimeSpec,
+        timeout_seconds: int,
+    ) -> int:
+        try:
+            from opensandbox.models.execd import RunCommandOpts
+        except ImportError as exc:
+            raise ExecutionBackendError("OpenSandbox command models are unavailable") from exc
+
+        execution = sandbox.commands.run(
+            f"python3 {_FIXED_RUNNER}",
+            opts=RunCommandOpts(
+                working_directory="/tmp/vulnhunter",
+                timeout=timedelta(seconds=timeout_seconds),
+                uid=runtime.uid,
+                gid=runtime.gid,
+            ),
+        )
+        if execution.exit_code is None:
+            detail = "no structured error"
+            if execution.error is not None:
+                name = str(execution.error.name).strip() or "ExecutionError"
+                value = " ".join(str(execution.error.value).split())[:240]
+                detail = f"{name}: {value}" if value else name
+            raise ExecutionBackendError(
+                f"OpenSandbox fixed runner returned no exit code ({detail})"
+            )
+        return execution.exit_code
+
     def __getattr__(self, name: str):
         return getattr(self._delegate, name)
 
@@ -68,7 +103,7 @@ class ConfiguredOpenSandboxExecutionBackend(OpenSandboxExecutionBackend):
         super().__init__(**kwargs)
         # SDK 0.1.15 models permissions as integers such as 755/444 while the
         # backend uses normal Python permission constants such as 0o755/0o444.
-        # Keep that wire-format compatibility at the SDK seam.
+        # The same seam also rejects the SDK's ambiguous exit_code=None state.
         self._sdk = _PermissionModeSdkAdapter(self._sdk)
 
     def executable_for(self, tool_id: str) -> str | None:

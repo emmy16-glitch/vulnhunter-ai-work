@@ -22,6 +22,7 @@ def _release(
     image_character: str = "a",
     release_id: str = "bandit-release-1",
     status: str = "approved",
+    rollback_of: str | None = None,
 ) -> dict[str, object]:
     return {
         "worker_id": worker_id,
@@ -31,7 +32,7 @@ def _release(
         "provenance_sha256": "c" * 64,
         "source_commit": "d" * 40,
         "status": status,
-        "rollback_of": None,
+        "rollback_of": rollback_of,
     }
 
 
@@ -118,7 +119,7 @@ def test_revoked_release_is_never_selectable(tmp_path: Path) -> None:
         public_key_file,
     )
 
-    with pytest.raises(WorkerReleaseVerificationError, match="is revoked"):
+    with pytest.raises(WorkerReleaseVerificationError, match="has no approved signed release"):
         registry.approved_release("bandit", str(release["image"]))
 
 
@@ -139,7 +140,7 @@ def test_unlisted_digest_is_rejected(tmp_path: Path) -> None:
         registry.approved_release("bandit", other_image)
 
 
-def test_duplicate_release_identity_is_rejected_even_when_signed(tmp_path: Path) -> None:
+def test_multiple_approved_records_for_same_image_are_rejected(tmp_path: Path) -> None:
     release = _release()
     duplicate = dict(release)
     duplicate["release_id"] = "bandit-release-2"
@@ -148,7 +149,73 @@ def test_duplicate_release_identity_is_rejected_even_when_signed(tmp_path: Path)
         [release, duplicate],
     )
 
-    with pytest.raises(WorkerReleaseVerificationError, match="image identities must be unique"):
+    with pytest.raises(WorkerReleaseVerificationError, match="multiple approved release records"):
+        load_verified_worker_release_registry(
+            registry_file,
+            signature_file,
+            public_key_file,
+        )
+
+
+def test_rollback_can_reapprove_historical_image_after_revocation(tmp_path: Path) -> None:
+    historical = _release(status="revoked")
+    replacement = _release(
+        image_character="e",
+        release_id="bandit-release-2",
+        status="revoked",
+    )
+    rollback = _release(
+        release_id="bandit-release-3",
+        status="approved",
+        rollback_of="bandit-release-2",
+    )
+    registry_file, signature_file, public_key_file = _write_signed_bundle(
+        tmp_path,
+        [historical, replacement, rollback],
+    )
+
+    registry = load_verified_worker_release_registry(
+        registry_file,
+        signature_file,
+        public_key_file,
+    )
+    approved = registry.approved_release("bandit", str(rollback["image"]))
+
+    assert approved.release_id == "bandit-release-3"
+    assert approved.rollback_of == "bandit-release-2"
+
+
+def test_rollback_must_reference_existing_same_worker_release(tmp_path: Path) -> None:
+    rollback = _release(
+        release_id="bandit-release-2",
+        rollback_of="missing-release",
+    )
+    registry_file, signature_file, public_key_file = _write_signed_bundle(
+        tmp_path,
+        [rollback],
+    )
+    with pytest.raises(WorkerReleaseVerificationError, match="reference an existing release"):
+        load_verified_worker_release_registry(
+            registry_file,
+            signature_file,
+            public_key_file,
+        )
+
+    nuclei = _release(
+        worker_id="nuclei",
+        image_character="f",
+        release_id="nuclei-release-1",
+        status="revoked",
+    )
+    cross_worker = _release(
+        release_id="bandit-release-3",
+        rollback_of="nuclei-release-1",
+    )
+    registry_file, signature_file, public_key_file = _write_signed_bundle(
+        tmp_path,
+        [nuclei, cross_worker],
+    )
+    with pytest.raises(WorkerReleaseVerificationError, match="same worker"):
         load_verified_worker_release_registry(
             registry_file,
             signature_file,
@@ -165,7 +232,7 @@ def test_symlink_registry_is_rejected(tmp_path: Path) -> None:
     symlink = tmp_path / "releases-link.json"
     symlink.symlink_to(registry_file)
 
-    with pytest.raises(WorkerReleaseVerificationError, match="regular non-symlink"):
+    with pytest.raises(WorkerReleaseVerificationError, match="regular non-symlink|unavailable"):
         load_verified_worker_release_registry(
             symlink,
             signature_file,

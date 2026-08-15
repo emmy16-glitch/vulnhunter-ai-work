@@ -51,23 +51,16 @@ def _env_int(name: str, default: int, *, minimum: int, maximum: int) -> int:
 
 
 def _reasoning_model() -> str:
+    """Return the sole configured reasoning model.
+
+    Legacy PRIMARY_MODEL and DEEP_MODEL variables are intentionally ignored. They
+    may remain in an older Codespace environment, but they cannot re-enable split
+    model routing or a lower-capability fallback.
+    """
+
     model = os.environ.get("VULNHUNTER_INTELLIGENCE_MODEL", _DEFAULT_REASONING_MODEL).strip()
     if not model:
         raise CommandError("VULNHUNTER_INTELLIGENCE_MODEL must not be empty")
-    legacy = {
-        name: os.environ.get(name, "").strip()
-        for name in (
-            "VULNHUNTER_INTELLIGENCE_PRIMARY_MODEL",
-            "VULNHUNTER_INTELLIGENCE_DEEP_MODEL",
-        )
-    }
-    conflicting = {name: value for name, value in legacy.items() if value and value != model}
-    if conflicting:
-        names = ", ".join(sorted(conflicting))
-        raise CommandError(
-            "Split primary/deep intelligence models are no longer supported. "
-            f"Remove {names} and configure only VULNHUNTER_INTELLIGENCE_MODEL."
-        )
     return model
 
 

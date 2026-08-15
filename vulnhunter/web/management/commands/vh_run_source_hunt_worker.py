@@ -64,7 +64,7 @@ def _acquire_worker_lock(store: SourceHuntJobStore):
 
 
 class Command(BaseCommand):
-    help = "Run the separate, file-backed Groq Source Hunt worker."
+    help = "Run the separate, high-reasoning Groq Source Hunt worker."
 
     def add_arguments(self, parser) -> None:
         parser.add_argument("--once", action="store_true")
@@ -83,10 +83,7 @@ class Command(BaseCommand):
         try:
             provider = GroqProvider.from_key_file(
                 Path(settings.VULNHUNTER_GROQ_API_KEY_FILE),
-                approved_models=(
-                    settings.VULNHUNTER_GROQ_MODEL,
-                    settings.VULNHUNTER_GROQ_FALLBACK_MODEL,
-                ),
+                approved_models=(settings.VULNHUNTER_GROQ_MODEL,),
                 api_base=settings.VULNHUNTER_GROQ_API_BASE,
             )
         except GroqProviderError as exc:

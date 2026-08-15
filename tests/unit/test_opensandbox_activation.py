@@ -20,11 +20,15 @@ def _image(digest_character: str = "a") -> str:
     return "registry.example/vulnhunter/bandit@sha256:" + digest_character * 64
 
 
+def _nuclei_image(digest_character: str = "b") -> str:
+    return "registry.example/vulnhunter/nuclei@sha256:" + digest_character * 64
+
+
 def test_activation_is_disabled_by_default() -> None:
     assert build_opensandbox_backend_from_environment({}) is None
 
 
-def test_enabled_activation_requires_digest_pinned_bandit_image() -> None:
+def test_enabled_activation_requires_at_least_one_digest_pinned_worker() -> None:
     with pytest.raises(OpenSandboxActivationError, match="BANDIT_IMAGE"):
         OpenSandboxActivationConfig.from_environment({"VULNHUNTER_OPENSANDBOX_ENABLED": "true"})
 
@@ -33,6 +37,14 @@ def test_enabled_activation_requires_digest_pinned_bandit_image() -> None:
             {
                 "VULNHUNTER_OPENSANDBOX_ENABLED": "true",
                 "VULNHUNTER_OPENSANDBOX_BANDIT_IMAGE": "registry.example/bandit:latest",
+            }
+        )
+
+    with pytest.raises(OpenSandboxActivationError, match="pinned by sha256 digest"):
+        OpenSandboxActivationConfig.from_environment(
+            {
+                "VULNHUNTER_OPENSANDBOX_ENABLED": "true",
+                "VULNHUNTER_OPENSANDBOX_NUCLEI_IMAGE": "registry.example/nuclei:latest",
             }
         )
 
@@ -76,6 +88,28 @@ def test_enabled_activation_builds_non_root_bandit_runtime() -> None:
     assert runtime.gid == 65532
     assert runtime.memory == "512Mi"
     assert backend.connection.use_server_proxy is True
+
+
+def test_enabled_activation_builds_exact_target_nuclei_runtime() -> None:
+    backend = build_opensandbox_backend_from_environment(
+        {
+            "VULNHUNTER_OPENSANDBOX_ENABLED": "true",
+            "VULNHUNTER_OPENSANDBOX_NUCLEI_IMAGE": _nuclei_image(),
+            "VULNHUNTER_OPENSANDBOX_DOMAIN": "127.0.0.1:8080",
+        }
+    )
+
+    assert isinstance(backend, ConfiguredOpenSandboxExecutionBackend)
+    assert backend.executable_for("bandit") is None
+    assert backend.executable_for("nuclei") == "/usr/local/bin/nuclei"
+    assert backend.nuclei_runtime is not None
+    assert backend.nuclei_runtime.image == _nuclei_image()
+    assert backend.nuclei_runtime.uid == 65532
+    assert backend.nuclei_runtime.gid == 65532
+    assert backend.nuclei_runtime.memory == "1Gi"
+    assert backend.nuclei_runtime.template_manifest_sha256 == (
+        "088f533aaa631f178bde29c3589d286b3bb136f839772a39d9276f16b545d35c"
+    )
 
 
 def test_executor_plans_backend_tool_without_host_binary(
@@ -125,6 +159,7 @@ def test_executor_plans_backend_tool_without_host_binary(
     assert plan.executable == "/usr/local/bin/bandit"
     assert plan.argv[0] == "/usr/local/bin/bandit"
     assert plan.target == str(target.resolve())
+    assert plan.runtime_image == _image()
 
 
 def test_backend_runtime_absence_fails_without_host_fallback(tmp_path: Path) -> None:

@@ -16,9 +16,29 @@ _IMAGE_DIGEST = re.compile(r"^.+@sha256:([0-9a-f]{64})$")
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _SOURCE_COMMIT = re.compile(r"^(?:[0-9a-f]{40}|[0-9a-f]{64})$")
 _IDENTIFIER = re.compile(r"^[a-z0-9][a-z0-9._-]{1,127}$")
+_GITHUB_WORKFLOW_SIGNER = re.compile(
+    r"^github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/\.github/workflows/"
+    r"[A-Za-z0-9_.-]+\.ya?ml$"
+)
 _MAX_REGISTRY_BYTES = 1_000_000
 _MAX_SIGNATURE_BYTES = 16_384
 _MAX_PUBLIC_KEY_BYTES = 65_536
+
+_RELEASE_V1_FIELDS = {
+    "worker_id",
+    "release_id",
+    "image",
+    "sbom_sha256",
+    "provenance_sha256",
+    "source_commit",
+    "status",
+    "rollback_of",
+}
+_RELEASE_V2_FIELDS = _RELEASE_V1_FIELDS | {
+    "github_provenance_attestation_sha256",
+    "github_sbom_attestation_sha256",
+    "github_attestation_signer",
+}
 
 
 class WorkerReleaseVerificationError(ValueError):
@@ -35,8 +55,11 @@ class ApprovedWorkerRelease:
     sbom_sha256: str
     provenance_sha256: str
     source_commit: str
-    status: Literal["approved", "revoked"]
+    status: Literal["candidate", "approved", "revoked"]
     rollback_of: str | None = None
+    github_provenance_attestation_sha256: str | None = None
+    github_sbom_attestation_sha256: str | None = None
+    github_attestation_signer: str | None = None
 
     def __post_init__(self) -> None:
         if _IDENTIFIER.fullmatch(self.worker_id) is None:
@@ -53,8 +76,35 @@ class ApprovedWorkerRelease:
             raise WorkerReleaseVerificationError("worker release provenance digest is invalid")
         if _SOURCE_COMMIT.fullmatch(self.source_commit) is None:
             raise WorkerReleaseVerificationError("worker release source commit is invalid")
+        if self.status not in {"candidate", "approved", "revoked"}:
+            raise WorkerReleaseVerificationError(
+                "worker release status must be candidate, approved, or revoked"
+            )
         if self.rollback_of is not None and _IDENTIFIER.fullmatch(self.rollback_of) is None:
             raise WorkerReleaseVerificationError("worker release rollback_of is invalid")
+
+        attestation_values = (
+            self.github_provenance_attestation_sha256,
+            self.github_sbom_attestation_sha256,
+            self.github_attestation_signer,
+        )
+        if any(value is not None for value in attestation_values):
+            if any(value is None for value in attestation_values):
+                raise WorkerReleaseVerificationError(
+                    "worker GitHub attestation identity must be complete"
+                )
+            if _SHA256.fullmatch(self.github_provenance_attestation_sha256 or "") is None:
+                raise WorkerReleaseVerificationError(
+                    "worker GitHub provenance attestation digest is invalid"
+                )
+            if _SHA256.fullmatch(self.github_sbom_attestation_sha256 or "") is None:
+                raise WorkerReleaseVerificationError(
+                    "worker GitHub SBOM attestation digest is invalid"
+                )
+            if _GITHUB_WORKFLOW_SIGNER.fullmatch(self.github_attestation_signer or "") is None:
+                raise WorkerReleaseVerificationError(
+                    "worker GitHub attestation signer workflow is invalid"
+                )
 
     @property
     def image_sha256(self) -> str:
@@ -62,6 +112,17 @@ class ApprovedWorkerRelease:
         if match is None:  # guarded by __post_init__
             raise WorkerReleaseVerificationError("worker release image digest disappeared")
         return match.group(1)
+
+    @property
+    def has_github_attestations(self) -> bool:
+        return all(
+            value is not None
+            for value in (
+                self.github_provenance_attestation_sha256,
+                self.github_sbom_attestation_sha256,
+                self.github_attestation_signer,
+            )
+        )
 
 
 @dataclass(frozen=True)
@@ -107,7 +168,8 @@ def load_verified_worker_release_registry(
     )
     if set(registry_payload) != {"schema_version", "releases"}:
         raise WorkerReleaseVerificationError("worker release registry has unexpected fields")
-    if registry_payload.get("schema_version") != 1:
+    schema_version = registry_payload.get("schema_version")
+    if schema_version not in {1, 2}:
         raise WorkerReleaseVerificationError(
             "worker release registry schema version is unsupported"
         )
@@ -115,7 +177,9 @@ def load_verified_worker_release_registry(
     if not isinstance(raw_releases, list) or not raw_releases:
         raise WorkerReleaseVerificationError("worker release registry must contain releases")
 
-    releases = tuple(_parse_release(value) for value in raw_releases)
+    releases = tuple(
+        _parse_release(value, schema_version=schema_version) for value in raw_releases
+    )
     _validate_release_history(releases)
     canonical_registry = canonical_json_bytes(registry_payload)
 
@@ -180,19 +244,10 @@ def public_key_id(public_key_bytes: bytes) -> str:
     return key_id
 
 
-def _parse_release(value: object) -> ApprovedWorkerRelease:
+def _parse_release(value: object, *, schema_version: int) -> ApprovedWorkerRelease:
     if not isinstance(value, dict):
         raise WorkerReleaseVerificationError("worker release entry must be a JSON object")
-    expected = {
-        "worker_id",
-        "release_id",
-        "image",
-        "sbom_sha256",
-        "provenance_sha256",
-        "source_commit",
-        "status",
-        "rollback_of",
-    }
+    expected = _RELEASE_V1_FIELDS if schema_version == 1 else _RELEASE_V2_FIELDS
     if set(value) != expected:
         raise WorkerReleaseVerificationError("worker release entry has unexpected fields")
     if not all(
@@ -212,8 +267,31 @@ def _parse_release(value: object) -> ApprovedWorkerRelease:
     if rollback_of is not None and not isinstance(rollback_of, str):
         raise WorkerReleaseVerificationError("worker release rollback_of must be text or null")
     status = value["status"]
-    if status not in {"approved", "revoked"}:
-        raise WorkerReleaseVerificationError("worker release status must be approved or revoked")
+    allowed_statuses = {"approved", "revoked"} if schema_version == 1 else {
+        "candidate",
+        "approved",
+        "revoked",
+    }
+    if status not in allowed_statuses:
+        raise WorkerReleaseVerificationError("worker release status is unsupported")
+
+    github_provenance = None
+    github_sbom = None
+    github_signer = None
+    if schema_version == 2:
+        for field in (
+            "github_provenance_attestation_sha256",
+            "github_sbom_attestation_sha256",
+            "github_attestation_signer",
+        ):
+            if value.get(field) is not None and not isinstance(value.get(field), str):
+                raise WorkerReleaseVerificationError(
+                    "worker GitHub attestation fields must be text or null"
+                )
+        github_provenance = value.get("github_provenance_attestation_sha256")
+        github_sbom = value.get("github_sbom_attestation_sha256")
+        github_signer = value.get("github_attestation_signer")
+
     return ApprovedWorkerRelease(
         worker_id=value["worker_id"],
         release_id=value["release_id"],
@@ -223,6 +301,9 @@ def _parse_release(value: object) -> ApprovedWorkerRelease:
         source_commit=value["source_commit"],
         status=status,
         rollback_of=rollback_of,
+        github_provenance_attestation_sha256=github_provenance,
+        github_sbom_attestation_sha256=github_sbom,
+        github_attestation_signer=github_signer,
     )
 
 

@@ -213,6 +213,13 @@ class ConfiguredOpenSandboxExecutionBackend(OpenSandboxExecutionBackend):
                 "runtime_source_commit": release.source_commit,
                 "runtime_release_registry_sha256": self.release_registry_sha256,
                 "runtime_release_key_id": self.release_key_id,
+                "runtime_github_provenance_attestation_sha256": (
+                    release.github_provenance_attestation_sha256
+                ),
+                "runtime_github_sbom_attestation_sha256": (
+                    release.github_sbom_attestation_sha256
+                ),
+                "runtime_github_attestation_signer": release.github_attestation_signer,
             }
         )
 
@@ -229,6 +236,9 @@ class ConfiguredOpenSandboxExecutionBackend(OpenSandboxExecutionBackend):
             release.source_commit,
             self.release_registry_sha256,
             self.release_key_id,
+            release.github_provenance_attestation_sha256,
+            release.github_sbom_attestation_sha256,
+            release.github_attestation_signer,
         )
         actual = (
             plan.runtime_image,
@@ -238,6 +248,9 @@ class ConfiguredOpenSandboxExecutionBackend(OpenSandboxExecutionBackend):
             plan.runtime_source_commit,
             plan.runtime_release_registry_sha256,
             plan.runtime_release_key_id,
+            plan.runtime_github_provenance_attestation_sha256,
+            plan.runtime_github_sbom_attestation_sha256,
+            plan.runtime_github_attestation_signer,
         )
         if actual != expected:
             raise ExecutionBackendError(
@@ -345,6 +358,17 @@ class OpenSandboxActivationConfig:
                     "nuclei",
                     self.nuclei_image,
                 )
+            if not _is_loopback_control_plane(self.domain, self.protocol):
+                missing_attestations = [
+                    worker_id
+                    for worker_id, release in approved_releases.items()
+                    if not release.has_github_attestations
+                ]
+                if missing_attestations:
+                    raise WorkerReleaseVerificationError(
+                        "remote OpenSandbox activation requires GitHub provenance and SBOM "
+                        "attestations for: " + ", ".join(sorted(missing_attestations))
+                    )
         except WorkerReleaseVerificationError as exc:
             raise OpenSandboxActivationError(str(exc)) from exc
 
@@ -427,6 +451,11 @@ def _validate_control_plane(domain: str, protocol: str) -> None:
         raise OpenSandboxActivationError(
             "Remote OpenSandbox control planes must use https; http is loopback-only"
         )
+
+
+def _is_loopback_control_plane(domain: str, protocol: str) -> bool:
+    parsed = urlsplit(f"{protocol}://{domain}")
+    return parsed.hostname is not None and _is_loopback_host(parsed.hostname)
 
 
 def _is_loopback_host(hostname: str) -> bool:

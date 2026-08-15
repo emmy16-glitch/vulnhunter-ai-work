@@ -36,9 +36,42 @@ def _release(
     }
 
 
+def _release_v2(
+    *,
+    worker_id: str = "bandit",
+    image_character: str = "a",
+    release_id: str = "bandit-release-1",
+    status: str = "approved",
+    rollback_of: str | None = None,
+    with_attestations: bool = True,
+) -> dict[str, object]:
+    payload = _release(
+        worker_id=worker_id,
+        image_character=image_character,
+        release_id=release_id,
+        status=status,
+        rollback_of=rollback_of,
+    )
+    payload.update(
+        {
+            "github_provenance_attestation_sha256": "e" * 64 if with_attestations else None,
+            "github_sbom_attestation_sha256": "f" * 64 if with_attestations else None,
+            "github_attestation_signer": (
+                "github.com/emmy16-glitch/vulnhunter-ai-work/.github/workflows/"
+                "opensandbox-worker-release.yml"
+                if with_attestations
+                else None
+            ),
+        }
+    )
+    return payload
+
+
 def _write_signed_bundle(
     tmp_path: Path,
     releases: list[dict[str, object]],
+    *,
+    schema_version: int = 1,
 ) -> tuple[Path, Path, Path]:
     private_key = Ed25519PrivateKey.generate()
     public_key = private_key.public_key()
@@ -46,7 +79,7 @@ def _write_signed_bundle(
         encoding=serialization.Encoding.PEM,
         format=serialization.PublicFormat.SubjectPublicKeyInfo,
     )
-    registry_payload = {"schema_version": 1, "releases": releases}
+    registry_payload = {"schema_version": schema_version, "releases": releases}
     signature = private_key.sign(canonical_json_bytes(registry_payload))
 
     registry = tmp_path / "releases.json"
@@ -85,8 +118,84 @@ def test_verified_registry_returns_exact_approved_release(tmp_path: Path) -> Non
     assert approved.release_id == "bandit-release-1"
     assert approved.sbom_sha256 == "b" * 64
     assert approved.provenance_sha256 == "c" * 64
+    assert approved.has_github_attestations is False
     assert registry.registry_sha256
     assert registry.key_id.startswith("sha256:")
+
+
+def test_v2_registry_binds_github_attestation_identity(tmp_path: Path) -> None:
+    release = _release_v2()
+    registry_file, signature_file, public_key_file = _write_signed_bundle(
+        tmp_path,
+        [release],
+        schema_version=2,
+    )
+
+    registry = load_verified_worker_release_registry(
+        registry_file,
+        signature_file,
+        public_key_file,
+    )
+    approved = registry.approved_release("bandit", str(release["image"]))
+
+    assert approved.github_provenance_attestation_sha256 == "e" * 64
+    assert approved.github_sbom_attestation_sha256 == "f" * 64
+    assert approved.github_attestation_signer == (
+        "github.com/emmy16-glitch/vulnhunter-ai-work/.github/workflows/"
+        "opensandbox-worker-release.yml"
+    )
+    assert approved.has_github_attestations is True
+
+
+def test_candidate_release_is_never_selectable(tmp_path: Path) -> None:
+    release = _release_v2(status="candidate")
+    registry_file, signature_file, public_key_file = _write_signed_bundle(
+        tmp_path,
+        [release],
+        schema_version=2,
+    )
+    registry = load_verified_worker_release_registry(
+        registry_file,
+        signature_file,
+        public_key_file,
+    )
+
+    with pytest.raises(WorkerReleaseVerificationError, match="has no approved signed release"):
+        registry.approved_release("bandit", str(release["image"]))
+
+
+def test_partial_github_attestation_identity_is_rejected(tmp_path: Path) -> None:
+    release = _release_v2()
+    release["github_sbom_attestation_sha256"] = None
+    registry_file, signature_file, public_key_file = _write_signed_bundle(
+        tmp_path,
+        [release],
+        schema_version=2,
+    )
+
+    with pytest.raises(WorkerReleaseVerificationError, match="attestation identity must be complete"):
+        load_verified_worker_release_registry(
+            registry_file,
+            signature_file,
+            public_key_file,
+        )
+
+
+def test_invalid_github_attestation_signer_is_rejected(tmp_path: Path) -> None:
+    release = _release_v2()
+    release["github_attestation_signer"] = "https://example.invalid/release.yml"
+    registry_file, signature_file, public_key_file = _write_signed_bundle(
+        tmp_path,
+        [release],
+        schema_version=2,
+    )
+
+    with pytest.raises(WorkerReleaseVerificationError, match="signer workflow is invalid"):
+        load_verified_worker_release_registry(
+            registry_file,
+            signature_file,
+            public_key_file,
+        )
 
 
 def test_registry_tampering_invalidates_signature(tmp_path: Path) -> None:

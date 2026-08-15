@@ -21,6 +21,10 @@ from vulnhunter.security_tools.opensandbox_activation import (
 )
 from vulnhunter.security_tools.opensandbox_supply_chain import canonical_json_bytes, public_key_id
 
+_GITHUB_SIGNER = (
+    "github.com/emmy16-glitch/vulnhunter-ai-work/.github/workflows/opensandbox-worker-release.yml"
+)
+
 
 def _image(digest_character: str = "a") -> str:
     return "registry.example/vulnhunter/bandit@sha256:" + digest_character * 64
@@ -36,6 +40,7 @@ def _signed_release_environment(
     bandit_image: str | None = None,
     nuclei_image: str | None = None,
     status: str = "approved",
+    with_github_attestations: bool = False,
 ) -> dict[str, str]:
     private_key = Ed25519PrivateKey.generate()
     public_bytes = private_key.public_key().public_bytes(
@@ -59,9 +64,18 @@ def _signed_release_environment(
                 "source_commit": "1" * 40,
                 "status": status,
                 "rollback_of": None,
+                "github_provenance_attestation_sha256": (
+                    "7" * 64 if with_github_attestations else None
+                ),
+                "github_sbom_attestation_sha256": (
+                    "8" * 64 if with_github_attestations else None
+                ),
+                "github_attestation_signer": (
+                    _GITHUB_SIGNER if with_github_attestations else None
+                ),
             }
         )
-    registry_payload = {"schema_version": 1, "releases": releases}
+    registry_payload = {"schema_version": 2, "releases": releases}
     registry = tmp_path / "workers.json"
     signature = tmp_path / "workers.sig.json"
     public_key = tmp_path / "workers.pub.pem"
@@ -127,6 +141,30 @@ def test_remote_http_control_plane_is_rejected() -> None:
         )
 
 
+def test_remote_https_requires_github_attestation_evidence(tmp_path: Path) -> None:
+    environment = _signed_release_environment(tmp_path, bandit_image=_image())
+    environment["VULNHUNTER_OPENSANDBOX_DOMAIN"] = "sandbox.internal.example:443"
+    environment["VULNHUNTER_OPENSANDBOX_PROTOCOL"] = "https"
+
+    with pytest.raises(OpenSandboxActivationError, match="requires GitHub provenance and SBOM"):
+        build_opensandbox_backend_from_environment(environment)
+
+
+def test_remote_https_accepts_offline_approved_attested_release(tmp_path: Path) -> None:
+    environment = _signed_release_environment(
+        tmp_path,
+        bandit_image=_image(),
+        with_github_attestations=True,
+    )
+    environment["VULNHUNTER_OPENSANDBOX_DOMAIN"] = "sandbox.internal.example:443"
+    environment["VULNHUNTER_OPENSANDBOX_PROTOCOL"] = "https"
+
+    backend = build_opensandbox_backend_from_environment(environment)
+
+    assert isinstance(backend, ConfiguredOpenSandboxExecutionBackend)
+    assert backend.approved_releases["bandit"].has_github_attestations is True
+
+
 def test_python_permission_modes_are_encoded_for_opensandbox() -> None:
     assert _opensandbox_permission_mode(0o755) == 755
     assert _opensandbox_permission_mode(0o733) == 733
@@ -185,6 +223,17 @@ def test_revoked_signed_worker_fails_activation(tmp_path: Path) -> None:
         build_opensandbox_backend_from_environment(environment)
 
 
+def test_candidate_signed_worker_fails_activation(tmp_path: Path) -> None:
+    environment = _signed_release_environment(
+        tmp_path,
+        bandit_image=_image(),
+        status="candidate",
+        with_github_attestations=True,
+    )
+    with pytest.raises(OpenSandboxActivationError, match="has no approved signed release"):
+        build_opensandbox_backend_from_environment(environment)
+
+
 def test_unlisted_worker_digest_fails_activation(tmp_path: Path) -> None:
     environment = _signed_release_environment(tmp_path, bandit_image=_image())
     environment["VULNHUNTER_OPENSANDBOX_BANDIT_IMAGE"] = _image("f")
@@ -209,7 +258,11 @@ def test_executor_plan_binds_signed_release_without_host_binary(
 
     monkeypatch.setattr(catalog, "detect", fail_if_host_detection_runs)
     backend = build_opensandbox_backend_from_environment(
-        _signed_release_environment(tmp_path, bandit_image=_image())
+        _signed_release_environment(
+            tmp_path,
+            bandit_image=_image(),
+            with_github_attestations=True,
+        )
     )
     assert backend is not None
     executor = SecurityToolExecutor(
@@ -243,8 +296,11 @@ def test_executor_plan_binds_signed_release_without_host_binary(
     assert plan.runtime_source_commit == "1" * 40
     assert plan.runtime_release_registry_sha256 == backend.release_registry_sha256
     assert plan.runtime_release_key_id == backend.release_key_id
+    assert plan.runtime_github_provenance_attestation_sha256 == "7" * 64
+    assert plan.runtime_github_sbom_attestation_sha256 == "8" * 64
+    assert plan.runtime_github_attestation_signer == _GITHUB_SIGNER
 
-    tampered = plan.model_copy(update={"runtime_sbom_sha256": "9" * 64})
+    tampered = plan.model_copy(update={"runtime_github_sbom_attestation_sha256": "9" * 64})
     with pytest.raises(ExecutionBackendError, match="supply-chain identity changed"):
         backend.execute(tampered, approved_input_roots=(input_root,))
 

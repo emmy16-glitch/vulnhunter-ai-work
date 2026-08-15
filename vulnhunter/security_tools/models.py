@@ -19,6 +19,10 @@ _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _IMAGE_DIGEST = re.compile(r"^.+@sha256:[0-9a-f]{64}$")
 _KEY_ID = re.compile(r"^sha256:[0-9a-f]{64}$")
 _SOURCE_COMMIT = re.compile(r"^(?:[0-9a-f]{40}|[0-9a-f]{64})$")
+_GITHUB_WORKFLOW_SIGNER = re.compile(
+    r"^github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/\.github/workflows/"
+    r"[A-Za-z0-9_.-]+\.ya?ml$"
+)
 
 
 def utc_now() -> datetime:
@@ -173,6 +177,9 @@ class CommandPlan(BaseModel):
     runtime_source_commit: str | None = None
     runtime_release_registry_sha256: str | None = None
     runtime_release_key_id: str | None = None
+    runtime_github_provenance_attestation_sha256: str | None = None
+    runtime_github_sbom_attestation_sha256: str | None = None
+    runtime_github_attestation_signer: str | None = None
     template_manifest_sha256: str | None = None
     network_binding: NetworkTargetBinding | None = None
     output_files: tuple[Path, ...] = ()
@@ -216,23 +223,48 @@ class CommandPlan(BaseModel):
             self.runtime_release_registry_sha256,
             self.runtime_release_key_id,
         )
-        if not any(value is not None for value in release_values):
+        if any(value is not None for value in release_values):
+            if self.runtime_image is None or any(value is None for value in release_values):
+                raise ValueError("runtime release identity must be complete and include runtime_image")
+            if _IDENTIFIER.fullmatch(self.runtime_release_id or "") is None:
+                raise ValueError("runtime_release_id must be a stable lowercase identifier")
+            for value, label in (
+                (self.runtime_sbom_sha256, "runtime_sbom_sha256"),
+                (self.runtime_provenance_sha256, "runtime_provenance_sha256"),
+                (self.runtime_release_registry_sha256, "runtime_release_registry_sha256"),
+            ):
+                if _SHA256.fullmatch(value or "") is None:
+                    raise ValueError(f"{label} must be a SHA-256 digest")
+            if _SOURCE_COMMIT.fullmatch(self.runtime_source_commit or "") is None:
+                raise ValueError("runtime_source_commit must be a Git commit digest")
+            if _KEY_ID.fullmatch(self.runtime_release_key_id or "") is None:
+                raise ValueError("runtime_release_key_id must be a SHA-256 key identifier")
+
+        attestation_values = (
+            self.runtime_github_provenance_attestation_sha256,
+            self.runtime_github_sbom_attestation_sha256,
+            self.runtime_github_attestation_signer,
+        )
+        if not any(value is not None for value in attestation_values):
             return
-        if self.runtime_image is None or any(value is None for value in release_values):
-            raise ValueError("runtime release identity must be complete and include runtime_image")
-        if _IDENTIFIER.fullmatch(self.runtime_release_id or "") is None:
-            raise ValueError("runtime_release_id must be a stable lowercase identifier")
+        if not all(value is not None for value in release_values):
+            raise ValueError("runtime GitHub attestations require a complete release identity")
+        if any(value is None for value in attestation_values):
+            raise ValueError("runtime GitHub attestation identity must be complete")
         for value, label in (
-            (self.runtime_sbom_sha256, "runtime_sbom_sha256"),
-            (self.runtime_provenance_sha256, "runtime_provenance_sha256"),
-            (self.runtime_release_registry_sha256, "runtime_release_registry_sha256"),
+            (
+                self.runtime_github_provenance_attestation_sha256,
+                "runtime_github_provenance_attestation_sha256",
+            ),
+            (
+                self.runtime_github_sbom_attestation_sha256,
+                "runtime_github_sbom_attestation_sha256",
+            ),
         ):
             if _SHA256.fullmatch(value or "") is None:
                 raise ValueError(f"{label} must be a SHA-256 digest")
-        if _SOURCE_COMMIT.fullmatch(self.runtime_source_commit or "") is None:
-            raise ValueError("runtime_source_commit must be a Git commit digest")
-        if _KEY_ID.fullmatch(self.runtime_release_key_id or "") is None:
-            raise ValueError("runtime_release_key_id must be a SHA-256 key identifier")
+        if _GITHUB_WORKFLOW_SIGNER.fullmatch(self.runtime_github_attestation_signer or "") is None:
+            raise ValueError("runtime_github_attestation_signer must identify a GitHub workflow")
 
     def fingerprint(self) -> str:
         return sha256_json(self.model_dump(mode="json"))

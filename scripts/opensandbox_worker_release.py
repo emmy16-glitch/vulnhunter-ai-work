@@ -1,4 +1,4 @@
-"""Build and verify signed supply-chain evidence for OpenSandbox worker releases."""
+"""Build, attest, promote, sign, and verify OpenSandbox worker release evidence."""
 
 from __future__ import annotations
 
@@ -18,6 +18,27 @@ from vulnhunter.security_tools.opensandbox_supply_chain import (
 )
 
 _IMAGE = re.compile(r"^(?P<name>.+)@sha256:(?P<digest>[0-9a-f]{64})$")
+_PINNED_BASE = re.compile(
+    r"^ARG PYTHON_BASE_IMAGE=(?P<image>[^\s]+@sha256:[0-9a-f]{64})$",
+    re.MULTILINE,
+)
+_RECORD_V2_FIELDS = {
+    "worker_id",
+    "release_id",
+    "image",
+    "sbom_sha256",
+    "provenance_sha256",
+    "source_commit",
+    "status",
+    "rollback_of",
+    "github_provenance_attestation_sha256",
+    "github_sbom_attestation_sha256",
+    "github_attestation_signer",
+}
+_DEFAULT_BUILDER_ID = (
+    "https://github.com/emmy16-glitch/vulnhunter-ai-work/"
+    ".github/workflows/opensandbox-worker.yml"
+)
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -38,6 +59,7 @@ def _parser() -> argparse.ArgumentParser:
     provenance.add_argument("--image", required=True)
     provenance.add_argument("--containerfile", type=Path, required=True)
     provenance.add_argument("--source-commit", required=True)
+    provenance.add_argument("--builder-id", default=_DEFAULT_BUILDER_ID)
     provenance.add_argument("--output", type=Path, required=True)
 
     record = subparsers.add_parser("record")
@@ -47,9 +69,22 @@ def _parser() -> argparse.ArgumentParser:
     record.add_argument("--sbom", type=Path, required=True)
     record.add_argument("--provenance", type=Path, required=True)
     record.add_argument("--source-commit", required=True)
-    record.add_argument("--status", choices=("approved", "revoked"), default="approved")
+    record.add_argument(
+        "--status",
+        choices=("candidate", "approved", "revoked"),
+        default="approved",
+    )
     record.add_argument("--rollback-of")
+    record.add_argument("--github-provenance-attestation", type=Path)
+    record.add_argument("--github-sbom-attestation", type=Path)
+    record.add_argument("--github-attestation-signer")
     record.add_argument("--output", type=Path, required=True)
+
+    promote = subparsers.add_parser("promote")
+    promote.add_argument("--candidate", type=Path, required=True)
+    promote.add_argument("--status", choices=("approved", "revoked"), required=True)
+    promote.add_argument("--rollback-of")
+    promote.add_argument("--output", type=Path, required=True)
 
     registry = subparsers.add_parser("registry")
     registry.add_argument("--record", type=Path, action="append", required=True)
@@ -203,14 +238,29 @@ def _sbom(worker_id: str, image: str, output: Path) -> None:
     _write_json(output, payload)
 
 
+def _pinned_base_image(containerfile: Path) -> str:
+    text = containerfile.read_text(encoding="utf-8")
+    match = _PINNED_BASE.search(text)
+    if match is None:
+        raise SystemExit(
+            "worker Containerfile must declare PYTHON_BASE_IMAGE with an immutable sha256 digest"
+        )
+    image = match.group("image")
+    _image_parts(image)
+    return image
+
+
 def _provenance(
     worker_id: str,
     image: str,
     containerfile: Path,
     source_commit: str,
+    builder_id: str,
     output: Path,
 ) -> None:
     image_name, image_digest = _image_parts(image)
+    base_image = _pinned_base_image(containerfile)
+    base_name, base_digest = _image_parts(base_image)
     containerfile_digest = sha256_file(containerfile, maximum_bytes=1_000_000)
     payload = {
         "_type": "https://in-toto.io/Statement/v1",
@@ -218,10 +268,11 @@ def _provenance(
         "predicateType": "https://slsa.dev/provenance/v1",
         "predicate": {
             "buildDefinition": {
-                "buildType": "https://vulnhunter.local/build-types/opensandbox-worker/v1",
+                "buildType": "https://vulnhunter.local/build-types/opensandbox-worker/v2",
                 "externalParameters": {
                     "worker_id": worker_id,
                     "containerfile": str(containerfile),
+                    "base_image": base_image,
                 },
                 "resolvedDependencies": [
                     {
@@ -232,15 +283,14 @@ def _provenance(
                         "uri": f"file:{containerfile}",
                         "digest": {"sha256": containerfile_digest},
                     },
+                    {
+                        "uri": f"oci://{base_name}",
+                        "digest": {"sha256": base_digest},
+                    },
                 ],
             },
             "runDetails": {
-                "builder": {
-                    "id": (
-                        "https://github.com/emmy16-glitch/vulnhunter-ai-work/"
-                        ".github/workflows/opensandbox-worker.yml"
-                    )
-                },
+                "builder": {"id": builder_id},
                 "metadata": {"invocationId": source_commit},
             },
         },
@@ -250,6 +300,15 @@ def _provenance(
 
 def _record(args: argparse.Namespace) -> None:
     _image_parts(args.image)
+    attestation_values = (
+        args.github_provenance_attestation,
+        args.github_sbom_attestation,
+        args.github_attestation_signer,
+    )
+    if any(value is not None for value in attestation_values) and any(
+        value is None for value in attestation_values
+    ):
+        raise SystemExit("GitHub provenance, SBOM, and signer evidence must be provided together")
     payload = {
         "worker_id": args.worker_id,
         "release_id": args.release_id,
@@ -259,18 +318,41 @@ def _record(args: argparse.Namespace) -> None:
         "source_commit": args.source_commit,
         "status": args.status,
         "rollback_of": args.rollback_of,
+        "github_provenance_attestation_sha256": (
+            sha256_file(args.github_provenance_attestation)
+            if args.github_provenance_attestation is not None
+            else None
+        ),
+        "github_sbom_attestation_sha256": (
+            sha256_file(args.github_sbom_attestation)
+            if args.github_sbom_attestation is not None
+            else None
+        ),
+        "github_attestation_signer": args.github_attestation_signer,
     }
     _write_json(args.output, payload)
 
 
+def _load_record(path: Path) -> dict[str, object]:
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict) or set(payload) != _RECORD_V2_FIELDS:
+        raise SystemExit(f"release record is not schema-v2: {path}")
+    return payload
+
+
+def _promote(candidate: Path, status: str, rollback_of: str | None, output: Path) -> None:
+    payload = _load_record(candidate)
+    if payload.get("status") != "candidate":
+        raise SystemExit("only a candidate worker release record may be promoted")
+    promoted = dict(payload)
+    promoted["status"] = status
+    promoted["rollback_of"] = rollback_of
+    _write_json(output, promoted)
+
+
 def _registry(records: list[Path], output: Path) -> None:
-    releases = []
-    for path in records:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-        if not isinstance(payload, dict):
-            raise SystemExit(f"release record must be a JSON object: {path}")
-        releases.append(payload)
-    _write_json(output, {"schema_version": 1, "releases": releases})
+    releases = [_load_record(path) for path in records]
+    _write_json(output, {"schema_version": 2, "releases": releases})
 
 
 def _sign(registry: Path, private_key_path: Path, public_key_path: Path, signature: Path) -> None:
@@ -298,6 +380,7 @@ def _sign(registry: Path, private_key_path: Path, public_key_path: Path, signatu
     if loaded_der != expected_public:
         raise SystemExit("worker release private/public key pair does not match")
     signed = private_key.sign(canonical)
+
     import base64
 
     _write_json(
@@ -328,6 +411,11 @@ def _verify(args: argparse.Namespace) -> None:
                 "sbom_sha256": release.sbom_sha256,
                 "provenance_sha256": release.provenance_sha256,
                 "source_commit": release.source_commit,
+                "github_provenance_attestation_sha256": (
+                    release.github_provenance_attestation_sha256
+                ),
+                "github_sbom_attestation_sha256": release.github_sbom_attestation_sha256,
+                "github_attestation_signer": release.github_attestation_signer,
                 "registry_sha256": registry.registry_sha256,
                 "key_id": registry.key_id,
             },
@@ -348,10 +436,13 @@ def main() -> None:
             args.image,
             args.containerfile,
             args.source_commit,
+            args.builder_id,
             args.output,
         )
     elif args.command == "record":
         _record(args)
+    elif args.command == "promote":
+        _promote(args.candidate, args.status, args.rollback_of, args.output)
     elif args.command == "registry":
         _registry(args.record, args.output)
     elif args.command == "sign":

@@ -297,6 +297,32 @@ const report = {
           }
           const rootOverflowY = getComputedStyle(root).overflowY;
 
+          const conversationWorkspace = document.querySelector("[data-conversation-workspace]");
+          const conversationScrollRegion = conversationWorkspace?.querySelector(
+            "[data-conversation-feed]",
+          );
+          let conversationScrollContractValid = false;
+          let conversationNeedsScroll = false;
+          let conversationCanScroll = false;
+          let conversationOverflowY = null;
+          if (conversationScrollRegion) {
+            const conversationStyle = getComputedStyle(conversationScrollRegion);
+            conversationOverflowY = conversationStyle.overflowY;
+            const ownsVerticalScroll = ["auto", "scroll"].includes(conversationOverflowY);
+            const hasViewport = conversationScrollRegion.clientHeight > 0;
+            conversationNeedsScroll =
+              conversationScrollRegion.scrollHeight > conversationScrollRegion.clientHeight + 1;
+            conversationCanScroll = ownsVerticalScroll && hasViewport;
+            if (conversationNeedsScroll && conversationCanScroll) {
+              const original = conversationScrollRegion.scrollTop;
+              conversationScrollRegion.scrollTop = conversationScrollRegion.scrollHeight;
+              await new Promise((resolve) => requestAnimationFrame(resolve));
+              conversationCanScroll = conversationScrollRegion.scrollTop > original;
+              conversationScrollRegion.scrollTop = original;
+            }
+            conversationScrollContractValid = ownsVerticalScroll && hasViewport && conversationCanScroll;
+          }
+
           const sidebarNeedsScroll = Boolean(
             sidebarNavigation &&
               sidebarNavigation.scrollHeight > sidebarNavigation.clientHeight + 1,
@@ -318,6 +344,11 @@ const report = {
             pageIsLong,
             pageCanScrollVertically,
             rootOverflowY,
+            conversationWorkspace: Boolean(conversationWorkspace),
+            conversationScrollContractValid,
+            conversationNeedsScroll,
+            conversationCanScroll,
+            conversationOverflowY,
             sidebarNeedsScroll,
             sidebarCanScroll,
             unnamedControls,
@@ -326,7 +357,6 @@ const report = {
             emptyLinks,
             brokenAnchors: [...new Set(brokenAnchors)],
             activeNavigation: activeNavigation.map((item) => item.textContent.trim()),
-            conversationWorkspace: Boolean(document.querySelector("[data-conversation-workspace]")),
             djangoError:
               Boolean(document.querySelector("#traceback, .technical-500")) ||
               /TemplateSyntaxError at\/|Server Error \(500\)/i.test(bodyText),
@@ -342,10 +372,15 @@ const report = {
         if (audit.overflowX) {
           report.failures.push(`${routeKey} has body-level horizontal overflow`);
         }
-        if (audit.pageIsLong && !audit.pageCanScrollVertically) {
+        if (audit.conversationWorkspace && !audit.conversationScrollContractValid) {
+          report.failures.push(`${routeKey} has no usable conversation scroll region`);
+        }
+        const pageScrollRequired =
+          audit.pageIsLong && !(audit.conversationWorkspace && audit.conversationScrollContractValid);
+        if (pageScrollRequired && !audit.pageCanScrollVertically) {
           report.failures.push(`${routeKey} is long but cannot scroll vertically`);
         }
-        if (audit.pageIsLong && audit.rootOverflowY === "hidden") {
+        if (pageScrollRequired && audit.rootOverflowY === "hidden") {
           report.failures.push(`${routeKey} hides the page-level vertical scrollbar`);
         }
         if (audit.sidebarNeedsScroll && !audit.sidebarCanScroll) {

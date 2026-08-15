@@ -11,6 +11,7 @@ from vulnhunter.security_tools.opensandbox_activation import (
     ConfiguredOpenSandboxExecutionBackend,
     OpenSandboxActivationConfig,
     OpenSandboxActivationError,
+    _opensandbox_permission_mode,
     build_opensandbox_backend_from_environment,
 )
 
@@ -46,6 +47,17 @@ def test_remote_http_control_plane_is_rejected() -> None:
                 "VULNHUNTER_OPENSANDBOX_PROTOCOL": "http",
             }
         )
+
+
+def test_python_permission_modes_are_encoded_for_opensandbox() -> None:
+    assert _opensandbox_permission_mode(0o755) == 755
+    assert _opensandbox_permission_mode(0o733) == 733
+    assert _opensandbox_permission_mode(0o555) == 555
+    assert _opensandbox_permission_mode(0o444) == 444
+    assert _opensandbox_permission_mode(0o777) == 777
+
+    with pytest.raises(OpenSandboxActivationError, match="POSIX range"):
+        _opensandbox_permission_mode(0o10000)
 
 
 def test_enabled_activation_builds_non_root_bandit_runtime() -> None:

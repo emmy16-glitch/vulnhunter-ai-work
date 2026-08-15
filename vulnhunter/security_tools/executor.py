@@ -159,14 +159,7 @@ class SecurityToolExecutor:
             )
 
     def plan(self, request: SecurityToolRequest) -> CommandPlan:
-        availability = self.catalog.detect(request.tool_id)
-        if not availability.available or not availability.executable_path:
-            raise SecurityToolExecutionError(f"Security tool is not available: {request.tool_id}")
-        if not availability.usable:
-            detail = availability.error_summary or availability.status.value
-            raise SecurityToolExecutionError(
-                f"Security tool is installed but unusable: {request.tool_id}: {detail}"
-            )
+        executable = self._planned_executable(request.tool_id)
         output_directory = request.output_directory.expanduser().resolve()
         try:
             output_directory.relative_to(self.approved_output_root)
@@ -194,7 +187,7 @@ class SecurityToolExecutor:
 
         plan = build_command_plan(
             request,
-            executable=availability.executable_path,
+            executable=executable,
             catalog=self.catalog,
         ).model_copy(update={"target": bound_target, "target_kind": request.target_kind})
         self._issued_plans[plan.fingerprint()] = plan
@@ -307,6 +300,39 @@ class SecurityToolExecutor:
             evidence_sha256=sha256_json(evidence),
             success=return_code in plan.acceptable_return_codes and not timed_out,
         )
+
+    def _planned_executable(self, tool_id: str) -> str:
+        if self.execution_backend is not None:
+            resolver = getattr(self.execution_backend, "executable_for", None)
+            if resolver is not None:
+                if not callable(resolver):
+                    raise SecurityToolExecutionError(
+                        "Execution backend executable resolver is invalid."
+                    )
+                executable = resolver(tool_id)
+                if executable is None:
+                    raise SecurityToolExecutionError(
+                        f"Execution backend does not provide a runtime for: {tool_id}"
+                    )
+                if not isinstance(executable, str) or not executable.startswith("/"):
+                    raise SecurityToolExecutionError(
+                        "Execution backend returned an invalid executable identity."
+                    )
+                if "\x00" in executable:
+                    raise SecurityToolExecutionError(
+                        "Execution backend executable identity contains an invalid byte."
+                    )
+                return executable
+
+        availability = self.catalog.detect(tool_id)
+        if not availability.available or not availability.executable_path:
+            raise SecurityToolExecutionError(f"Security tool is not available: {tool_id}")
+        if not availability.usable:
+            detail = availability.error_summary or availability.status.value
+            raise SecurityToolExecutionError(
+                f"Security tool is installed but unusable: {tool_id}: {detail}"
+            )
+        return availability.executable_path
 
     def _execute_local(self, plan: CommandPlan) -> tuple[int, bool, bytes, bytes]:
         timed_out = False

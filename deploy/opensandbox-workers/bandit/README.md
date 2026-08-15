@@ -7,7 +7,13 @@ source file.
 ## Security contract
 
 - Bandit is pinned to `1.9.4` at image build time.
-- Runtime execution is non-root (`uid=65532`, `gid=65532`).
+- **Scanner execution** is non-root (`uid=65532`, `gid=65532`).
+- The image itself does not set Docker `USER`: OpenSandbox injects `execd`, and that control daemon
+  must retain the container ceiling long enough to apply the requested UID/GID to `/command`
+  children. VulnHunter's runtime spec always requests UID/GID 65532 for the fixed runner, so the
+  runner and the Bandit process it launches remain non-root.
+- CI separately proves the same image can run Bandit directly as UID/GID 65532 with no network,
+  no capabilities, a read-only root filesystem, and `no-new-privileges`.
 - VulnHunter accepts the built image only as `registry/repository@sha256:<digest>`.
 - The OpenSandbox backend creates the sandbox with deny-by-default egress.
 - The VulnHunter host stages only the already-approved regular target file.
@@ -19,6 +25,29 @@ source file.
 
 This image is not a network scanner and must not be used for Nuclei, Nmap, public targets,
 containers, Android devices, JADX, Apktool, or arbitrary command execution.
+
+## Why the image does not set `USER 65532`
+
+OpenSandbox's `/command` implementation starts a shell from the injected `execd` process and, when
+UID/GID are supplied, applies a Linux process credential to that child before `exec`. Starting the
+entire worker container as UID 65532 prevents execd from performing that credential setup and Linux
+returns `EPERM`. The trust boundary is therefore layered:
+
+```text
+container ceiling / injected execd
+        |
+        | applies RunCommandOpts(uid=65532,gid=65532)
+        v
+fixed VulnHunter runner (non-root)
+        |
+        | shell=False argv
+        v
+Bandit scanner (non-root)
+```
+
+Keeping execd at the container ceiling does not grant that ceiling to the scanner command. The
+OpenSandbox server still applies the configured container capability drops and `no_new_privileges`,
+and VulnHunter explicitly requests the non-root scanner identity for every execution.
 
 ## Build
 

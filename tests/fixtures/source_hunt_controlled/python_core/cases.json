@@ -1,0 +1,58 @@
+[
+  {
+    "case_id": "PY-PATH-001-VULN",
+    "vulnerability_class": "path_traversal",
+    "path": "app.py",
+    "anchor": "return open(request.GET[\"name\"]).read()",
+    "expected_vulnerable": true
+  },
+  {
+    "case_id": "PY-PATH-002-GUARDED",
+    "vulnerability_class": "path_traversal",
+    "path": "app.py",
+    "anchor": "return open(safe_name).read()",
+    "expected_vulnerable": false
+  },
+  {
+    "case_id": "PY-CMD-001-VULN",
+    "vulnerability_class": "command_injection",
+    "path": "app.py",
+    "anchor": "return system(request.POST[\"cmd\"])",
+    "expected_vulnerable": true
+  },
+  {
+    "case_id": "PY-CMD-002-GUARDED",
+    "vulnerability_class": "command_injection",
+    "path": "app.py",
+    "anchor": "return system(safe_cmd)",
+    "expected_vulnerable": false
+  },
+  {
+    "case_id": "PY-SQL-001-VULN",
+    "vulnerability_class": "sql_injection",
+    "path": "app.py",
+    "anchor": "return cursor.execute(request.GET[\"query\"])",
+    "expected_vulnerable": true
+  },
+  {
+    "case_id": "PY-SQL-002-GUARDED",
+    "vulnerability_class": "sql_injection",
+    "path": "app.py",
+    "anchor": "return cursor.execute(safe_query)",
+    "expected_vulnerable": false
+  },
+  {
+    "case_id": "PY-TPL-001-VULN",
+    "vulnerability_class": "template_injection",
+    "path": "app.py",
+    "anchor": "return render_template_string(request.POST[\"template\"])",
+    "expected_vulnerable": true
+  },
+  {
+    "case_id": "PY-TPL-002-GUARDED",
+    "vulnerability_class": "template_injection",
+    "path": "app.py",
+    "anchor": "return render_template_string(safe_template)",
+    "expected_vulnerable": false
+  }
+]

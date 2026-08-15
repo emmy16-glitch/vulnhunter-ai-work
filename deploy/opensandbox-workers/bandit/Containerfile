@@ -1,0 +1,28 @@
+ARG PYTHON_BASE_IMAGE=python:3.12-slim-bookworm@sha256:a116514e19457bcb7af7efe9c3dd0b9b71e85b317694e7882a1c52aa15a78134
+FROM ${PYTHON_BASE_IMAGE}
+
+ARG BANDIT_VERSION=1.9.4
+
+LABEL org.opencontainers.image.title="VulnHunter OpenSandbox Bandit Worker" \
+      org.opencontainers.image.description="Offline Bandit worker for governed non-root VulnHunter source-file scans" \
+      org.opencontainers.image.source="https://github.com/emmy16-glitch/vulnhunter-ai-work" \
+      org.opencontainers.image.licenses="Apache-2.0"
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_NO_CACHE_DIR=1 \
+    HOME=/tmp
+
+RUN python -m pip install --no-cache-dir "bandit==${BANDIT_VERSION}" \
+    && /usr/local/bin/bandit --version
+
+WORKDIR /tmp
+
+# Do not set USER here. OpenSandbox injects execd into the worker container and
+# execd must retain the container ceiling long enough to apply the requested
+# uid/gid to each /command child. VulnHunter always launches the fixed runner
+# and Bandit workload with RunCommandOpts(uid=65532, gid=65532), so scanner code
+# still executes non-root. CI separately proves this image can run Bandit as
+# 65532 with no network, no capabilities, a read-only root, and no-new-privileges.
+CMD ["python3", "-c", "import time; time.sleep(86400)"]

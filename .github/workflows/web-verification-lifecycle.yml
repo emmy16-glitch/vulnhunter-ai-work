@@ -1,0 +1,44 @@
+name: Web verification lifecycle completion
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/web-verification-lifecycle.yml"
+      - "vulnhunter/web_verification/**"
+      - "tests/unit/test_web_verification_lifecycle.py"
+      - "docs/intelligence/WEB_VERIFICATION_LIFECYCLE.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lifecycle:
+    name: Python ${{ matrix.python-version }} lifecycle contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Install focused dependencies
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install -e . pytest cryptography ruff
+      - name: Lint lifecycle contracts
+        run: python -m ruff check --output-format=github vulnhunter/web_verification tests/unit/test_web_verification_lifecycle.py
+      - name: Verify lifecycle formatting
+        run: python -m ruff format --check vulnhunter/web_verification tests/unit/test_web_verification_lifecycle.py
+      - name: Compile lifecycle package
+        run: python -m compileall -q vulnhunter/web_verification
+      - name: Run lifecycle contracts
+        run: python -m pytest -q tests/unit/test_web_verification.py tests/unit/test_web_verification_external_evidence.py tests/unit/test_web_verification_lifecycle.py

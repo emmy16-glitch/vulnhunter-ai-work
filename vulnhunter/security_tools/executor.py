@@ -15,6 +15,10 @@ from vulnhunter.actions.models import sha256_json
 from vulnhunter.security import redact_text
 from vulnhunter.security_tools.adapters import build_command_plan
 from vulnhunter.security_tools.catalog import SecurityToolCatalog
+from vulnhunter.security_tools.execution_backend import (
+    ExecutionBackendError,
+    SecurityToolExecutionBackend,
+)
 from vulnhunter.security_tools.models import (
     CommandPlan,
     SecurityToolRequest,
@@ -135,6 +139,7 @@ class SecurityToolExecutor:
         approved_output_root: Path,
         approved_input_roots: tuple[Path, ...] = (),
         isolated_runtime: bool = False,
+        execution_backend: SecurityToolExecutionBackend | None = None,
         execution_authorizer: ExecutionAuthorizer | None = None,
     ) -> None:
         self.catalog = catalog
@@ -145,6 +150,7 @@ class SecurityToolExecutor:
             path.expanduser().resolve() for path in approved_input_roots
         )
         self.isolated_runtime = isolated_runtime
+        self.execution_backend = execution_backend
         self.execution_authorizer = execution_authorizer
         self._issued_plans: dict[str, CommandPlan] = {}
         if self.execution_enabled and self.execution_authorizer is None:
@@ -153,14 +159,7 @@ class SecurityToolExecutor:
             )
 
     def plan(self, request: SecurityToolRequest) -> CommandPlan:
-        availability = self.catalog.detect(request.tool_id)
-        if not availability.available or not availability.executable_path:
-            raise SecurityToolExecutionError(f"Security tool is not available: {request.tool_id}")
-        if not availability.usable:
-            detail = availability.error_summary or availability.status.value
-            raise SecurityToolExecutionError(
-                f"Security tool is installed but unusable: {request.tool_id}: {detail}"
-            )
+        executable = self._planned_executable(request.tool_id)
         output_directory = request.output_directory.expanduser().resolve()
         try:
             output_directory.relative_to(self.approved_output_root)
@@ -168,6 +167,8 @@ class SecurityToolExecutor:
             raise SecurityToolExecutionError(
                 "Tool output directory is outside the approved evidence root."
             ) from exc
+
+        bound_target = request.target
         if request.target_kind in {
             ToolTargetKind.LOCAL_PATH,
             ToolTargetKind.BINARY_FILE,
@@ -182,11 +183,26 @@ class SecurityToolExecutor:
                 raise SecurityToolExecutionError(
                     "Local artifact target is outside all approved input roots."
                 )
+            bound_target = str(target)
+
         plan = build_command_plan(
             request,
-            executable=availability.executable_path,
+            executable=executable,
             catalog=self.catalog,
-        )
+        ).model_copy(update={"target": bound_target, "target_kind": request.target_kind})
+        if self.execution_backend is not None:
+            binder = getattr(self.execution_backend, "bind_plan", None)
+            if binder is not None:
+                if not callable(binder):
+                    raise SecurityToolExecutionError("Execution backend plan binder is invalid.")
+                try:
+                    plan = binder(plan, request)
+                except ExecutionBackendError as exc:
+                    raise SecurityToolExecutionError(str(exc)) from exc
+                if not isinstance(plan, CommandPlan):
+                    raise SecurityToolExecutionError(
+                        "Execution backend returned an invalid immutable command plan."
+                    )
         self._issued_plans[plan.fingerprint()] = plan
         return plan
 
@@ -214,43 +230,33 @@ class SecurityToolExecutor:
             )
         if plan.requires_approval and not approval_consumed:
             raise SecurityToolExecutionError("Required approval was not consumed.")
-        if plan.requires_isolation and not self.isolated_runtime:
+        backend_isolated = bool(
+            self.execution_backend is not None and self.execution_backend.isolated
+        )
+        if plan.requires_isolation and not (self.isolated_runtime or backend_isolated):
             raise SecurityToolExecutionError(
                 "This command requires an explicitly isolated execution runtime."
             )
+
         self._issued_plans.pop(fingerprint, None)
         plan.working_directory.mkdir(parents=True, exist_ok=True)
         started = datetime.now(UTC)
-        timed_out = False
-        # Temporary files avoid unbounded in-memory pipe buffering. Their contents
-        # are accepted only after the configured byte limit is checked.
-        with tempfile.TemporaryFile() as stdout_capture, tempfile.TemporaryFile() as stderr_capture:
+
+        if self.execution_backend is None:
+            return_code, timed_out, stdout, stderr = self._execute_local(plan)
+        else:
             try:
-                completed = subprocess.run(
-                    plan.argv,
-                    cwd=plan.working_directory,
-                    env=self._minimal_environment(),
-                    shell=False,
-                    stdin=subprocess.DEVNULL,
-                    stdout=stdout_capture,
-                    stderr=stderr_capture,
-                    timeout=plan.timeout_seconds,
-                    check=False,
+                backend_result = self.execution_backend.execute(
+                    plan,
+                    approved_input_roots=self.approved_input_roots,
                 )
-                return_code = completed.returncode
-            except subprocess.TimeoutExpired:
-                timed_out = True
-                return_code = 124
-            stdout = _read_bounded_capture(
-                stdout_capture,
-                maximum_bytes=plan.maximum_output_bytes,
-                stream_name="stdout",
-            )
-            stderr = _read_bounded_capture(
-                stderr_capture,
-                maximum_bytes=plan.maximum_output_bytes,
-                stream_name="stderr",
-            )
+            except ExecutionBackendError as exc:
+                raise SecurityToolExecutionError(str(exc)) from exc
+            return_code = backend_result.return_code
+            timed_out = backend_result.timed_out
+            stdout = backend_result.stdout
+            stderr = backend_result.stderr
+            self._persist_backend_artifacts(plan, backend_result.artifacts)
 
         stdout = _redact_capture(
             stdout,
@@ -307,6 +313,88 @@ class SecurityToolExecutor:
             evidence_sha256=sha256_json(evidence),
             success=return_code in plan.acceptable_return_codes and not timed_out,
         )
+
+    def _planned_executable(self, tool_id: str) -> str:
+        if self.execution_backend is not None:
+            resolver = getattr(self.execution_backend, "executable_for", None)
+            if resolver is not None:
+                if not callable(resolver):
+                    raise SecurityToolExecutionError(
+                        "Execution backend executable resolver is invalid."
+                    )
+                executable = resolver(tool_id)
+                if executable is None:
+                    raise SecurityToolExecutionError(
+                        f"Execution backend does not provide a runtime for: {tool_id}"
+                    )
+                if not isinstance(executable, str) or not executable.startswith("/"):
+                    raise SecurityToolExecutionError(
+                        "Execution backend returned an invalid executable identity."
+                    )
+                if "\x00" in executable:
+                    raise SecurityToolExecutionError(
+                        "Execution backend executable identity contains an invalid byte."
+                    )
+                return executable
+
+        availability = self.catalog.detect(tool_id)
+        if not availability.available or not availability.executable_path:
+            raise SecurityToolExecutionError(f"Security tool is not available: {tool_id}")
+        if not availability.usable:
+            detail = availability.error_summary or availability.status.value
+            raise SecurityToolExecutionError(
+                f"Security tool is installed but unusable: {tool_id}: {detail}"
+            )
+        return availability.executable_path
+
+    def _execute_local(self, plan: CommandPlan) -> tuple[int, bool, bytes, bytes]:
+        timed_out = False
+        # Temporary files avoid unbounded in-memory pipe buffering. Their contents
+        # are accepted only after the configured byte limit is checked.
+        with tempfile.TemporaryFile() as stdout_capture, tempfile.TemporaryFile() as stderr_capture:
+            try:
+                completed = subprocess.run(
+                    plan.argv,
+                    cwd=plan.working_directory,
+                    env=self._minimal_environment(),
+                    shell=False,
+                    stdin=subprocess.DEVNULL,
+                    stdout=stdout_capture,
+                    stderr=stderr_capture,
+                    timeout=plan.timeout_seconds,
+                    check=False,
+                )
+                return_code = completed.returncode
+            except subprocess.TimeoutExpired:
+                timed_out = True
+                return_code = 124
+            stdout = _read_bounded_capture(
+                stdout_capture,
+                maximum_bytes=plan.maximum_output_bytes,
+                stream_name="stdout",
+            )
+            stderr = _read_bounded_capture(
+                stderr_capture,
+                maximum_bytes=plan.maximum_output_bytes,
+                stream_name="stderr",
+            )
+        return return_code, timed_out, stdout, stderr
+
+    def _persist_backend_artifacts(self, plan: CommandPlan, artifacts) -> None:
+        capture_paths = {path for path in (plan.stdout_file, plan.stderr_file) if path is not None}
+        expected = set(plan.output_files) - capture_paths
+        seen: set[Path] = set()
+        for artifact in artifacts:
+            if artifact.host_path not in expected or artifact.host_path in seen:
+                raise SecurityToolExecutionError(
+                    "Execution backend returned an undeclared or duplicate evidence artifact."
+                )
+            if len(artifact.data) > plan.maximum_output_bytes:
+                raise SecurityToolExecutionError(
+                    "Execution backend artifact exceeded the configured output limit."
+                )
+            _write_capture(artifact.host_path, artifact.data)
+            seen.add(artifact.host_path)
 
     @staticmethod
     def _minimal_environment() -> dict[str, str]:

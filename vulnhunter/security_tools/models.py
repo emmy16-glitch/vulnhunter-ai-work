@@ -127,6 +127,8 @@ class CommandPlan(BaseModel):
     tool_id: str
     executable: str
     argv: tuple[str, ...] = Field(min_length=1)
+    target: str | None = None
+    target_kind: ToolTargetKind = ToolTargetKind.NETWORK
     output_files: tuple[Path, ...] = ()
     stdout_file: Path | None = None
     stderr_file: Path | None = None
@@ -145,6 +147,8 @@ class CommandPlan(BaseModel):
             raise ValueError("argv must begin with the selected executable")
         if any("\x00" in part for part in self.argv):
             raise ValueError("command arguments must not contain NUL bytes")
+        if self.target is not None and "\x00" in self.target:
+            raise ValueError("command target must not contain NUL bytes")
         return self
 
     def fingerprint(self) -> str:

@@ -65,6 +65,12 @@ from vulnhunter.security_tools.opensandbox_network_backend import (
     NucleiOpenSandboxRuntimeSpec,
     OpenSandboxNucleiExecutionBackend,
 )
+from vulnhunter.security_tools.opensandbox_supply_chain import (
+    ApprovedWorkerRelease,
+    VerifiedWorkerReleaseRegistry,
+    WorkerReleaseVerificationError,
+    load_verified_worker_release_registry,
+)
 from vulnhunter.security_tools.scanner_protocol import (
     SCANNER_PROTOCOL_VERSION,
     PlannedScannerAdapter,
@@ -85,6 +91,7 @@ from vulnhunter.security_tools.scanner_protocol import (
 )
 
 __all__ = [
+    "ApprovedWorkerRelease",
     "BackendArtifact",
     "BackendExecutionResult",
     "BoundedTextCapture",
@@ -147,8 +154,11 @@ __all__ = [
     "ToolExecutionResult",
     "ToolProfile",
     "ToolTargetKind",
+    "VerifiedWorkerReleaseRegistry",
+    "WorkerReleaseVerificationError",
     "build_opensandbox_backend_from_environment",
     "default_catalog",
+    "load_verified_worker_release_registry",
     "normalize_execution_findings",
     "validate_evidence_directory",
     "validate_nuclei_plan_approval",

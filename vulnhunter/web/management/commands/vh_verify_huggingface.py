@@ -17,7 +17,7 @@ from vulnhunter.providers import (
 
 
 class Command(BaseCommand):
-    help = "Run bounded Hugging Face provider and exact web-conversation readiness checks."
+    help = "Run bounded high-reasoning Hugging Face provider and conversation readiness checks."
 
     def add_arguments(self, parser) -> None:
         parser.add_argument("--model", default=settings.VULNHUNTER_HUGGINGFACE_MODEL)
@@ -36,6 +36,11 @@ class Command(BaseCommand):
         if not settings.VULNHUNTER_HUGGINGFACE_ENABLED:
             raise CommandError("Hugging Face is disabled by configuration.")
         model = str(options["model"]).strip()
+        if model != settings.VULNHUNTER_HUGGINGFACE_MODEL:
+            raise CommandError(
+                "Hugging Face verification is pinned to VULNHUNTER_HUGGINGFACE_MODEL; "
+                "model downgrade is not allowed."
+            )
         timeout = int(options["timeout"])
         if not 5 <= timeout <= 300:
             raise CommandError("timeout must be between 5 and 300 seconds")
@@ -59,15 +64,12 @@ class Command(BaseCommand):
             maximum_input_tokens=1_000,
             maximum_output_tokens=1_024,
             timeout_seconds=timeout,
-            reasoning_effort="low",
+            reasoning_effort="high",
         )
         try:
             provider = HuggingFaceProvider.from_token_file(
                 Path(settings.VULNHUNTER_HUGGINGFACE_TOKEN_FILE),
-                approved_models=(
-                    settings.VULNHUNTER_HUGGINGFACE_MODEL,
-                    settings.VULNHUNTER_HUGGINGFACE_FALLBACK_MODEL,
-                ),
+                approved_models=(model,),
                 api_base=settings.VULNHUNTER_HUGGINGFACE_API_BASE,
             )
             response = provider.invoke(invocation, content)
@@ -76,6 +78,10 @@ class Command(BaseCommand):
         if response.output_kind == ProviderOutputKind.ABSTAIN:
             raise CommandError(
                 response.safe_error or "Hugging Face abstained during readiness test"
+            )
+        if response.model != model:
+            raise CommandError(
+                "Hugging Face response model did not match the configured reasoning model"
             )
         if "VULNHUNTER_HUGGINGFACE_READY" not in response.content:
             raise CommandError(
@@ -93,15 +99,18 @@ class Command(BaseCommand):
                     f"message must include the exact marker {marker}."
                 ),
                 available_profiles=("passive",),
-                reasoning_effort="low",
+                reasoning_effort="high",
                 provider_preference="huggingface",
             )
-            if interpreted.provider != "huggingface" or marker not in (
-                interpreted.assistant_copy or ""
+            if (
+                interpreted.provider != "huggingface"
+                or interpreted.model != model
+                or marker not in (interpreted.assistant_copy or "")
             ):
                 raise CommandError(
                     "Hugging Face conversation smoke test failed safely: "
-                    f"provider={interpreted.provider} detail={interpreted.provider_detail}"
+                    f"provider={interpreted.provider} model={interpreted.model} "
+                    f"detail={interpreted.provider_detail}"
                 )
             conversation_ready = True
 
@@ -109,7 +118,7 @@ class Command(BaseCommand):
         self.stdout.write(
             self.style.SUCCESS(
                 "Hugging Face verified: "
-                f"model={response.model} output_kind={response.output_kind.value} "
+                f"model={response.model} reasoning=high output_kind={response.output_kind.value} "
                 f"trusted={response.trusted}.{suffix}"
             )
         )

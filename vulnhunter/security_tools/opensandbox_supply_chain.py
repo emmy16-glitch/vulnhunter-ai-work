@@ -104,7 +104,9 @@ def load_verified_worker_release_registry(
     if set(registry_payload) != {"schema_version", "releases"}:
         raise WorkerReleaseVerificationError("worker release registry has unexpected fields")
     if registry_payload.get("schema_version") != 1:
-        raise WorkerReleaseVerificationError("worker release registry schema version is unsupported")
+        raise WorkerReleaseVerificationError(
+            "worker release registry schema version is unsupported"
+        )
     raw_releases = registry_payload.get("releases")
     if not isinstance(raw_releases, list) or not raw_releases:
         raise WorkerReleaseVerificationError("worker release registry must contain releases")
@@ -120,7 +122,9 @@ def load_verified_worker_release_registry(
     if set(signature_payload) != {"schema_version", "algorithm", "key_id", "signature"}:
         raise WorkerReleaseVerificationError("worker release signature has unexpected fields")
     if signature_payload.get("schema_version") != 1:
-        raise WorkerReleaseVerificationError("worker release signature schema version is unsupported")
+        raise WorkerReleaseVerificationError(
+            "worker release signature schema version is unsupported"
+        )
     if signature_payload.get("algorithm") != "ed25519":
         raise WorkerReleaseVerificationError("worker release signature algorithm must be ed25519")
 
@@ -237,7 +241,9 @@ def _decode_signature(value: object) -> bytes:
     try:
         signature = base64.b64decode(value, validate=True)
     except ValueError as exc:
-        raise WorkerReleaseVerificationError("worker release signature is not valid base64") from exc
+        raise WorkerReleaseVerificationError(
+            "worker release signature is not valid base64"
+        ) from exc
     if len(signature) != 64:
         raise WorkerReleaseVerificationError("worker release Ed25519 signature must be 64 bytes")
     return signature

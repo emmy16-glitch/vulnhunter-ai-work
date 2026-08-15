@@ -88,9 +88,7 @@ def _find_reusable_authorization(
     """
 
     principals = {
-        value.strip().casefold()
-        for value in (identity_id, username)
-        if value and value.strip()
+        value.strip().casefold() for value in (identity_id, username) if value and value.strip()
     }
     candidates = [
         item

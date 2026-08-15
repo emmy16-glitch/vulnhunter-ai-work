@@ -1,0 +1,312 @@
+name: Web perception worker acceptance
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/web-perception-worker.yml"
+      - "deploy/opensandbox-workers/playwright/**"
+      - "scripts/opensandbox_playwright_release_evidence.py"
+      - "scripts/opensandbox_web_perception_acceptance.py"
+      - "scripts/web_perception_lab_target.py"
+      - "tests/unit/test_web_perception.py"
+      - "vulnhunter/web_perception/**"
+      - "docs/intelligence/WEB_PERCEPTION_SURFACE_GRAPH.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  playwright-container-smoke:
+    name: Hardened Playwright worker smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Build pinned Playwright worker
+        run: |
+          set -euo pipefail
+          docker build \
+            -f deploy/opensandbox-workers/playwright/Containerfile \
+            -t vulnhunter-opensandbox-playwright:ci \
+            .
+
+      - name: Launch Chromium inside hardened outer container boundary
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            --network none \
+            --read-only \
+            --cap-drop ALL \
+            --security-opt no-new-privileges \
+            --user 65532:65532 \
+            --tmpfs /tmp:rw,nosuid,nodev,size=256m \
+            --entrypoint python3 \
+            vulnhunter-opensandbox-playwright:ci \
+            -c "from playwright.sync_api import sync_playwright; p=sync_playwright().start(); b=p.chromium.launch(headless=True, chromium_sandbox=False, args=['--disable-background-networking']); b.close(); p.stop()"
+
+  web-perception-unit:
+    name: Web perception contract tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install test dependencies
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install -e . pytest cryptography ruff
+
+      - name: Run focused contract and static checks
+        run: |
+          set -euo pipefail
+          python -m ruff check vulnhunter/web_perception tests/unit/test_web_perception.py \
+            scripts/opensandbox_playwright_release_evidence.py \
+            scripts/opensandbox_web_perception_acceptance.py \
+            scripts/web_perception_lab_target.py \
+            deploy/opensandbox-workers/playwright/worker.py
+          python -m ruff format --check vulnhunter/web_perception tests/unit/test_web_perception.py \
+            scripts/opensandbox_playwright_release_evidence.py \
+            scripts/opensandbox_web_perception_acceptance.py \
+            scripts/web_perception_lab_target.py \
+            deploy/opensandbox-workers/playwright/worker.py
+          python -m compileall -q vulnhunter/web_perception
+          python -m pytest -q tests/unit/test_web_perception.py
+
+  genuine-opensandbox-playwright:
+    name: Genuine authorized OpenSandbox Playwright perception
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install VulnHunter, OpenSandbox SDK, and server
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install -e '.[opensandbox]' 'opensandbox-server==0.2.2'
+
+      - name: Build and publish Playwright worker to ephemeral registry
+        id: worker
+        run: |
+          set -euo pipefail
+          docker run -d --name vulnhunter-playwright-registry -p 5000:5000 registry:2
+          docker build \
+            -f deploy/opensandbox-workers/playwright/Containerfile \
+            -t localhost:5000/vulnhunter-playwright:ci \
+            .
+          docker push localhost:5000/vulnhunter-playwright:ci
+          image="$(docker image inspect \
+            --format='{{index .RepoDigests 0}}' \
+            localhost:5000/vulnhunter-playwright:ci)"
+          case "$image" in
+            localhost:5000/vulnhunter-playwright@sha256:*) ;;
+            *) echo "Expected immutable Playwright repository digest, got: $image" >&2; exit 1 ;;
+          esac
+          echo "image=$image" >> "$GITHUB_OUTPUT"
+
+      - name: Generate and verify ephemeral signed Playwright release evidence
+        id: release
+        env:
+          WORKER_IMAGE: ${{ steps.worker.outputs.image }}
+        run: |
+          set -euo pipefail
+          release_dir="$RUNNER_TEMP/playwright-release"
+          source_commit="$(git rev-parse HEAD)"
+          python scripts/opensandbox_playwright_release_evidence.py \
+            --image "$WORKER_IMAGE" \
+            --source-commit "$source_commit" \
+            --output-dir "$release_dir"
+          test ! -e "$release_dir/private.pem"
+          echo "dir=$release_dir" >> "$GITHUB_OUTPUT"
+
+      - name: Start deliberate private browser target
+        id: target
+        run: |
+          set -euo pipefail
+          address="$(python scripts/web_perception_lab_target.py --print-address)"
+          echo "$address perception.lab.test" | sudo tee -a /etc/hosts >/dev/null
+          python scripts/web_perception_lab_target.py --host "$address" --port 8012 \
+            > "$RUNNER_TEMP/web-perception-target.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/web-perception-target.pid"
+          for attempt in $(seq 1 40); do
+            if curl --fail --silent "http://$address:8012/healthz" >/dev/null; then
+              break
+            fi
+            sleep 0.25
+          done
+          curl --fail --silent "http://$address:8012/healthz" >/dev/null
+          denied_host="$(docker network inspect bridge --format '{{(index .IPAM.Config 0).Gateway}}')"
+          docker run --rm --entrypoint python3 localhost:5000/vulnhunter-playwright:ci \
+            -c "import socket; s=socket.create_connection(('$denied_host',5000),3); s.close()"
+          echo "address=$address" >> "$GITHUB_OUTPUT"
+          echo "denied_host=$denied_host" >> "$GITHUB_OUTPUT"
+
+      - name: Configure dns+nft OpenSandbox server
+        run: |
+          set -euo pipefail
+          cat > "$RUNNER_TEMP/opensandbox-playwright.toml" <<'TOML'
+          [server]
+          host = "127.0.0.1"
+          port = 8080
+          max_sandbox_timeout_seconds = 900
+
+          [log]
+          level = "INFO"
+
+          [runtime]
+          type = "docker"
+          execd_image = "opensandbox/execd:v1.0.22"
+
+          [storage]
+          allowed_host_paths = []
+          volume_default_size = "2Gi"
+
+          [store]
+          type = "sqlite"
+          path = "/tmp/vulnhunter-opensandbox-playwright.db"
+
+          [docker]
+          network_mode = "bridge"
+          port_range_min = 40000
+          port_range_max = 41000
+          drop_capabilities = ["AUDIT_WRITE", "MKNOD", "NET_ADMIN", "NET_RAW", "SYS_ADMIN", "SYS_MODULE", "SYS_PTRACE", "SYS_TIME", "SYS_TTY_CONFIG"]
+          no_new_privileges = true
+          apparmor_profile = ""
+          pids_limit = 1024
+          seccomp_profile = ""
+
+          [ingress]
+          mode = "direct"
+
+          [egress]
+          image = "opensandbox/egress:v1.1.6"
+          mode = "dns+nft"
+
+          [renew_intent]
+          enabled = false
+          min_interval_seconds = 60
+          TOML
+
+      - name: Start OpenSandbox control plane
+        env:
+          OPENSANDBOX_INSECURE_SERVER: "YES"
+          SANDBOX_CONFIG_PATH: ${{ runner.temp }}/opensandbox-playwright.toml
+        run: |
+          set -euo pipefail
+          opensandbox-server > "$RUNNER_TEMP/opensandbox-playwright-server.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/opensandbox-playwright-server.pid"
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent http://127.0.0.1:8080/health >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          tail -n 250 "$RUNNER_TEMP/opensandbox-playwright-server.log" >&2 || true
+          exit 1
+
+      - name: Prove exact-IP egress boundary
+        env:
+          OPENSANDBOX_DISABLE_METRICS: "1"
+        run: |
+          set -euo pipefail
+          python scripts/opensandbox_network_boundary_acceptance.py \
+            --image '${{ steps.worker.outputs.image }}' \
+            --approved-host '${{ steps.target.outputs.address }}' \
+            --approved-port 8012 \
+            --denied-host '${{ steps.target.outputs.denied_host }}' \
+            --denied-port 5000 \
+            --domain 127.0.0.1:8080 \
+            --protocol http \
+            | tee "$RUNNER_TEMP/web-perception-network-boundary.json"
+
+      - name: Run authorized passive Playwright perception
+        env:
+          OPENSANDBOX_DISABLE_METRICS: "1"
+        run: |
+          set -euo pipefail
+          python scripts/opensandbox_web_perception_acceptance.py \
+            --image '${{ steps.worker.outputs.image }}' \
+            --target-url 'http://perception.lab.test:8012/app/' \
+            --release-registry '${{ steps.release.outputs.dir }}/registry.json' \
+            --release-signature '${{ steps.release.outputs.dir }}/registry.sig.json' \
+            --release-public-key '${{ steps.release.outputs.dir }}/public.pem' \
+            --domain 127.0.0.1:8080 \
+            --protocol http \
+            | tee "$RUNNER_TEMP/web-perception-acceptance.json"
+
+      - name: Prove mutating and out-of-scope requests never reached the target
+        run: |
+          set -euo pipefail
+          curl --fail --silent 'http://${{ steps.target.outputs.address }}:8012/counters' \
+            | tee "$RUNNER_TEMP/web-perception-target-counters.json"
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          counters = json.loads(
+              (Path(os.environ["RUNNER_TEMP"]) / "web-perception-target-counters.json").read_text()
+          )
+          for key in ("mutate_hits", "submit_hits", "websocket_hits", "outside_hits"):
+              if counters.get(key) != 0:
+                  raise SystemExit(f"passive browser boundary failed: {key}={counters.get(key)}")
+          if counters.get("api_info_hits", 0) < 1:
+              raise SystemExit("expected read-only API request did not reach the target")
+          if counters.get("profile_hits", 0) < 1:
+              raise SystemExit("expected passive BFS profile navigation did not occur")
+          PY
+
+      - name: Upload browser-perception evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: opensandbox-web-perception-evidence
+          path: |
+            ${{ steps.release.outputs.dir }}/sbom.spdx.json
+            ${{ steps.release.outputs.dir }}/provenance.json
+            ${{ steps.release.outputs.dir }}/record.json
+            ${{ steps.release.outputs.dir }}/registry.json
+            ${{ steps.release.outputs.dir }}/registry.sig.json
+            ${{ steps.release.outputs.dir }}/public.pem
+            ${{ steps.release.outputs.dir }}/verification.json
+            ${{ runner.temp }}/web-perception-network-boundary.json
+            ${{ runner.temp }}/web-perception-acceptance.json
+            ${{ runner.temp }}/web-perception-target-counters.json
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Print diagnostics on failure
+        if: failure()
+        run: |
+          tail -n 250 "$RUNNER_TEMP/opensandbox-playwright-server.log" || true
+          tail -n 250 "$RUNNER_TEMP/web-perception-target.log" || true
+          docker ps -a || true
+
+      - name: Clean up
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/web-perception-target.pid" ]; then
+            kill "$(cat "$RUNNER_TEMP/web-perception-target.pid")" 2>/dev/null || true
+          fi
+          if [ -f "$RUNNER_TEMP/opensandbox-playwright-server.pid" ]; then
+            kill "$(cat "$RUNNER_TEMP/opensandbox-playwright-server.pid")" 2>/dev/null || true
+          fi
+          docker rm -f vulnhunter-playwright-registry 2>/dev/null || true

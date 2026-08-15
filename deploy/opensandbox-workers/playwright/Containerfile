@@ -1,0 +1,23 @@
+ARG PYTHON_BASE_IMAGE=python:3.12-slim-bookworm@sha256:a116514e19457bcb7af7efe9c3dd0b9b71e85b317694e7882a1c52aa15a78134
+FROM ${PYTHON_BASE_IMAGE}
+
+ARG PLAYWRIGHT_VERSION=1.62.0
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PLAYWRIGHT_BROWSERS_PATH=/opt/ms-playwright \
+    HOME=/tmp
+
+RUN python -m pip install --no-cache-dir "playwright==${PLAYWRIGHT_VERSION}" \
+    && python -m playwright install --with-deps chromium \
+    && python -c "import importlib.metadata; assert importlib.metadata.version('playwright') == '${PLAYWRIGHT_VERSION}'" \
+    && chmod -R a+rX /opt/ms-playwright
+
+COPY deploy/opensandbox-workers/playwright/worker.py /opt/vulnhunter/web_perception_worker.py
+
+RUN chmod 0555 /opt/vulnhunter/web_perception_worker.py
+
+WORKDIR /tmp
+CMD ["python3", "-c", "import time; time.sleep(86400)"]

@@ -9,7 +9,7 @@ from vulnhunter.web.conversation_service import interpret_request
 
 class Command(BaseCommand):
     help = (
-        "Verify one configured LLM through the exact bounded conversation path used by the web UI."
+        "Verify one configured high-reasoning LLM through the exact web conversation path."
     )
 
     def add_arguments(self, parser) -> None:
@@ -17,13 +17,16 @@ class Command(BaseCommand):
             "--provider",
             choices=("auto", "groq", "huggingface"),
             default="auto",
-            help="Provider to require. Auto permits the configured fallback order.",
+            help=(
+                "Provider to use. Auto resolves to the configured primary provider before the "
+                "request and never enables failure-driven provider fallback."
+            ),
         )
         parser.add_argument(
             "--reasoning",
-            choices=("low", "medium", "high"),
-            default="low",
-            help="Reasoning budget used for the harmless readiness answer.",
+            choices=("high",),
+            default="high",
+            help="Protected conversational readiness always uses high reasoning.",
         )
         parser.add_argument(
             "--json",
@@ -34,7 +37,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options) -> None:
         provider = str(options["provider"])
-        reasoning = str(options["reasoning"])
+        reasoning = "high"
         marker = "VULNHUNTER_LLM_READY"
         interpreted = interpret_request(
             (
@@ -54,23 +57,24 @@ class Command(BaseCommand):
         )
 
         answer = interpreted.assistant_copy or ""
-        if interpreted.provider == "deterministic":
+        if not interpreted.model:
             raise CommandError(
-                "No configured remote LLM completed the web conversation path. "
-                f"Detail: {interpreted.provider_detail}"
+                "The configured high-reasoning provider did not complete the web conversation "
+                f"path. Detail: {interpreted.provider_detail}"
             )
-        if provider != "auto" and interpreted.provider != provider:
+        expected_provider = "groq" if provider == "auto" else provider
+        if interpreted.provider != expected_provider:
             raise CommandError(
-                f"The requested {provider} provider was not used; got {interpreted.provider}. "
-                f"Detail: {interpreted.provider_detail}"
+                f"The requested {expected_provider} provider was not used; got "
+                f"{interpreted.provider}. Detail: {interpreted.provider_detail}"
             )
         if marker not in answer:
             raise CommandError(
                 "The LLM completed the provider call but the web conversation answer missed "
                 "the readiness marker."
             )
-        if not interpreted.model:
-            raise CommandError("The LLM conversation response omitted its model identity.")
+        if interpreted.reasoning_effort != "high":
+            raise CommandError("The conversation path did not preserve high reasoning effort.")
 
         result = {
             "ready": True,

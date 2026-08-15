@@ -17,6 +17,7 @@ from vulnhunter.intelligence import (
 from vulnhunter.providers import ProviderKind, ProviderOutputKind, ProviderResponse
 
 _EVIDENCE = "a" * 64
+_REASONING_MODEL = "openai/gpt-oss-120b"
 
 
 def _request(**updates):
@@ -62,15 +63,22 @@ def _payload(*, evidence=_EVIDENCE, conclusion="likely", summary="Bounded analys
 
 
 class FakeConnector:
-    def __init__(self, *, invented_evidence=False, fail_deep=False):
+    def __init__(
+        self,
+        *,
+        invented_evidence: bool = False,
+        fail_model: bool = False,
+        returned_model: str | None = None,
+    ):
         self.invented_evidence = invented_evidence
-        self.fail_deep = fail_deep
+        self.fail_model = fail_model
+        self.returned_model = returned_model
         self.calls = []
 
     def invoke(self, invocation, content, *, cancelled=None):
         del content, cancelled
         self.calls.append(invocation)
-        if self.fail_deep and invocation.model == "openai/gpt-oss-120b":
+        if self.fail_model:
             output = "ABSTAIN"
             return ProviderResponse(
                 invocation_id=invocation.invocation_id,
@@ -81,14 +89,14 @@ class FakeConnector:
                 output_kind=ProviderOutputKind.ABSTAIN,
                 trusted=False,
                 degraded=True,
-                safe_error="deep model unavailable",
+                safe_error="configured reasoning model unavailable",
             )
         evidence = "b" * 64 if self.invented_evidence else _EVIDENCE
         output = json.dumps(_payload(evidence=evidence))
         return ProviderResponse(
             invocation_id=invocation.invocation_id,
             provider=ProviderKind.GROQ_ADVISORY,
-            model=invocation.model,
+            model=self.returned_model or invocation.model,
             content=output,
             output_sha256=hashlib.sha256(output.encode()).hexdigest(),
             output_kind=ProviderOutputKind.CANDIDATE_ANALYSIS,
@@ -146,7 +154,7 @@ def test_build_request_redacts_context_and_uses_capsule_timestamp():
     assert "[REDACTED" in serialized
 
 
-def test_reasoning_loop_runs_exact_analyst_critic_synthesizer_order():
+def test_reasoning_loop_uses_one_high_model_for_every_stage():
     connector = FakeConnector()
     report = GroqFindingReasoningLoop(connector=connector).run(_request())
 
@@ -156,30 +164,38 @@ def test_reasoning_loop_runs_exact_analyst_critic_synthesizer_order():
         ReasoningStage.CRITIC,
         ReasoningStage.SYNTHESIZER,
     )
-    assert [call.model for call in connector.calls] == [
-        "openai/gpt-oss-20b",
-        "openai/gpt-oss-20b",
-        "openai/gpt-oss-120b",
-    ]
+    assert [call.model for call in connector.calls] == [_REASONING_MODEL] * 3
+    assert [call.reasoning_effort for call in connector.calls] == ["high"] * 3
+    assert [stage.reasoning_effort for stage in report.stages] == ["high"] * 3
+    assert report.models == (_REASONING_MODEL,)
     assert report.final is not None
     assert report.final.conclusion == "likely"
     assert report.trusted is False
     assert report.advisory_only is True
 
 
-def test_deep_model_failure_falls_back_once_to_20b():
-    connector = FakeConnector(fail_deep=True)
+def test_reasoning_model_failure_abstains_without_downgrade():
+    connector = FakeConnector(fail_model=True)
     report = GroqFindingReasoningLoop(connector=connector).run(_request())
 
-    assert report.status == AnalysisStatus.COMPLETED
-    assert [call.model for call in connector.calls] == [
-        "openai/gpt-oss-20b",
-        "openai/gpt-oss-20b",
-        "openai/gpt-oss-120b",
-        "openai/gpt-oss-20b",
-    ]
-    assert len(report.stages) == 3
-    assert report.stages[-1].model == "openai/gpt-oss-20b"
+    assert report.status == AnalysisStatus.ABSTAINED
+    assert report.stages == ()
+    assert report.final is None
+    assert len(connector.calls) == 1
+    assert connector.calls[0].model == _REASONING_MODEL
+    assert connector.calls[0].reasoning_effort == "high"
+    assert "unavailable" in (report.safe_error or "")
+
+
+def test_provider_model_substitution_is_rejected():
+    connector = FakeConnector(returned_model="openai/gpt-oss-20b")
+    report = GroqFindingReasoningLoop(connector=connector).run(_request())
+
+    assert report.status == AnalysisStatus.ABSTAINED
+    assert report.stages == ()
+    assert len(connector.calls) == 1
+    assert connector.calls[0].model == _REASONING_MODEL
+    assert "different model" in (report.safe_error or "")
 
 
 def test_model_cannot_invent_evidence_references():

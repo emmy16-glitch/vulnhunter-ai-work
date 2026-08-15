@@ -1,6 +1,6 @@
 """Durable, user-owned conversation workspaces and session compatibility.
 
-The existing conversational services use ``request.session`` for bounded state.  This
+The existing conversational services use ``request.session`` for bounded state. This
 module isolates those keys per durable thread while delegating authentication and all
 other Django session data to the original session backend.
 """
@@ -31,6 +31,10 @@ SCOPED_SESSION_KEYS = frozenset(
     }
 )
 DEFAULT_TITLE = "New security workspace"
+REQUIRED_REASONING_EFFORT = "high"
+DEFAULT_PROVIDER_PREFERENCE = "groq"
+LEGACY_REASONING_EFFORTS = frozenset({"low", "medium", "high"})
+PROVIDER_PREFERENCES = frozenset({"auto", "groq", "huggingface"})
 
 
 class ConversationThreadNotFound(LookupError):
@@ -72,8 +76,23 @@ def _clear_legacy_data(session: object) -> None:
     session.modified = True
 
 
+def _effective_provider(value: str | None) -> str:
+    """Resolve legacy automatic preference without enabling runtime fallback."""
+
+    normalized = str(value or "").strip().casefold()
+    if normalized == "huggingface":
+        return "huggingface"
+    return DEFAULT_PROVIDER_PREFERENCE
+
+
 def create_thread(*, owner: object, title: str = DEFAULT_TITLE) -> ConversationThread:
-    return ConversationThread.objects.create(owner=owner, title=_clean_title(title), data={})
+    return ConversationThread.objects.create(
+        owner=owner,
+        title=_clean_title(title),
+        data={},
+        reasoning_effort=REQUIRED_REASONING_EFFORT,
+        provider_preference=DEFAULT_PROVIDER_PREFERENCE,
+    )
 
 
 def resolve_thread(request: object) -> ConversationThread:
@@ -108,7 +127,13 @@ def resolve_thread(request: object) -> ConversationThread:
 
     if thread is None:
         legacy = _legacy_data(base_session)
-        thread = ConversationThread.objects.create(owner=user, title=DEFAULT_TITLE, data=legacy)
+        thread = ConversationThread.objects.create(
+            owner=user,
+            title=DEFAULT_TITLE,
+            data=legacy,
+            reasoning_effort=REQUIRED_REASONING_EFFORT,
+            provider_preference=DEFAULT_PROVIDER_PREFERENCE,
+        )
         if legacy:
             _clear_legacy_data(base_session)
 
@@ -158,8 +183,8 @@ def thread_summary(thread: ConversationThread) -> dict[str, object]:
         "updated_at": thread.updated_at.isoformat(),
         "status": status,
         "upload_count": len(uploads),
-        "reasoning_effort": thread.reasoning_effort,
-        "provider_preference": thread.provider_preference,
+        "reasoning_effort": REQUIRED_REASONING_EFFORT,
+        "provider_preference": _effective_provider(thread.provider_preference),
         "url": workspace_url(thread),
     }
 
@@ -281,19 +306,17 @@ class ThreadSessionProxy:
         return getattr(self.base_session, name)
 
 
-REASONING_EFFORTS = frozenset({"low", "medium", "high"})
-PROVIDER_PREFERENCES = frozenset({"auto", "groq", "huggingface"})
-
-
 def thread_preferences(request: object) -> tuple[str, str]:
+    """Return the enforced high-reasoning policy for this workspace.
+
+    Legacy ``low``/``medium`` effort and ``auto`` provider values remain readable,
+    but they cannot lower reasoning quality or enable automatic provider failover.
+    """
+
     thread = getattr(request, "vulnhunter_thread", None)
     if not isinstance(thread, ConversationThread):
-        return "medium", "auto"
-    effort = thread.reasoning_effort if thread.reasoning_effort in REASONING_EFFORTS else "medium"
-    provider = (
-        thread.provider_preference if thread.provider_preference in PROVIDER_PREFERENCES else "auto"
-    )
-    return effort, provider
+        return REQUIRED_REASONING_EFFORT, DEFAULT_PROVIDER_PREFERENCE
+    return REQUIRED_REASONING_EFFORT, _effective_provider(thread.provider_preference)
 
 
 def update_thread_preferences(
@@ -305,12 +328,19 @@ def update_thread_preferences(
     thread = getattr(request, "vulnhunter_thread", None)
     if not isinstance(thread, ConversationThread):
         raise ConversationThreadNotFound("The active workspace is unavailable.")
-    effort = reasoning_effort or thread.reasoning_effort
-    provider = provider_preference or thread.provider_preference
-    if effort not in REASONING_EFFORTS:
+
+    requested_effort = (reasoning_effort or REQUIRED_REASONING_EFFORT).strip().casefold()
+    if requested_effort not in LEGACY_REASONING_EFFORTS:
         raise ValueError("Reasoning effort must be low, medium, or high.")
-    if provider not in PROVIDER_PREFERENCES:
+    effort = REQUIRED_REASONING_EFFORT
+
+    requested_provider = (
+        (provider_preference or thread.provider_preference or "auto").strip().casefold()
+    )
+    if requested_provider not in PROVIDER_PREFERENCES:
         raise ValueError("Provider preference must be automatic, Groq, or Hugging Face.")
+    provider = _effective_provider(requested_provider)
+
     with transaction.atomic():
         current = ConversationThread.objects.select_for_update().get(
             thread_id=thread.thread_id,

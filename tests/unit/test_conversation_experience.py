@@ -13,7 +13,7 @@ from vulnhunter.web.mobile_conversation_state import mobile_chat_reply
 ROOT = Path(__file__).resolve().parents[2]
 
 
-def test_ordinary_question_stays_in_chat_instead_of_starting_scan(settings):
+def test_ordinary_question_reports_high_reasoning_unavailable_without_starting_scan(settings):
     settings.VULNHUNTER_GROQ_ENABLED = False
 
     result = interpret_request(
@@ -23,8 +23,12 @@ def test_ordinary_question_stays_in_chat_instead_of_starting_scan(settings):
 
     assert result.intent == "chat"
     assert result.target is None
+    assert result.provider == "groq"
+    assert result.model is None
+    assert result.reasoning_effort == "high"
     assert result.assistant_copy
-    assert "controlled target" in result.assistant_copy.lower()
+    assert "High-reasoning AI is unavailable" in result.assistant_copy
+    assert "did not substitute" in result.assistant_copy
 
 
 def test_groq_chat_copy_is_used_without_turning_question_into_scan(settings):

@@ -3,7 +3,9 @@ from __future__ import annotations
 from io import StringIO
 from types import SimpleNamespace
 
+import pytest
 from django.core.management import call_command
+from django.core.management.base import CommandError
 from django.test import override_settings
 
 from vulnhunter.providers import ProviderKind, ProviderOutputKind
@@ -41,13 +43,16 @@ class _FakeGroqProvider:
     VULNHUNTER_GROQ_FALLBACK_MODEL="openai/gpt-oss-20b",
     VULNHUNTER_GROQ_TIMEOUT_SECONDS=30,
 )
-def test_verify_groq_uses_model_neutral_provider_identity(monkeypatch) -> None:
+def test_verify_groq_uses_only_pinned_high_reasoning_model(monkeypatch) -> None:
     provider = _FakeGroqProvider()
-    monkeypatch.setattr(
-        vh_verify_groq.GroqProvider,
-        "from_key_file",
-        lambda *args, **kwargs: provider,
-    )
+    approved_models = None
+
+    def fake_from_key_file(*args, **kwargs):
+        nonlocal approved_models
+        approved_models = kwargs["approved_models"]
+        return provider
+
+    monkeypatch.setattr(vh_verify_groq.GroqProvider, "from_key_file", fake_from_key_file)
     stdout = StringIO()
 
     call_command(
@@ -57,6 +62,34 @@ def test_verify_groq_uses_model_neutral_provider_identity(monkeypatch) -> None:
         stdout=stdout,
     )
 
+    assert approved_models == ("openai/gpt-oss-120b",)
     assert provider.invocation is not None
     assert provider.invocation.provider is ProviderKind.GROQ_ADVISORY
+    assert provider.invocation.model == "openai/gpt-oss-120b"
+    assert provider.invocation.reasoning_effort == "high"
     assert "Groq verified" in stdout.getvalue()
+
+
+@override_settings(
+    VULNHUNTER_GROQ_ENABLED=True,
+    VULNHUNTER_GROQ_MODEL="openai/gpt-oss-120b",
+    VULNHUNTER_GROQ_TIMEOUT_SECONDS=30,
+)
+def test_verify_groq_rejects_lower_model_before_provider_call(monkeypatch) -> None:
+    called = False
+
+    def fake_from_key_file(*args, **kwargs):
+        nonlocal called
+        called = True
+        raise AssertionError("provider must not be created for a downgrade request")
+
+    monkeypatch.setattr(vh_verify_groq.GroqProvider, "from_key_file", fake_from_key_file)
+
+    with pytest.raises(CommandError, match="model downgrade is not allowed"):
+        call_command(
+            "vh_verify_groq",
+            model="openai/gpt-oss-20b",
+            timeout=30,
+        )
+
+    assert called is False

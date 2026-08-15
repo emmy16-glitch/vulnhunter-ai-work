@@ -1,4 +1,4 @@
-"""Explicit, short-lived authorization intake for pasted private-lab targets."""
+"""Reusable authorization intake for exact private-lab targets."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from pathlib import Path
 
 from django.conf import settings
 
-from vulnhunter.authorization.models import AuthorizationLimits
+from vulnhunter.authorization.models import AuthorizationLimits, AuthorizationRecord
 from vulnhunter.authorization.service import issue_authorization
 from vulnhunter.authorization.store import AuthorizationStore
 from vulnhunter.exceptions import AuthorizationPolicyError, ScopeValidationError
@@ -72,6 +72,40 @@ def _address_class(addresses: Iterable[str]) -> str:
     return next(iter(classes))
 
 
+def _find_reusable_authorization(
+    store: AuthorizationStore,
+    *,
+    target_url: str,
+    identity_id: str,
+    username: str,
+    instant: datetime,
+) -> AuthorizationRecord | None:
+    """Resolve one active exact-target authorization for this principal.
+
+    This is the central conversational target-registry lookup. A valid record is
+    reused across assessments instead of issuing another authorization for every
+    scan request. Execution-plan confirmation remains a separate control.
+    """
+
+    principals = {
+        value.strip().casefold() for value in (identity_id, username) if value and value.strip()
+    }
+    candidates = [
+        item
+        for item in store.list(limit=250)
+        if item.status == "active"
+        and item.owner.casefold() in principals
+        and item.target_url == target_url
+        and item.valid_from <= instant < item.expires_at
+    ]
+    if not candidates:
+        return None
+    return max(
+        candidates,
+        key=lambda item: (item.expires_at, item.issued_at, item.authorization_id),
+    )
+
+
 def prepare_conversational_authorization(
     *,
     target_url: str,
@@ -82,11 +116,12 @@ def prepare_conversational_authorization(
     resolver: Resolver = system_resolver,
     now: datetime | None = None,
 ) -> PreparedConversationalAuthorization:
-    """Create or reuse one exact passive authorization for a private-lab URL and port.
+    """Create or reuse one exact target authorization for a private-lab URL and port.
 
-    Public targets are never authorized from chat. They must already be covered by an
-    independently approved authorization record before the conversational workspace can
-    prepare a plan.
+    Once created, the authorization is reused for the same principal and exact
+    target until it expires or is revoked. Public targets are never authorized from
+    chat; they must already be covered by an independently approved authorization
+    record before the conversational workspace can prepare a plan.
     """
 
     instant = (now or datetime.now(UTC)).astimezone(UTC)
@@ -111,16 +146,12 @@ def prepare_conversational_authorization(
     )
     store.initialize()
     owner = identity_id.strip() or username.strip()
-    record = next(
-        (
-            item
-            for item in store.list(limit=250)
-            if item.status == "active"
-            and item.owner.casefold() in {identity_id.casefold(), username.casefold()}
-            and item.target_url == target.normalized_url
-            and instant < item.expires_at
-        ),
-        None,
+    record = _find_reusable_authorization(
+        store,
+        target_url=target.normalized_url,
+        identity_id=identity_id,
+        username=username,
+        instant=instant,
     )
     reused = record is not None
     if record is None:
@@ -130,7 +161,10 @@ def prepare_conversational_authorization(
                 target,
                 owner=owner,
                 approved_by=f"{_stable_identifier(owner)}.interactive-private-confirmation",
-                purpose="Governed passive private-lab assessment requested in the chat workspace.",
+                purpose=(
+                    "Reusable governed passive private-lab target authorization requested in the "
+                    "chat workspace."
+                ),
                 evidence_reference=evidence,
                 expires_at=instant + timedelta(hours=12),
                 limits=AuthorizationLimits(

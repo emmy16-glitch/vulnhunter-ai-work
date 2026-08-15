@@ -33,6 +33,8 @@ class _FakeGroq:
         self.calls: list[str] = []
 
     def invoke(self, invocation, content, *, cancelled=None):
+        assert invocation.reasoning_effort == "high"
+        assert invocation.model == "openai/gpt-oss-120b"
         self.calls.append(invocation.capability.value)
         envelope = json.loads(content[content.index("{") :])
         capability = invocation.capability.value

@@ -103,7 +103,7 @@ def test_groq_structured_output_is_advisory_and_has_no_tools():
     assert "tools" not in body
     assert "tool_choice" not in body
     assert body["include_reasoning"] is False
-    assert body["reasoning_effort"] == "medium"
+    assert body["reasoning_effort"] == "high"
     assert body["response_format"] == {"type": "json_object"}
     assert body["model"] == "openai/gpt-oss-120b"
 

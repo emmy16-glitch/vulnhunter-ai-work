@@ -98,10 +98,10 @@
           : finalReport
             ? "/workspace/remediation-final-report/"
             : remediationReview
-            ? "/workspace/remediation-review/"
-            : remediation
-            ? "/workspace/remediation/"
-            : "/source-hunt/";
+              ? "/workspace/remediation-review/"
+              : remediation
+                ? "/workspace/remediation/"
+                : "/source-hunt/";
       const label = activeValidation
         ? "Active Validation"
         : retest
@@ -109,10 +109,10 @@
           : finalReport
             ? "Final Remediation Report"
             : remediationReview
-            ? "Independent Remediation Review"
-            : remediation
-            ? "Remediation"
-            : "Source Hunt";
+              ? "Independent Remediation Review"
+              : remediation
+                ? "Remediation"
+                : "Source Hunt";
 
       try {
         const headers = { Accept: "application/json" };
@@ -191,7 +191,7 @@
       else if (hasHuggingFace) runtime.textContent = "Hugging Face configured";
       else if (/Groq live conversation ready/i.test(detail)) runtime.textContent = "Groq live";
       else if (hasGroq) runtime.textContent = "Groq configured";
-      else runtime.textContent = "AI unavailable";
+      else runtime.textContent = "High-reasoning AI unavailable";
     }
 
     const thinkingCopy = document.querySelector("[data-thinking-copy]");
@@ -226,7 +226,7 @@
           badge.classList.add("is-degraded");
           badge.textContent = (badge.textContent || "").replace(
             /Deterministic(?: fallback)?/i,
-            "AI provider unavailable · deterministic fallback",
+            "High-reasoning AI unavailable",
           );
         });
       };

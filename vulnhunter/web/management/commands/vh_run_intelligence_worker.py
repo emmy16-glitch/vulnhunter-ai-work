@@ -25,6 +25,8 @@ from vulnhunter.learning import (
 )
 from vulnhunter.providers import GroqProvider, GroqProviderError
 
+_DEFAULT_REASONING_MODEL = "openai/gpt-oss-120b"
+
 
 def _env_bool(name: str, default: bool = False) -> bool:
     value = os.environ.get(name)
@@ -48,6 +50,20 @@ def _env_int(name: str, default: int, *, minimum: int, maximum: int) -> int:
     return value
 
 
+def _reasoning_model() -> str:
+    """Return the sole configured reasoning model.
+
+    Legacy PRIMARY_MODEL and DEEP_MODEL variables are intentionally ignored. They
+    may remain in an older Codespace environment, but they cannot re-enable split
+    model routing or a lower-capability fallback.
+    """
+
+    model = os.environ.get("VULNHUNTER_INTELLIGENCE_MODEL", _DEFAULT_REASONING_MODEL).strip()
+    if not model:
+        raise CommandError("VULNHUNTER_INTELLIGENCE_MODEL must not be empty")
+    return model
+
+
 def _record_activity(activity: AgentActivityService, **fields: object) -> None:
     """Project optional UI activity without affecting advisory persistence."""
 
@@ -58,7 +74,7 @@ def _record_activity(activity: AgentActivityService, **fields: object) -> None:
 
 
 class Command(BaseCommand):
-    help = "Process bounded analyst-critic-synthesizer advisory finding analyses."
+    help = "Process bounded high-reasoning analyst-critic-synthesizer finding analyses."
 
     def add_arguments(self, parser) -> None:
         mode = parser.add_mutually_exclusive_group()
@@ -79,12 +95,7 @@ class Command(BaseCommand):
         if not 0.1 <= poll_seconds <= 60:
             raise CommandError("poll-seconds must be between 0.1 and 60")
 
-        primary_model = os.environ.get(
-            "VULNHUNTER_INTELLIGENCE_PRIMARY_MODEL", "openai/gpt-oss-20b"
-        ).strip()
-        deep_model = os.environ.get(
-            "VULNHUNTER_INTELLIGENCE_DEEP_MODEL", "openai/gpt-oss-120b"
-        ).strip()
+        model = _reasoning_model()
         root = Path(
             os.environ.get(
                 "VULNHUNTER_INTELLIGENCE_ROOT",
@@ -112,7 +123,7 @@ class Command(BaseCommand):
         try:
             provider = GroqProvider.from_key_file(
                 key_path,
-                approved_models=(primary_model, deep_model),
+                approved_models=(model,),
                 api_base=settings.VULNHUNTER_GROQ_API_BASE,
             )
             store = IntelligenceStore(root)
@@ -121,8 +132,7 @@ class Command(BaseCommand):
             )
             loop = GroqFindingReasoningLoop(
                 connector=provider,
-                primary_model=primary_model,
-                deep_model=deep_model,
+                model=model,
                 timeout_seconds=timeout_seconds,
                 maximum_input_bytes=maximum_input_bytes,
                 maximum_output_tokens=maximum_output_tokens,
@@ -156,7 +166,7 @@ class Command(BaseCommand):
                     timestamp=datetime.now(UTC),
                     event_type="evaluation_started",
                     summary=(
-                        "Bounded advisory analysis started its analyst, critic, and "
+                        "High-reasoning advisory analysis started its analyst, critic, and "
                         "synthesizer stages."
                     ),
                     run_state="evaluating",
@@ -165,8 +175,9 @@ class Command(BaseCommand):
                     metadata={
                         "analysis_id": request.analysis_id,
                         "finding_id": request.finding_id,
-                        "primary_model": primary_model,
-                        "deep_model": deep_model,
+                        "reasoning_model": model,
+                        "reasoning_effort": "high",
+                        "model_fallback_allowed": False,
                         "maximum_stages": 3,
                         "approved_memory_items": len(approved_memory),
                     },
@@ -187,8 +198,8 @@ class Command(BaseCommand):
                         timestamp=datetime.now(UTC),
                         event_type="evaluation_completed",
                         summary=(
-                            "Advisory analysis failed safely; deterministic verification "
-                            "and human review remain authoritative."
+                            "High-reasoning advisory analysis failed safely; deterministic "
+                            "verification and human review remain authoritative."
                         ),
                         run_state="completed",
                         source="evaluator",
@@ -198,6 +209,9 @@ class Command(BaseCommand):
                         metadata={
                             "analysis_id": request.analysis_id,
                             "finding_id": request.finding_id,
+                            "reasoning_model": model,
+                            "reasoning_effort": "high",
+                            "model_fallback_allowed": False,
                             "advisory_only": True,
                             "trusted": False,
                         },
@@ -205,7 +219,7 @@ class Command(BaseCommand):
                     self.stderr.write(
                         self.style.WARNING(
                             f"Analysis {request.analysis_id} failed safely; "
-                            "deterministic verification remains authoritative."
+                            "no lower-capability model was used."
                         )
                     )
                 else:
@@ -227,11 +241,11 @@ class Command(BaseCommand):
                         timestamp=report.completed_at,
                         event_type="evaluation_completed",
                         summary=(
-                            "Advisory reasoning completed after analyst, critic, and "
+                            "High-reasoning advisory analysis completed after analyst, critic, and "
                             "synthesizer review."
                             if report.status.value == "completed"
-                            else "Advisory reasoning abstained safely because the evidence "
-                            "was insufficient or a provider stage was unavailable."
+                            else "High-reasoning advisory analysis abstained because the evidence "
+                            "was insufficient or the configured model was unavailable."
                         ),
                         run_state="completed",
                         source="evaluator",
@@ -242,6 +256,9 @@ class Command(BaseCommand):
                             "status": report.status.value,
                             "stage_count": len(report.stages),
                             "models": list(report.models),
+                            "reasoning_model": model,
+                            "reasoning_effort": "high",
+                            "model_fallback_allowed": False,
                             "conclusion": final.conclusion if final else "abstain",
                             "summary": final.summary if final else report.safe_error or "ABSTAIN",
                             "missing_information": (
@@ -262,7 +279,7 @@ class Command(BaseCommand):
                     self.stdout.write(
                         self.style.SUCCESS(
                             f"Analysis {request.analysis_id} finished as {report.status.value} "
-                            f"after {len(report.stages)} bounded stage(s)."
+                            f"after {len(report.stages)} bounded stage(s) on {model}."
                         )
                     )
                 if not watch:

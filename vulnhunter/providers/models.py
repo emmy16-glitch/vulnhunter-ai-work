@@ -95,7 +95,7 @@ class ProviderInvocation(BaseModel):
     maximum_input_tokens: int = Field(default=6_000, ge=1, le=25_000)
     maximum_output_tokens: int = Field(default=1_200, ge=1, le=8_192)
     timeout_seconds: int = Field(default=60, ge=1, le=300)
-    reasoning_effort: Literal["low", "medium", "high"] = "medium"
+    reasoning_effort: Literal["low", "medium", "high"] = "high"
 
     @field_validator("invocation_id", "request_id")
     @classmethod

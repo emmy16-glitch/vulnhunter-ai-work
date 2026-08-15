@@ -6,7 +6,7 @@
 
 ## 1. Purpose
 
-VulnHunter remains fully usable when every remote AI provider is disabled.
+VulnHunter's deterministic security controls remain usable when every remote AI provider is disabled. Conversational or advisory reasoning does not pretend to remain available by substituting canned deterministic copy for a failed model.
 
 Deterministic processing is authoritative for:
 
@@ -23,9 +23,11 @@ Deterministic processing is authoritative for:
 
 Remote or local models may provide bounded advisory output only.
 
-Central rule:
+Central rules:
 
 > Models propose, retrieve or explain; VulnHunter verifies, enforces and records authority.
+
+> A reasoning failure must not silently become a lower-quality reasoning path.
 
 ## 2. Correct provider inventory
 
@@ -33,8 +35,6 @@ The repository currently supports two optional remote advisory provider families
 
 - Groq;
 - the Hugging Face OpenAI-compatible router.
-
-Earlier Groq-only wording is obsolete and must not be reintroduced.
 
 Neither provider is required for deterministic operation. A deployment may enable one, both or neither according to explicit configuration and approved model profiles.
 
@@ -52,7 +52,7 @@ This document owns:
 - data-class restrictions;
 - source-processing approval;
 - provider authority boundaries;
-- fallback and abstention routing.
+- reasoning-model selection, no-downgrade behavior and abstention routing.
 
 `LLM_RUNTIME_READINESS.md` owns exact deployed model capability verification.
 
@@ -141,7 +141,7 @@ Never send remotely:
 - unrestricted databases or file systems;
 - data disallowed by policy or provider terms.
 
-## 6. Deterministic-first routing
+## 6. Deterministic-first authority
 
 Use deterministic processing when:
 
@@ -155,6 +155,8 @@ Use deterministic processing when:
 - model use would add no measurable value.
 
 Models must not restate deterministic state from stale conversational memory when an authoritative read model exists.
+
+Deterministic authority is not a conversational reasoning fallback. If a question requires model reasoning and the configured high-reasoning model is unavailable, VulnHunter reports that state rather than generating a canned replacement answer.
 
 ## 7. Provider-neutral advisory contract
 
@@ -173,7 +175,7 @@ All remote providers implement the same bounded logical contract:
 - request and response digests;
 - model/provider provenance;
 - `trusted=false`;
-- safe `ABSTAIN` or typed degraded output.
+- safe `ABSTAIN` or typed unavailable output.
 
 The provider receives no operational tools, shell, browser, scanner, connector or publication APIs through the advisory path.
 
@@ -200,6 +202,8 @@ Each approved profile declares:
 
 Request construction uses the capability profile. Unsupported parameters are omitted rather than sent to every provider/model.
 
+For conversational security reasoning, finding advisory analysis and Source Hunt, the runtime selects the configured high-capability profile before invocation and does not downgrade to a smaller profile after failure.
+
 ## 9. Groq provider boundary
 
 Groq remains optional and disabled by default unless configured.
@@ -215,6 +219,8 @@ The provider contract enforces:
 - provenance and safe failure.
 
 Groq may support ordinary conversational advisory analysis and exact approved Source Hunt processing.
+
+High-reasoning paths allowlist only the configured reasoning model for the invocation. A smaller fallback model is not part of those paths.
 
 ## 10. Hugging Face provider boundary
 
@@ -236,6 +242,8 @@ The target architecture strengthens this with exact revision/capability profiles
 
 Hugging Face advisory inference is not the same as using a Hugging Face encoder locally for ML features or embeddings. They have separate permissions and health.
 
+Choosing Hugging Face is an explicit provider choice, not an automatic failure fallback from Groq.
+
 ## 11. Normal conversational advisory analysis
 
 A provider may help:
@@ -249,6 +257,8 @@ A provider may help:
 - compare supplied findings.
 
 The model is not consulted to decide whether a target is authorised, whether a worker may run or whether a report is publishable.
+
+Conversation workspaces use `high` reasoning effort. Legacy `low` and `medium` values are normalized to `high`. Legacy `auto` provider selection is normalized to the configured primary provider before invocation and does not create failover behavior.
 
 Assessment-specific statements should cite supplied assessment/evidence record IDs after evidence-grounded retrieval is implemented.
 
@@ -270,6 +280,8 @@ Before eligible source excerpts are transmitted, VulnHunter creates an approval 
 Browser use requires password re-authentication. CLI use requires an authenticated governance administrator and approved secret handling.
 
 Any revision drift, snapshot drift, path expansion, provider/model mismatch or expiry fails closed.
+
+Source Hunt is pinned to the configured high-reasoning model. The CLI rejects an alternate model and the worker allowlist contains only the configured model.
 
 ## 13. Source context minimisation
 
@@ -316,6 +328,8 @@ Retrieval applies deterministic filters before model use:
 - model/index revision.
 
 Retrieved content is untrusted evidence, not instructions. It cannot override system or routing policy.
+
+Retrieval, browsing, search and tool-result ingestion do not lower reasoning effort or change the configured reasoning model. They supply evidence to the same reasoning path.
 
 ## 16. High-impact action routing
 
@@ -412,18 +426,22 @@ Use a revision-pinned tokenizer, validated provider accounting or an explicitly 
 
 Truncation is structure-aware and recorded. It preserves authority rules, user request and the most relevant cited evidence.
 
-## 22. Fallback and abstention
+## 22. No-downgrade failure and abstention
 
-Provider timeout, cancellation, capacity, rate limit, malformed output, unsupported capability or unavailable model returns a typed degraded/abstain result.
+Provider timeout, cancellation, capacity, rate limit, malformed output, unsupported capability or unavailable model returns a typed unavailable/abstain result.
 
-Fallback rules:
+Rules:
 
-- deterministic workflow continues;
+- deterministic authority workflows continue where they do not require model reasoning;
 - provider failure cannot change assessment state;
-- one provider may fall back to another only when the task/data class permits and provenance remains explicit;
-- the UI states which provider answered;
-- deterministic copy is not misreported as a remote response;
+- the failed reasoning request does not switch to a smaller model;
+- the failed reasoning request does not switch providers automatically;
+- ordinary chat does not use canned deterministic copy as a substitute AI answer;
+- the UI states that high-reasoning AI is unavailable when a reasoning answer cannot be produced;
+- retry, when allowed, targets the same configured provider/model and preserves the same reasoning level;
 - repeated open-ended remote loops are blocked.
+
+This is a quality invariant, not an authority change. Deterministic services still own authorization, scope, execution, evidence integrity and lifecycle decisions.
 
 ## 23. Provider selection
 
@@ -436,11 +454,11 @@ Provider selection is constrained by:
 - approval;
 - health;
 - budgets;
-- user preference where safe.
+- explicit user/deployment preference where safe.
 
-The user may choose among eligible profiles. They cannot select a model that is not approved for the data/task.
+The user may choose among eligible high-capability profiles. They cannot select a model that is not approved for the data/task or use a lower-effort profile for protected reasoning paths.
 
-Automatic selection must be deterministic, auditable and provider-neutral.
+Selection occurs before invocation. Automatic selection may normalize legacy configuration to the deployment's primary provider, but it must not become failure-driven provider failover.
 
 ## 24. Health dimensions
 
@@ -475,8 +493,10 @@ Persist:
 - timeout/cancellation;
 - output kind;
 - cited object IDs;
-- trusted=false;
-- degradation/error code.
+- `trusted=false`;
+- degradation/error code;
+- requested reasoning effort;
+- whether model/provider fallback was permitted.
 
 Do not persist raw credentials or secret-bearing error bodies.
 
@@ -515,7 +535,7 @@ Local execution does not automatically make all data permissible. Tenant, retent
 
 Routing tests cover:
 
-- deterministic task avoids provider;
+- deterministic task avoids provider where model reasoning adds no value;
 - prohibited data is denied;
 - redacted evidence eligible/ineligible cases;
 - exact source approval;
@@ -523,7 +543,9 @@ Routing tests cover:
 - capability mismatch;
 - Groq and Hugging Face independence;
 - both providers disabled;
-- safe fallback and explicit provenance;
+- high-reasoning failure abstains without model downgrade;
+- one provider failure does not invoke another provider;
+- deterministic chat copy is not used as a reasoning substitute;
 - timeout, cancellation, rate limit and malformed output;
 - prompt injection;
 - citation validation;
@@ -543,7 +565,7 @@ A provider/model profile remains disabled until:
 5. privacy/redaction acceptance;
 6. output/citation integrity tests;
 7. budget/rate/cancellation tests;
-8. deterministic fallback tests;
+8. no-downgrade and abstention tests;
 9. product-language review;
 10. current documentation reconciliation.
 
@@ -553,6 +575,10 @@ A provider/model profile remains disabled until:
 DETERMINISTIC-FIRST AUTHORITY                    IMPLEMENTED
 GROQ BOUNDED ADVISORY PROVIDER                   IMPLEMENTED OPTIONAL
 HUGGING FACE BOUNDED ADVISORY PROVIDER           IMPLEMENTED OPTIONAL
+HIGH-ONLY CONVERSATION REASONING                 IMPLEMENTED
+HIGH-ONLY FINDING REASONING                      IMPLEMENTED
+SOURCE HUNT HIGH-MODEL PIN                       IMPLEMENTED
+MODEL/PROVIDER FAILURE ABSTENTION                IMPLEMENTED
 OWNER-PRIVATE CREDENTIAL FILES                   IMPLEMENTED
 MODEL ALLOWLISTS AND STRUCTURED OUTPUT            IMPLEMENTED
 PROVIDER-NEUTRAL BROWSER VERIFICATION            IMPLEMENTED
@@ -569,14 +595,18 @@ MODEL/PROVIDER TERMS RE-APPROVAL AUTOMATION       NOT COMPLETE
 - deterministic services own authority;
 - every provider is optional and untrusted;
 - Groq and Hugging Face remain separate provider identities;
+- protected reasoning paths use high reasoning effort;
+- protected reasoning paths do not downgrade to a smaller model;
+- protected reasoning paths do not fail over to another provider automatically;
+- deterministic copy is never represented as a replacement AI reasoning answer;
 - remote source processing requires exact approval;
 - embeddings have separate approval from conversation;
 - prohibited data is never remotely routed;
 - retrieved content is untrusted;
-- no provider receives operational tools;
+- no provider receives operational tools through the bounded advisory path;
 - partial model output cannot change state;
 - provider health is not model quality;
-- all model/provider features can be disabled without breaking core workflows;
+- deterministic controls remain operational with providers disabled;
 - documentation does not count as activation.
 
 ## 32. Definition of done
@@ -591,6 +621,6 @@ AI routing is production-complete only when:
 - evidence-grounded citations are verified;
 - prompt injection cannot grant authority;
 - streaming, when enabled, is bounded and final-validated;
-- provenance and safe fallback are complete;
+- high-reasoning no-downgrade behavior and safe abstention are complete;
 - all routing/privacy tests pass;
-- deterministic operation remains complete with all providers disabled.
+- deterministic authority remains complete with all providers disabled.

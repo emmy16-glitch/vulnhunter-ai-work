@@ -88,8 +88,11 @@ def test_conversation_prompt_matches_the_provider_envelope():
     service = (root / "vulnhunter/web/conversation_service.py").read_text()
 
     assert "outer JSON object with output_kind and content" in service
-    assert "Set output_kind to CANDIDATE_ANALYSIS" in service
-    assert "Do not return message and recommended_profile as the outer object" in service
+    assert "CANDIDATE_ANALYSIS" in service
+    assert "Do not return message and" in service
+    assert "recommended_profile as the outer object" in service
+    assert '"model_downgrade_allowed": False' in service
+    assert '"provider_fallback_allowed": False' in service
 
 
 def test_phone_runtime_contracts_are_wired():
@@ -106,10 +109,11 @@ def test_phone_runtime_contracts_are_wired():
     assert "VULNHUNTER_GROQ_RUNTIME_VERIFIED=true" in start
     assert "VULNHUNTER_WEB_SECRET_KEY_FILE" in start
     assert "WEB_SECRET_KEY" in post_create
+    assert 'VULNHUNTER_INTELLIGENCE_MODEL="openai/gpt-oss-120b"' in post_create
     assert "input[name='csrfmiddlewaretoken']" in upload
     assert "refreshSessionProtection" in upload
     assert "VulnHunterUploads = { enqueue, retry, cancel" in upload
-    assert "Groq unavailable · deterministic fallback" in conversation
+    assert 'selectedEffort === "high"' in conversation
     assert "data-provider-runtime" in template
     assert "var(--vh-phone-composer-clearance" in upload_css
     assert "env(safe-area-inset-bottom)" in upload_css

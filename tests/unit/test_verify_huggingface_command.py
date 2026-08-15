@@ -47,8 +47,9 @@ def test_verify_huggingface_requires_exact_conversation_smoke(monkeypatch) -> No
         "interpret_request",
         lambda *args, **kwargs: SimpleNamespace(
             provider="huggingface",
+            model="openai/gpt-oss-120b:groq",
             assistant_copy="VULNHUNTER_CHAT_READY",
-            provider_detail="Hugging Face model: openai/gpt-oss-20b:groq",
+            provider_detail="Hugging Face high-reasoning model: openai/gpt-oss-120b:groq",
         ),
     )
     stdout = StringIO()
@@ -62,4 +63,5 @@ def test_verify_huggingface_requires_exact_conversation_smoke(monkeypatch) -> No
 
     assert provider.invocation is not None
     assert provider.invocation.provider is ProviderKind.HUGGINGFACE_ADVISORY
+    assert provider.invocation.reasoning_effort == "high"
     assert "conversation=ready" in stdout.getvalue()

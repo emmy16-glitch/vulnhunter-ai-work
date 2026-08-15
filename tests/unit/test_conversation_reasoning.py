@@ -6,7 +6,7 @@ from unittest.mock import patch
 import pytest
 from django.contrib.auth import get_user_model
 
-from vulnhunter.web import conversational_views
+from vulnhunter.web import conversation_service, conversational_views
 from vulnhunter.web.conversation_service import InterpretedRequest, deterministic_intent
 from vulnhunter.web.conversation_threads import create_thread
 
@@ -25,7 +25,7 @@ def actor():
 
 
 @pytest.mark.django_db
-def test_reasoning_selector_is_persisted_per_workspace(client, settings):
+def test_reasoning_policy_is_high_for_every_workspace(client, settings):
     settings.ALLOWED_HOSTS = ["testserver"]
     user = get_user_model().objects.create_user(
         username="reasoning-owner",
@@ -37,14 +37,16 @@ def test_reasoning_selector_is_persisted_per_workspace(client, settings):
 
     response = client.post(
         "/workspace/reasoning/",
-        {"reasoning_effort": "high"},
+        {"reasoning_effort": "low", "provider_preference": "auto"},
         HTTP_X_VULNHUNTER_THREAD=str(first.thread_id),
     )
     assert response.status_code == 200
     first.refresh_from_db()
     second.refresh_from_db()
     assert first.reasoning_effort == "high"
-    assert second.reasoning_effort == "medium"
+    assert first.provider_preference == "groq"
+    assert second.reasoning_effort == "high"
+    assert second.provider_preference == "groq"
 
 
 @pytest.mark.django_db
@@ -87,14 +89,42 @@ def test_selected_reasoning_takes_effect_on_next_message(client, settings, actor
     ):
         response = client.post(
             "/workspace/message/",
-            {"message": "Explain this carefully", "reasoning_effort": "high"},
+            {"message": "Explain this carefully", "reasoning_effort": "medium"},
             HTTP_X_VULNHUNTER_THREAD=str(thread.thread_id),
         )
     assert response.status_code == 200
     assert captured["reasoning_effort"] == "high"
+    assert captured["provider_preference"] == "groq"
     assert captured["memory_summary"]
     assert "workspace" in captured["tool_context"]
     assert response.json()["message"]["metadata"]["reasoning_effort"] == "high"
+
+
+def test_failed_high_reasoning_does_not_fall_back_to_another_provider_or_canned_copy():
+    with (
+        patch.object(
+            conversation_service,
+            "_groq_advisory",
+            return_value=(None, "configured high-reasoning model unavailable"),
+        ) as groq,
+        patch.object(conversation_service, "_huggingface_advisory") as huggingface,
+    ):
+        interpreted = conversation_service.interpret_request(
+            "Explain how this security behavior could be a false positive",
+            available_profiles=("passive",),
+            reasoning_effort="low",
+            provider_preference="auto",
+        )
+
+    assert interpreted.intent == "chat"
+    assert interpreted.provider == "groq"
+    assert interpreted.model is None
+    assert interpreted.reasoning_effort == "high"
+    assert interpreted.assistant_copy is not None
+    assert "High-reasoning AI is unavailable" in interpreted.assistant_copy
+    assert "did not substitute" in interpreted.assistant_copy
+    groq.assert_called_once()
+    huggingface.assert_not_called()
 
 
 @pytest.mark.django_db
@@ -135,15 +165,16 @@ def test_general_security_questions_are_not_forced_into_scan_flow():
     assert deterministic_intent("Scan the target website") == "scan"
 
 
-def test_reasoning_selector_is_visible_in_workspace_template():
+def test_workspace_exposes_only_the_enforced_high_reasoning_mode():
     from pathlib import Path
 
     root = Path(__file__).resolve().parents[2]
     template = (root / "vulnhunter/web/templates/web/conversation.html").read_text()
     script = (root / "vulnhunter/web/static/web/conversation.js").read_text()
     assert "data-reasoning-effort" in template
-    assert 'value="low"' in template
-    assert 'value="medium"' in template
-    assert 'value="high"' in template
+    assert 'value="high" selected' in template
+    assert 'value="low"' not in template
+    assert 'value="medium"' not in template
+    assert "High reasoning is enforced for every AI response" in template
     assert "initial.reasoning_url" in script
     assert "reasoning_effort" in script

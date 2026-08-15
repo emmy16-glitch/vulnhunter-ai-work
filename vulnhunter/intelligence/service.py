@@ -28,6 +28,9 @@ from vulnhunter.providers import (
 from vulnhunter.security import redact_text
 from vulnhunter.security_tools.scanner_protocol import ScannerCandidateObservation
 
+DEFAULT_REASONING_MODEL = "openai/gpt-oss-120b"
+REQUIRED_REASONING_EFFORT = "high"
+
 
 class IntelligenceAnalysisError(RuntimeError):
     pass
@@ -80,27 +83,30 @@ def build_analysis_request(
 
 
 class GroqFindingReasoningLoop:
-    """Run exactly analyst -> critic -> synthesizer, with one model fallback."""
+    """Run analyst -> critic -> synthesizer on one high-reasoning model.
+
+    Model downgrade is deliberately unsupported. If the configured reasoning model
+    cannot complete a stage, the advisory session abstains rather than retrying the
+    stage with a smaller model.
+    """
 
     def __init__(
         self,
         *,
         connector: AdvisoryConnector,
-        primary_model: str = "openai/gpt-oss-20b",
-        deep_model: str = "openai/gpt-oss-120b",
+        model: str = DEFAULT_REASONING_MODEL,
         timeout_seconds: int = 90,
         maximum_input_bytes: int = 64_000,
         maximum_output_tokens: int = 2_400,
     ) -> None:
-        if not primary_model.strip() or not deep_model.strip():
-            raise IntelligenceAnalysisError("both advisory models must be configured")
+        if not model.strip():
+            raise IntelligenceAnalysisError("an advisory reasoning model must be configured")
         if not 5 <= timeout_seconds <= 180:
             raise IntelligenceAnalysisError(
                 "intelligence timeout must be between 5 and 180 seconds"
             )
         self.connector = connector
-        self.primary_model = primary_model.strip()
-        self.deep_model = deep_model.strip()
+        self.model = model.strip()
         self.timeout_seconds = timeout_seconds
         self.maximum_input_bytes = maximum_input_bytes
         self.maximum_output_tokens = maximum_output_tokens
@@ -120,7 +126,6 @@ class GroqFindingReasoningLoop:
             analyst = self._stage(
                 request=request,
                 stage=ReasoningStage.ANALYST,
-                model=self.primary_model,
                 task=(
                     "Develop evidence-bound vulnerability hypotheses. Separate observations from "
                     "assumptions, identify missing context, and prefer abstention over unsupported "
@@ -135,7 +140,6 @@ class GroqFindingReasoningLoop:
             critic = self._stage(
                 request=request,
                 stage=ReasoningStage.CRITIC,
-                model=self.primary_model,
                 task=(
                     "Challenge the analyst. Look for false positives, missing preconditions, "
                     "contradicting evidence, overconfident CWE mappings, and safer explanations. "
@@ -147,42 +151,21 @@ class GroqFindingReasoningLoop:
             )
             stages.append(critic)
 
-            try:
-                synthesizer = self._stage(
-                    request=request,
-                    stage=ReasoningStage.SYNTHESIZER,
-                    model=self.deep_model,
-                    task=(
-                        "Reconcile the analyst and critic into the final advisory conclusion. "
-                        "Keep only evidence-supported claims, clearly state uncertainty, suggest "
-                        "non-destructive verification, and provide practical remediation options."
-                    ),
-                    prior={
-                        "analyst": analyst.payload.model_dump(mode="json"),
-                        "critic": critic.payload.model_dump(mode="json"),
-                    },
-                    approved_memory=memory,
-                    cancelled=cancelled,
-                )
-            except IntelligenceAnalysisError:
-                if self.deep_model == self.primary_model:
-                    raise
-                synthesizer = self._stage(
-                    request=request,
-                    stage=ReasoningStage.SYNTHESIZER,
-                    model=self.primary_model,
-                    task=(
-                        "Reconcile the analyst and critic into the final advisory conclusion. "
-                        "The larger model was unavailable, so be especially conservative and "
-                        "abstain where the supplied evidence is insufficient."
-                    ),
-                    prior={
-                        "analyst": analyst.payload.model_dump(mode="json"),
-                        "critic": critic.payload.model_dump(mode="json"),
-                    },
-                    approved_memory=memory,
-                    cancelled=cancelled,
-                )
+            synthesizer = self._stage(
+                request=request,
+                stage=ReasoningStage.SYNTHESIZER,
+                task=(
+                    "Reconcile the analyst and critic into the final advisory conclusion. "
+                    "Keep only evidence-supported claims, clearly state uncertainty, suggest "
+                    "non-destructive verification, and provide practical remediation options."
+                ),
+                prior={
+                    "analyst": analyst.payload.model_dump(mode="json"),
+                    "critic": critic.payload.model_dump(mode="json"),
+                },
+                approved_memory=memory,
+                cancelled=cancelled,
+            )
             stages.append(synthesizer)
         except IntelligenceAnalysisError as exc:
             return FindingIntelligenceReport(
@@ -213,7 +196,6 @@ class GroqFindingReasoningLoop:
         *,
         request: FindingAnalysisRequest,
         stage: ReasoningStage,
-        model: str,
         task: str,
         prior: dict[str, object],
         approved_memory: tuple[str, ...],
@@ -230,12 +212,11 @@ class GroqFindingReasoningLoop:
         if len(raw) > self.maximum_input_bytes:
             raise IntelligenceAnalysisError("bounded intelligence context exceeded its byte limit")
         invocation_id = f"{stage.value}-{uuid4().hex[:20]}"
-        stage_effort = "medium" if stage == ReasoningStage.ANALYST else "high"
         invocation = ProviderInvocation(
             invocation_id=invocation_id,
             request_id=request.analysis_id,
             provider=ProviderKind.GROQ_ADVISORY,
-            model=model,
+            model=self.model,
             capability=ProviderCapability.CLASSIFICATION,
             input_sha256=hashlib.sha256(raw).hexdigest(),
             maximum_input_characters=min(100_000, self.maximum_input_bytes),
@@ -245,12 +226,16 @@ class GroqFindingReasoningLoop:
             maximum_input_tokens=min(16_000, max(1, self.maximum_input_bytes // 4)),
             maximum_output_tokens=self.maximum_output_tokens,
             timeout_seconds=self.timeout_seconds,
-            reasoning_effort=stage_effort,
+            reasoning_effort=REQUIRED_REASONING_EFFORT,
         )
         response = self.connector.invoke(invocation, prompt, cancelled=cancelled)
         if response.output_kind == ProviderOutputKind.ABSTAIN:
             raise IntelligenceAnalysisError(
                 response.safe_error or f"{stage.value} advisory stage abstained"
+            )
+        if response.model != self.model:
+            raise IntelligenceAnalysisError(
+                "provider returned a different model than the configured reasoning model"
             )
         try:
             payload = AdvisoryStagePayload.model_validate_json(response.content)
@@ -262,7 +247,7 @@ class GroqFindingReasoningLoop:
         return AdvisoryStageResult(
             stage=stage,
             model=response.model,
-            reasoning_effort=stage_effort,
+            reasoning_effort=REQUIRED_REASONING_EFFORT,
             payload=payload,
             output_sha256=response.output_sha256,
         )
@@ -298,6 +283,11 @@ class GroqFindingReasoningLoop:
         envelope = {
             "stage": stage.value,
             "task": task,
+            "reasoning_policy": {
+                "effort": REQUIRED_REASONING_EFFORT,
+                "model_downgrade_allowed": False,
+                "provider_fallback_allowed": False,
+            },
             "security_boundary": {
                 "advisory_only": True,
                 "no_tools": True,

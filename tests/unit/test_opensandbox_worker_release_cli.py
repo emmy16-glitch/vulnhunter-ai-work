@@ -6,7 +6,6 @@ import pathlib
 import subprocess
 import sys
 
-
 _REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
 _SCRIPT = _REPO_ROOT / "scripts" / "opensandbox_worker_release.py"
 _SIGNER = (

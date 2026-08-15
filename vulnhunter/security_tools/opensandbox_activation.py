@@ -29,8 +29,47 @@ class OpenSandboxActivationError(ValueError):
     """Raised when OpenSandbox activation settings are incomplete or unsafe."""
 
 
+class _PermissionModeSdkAdapter:
+    """Translate Python permission integers to OpenSandbox's documented 755 form."""
+
+    def __init__(self, delegate: object) -> None:
+        self._delegate = delegate
+
+    def make_directory(self, sandbox: object, path: str, *, mode: int) -> None:
+        self._delegate.make_directory(
+            sandbox,
+            path,
+            mode=_opensandbox_permission_mode(mode),
+        )
+
+    def write_file(
+        self,
+        sandbox: object,
+        path: str,
+        data: str | bytes,
+        *,
+        mode: int,
+    ) -> None:
+        self._delegate.write_file(
+            sandbox,
+            path,
+            data,
+            mode=_opensandbox_permission_mode(mode),
+        )
+
+    def __getattr__(self, name: str):
+        return getattr(self._delegate, name)
+
+
 class ConfiguredOpenSandboxExecutionBackend(OpenSandboxExecutionBackend):
     """OpenSandbox backend that can authoritatively resolve its scanner binaries."""
+
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
+        # SDK 0.1.15 models permissions as integers such as 755/444 while the
+        # backend uses normal Python permission constants such as 0o755/0o444.
+        # Keep that wire-format compatibility at the SDK seam.
+        self._sdk = _PermissionModeSdkAdapter(self._sdk)
 
     def executable_for(self, tool_id: str) -> str | None:
         runtime = self.runtimes.get(tool_id)
@@ -123,6 +162,12 @@ def _bandit_runtime(image: str) -> OpenSandboxRuntimeSpec:
         uid=65532,
         gid=65532,
     )
+
+
+def _opensandbox_permission_mode(mode: int) -> int:
+    if mode < 0 or mode > 0o7777:
+        raise OpenSandboxActivationError("OpenSandbox permission mode is outside the POSIX range")
+    return int(format(mode, "o"), 10)
 
 
 def _validate_control_plane(domain: str, protocol: str) -> None:

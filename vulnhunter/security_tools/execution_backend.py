@@ -454,7 +454,7 @@ class OpenSandboxExecutionBackend:
     ) -> None:
         for path, mode in (
             (_ROOT, 0o755),
-            (_CONTROL, 0o755),
+            (_CONTROL, 0o733),
             (_INPUT, 0o755),
             (_WORK, 0o777),
             (f"{_WORK}/output", 0o777),
@@ -585,7 +585,7 @@ def _rewrite_argv(
         for host_output, sandbox_output in output_strings.items():
             if host_output in value:
                 value = value.replace(host_output, sandbox_output)
-        if value.startswith("/") and value != sandbox_target and Path(value).exists():
+        if value.startswith("/") and not value.startswith(f"{_ROOT}/") and Path(value).exists():
             raise ExecutionBackendError(
                 "OpenSandbox plan contains an additional host input path that is not staged"
             )

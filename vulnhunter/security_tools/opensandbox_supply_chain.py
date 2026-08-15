@@ -82,12 +82,16 @@ class VerifiedWorkerReleaseRegistry:
             raise WorkerReleaseVerificationError(
                 f"OpenSandbox {worker_id} image is absent from the signed release registry"
             )
-        release = matches[0]
-        if release.status != "approved":
+        approved = [release for release in matches if release.status == "approved"]
+        if not approved:
             raise WorkerReleaseVerificationError(
-                f"OpenSandbox {worker_id} release {release.release_id} is revoked"
+                f"OpenSandbox {worker_id} image has no approved signed release"
             )
-        return release
+        if len(approved) != 1:
+            raise WorkerReleaseVerificationError(
+                f"OpenSandbox {worker_id} image has multiple approved signed releases"
+            )
+        return approved[0]
 
 
 def load_verified_worker_release_registry(
@@ -112,7 +116,7 @@ def load_verified_worker_release_registry(
         raise WorkerReleaseVerificationError("worker release registry must contain releases")
 
     releases = tuple(_parse_release(value) for value in raw_releases)
-    _validate_release_uniqueness(releases)
+    _validate_release_history(releases)
     canonical_registry = canonical_json_bytes(registry_payload)
 
     signature_payload = _load_json_object(
@@ -222,17 +226,35 @@ def _parse_release(value: object) -> ApprovedWorkerRelease:
     )
 
 
-def _validate_release_uniqueness(releases: tuple[ApprovedWorkerRelease, ...]) -> None:
-    release_ids: set[str] = set()
-    worker_images: set[tuple[str, str]] = set()
+def _validate_release_history(releases: tuple[ApprovedWorkerRelease, ...]) -> None:
+    release_by_id: dict[str, ApprovedWorkerRelease] = {}
+    approved_by_image: set[tuple[str, str]] = set()
     for release in releases:
-        if release.release_id in release_ids:
+        if release.release_id in release_by_id:
             raise WorkerReleaseVerificationError("worker release IDs must be unique")
-        release_ids.add(release.release_id)
+        release_by_id[release.release_id] = release
         identity = (release.worker_id, release.image)
-        if identity in worker_images:
-            raise WorkerReleaseVerificationError("worker release image identities must be unique")
-        worker_images.add(identity)
+        if release.status == "approved" and identity in approved_by_image:
+            raise WorkerReleaseVerificationError(
+                "worker image must not have multiple approved release records"
+            )
+        if release.status == "approved":
+            approved_by_image.add(identity)
+
+    for release in releases:
+        if release.rollback_of is None:
+            continue
+        predecessor = release_by_id.get(release.rollback_of)
+        if predecessor is None:
+            raise WorkerReleaseVerificationError(
+                "worker release rollback_of must reference an existing release"
+            )
+        if predecessor.release_id == release.release_id:
+            raise WorkerReleaseVerificationError("worker release cannot roll back itself")
+        if predecessor.worker_id != release.worker_id:
+            raise WorkerReleaseVerificationError(
+                "worker release rollback_of must reference the same worker"
+            )
 
 
 def _decode_signature(value: object) -> bytes:

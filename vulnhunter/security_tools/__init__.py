@@ -14,6 +14,7 @@ from vulnhunter.security_tools.executor import SecurityToolExecutor
 from vulnhunter.security_tools.integration import normalize_execution_findings
 from vulnhunter.security_tools.models import (
     CommandPlan,
+    NetworkTargetBinding,
     SecurityToolDefinition,
     SecurityToolRequest,
     ToolAvailability,
@@ -60,6 +61,10 @@ from vulnhunter.security_tools.opensandbox_activation import (
     OpenSandboxActivationError,
     build_opensandbox_backend_from_environment,
 )
+from vulnhunter.security_tools.opensandbox_network_backend import (
+    NucleiOpenSandboxRuntimeSpec,
+    OpenSandboxNucleiExecutionBackend,
+)
 from vulnhunter.security_tools.scanner_protocol import (
     SCANNER_PROTOCOL_VERSION,
     PlannedScannerAdapter,
@@ -90,6 +95,7 @@ __all__ = [
     "DuplicateNucleiExecutionError",
     "EngagementAuthorization",
     "ExecutionBackendError",
+    "NetworkTargetBinding",
     "NucleiActivationDecision",
     "NucleiActivationError",
     "NucleiCommandPlan",
@@ -100,6 +106,7 @@ __all__ = [
     "NucleiExecutionRequest",
     "NucleiExecutionStore",
     "NucleiExecutionTransition",
+    "NucleiOpenSandboxRuntimeSpec",
     "NucleiPlanApproval",
     "NucleiRunControl",
     "NucleiRuntimeReadiness",
@@ -110,6 +117,7 @@ __all__ = [
     "OpenSandboxActivationError",
     "OpenSandboxConnection",
     "OpenSandboxExecutionBackend",
+    "OpenSandboxNucleiExecutionBackend",
     "OpenSandboxRuntimeSpec",
     "PlannedScannerAdapter",
     "ProcessGroupTerminator",

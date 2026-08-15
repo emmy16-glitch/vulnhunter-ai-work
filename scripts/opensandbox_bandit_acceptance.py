@@ -106,7 +106,9 @@ def run_acceptance(*, image: str, domain: str, protocol: str) -> dict[str, objec
         if any(finding.tool_id != "bandit" for finding in findings):
             raise RuntimeError("Bandit acceptance normalized an unexpected tool identity")
         if not any(finding.evidence.get("test_id") for finding in findings):
-            raise RuntimeError("Bandit acceptance findings are missing their deterministic test IDs")
+            raise RuntimeError(
+                "Bandit acceptance findings are missing their deterministic test IDs"
+            )
 
         return {
             "status": "accepted",

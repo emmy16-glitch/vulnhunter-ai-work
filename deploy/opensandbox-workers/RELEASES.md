@@ -29,6 +29,11 @@ Each signed record binds:
 - state: `approved` or `revoked`
 - optional `rollback_of` release ID
 
+Release IDs are globally unique. Historical records may refer to the same worker image, but only
+one record for a given worker/image pair may be `approved` at a time. A `rollback_of` value must
+reference an existing release for the same worker; this keeps rollback history explicit without
+making an image selection ambiguous.
+
 VulnHunter copies the selected release ID, SBOM digest, provenance digest, source commit, signed
 registry digest, and signing-key ID into the immutable `CommandPlan`. Execution fails if any of
 those fields change after plan issuance.
@@ -53,7 +58,8 @@ short-lived workflow artifact. CI keys are acceptance-only and are never product
 5. If replacing a compromised or invalid release, leave the old record in the registry with
    `status: revoked`.
 6. If intentionally rolling back, create a new approved record for the selected older image and set
-   `rollback_of` to the release being backed out.
+   `rollback_of` to the release being backed out. Any historical record for that same image must
+   remain revoked so exactly one approved record selects the image.
 7. Sign the complete registry with the offline production Ed25519 private key.
 8. Publish the registry, detached signature, public key, SBOM, and provenance through the controlled
    deployment/release channel.
@@ -74,8 +80,10 @@ Activation is denied when:
 - the detached signature is invalid
 - the signature key ID does not match the mounted public key
 - the configured image is not present in the signed registry
-- the matching release is revoked
-- release IDs or worker/image identities are duplicated
+- the matching image has no approved release
+- more than one approved release selects the same worker/image pair
+- release IDs are duplicated
+- `rollback_of` references a missing release or a different worker
 - an image is mutable instead of digest-pinned
 
 This layer does not replace registry ACLs, image retention, vulnerability scanning, or future OCI

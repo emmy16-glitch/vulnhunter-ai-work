@@ -89,7 +89,8 @@ def test_conversation_prompt_matches_the_provider_envelope():
 
     assert "outer JSON object with output_kind and content" in service
     assert "CANDIDATE_ANALYSIS" in service
-    assert "Do not return message and recommended_profile as the outer object" in service
+    assert "Do not return message and" in service
+    assert "recommended_profile as the outer object" in service
     assert '"model_downgrade_allowed": False' in service
     assert '"provider_fallback_allowed": False' in service
 

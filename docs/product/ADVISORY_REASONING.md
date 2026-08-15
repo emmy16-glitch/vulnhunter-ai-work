@@ -84,7 +84,7 @@ VULNHUNTER_INTELLIGENCE_MAX_INPUT_BYTES=64000
 VULNHUNTER_INTELLIGENCE_MAX_OUTPUT_TOKENS=2400
 ```
 
-The legacy split settings `VULNHUNTER_INTELLIGENCE_PRIMARY_MODEL` and `VULNHUNTER_INTELLIGENCE_DEEP_MODEL` are no longer part of the runtime contract. A conflicting legacy configuration fails closed instead of reintroducing a smaller-model path.
+The legacy split settings `VULNHUNTER_INTELLIGENCE_PRIMARY_MODEL` and `VULNHUNTER_INTELLIGENCE_DEEP_MODEL` are no longer part of the runtime contract. Older Codespaces may still contain them, but the worker ignores those values and uses `VULNHUNTER_INTELLIGENCE_MODEL` or its 120B default. This provides a migration path without allowing the legacy 20B value to become a fallback again.
 
 The protected `GROQ_API_KEY` Codespaces secret is copied once into the owner-only key file expected by VulnHunter. The environment variable is then unset by the first-run script.
 

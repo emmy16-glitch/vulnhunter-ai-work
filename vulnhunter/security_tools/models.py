@@ -17,6 +17,8 @@ from vulnhunter.actions.models import ActionClass, sha256_json
 _IDENTIFIER = re.compile(r"^[a-z0-9][a-z0-9._-]{1,127}$")
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _IMAGE_DIGEST = re.compile(r"^.+@sha256:[0-9a-f]{64}$")
+_KEY_ID = re.compile(r"^sha256:[0-9a-f]{64}$")
+_SOURCE_COMMIT = re.compile(r"^(?:[0-9a-f]{40}|[0-9a-f]{64})$")
 
 
 def utc_now() -> datetime:
@@ -165,6 +167,12 @@ class CommandPlan(BaseModel):
     target: str | None = None
     target_kind: ToolTargetKind = ToolTargetKind.NETWORK
     runtime_image: str | None = None
+    runtime_release_id: str | None = None
+    runtime_sbom_sha256: str | None = None
+    runtime_provenance_sha256: str | None = None
+    runtime_source_commit: str | None = None
+    runtime_release_registry_sha256: str | None = None
+    runtime_release_key_id: str | None = None
     template_manifest_sha256: str | None = None
     network_binding: NetworkTargetBinding | None = None
     output_files: tuple[Path, ...] = ()
@@ -189,6 +197,7 @@ class CommandPlan(BaseModel):
             raise ValueError("command target must not contain NUL bytes")
         if self.runtime_image is not None and _IMAGE_DIGEST.fullmatch(self.runtime_image) is None:
             raise ValueError("runtime_image must be pinned by sha256 digest")
+        self._validate_runtime_release_identity()
         if (
             self.template_manifest_sha256 is not None
             and _SHA256.fullmatch(self.template_manifest_sha256) is None
@@ -197,6 +206,33 @@ class CommandPlan(BaseModel):
         if self.network_binding is not None and self.target_kind != ToolTargetKind.NETWORK:
             raise ValueError("network binding is valid only for network targets")
         return self
+
+    def _validate_runtime_release_identity(self) -> None:
+        release_values = (
+            self.runtime_release_id,
+            self.runtime_sbom_sha256,
+            self.runtime_provenance_sha256,
+            self.runtime_source_commit,
+            self.runtime_release_registry_sha256,
+            self.runtime_release_key_id,
+        )
+        if not any(value is not None for value in release_values):
+            return
+        if self.runtime_image is None or any(value is None for value in release_values):
+            raise ValueError("runtime release identity must be complete and include runtime_image")
+        if _IDENTIFIER.fullmatch(self.runtime_release_id or "") is None:
+            raise ValueError("runtime_release_id must be a stable lowercase identifier")
+        for value, label in (
+            (self.runtime_sbom_sha256, "runtime_sbom_sha256"),
+            (self.runtime_provenance_sha256, "runtime_provenance_sha256"),
+            (self.runtime_release_registry_sha256, "runtime_release_registry_sha256"),
+        ):
+            if _SHA256.fullmatch(value or "") is None:
+                raise ValueError(f"{label} must be a SHA-256 digest")
+        if _SOURCE_COMMIT.fullmatch(self.runtime_source_commit or "") is None:
+            raise ValueError("runtime_source_commit must be a Git commit digest")
+        if _KEY_ID.fullmatch(self.runtime_release_key_id or "") is None:
+            raise ValueError("runtime_release_key_id must be a SHA-256 key identifier")
 
     def fingerprint(self) -> str:
         return sha256_json(self.model_dump(mode="json"))

@@ -10,13 +10,16 @@ on:
       - "scripts/opensandbox_bandit_acceptance.py"
       - "scripts/opensandbox_network_boundary_acceptance.py"
       - "scripts/opensandbox_nuclei_acceptance.py"
+      - "scripts/opensandbox_worker_release.py"
       - "tests/unit/test_opensandbox_activation.py"
       - "tests/unit/test_opensandbox_network_backend.py"
+      - "tests/unit/test_opensandbox_supply_chain.py"
       - "vulnhunter/security_tools/execution_backend.py"
       - "vulnhunter/security_tools/executor.py"
       - "vulnhunter/security_tools/models.py"
       - "vulnhunter/security_tools/opensandbox_activation.py"
       - "vulnhunter/security_tools/opensandbox_network_backend.py"
+      - "vulnhunter/security_tools/opensandbox_supply_chain.py"
       - "vulnhunter/security_tools/__init__.py"
       - "pyproject.toml"
   workflow_dispatch:
@@ -76,7 +79,7 @@ jobs:
           PY
 
   genuine-opensandbox:
-    name: Genuine VulnHunter OpenSandbox Bandit acceptance
+    name: Genuine signed VulnHunter OpenSandbox Bandit acceptance
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -113,6 +116,53 @@ jobs:
             *) echo "Expected immutable repository digest, got: $image" >&2; exit 1 ;;
           esac
           echo "image=$image" >> "$GITHUB_OUTPUT"
+
+      - name: Generate and sign Bandit release evidence
+        id: release
+        run: |
+          set -euo pipefail
+          release_dir="$RUNNER_TEMP/bandit-release"
+          mkdir -p "$release_dir"
+          source_commit="$(git rev-parse HEAD)"
+          release_id="bandit-ci-${source_commit:0:12}"
+          python scripts/opensandbox_worker_release.py keygen \
+            --private-key "$release_dir/private.pem" \
+            --public-key "$release_dir/public.pem"
+          python scripts/opensandbox_worker_release.py sbom \
+            --worker-id bandit \
+            --image '${{ steps.worker.outputs.image }}' \
+            --output "$release_dir/sbom.spdx.json"
+          python scripts/opensandbox_worker_release.py provenance \
+            --worker-id bandit \
+            --image '${{ steps.worker.outputs.image }}' \
+            --containerfile deploy/opensandbox-workers/bandit/Containerfile \
+            --source-commit "$source_commit" \
+            --output "$release_dir/provenance.json"
+          python scripts/opensandbox_worker_release.py record \
+            --worker-id bandit \
+            --release-id "$release_id" \
+            --image '${{ steps.worker.outputs.image }}' \
+            --sbom "$release_dir/sbom.spdx.json" \
+            --provenance "$release_dir/provenance.json" \
+            --source-commit "$source_commit" \
+            --output "$release_dir/record.json"
+          python scripts/opensandbox_worker_release.py registry \
+            --record "$release_dir/record.json" \
+            --output "$release_dir/registry.json"
+          python scripts/opensandbox_worker_release.py sign \
+            --registry "$release_dir/registry.json" \
+            --private-key "$release_dir/private.pem" \
+            --public-key "$release_dir/public.pem" \
+            --signature "$release_dir/registry.sig.json"
+          python scripts/opensandbox_worker_release.py verify \
+            --registry "$release_dir/registry.json" \
+            --signature "$release_dir/registry.sig.json" \
+            --public-key "$release_dir/public.pem" \
+            --worker-id bandit \
+            --image '${{ steps.worker.outputs.image }}' \
+            | tee "$release_dir/verification.json"
+          rm -f "$release_dir/private.pem"
+          echo "dir=$release_dir" >> "$GITHUB_OUTPUT"
 
       - name: Configure local OpenSandbox server
         run: |
@@ -185,6 +235,9 @@ jobs:
           set -euo pipefail
           python scripts/opensandbox_bandit_acceptance.py \
             --image '${{ steps.worker.outputs.image }}' \
+            --release-registry '${{ steps.release.outputs.dir }}/registry.json' \
+            --release-signature '${{ steps.release.outputs.dir }}/registry.sig.json' \
+            --release-public-key '${{ steps.release.outputs.dir }}/public.pem' \
             --domain 127.0.0.1:8080 \
             --protocol http \
             | tee "$RUNNER_TEMP/opensandbox-acceptance.json"
@@ -202,7 +255,27 @@ jobs:
               raise SystemExit('OpenSandbox acceptance used an unexpected tool')
           if not receipt.get('finding_count'):
               raise SystemExit('OpenSandbox acceptance normalized no findings')
+          for field in ('release_id', 'sbom_sha256', 'provenance_sha256', 'release_key_id'):
+              if not receipt.get(field):
+                  raise SystemExit(f'OpenSandbox acceptance omitted supply-chain field: {field}')
           PY
+
+      - name: Upload Bandit release evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: opensandbox-bandit-release-evidence
+          path: |
+            ${{ steps.release.outputs.dir }}/sbom.spdx.json
+            ${{ steps.release.outputs.dir }}/provenance.json
+            ${{ steps.release.outputs.dir }}/record.json
+            ${{ steps.release.outputs.dir }}/registry.json
+            ${{ steps.release.outputs.dir }}/registry.sig.json
+            ${{ steps.release.outputs.dir }}/public.pem
+            ${{ steps.release.outputs.dir }}/verification.json
+            ${{ runner.temp }}/opensandbox-acceptance.json
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Print OpenSandbox diagnostics on failure
         if: failure()
@@ -219,7 +292,7 @@ jobs:
           docker rm -f vulnhunter-registry 2>/dev/null || true
 
   genuine-opensandbox-nuclei:
-    name: Genuine exact-target OpenSandbox Nuclei acceptance
+    name: Genuine signed exact-target OpenSandbox Nuclei acceptance
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -256,6 +329,53 @@ jobs:
             *) echo "Expected immutable Nuclei repository digest, got: $image" >&2; exit 1 ;;
           esac
           echo "image=$image" >> "$GITHUB_OUTPUT"
+
+      - name: Generate and sign Nuclei release evidence
+        id: release
+        run: |
+          set -euo pipefail
+          release_dir="$RUNNER_TEMP/nuclei-release"
+          mkdir -p "$release_dir"
+          source_commit="$(git rev-parse HEAD)"
+          release_id="nuclei-ci-${source_commit:0:12}"
+          python scripts/opensandbox_worker_release.py keygen \
+            --private-key "$release_dir/private.pem" \
+            --public-key "$release_dir/public.pem"
+          python scripts/opensandbox_worker_release.py sbom \
+            --worker-id nuclei \
+            --image '${{ steps.worker.outputs.image }}' \
+            --output "$release_dir/sbom.spdx.json"
+          python scripts/opensandbox_worker_release.py provenance \
+            --worker-id nuclei \
+            --image '${{ steps.worker.outputs.image }}' \
+            --containerfile deploy/opensandbox-workers/nuclei/Containerfile \
+            --source-commit "$source_commit" \
+            --output "$release_dir/provenance.json"
+          python scripts/opensandbox_worker_release.py record \
+            --worker-id nuclei \
+            --release-id "$release_id" \
+            --image '${{ steps.worker.outputs.image }}' \
+            --sbom "$release_dir/sbom.spdx.json" \
+            --provenance "$release_dir/provenance.json" \
+            --source-commit "$source_commit" \
+            --output "$release_dir/record.json"
+          python scripts/opensandbox_worker_release.py registry \
+            --record "$release_dir/record.json" \
+            --output "$release_dir/registry.json"
+          python scripts/opensandbox_worker_release.py sign \
+            --registry "$release_dir/registry.json" \
+            --private-key "$release_dir/private.pem" \
+            --public-key "$release_dir/public.pem" \
+            --signature "$release_dir/registry.sig.json"
+          python scripts/opensandbox_worker_release.py verify \
+            --registry "$release_dir/registry.json" \
+            --signature "$release_dir/registry.sig.json" \
+            --public-key "$release_dir/public.pem" \
+            --worker-id nuclei \
+            --image '${{ steps.worker.outputs.image }}' \
+            | tee "$release_dir/verification.json"
+          rm -f "$release_dir/private.pem"
+          echo "dir=$release_dir" >> "$GITHUB_OUTPUT"
 
       - name: Start deliberate authorized target and identify denied control endpoint
         id: target
@@ -370,6 +490,9 @@ jobs:
           python scripts/opensandbox_nuclei_acceptance.py \
             --image '${{ steps.worker.outputs.image }}' \
             --target-url 'http://${{ steps.target.outputs.address }}:8011/' \
+            --release-registry '${{ steps.release.outputs.dir }}/registry.json' \
+            --release-signature '${{ steps.release.outputs.dir }}/registry.sig.json' \
+            --release-public-key '${{ steps.release.outputs.dir }}/public.pem' \
             --domain 127.0.0.1:8080 \
             --protocol http \
             | tee "$RUNNER_TEMP/opensandbox-nuclei-acceptance.json"
@@ -389,7 +512,28 @@ jobs:
               raise SystemExit('OpenSandbox Nuclei acceptance normalized no findings')
           if receipt.get('bound_ip') != '${{ steps.target.outputs.address }}':
               raise SystemExit('OpenSandbox Nuclei acceptance did not preserve the authorized IP')
+          for field in ('release_id', 'sbom_sha256', 'provenance_sha256', 'release_key_id'):
+              if not receipt.get(field):
+                  raise SystemExit(f'Nuclei acceptance omitted supply-chain field: {field}')
           PY
+
+      - name: Upload Nuclei release evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: opensandbox-nuclei-release-evidence
+          path: |
+            ${{ steps.release.outputs.dir }}/sbom.spdx.json
+            ${{ steps.release.outputs.dir }}/provenance.json
+            ${{ steps.release.outputs.dir }}/record.json
+            ${{ steps.release.outputs.dir }}/registry.json
+            ${{ steps.release.outputs.dir }}/registry.sig.json
+            ${{ steps.release.outputs.dir }}/public.pem
+            ${{ steps.release.outputs.dir }}/verification.json
+            ${{ runner.temp }}/opensandbox-network-boundary.json
+            ${{ runner.temp }}/opensandbox-nuclei-acceptance.json
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Print Nuclei/OpenSandbox diagnostics on failure
         if: failure()

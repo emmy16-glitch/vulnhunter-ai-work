@@ -29,6 +29,9 @@ production = [
     "gunicorn>=23,<27",
     "psycopg[binary]>=3.2,<4",
 ]
+opensandbox = [
+    "opensandbox==0.1.15",
+]
 
 [project.scripts]
 vulnhunter = "vulnhunter.cli:app"

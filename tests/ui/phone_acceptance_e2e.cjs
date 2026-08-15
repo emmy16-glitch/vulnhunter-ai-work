@@ -193,11 +193,11 @@ async function verifyContextualSearchAccess(page) {
       }
       if (!layout.reasoningVisible) {
         throw new Error(
-          `Answer-detail selector is not usable at ${viewport.width}px: ${JSON.stringify(layout)}`,
+          `High-reasoning selector is not usable at ${viewport.width}px: ${JSON.stringify(layout)}`,
         );
       }
-      if (layout.reasoningOptions.join(",") !== "Brief,Balanced,Detailed") {
-        throw new Error(`Answer-detail options are incomplete: ${layout.reasoningOptions.join(",")}`);
+      if (layout.reasoningOptions.join(",") !== "High") {
+        throw new Error(`High-only reasoning mode is not enforced: ${layout.reasoningOptions.join(",")}`);
       }
       if (!layout.providerVisible) {
         throw new Error(`Advisory provider status is hidden at ${viewport.width}px`);
@@ -280,8 +280,8 @@ async function verifyContextualSearchAccess(page) {
               metadata: {
                 provider: "huggingface",
                 model: "test/huggingface-model",
-                reasoning_effort: "medium",
-                provider_detail: "Hugging Face model: test/huggingface-model",
+                reasoning_effort: "high",
+                provider_detail: "Hugging Face high-reasoning model: test/huggingface-model",
               },
             },
           }),

@@ -1,0 +1,85 @@
+{
+  "corpus_id": "source-hunt-controlled-python-v1",
+  "cases": [
+    {
+      "case_id": "PT-VULN",
+      "vulnerability_class": "path_traversal",
+      "path": "app.py",
+      "marker": "VH-GT:PT-VULN",
+      "expected_vulnerable": true,
+      "rationale": "Untrusted request input reaches direct filesystem access without a containment guard."
+    },
+    {
+      "case_id": "PT-SAFE",
+      "vulnerability_class": "path_traversal",
+      "path": "app.py",
+      "marker": "VH-GT:PT-SAFE",
+      "expected_vulnerable": false,
+      "rationale": "The benchmark expects the explicit path sanitization guard to prevent promotion of this sink."
+    },
+    {
+      "case_id": "CMD-VULN",
+      "vulnerability_class": "command_injection",
+      "path": "app.py",
+      "marker": "VH-GT:CMD-VULN",
+      "expected_vulnerable": true,
+      "rationale": "Untrusted command text reaches a shell-enabled subprocess call."
+    },
+    {
+      "case_id": "CMD-SAFE",
+      "vulnerability_class": "command_injection",
+      "path": "app.py",
+      "marker": "VH-GT:CMD-SAFE",
+      "expected_vulnerable": false,
+      "rationale": "The host is explicitly validated and passed as one argument in a fixed argv vector without shell mode."
+    },
+    {
+      "case_id": "SQL-VULN",
+      "vulnerability_class": "sql_injection",
+      "path": "app.py",
+      "marker": "VH-GT:SQL-VULN",
+      "expected_vulnerable": true,
+      "rationale": "Request input is interpolated into SQL text before the database execution sink."
+    },
+    {
+      "case_id": "SQL-SAFE",
+      "vulnerability_class": "sql_injection",
+      "path": "app.py",
+      "marker": "VH-GT:SQL-SAFE",
+      "expected_vulnerable": false,
+      "rationale": "The value is validated and supplied through a parameterized query argument."
+    },
+    {
+      "case_id": "SSRF-VULN",
+      "vulnerability_class": "ssrf",
+      "path": "app.py",
+      "marker": "VH-GT:SSRF-VULN",
+      "expected_vulnerable": true,
+      "rationale": "An untrusted request URL reaches an outbound HTTP client sink without origin validation."
+    },
+    {
+      "case_id": "SSRF-SAFE",
+      "vulnerability_class": "ssrf",
+      "path": "app.py",
+      "marker": "VH-GT:SSRF-SAFE",
+      "expected_vulnerable": false,
+      "rationale": "The URL is constrained to the controlled internal origin before the outbound request sink."
+    },
+    {
+      "case_id": "DESER-VULN",
+      "vulnerability_class": "unsafe_deserialization",
+      "path": "app.py",
+      "marker": "VH-GT:DESER-VULN",
+      "expected_vulnerable": true,
+      "rationale": "Raw request bytes reach pickle deserialization."
+    },
+    {
+      "case_id": "DESER-SAFE",
+      "vulnerability_class": "unsafe_deserialization",
+      "path": "app.py",
+      "marker": "VH-GT:DESER-SAFE",
+      "expected_vulnerable": false,
+      "rationale": "The route decodes JSON rather than invoking an unsafe object-deserialization sink."
+    }
+  ]
+}

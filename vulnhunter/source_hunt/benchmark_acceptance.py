@@ -324,8 +324,10 @@ class SourceBenchmarkCampaignRunner:
 
         for entry in suite.entries:
             report = reports[entry.corpus.corpus_id]
-            if report.stage != SourceHuntStage.COMPLETE:
-                raise ValueError("source benchmark reports must be complete")
+            if report.stage not in {SourceHuntStage.COMPLETE, SourceHuntStage.ABSTAINED}:
+                raise ValueError(
+                    "source benchmark reports must be terminal (complete or abstained)"
+                )
             snapshot = report.snapshot
             if (
                 snapshot.repository_id != entry.repository_id

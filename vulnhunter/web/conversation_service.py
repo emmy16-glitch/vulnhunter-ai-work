@@ -1,8 +1,10 @@
 """Conversational planning helpers for the governed assessment workspace.
 
-Groq may interpret and explain a request, but deterministic authorization and
+Remote AI may interpret and explain a request, but deterministic authorization and
 assessment services remain authoritative. Raw private targets are never sent to
-the remote advisory provider.
+the remote advisory provider. Conversational reasoning is fixed to the configured
+high-capability model and never falls back to a smaller model, another provider,
+or canned deterministic reasoning copy.
 """
 
 from __future__ import annotations
@@ -62,7 +64,6 @@ _PROFILE_WORDS = {
     "intrusive": "intrusive",
     "retest": "retest",
 }
-_SCAN_WORDS = ("scan", "assess", "check", "inspect", "test", "analyse", "analyze")
 _CANCEL_WORDS = ("cancel", "stop", "abort")
 _AUTHORIZE_WORDS = (
     "authorize",
@@ -115,6 +116,13 @@ _STATUS_WORDS = (
     "is it done",
     "is it finished",
 )
+_REQUIRED_REASONING_EFFORT = "high"
+_DEFAULT_REASONING_PROVIDER = "groq"
+_HIGH_REASONING_UNAVAILABLE = (
+    "High-reasoning AI is unavailable for this response. VulnHunter did not substitute a "
+    "lower-capability model, another provider, or a canned deterministic reasoning answer. "
+    "Deterministic authorization, status, scope, and execution controls remain available."
+)
 
 
 @dataclass(frozen=True)
@@ -129,7 +137,7 @@ class InterpretedRequest:
     provider: str
     provider_detail: str
     model: str | None = None
-    reasoning_effort: str = "medium"
+    reasoning_effort: str = _REQUIRED_REASONING_EFFORT
 
 
 def canonical_target(value: str) -> str:
@@ -243,93 +251,6 @@ def deterministic_intent(text: str) -> str:
     return "chat"
 
 
-def _deterministic_chat_copy(
-    text: str,
-    *,
-    conversation_context: tuple[tuple[str, str], ...] = (),
-) -> str:
-    """Answer common workspace questions while preserving recent local context."""
-
-    lowered = " ".join(text.casefold().split())
-    previous = [
-        (role, " ".join(content.split()))
-        for role, content in conversation_context[:-1]
-        if role in {"user", "assistant"} and content.strip()
-    ]
-    prior_user = next((content for role, content in reversed(previous) if role == "user"), "")
-    prior_assistant = next(
-        (content for role, content in reversed(previous) if role == "assistant"),
-        "",
-    )
-
-    if re.search(
-        r"\b(what do you remember|remember what|what did i say|conversation context)\b", lowered
-    ):
-        if prior_user:
-            return (
-                "This workspace remembers the earlier messages and work attached to it. "
-                f"Your previous request was about: {prior_user[:280]}"
-            )
-        return "This is a new workspace, so there is no earlier request to summarise yet."
-    if re.search(r"\b(upload|uploading|apk upload|background)\b", lowered):
-        return (
-            "APK uploads are resumable in this workspace. You can open another page or another "
-            "workspace; the upload dock keeps the transfer visible and resumes from the last "
-            "server-confirmed byte after an interruption."
-        )
-    if re.search(r"\b(new chat|new workspace|multiple chats|recent chats|history)\b", lowered):
-        return (
-            "Each workspace now has separate persisted messages, uploads, selected APK plan and "
-            "assessment state. Use New workspace for another task and History to reopen "
-            "earlier work."
-        )
-    if re.search(r"\b(hello|hi|hey|good morning|good afternoon|good evening)\b", lowered):
-        if prior_user:
-            return (
-                "Hello. I still have this workspace context. Your previous request was about "
-                f"{prior_user[:220]}. You can continue from there or start a separate workspace."
-            )
-        return (
-            "Hello. Start with an authorised website target or attach an APK. This workspace will "
-            "preserve the conversation and any running work."
-        )
-    if any(term in lowered for term in ("what link", "which link", "what url", "target link")):
-        return (
-            "I can show the controlled target for the selected assessment. If this workspace "
-            "has no "
-            "assessment yet, send the exact authorised target you want checked."
-        )
-    if "approval" in lowered:
-        return (
-            "Approval applies only to the exact displayed passive plan. After confirmation, the "
-            "scanner job continues on the server even when you leave this page."
-        )
-    if any(term in lowered for term in ("what can you do", "help me", "how do i use")):
-        return (
-            "I can keep separate website and APK investigations in persistent workspaces, prepare "
-            "authorised bounded scans, explain live progress, and organise evidence-backed results."
-        )
-    if prior_user:
-        candidate = (
-            f"I am keeping the earlier context about {prior_user[:220]}. "
-            "Ask a specific follow-up about its scope, upload, progress, evidence or next action, "
-            "and I will answer from this workspace rather than restarting the conversation."
-        )
-    else:
-        candidate = (
-            "Describe the security question, paste an authorised http or https target, or "
-            "attach an "
-            "APK. I will keep the context in this workspace and separate it from your other tasks."
-        )
-    if prior_assistant and candidate == prior_assistant:
-        return (
-            "I have not lost the workspace context. Add the exact point you want examined "
-            "next, and "
-            "I will continue from the stored messages and current assessment state."
-        )
-    return candidate
-
-
 def _sanitize_for_groq(text: str) -> str:
     """Apply central redaction plus target-specific removal before remote inference."""
 
@@ -347,31 +268,16 @@ def _sanitize_for_groq(text: str) -> str:
     return sanitized[:24_000]
 
 
-def _reasoning_budget(effort: str) -> dict[str, int]:
-    budgets = {
-        "low": {
-            "input_bytes": 24_000,
-            "input_tokens": 6_000,
-            "output_tokens": 900,
-            "output_bytes": 12_000,
-            "timeout": 60,
-        },
-        "medium": {
-            "input_bytes": 60_000,
-            "input_tokens": 15_000,
-            "output_tokens": 2_800,
-            "output_bytes": 28_000,
-            "timeout": 150,
-        },
-        "high": {
-            "input_bytes": 96_000,
-            "input_tokens": 24_000,
-            "output_tokens": 6_000,
-            "output_bytes": 40_000,
-            "timeout": 300,
-        },
+def _reasoning_budget(_effort: str = _REQUIRED_REASONING_EFFORT) -> dict[str, int]:
+    """Return the only supported conversational reasoning budget."""
+
+    return {
+        "input_bytes": 96_000,
+        "input_tokens": 24_000,
+        "output_tokens": 6_000,
+        "output_bytes": 40_000,
+        "timeout": 300,
     }
-    return budgets.get(effort, budgets["medium"])
 
 
 def _advisory_prompt(
@@ -390,19 +296,17 @@ def _advisory_prompt(
         if role in {"user", "assistant"} and content.strip()
     ]
     envelope = {
-        "reasoning_effort": reasoning_effort,
-        "answer_expectation": {
-            "low": "Answer directly and efficiently, but still solve the question.",
-            "medium": (
-                "Analyse the question carefully, connect relevant context, and explain a "
-                "useful answer."
-            ),
-            "high": (
-                "Perform a deep internal analysis, compare plausible interpretations, check the "
-                "available evidence, and give a thorough, non-repetitive answer with "
-                "concrete next steps."
-            ),
-        }[reasoning_effort],
+        "reasoning_effort": _REQUIRED_REASONING_EFFORT,
+        "reasoning_policy": {
+            "model_downgrade_allowed": False,
+            "provider_fallback_allowed": False,
+            "deterministic_chat_fallback_allowed": False,
+        },
+        "answer_expectation": (
+            "Perform a deep internal analysis, compare plausible interpretations, check the "
+            "available evidence, and give a thorough, non-repetitive answer with concrete next "
+            "steps."
+        ),
         "available_profiles": list(available_profiles),
         "durable_memory": _sanitize_for_groq(memory_summary)[:12_000],
         "recent_conversation": context_items,
@@ -413,20 +317,18 @@ def _advisory_prompt(
     return (
         "Act as VulnHunter's capable conversational security assistant. Answer ordinary questions "
         "directly rather than steering every message into a scan. You may answer broad lawful "
-        "questions, teach concepts, analyse supplied evidence, explain APK and website "
-        "results, and "
-        "reason about the persisted workspace context. Avoid passive, canned, repetitive copy. "
-        "Use the read-only workspace data when relevant and clearly distinguish stored "
-        "evidence from "
-        "inference. Never invent tool results. The deterministic backend alone authorizes targets, "
-        "changes scope, approves or cancels actions, executes scanners, verifies findings, "
-        "sets final "
-        "severity, or publishes results. Do not reveal hidden chain-of-thought; provide "
-        "conclusions and concise supporting rationale. The provider wrapper requires exactly one "
-        "outer JSON object with output_kind and content. Set output_kind to CANDIDATE_ANALYSIS. "
-        "Set content to a JSON-encoded string containing message and recommended_profile. message "
-        "must contain the complete user-facing answer. recommended_profile must be one available "
-        "profile or null. Do not return message and recommended_profile as the outer object. "
+        "questions, teach concepts, analyse supplied evidence, explain APK and website results, "
+        "and reason about the persisted workspace context. Avoid passive, canned, repetitive "
+        "copy. Use the read-only workspace data when relevant and clearly distinguish stored "
+        "evidence from inference. Never invent tool results. The deterministic backend alone "
+        "authorizes targets, changes scope, approves or cancels actions, executes scanners, "
+        "verifies findings, sets final severity, or publishes results. Do not reveal hidden "
+        "chain-of-thought; provide conclusions and concise supporting rationale. The provider "
+        "wrapper requires exactly one outer JSON object with output_kind and content. Set "
+        "output_kind to CANDIDATE_ANALYSIS. Set content to a JSON-encoded string containing "
+        "message and recommended_profile. message must contain the complete user-facing answer. "
+        "recommended_profile must be one available profile or null. Do not return message and "
+        "recommended_profile as the outer object. "
         + json.dumps(envelope, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     )
 
@@ -456,7 +358,7 @@ def _provider_invocation(
         maximum_input_tokens=min(25_000, budget["input_tokens"]),
         maximum_output_tokens=min(8_192, budget["output_tokens"]),
         timeout_seconds=min(300, budget["timeout"], timeout_cap),
-        reasoning_effort=reasoning_effort,
+        reasoning_effort=_REQUIRED_REASONING_EFFORT,
     )
 
 
@@ -488,52 +390,47 @@ def _groq_advisory(
     conversation_context: tuple[tuple[str, str], ...] = (),
     memory_summary: str = "",
     tool_context: str = "",
-    reasoning_effort: str = "medium",
+    reasoning_effort: str = _REQUIRED_REASONING_EFFORT,
 ) -> tuple[str | None, str]:
     if not getattr(settings, "VULNHUNTER_GROQ_ENABLED", False):
-        return None, "Groq advisory is disabled."
+        return None, "Groq high-reasoning advisory is disabled."
     key_path = Path(settings.VULNHUNTER_GROQ_API_KEY_FILE).expanduser()
     if not key_path.is_file():
-        return None, "Groq API key has not been configured."
+        return None, "Groq high-reasoning API key has not been configured."
     prompt = _advisory_prompt(
         text,
         available_profiles=available_profiles,
         conversation_context=conversation_context,
         memory_summary=memory_summary,
         tool_context=tool_context,
-        reasoning_effort=reasoning_effort,
+        reasoning_effort=_REQUIRED_REASONING_EFFORT,
     )
-    model = (
-        settings.VULNHUNTER_GROQ_FALLBACK_MODEL
-        if reasoning_effort == "low"
-        else settings.VULNHUNTER_GROQ_MODEL
-    )
+    model = settings.VULNHUNTER_GROQ_MODEL
     invocation = _provider_invocation(
         provider=ProviderKind.GROQ_ADVISORY,
         model=model,
         prompt=prompt,
-        reasoning_effort=reasoning_effort,
+        reasoning_effort=_REQUIRED_REASONING_EFFORT,
         timeout_cap=settings.VULNHUNTER_GROQ_TIMEOUT_SECONDS,
     )
     try:
         provider = GroqProvider.from_key_file(
             key_path,
-            approved_models=(
-                settings.VULNHUNTER_GROQ_MODEL,
-                settings.VULNHUNTER_GROQ_FALLBACK_MODEL,
-            ),
+            approved_models=(model,),
             api_base=settings.VULNHUNTER_GROQ_API_BASE,
         )
         response = provider.invoke(invocation, prompt)
     except GroqProviderError as exc:
-        return None, f"Groq configuration was rejected safely: {exc}"
+        return None, f"Groq high-reasoning configuration was rejected safely: {exc}"
     if response.output_kind == ProviderOutputKind.ABSTAIN:
-        return None, response.safe_error or "Groq abstained safely."
+        return None, response.safe_error or "Groq high-reasoning model abstained safely."
+    if response.model != model:
+        return None, "Groq returned a different model than the configured high-reasoning model."
     try:
         result = _decode_advisory(response, available_profiles)
     except ValueError as exc:
         return None, str(exc)
-    return result, f"Groq model: {response.model}"
+    return result, f"Groq high-reasoning model: {response.model}"
 
 
 def _huggingface_advisory(
@@ -543,52 +440,49 @@ def _huggingface_advisory(
     conversation_context: tuple[tuple[str, str], ...] = (),
     memory_summary: str = "",
     tool_context: str = "",
-    reasoning_effort: str = "medium",
+    reasoning_effort: str = _REQUIRED_REASONING_EFFORT,
 ) -> tuple[str | None, str]:
     if not getattr(settings, "VULNHUNTER_HUGGINGFACE_ENABLED", False):
-        return None, "Hugging Face advisory is disabled."
+        return None, "Hugging Face high-reasoning advisory is disabled."
     token_path = Path(settings.VULNHUNTER_HUGGINGFACE_TOKEN_FILE).expanduser()
     if not token_path.is_file():
-        return None, "Hugging Face token has not been configured."
+        return None, "Hugging Face high-reasoning token has not been configured."
     prompt = _advisory_prompt(
         text,
         available_profiles=available_profiles,
         conversation_context=conversation_context,
         memory_summary=memory_summary,
         tool_context=tool_context,
-        reasoning_effort=reasoning_effort,
+        reasoning_effort=_REQUIRED_REASONING_EFFORT,
     )
-    model = (
-        settings.VULNHUNTER_HUGGINGFACE_FALLBACK_MODEL
-        if reasoning_effort == "low"
-        else settings.VULNHUNTER_HUGGINGFACE_MODEL
-    )
+    model = settings.VULNHUNTER_HUGGINGFACE_MODEL
     invocation = _provider_invocation(
         provider=ProviderKind.HUGGINGFACE_ADVISORY,
         model=model,
         prompt=prompt,
-        reasoning_effort=reasoning_effort,
+        reasoning_effort=_REQUIRED_REASONING_EFFORT,
         timeout_cap=settings.VULNHUNTER_HUGGINGFACE_TIMEOUT_SECONDS,
     )
     try:
         provider = HuggingFaceProvider.from_token_file(
             token_path,
-            approved_models=(
-                settings.VULNHUNTER_HUGGINGFACE_MODEL,
-                settings.VULNHUNTER_HUGGINGFACE_FALLBACK_MODEL,
-            ),
+            approved_models=(model,),
             api_base=settings.VULNHUNTER_HUGGINGFACE_API_BASE,
         )
         response = provider.invoke(invocation, prompt)
     except HuggingFaceProviderError as exc:
-        return None, f"Hugging Face configuration was rejected safely: {exc}"
+        return None, f"Hugging Face high-reasoning configuration was rejected safely: {exc}"
     if response.output_kind == ProviderOutputKind.ABSTAIN:
-        return None, response.safe_error or "Hugging Face abstained safely."
+        return None, response.safe_error or "Hugging Face high-reasoning model abstained safely."
+    if response.model != model:
+        return None, (
+            "Hugging Face returned a different model than the configured high-reasoning model."
+        )
     try:
         result = _decode_advisory(response, available_profiles)
     except ValueError as exc:
         return None, str(exc)
-    return result, f"Hugging Face model: {response.model}"
+    return result, f"Hugging Face high-reasoning model: {response.model}"
 
 
 def _remote_advisory(
@@ -601,33 +495,19 @@ def _remote_advisory(
     reasoning_effort: str,
     provider_preference: str,
 ) -> tuple[str | None, str, str]:
-    providers = (
-        (
-            ("huggingface", _huggingface_advisory),
-            ("groq", _groq_advisory),
-        )
-        if provider_preference == "huggingface"
-        else (
-            ("groq", _groq_advisory),
-            ("huggingface", _huggingface_advisory),
-        )
+    """Invoke exactly one configured provider; never perform provider failover."""
+
+    provider_name = "huggingface" if provider_preference == "huggingface" else "groq"
+    function = _huggingface_advisory if provider_name == "huggingface" else _groq_advisory
+    advisory, detail = function(
+        text,
+        available_profiles=available_profiles,
+        conversation_context=conversation_context,
+        memory_summary=memory_summary,
+        tool_context=tool_context,
+        reasoning_effort=_REQUIRED_REASONING_EFFORT,
     )
-    if provider_preference in {"groq", "huggingface"}:
-        providers = tuple(item for item in providers if item[0] == provider_preference)
-    details: list[str] = []
-    for provider_name, function in providers:
-        advisory, detail = function(
-            text,
-            available_profiles=available_profiles,
-            conversation_context=conversation_context,
-            memory_summary=memory_summary,
-            tool_context=tool_context,
-            reasoning_effort=reasoning_effort,
-        )
-        details.append(detail)
-        if advisory:
-            return advisory, detail, provider_name
-    return None, " ".join(details), "deterministic"
+    return advisory, detail, provider_name
 
 
 def interpret_request(
@@ -637,28 +517,26 @@ def interpret_request(
     conversation_context: tuple[tuple[str, str], ...] = (),
     memory_summary: str = "",
     tool_context: str = "",
-    reasoning_effort: str = "medium",
-    provider_preference: str = "auto",
+    reasoning_effort: str = _REQUIRED_REASONING_EFFORT,
+    provider_preference: str = _DEFAULT_REASONING_PROVIDER,
 ) -> InterpretedRequest:
-    """Combine deterministic action routing with full bounded conversational reasoning."""
+    """Combine deterministic action routing with one high-reasoning AI provider.
 
-    if reasoning_effort not in {"low", "medium", "high"}:
-        reasoning_effort = "medium"
-    if provider_preference not in {"auto", "groq", "huggingface"}:
-        provider_preference = "auto"
+    Deterministic code remains authoritative for intent/action routing. It does not
+    replace failed conversational reasoning with a canned assistant answer.
+    """
+
+    del reasoning_effort
+    provider_preference = (
+        "huggingface" if provider_preference == "huggingface" else _DEFAULT_REASONING_PROVIDER
+    )
     target = extract_target(text)
     port = extract_port(text, target)
     protocol = urlsplit(target).scheme if target else None
     profile = extract_profile(text)
     evidence_reference = extract_evidence_reference(text)
     intent = deterministic_intent(text)
-    assistant_copy = (
-        _deterministic_chat_copy(text, conversation_context=conversation_context)
-        if intent == "chat"
-        else None
-    )
-    provider = "deterministic"
-    detail = "Deterministic action routing is active."
+    assistant_copy: str | None = None
     model: str | None = None
 
     advisory, advisory_detail, selected_provider = _remote_advisory(
@@ -667,7 +545,7 @@ def interpret_request(
         conversation_context=conversation_context,
         memory_summary=memory_summary,
         tool_context=tool_context,
-        reasoning_effort=reasoning_effort,
+        reasoning_effort=_REQUIRED_REASONING_EFFORT,
         provider_preference=provider_preference,
     )
     if advisory:
@@ -683,10 +561,8 @@ def interpret_request(
             assistant_copy = copy.strip()[:40_000]
         model_value = payload.get("model")
         model = model_value if isinstance(model_value, str) else None
-        provider = selected_provider
-        detail = advisory_detail
-    else:
-        detail = advisory_detail
+    elif intent == "chat":
+        assistant_copy = _HIGH_REASONING_UNAVAILABLE
 
     return InterpretedRequest(
         intent=intent,
@@ -696,10 +572,10 @@ def interpret_request(
         profile=profile,
         evidence_reference=evidence_reference,
         assistant_copy=assistant_copy,
-        provider=provider,
-        provider_detail=detail,
+        provider=selected_provider,
+        provider_detail=advisory_detail,
         model=model,
-        reasoning_effort=reasoning_effort,
+        reasoning_effort=_REQUIRED_REASONING_EFFORT,
     )
 
 
@@ -724,13 +600,13 @@ def advisory_runtime_status() -> dict[str, object]:
         providers.append("Hugging Face")
     live_verified = bool(groq_configured and runtime_verified)
     if live_verified:
-        label = "Groq live conversation ready"
+        label = "Groq high-reasoning conversation ready"
     elif groq_configured:
-        label = "Groq configured; restart to verify live conversation"
+        label = "Groq high-reasoning model configured; restart to verify live conversation"
     elif providers:
-        label = f"{' + '.join(providers)} configured"
+        label = f"{' + '.join(providers)} high-reasoning provider configured"
     else:
-        label = "AI provider setup required"
+        label = "High-reasoning AI provider setup required"
     return {
         "enabled": groq_enabled or hf_enabled,
         "configured": configured,
@@ -740,6 +616,9 @@ def advisory_runtime_status() -> dict[str, object]:
         if groq_configured
         else settings.VULNHUNTER_HUGGINGFACE_MODEL,
         "providers": providers,
+        "reasoning_effort": _REQUIRED_REASONING_EFFORT,
+        "model_fallback_allowed": False,
+        "provider_fallback_allowed": False,
     }
 
 

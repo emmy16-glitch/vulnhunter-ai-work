@@ -453,9 +453,7 @@ def _bind_network_target(
         pinned_ip = addresses[0]
 
     path = parsed.path or "/"
-    connect_url = urlunsplit(
-        (parsed.scheme, f"{pinned_ip}:{port}", path, parsed.query, "")
-    )
+    connect_url = urlunsplit((parsed.scheme, f"{pinned_ip}:{port}", path, parsed.query, ""))
     default_port = 443 if parsed.scheme == "https" else 80
     host_header = hostname if port == default_port else f"{hostname}:{port}"
     tls_server_name = hostname if parsed.scheme == "https" and literal is None else None
@@ -480,12 +478,7 @@ def _revalidate_binding(binding: NetworkTargetBinding, *, resolver: Resolver) ->
             raise ExecutionBackendError("literal network target changed after plan issuance")
         return
     addresses = tuple(
-        sorted(
-            {
-                _validated_ipv4(value)
-                for value in resolver(binding.hostname, binding.port)
-            }
-        )
+        sorted({_validated_ipv4(value) for value in resolver(binding.hostname, binding.port)})
     )
     if binding.ip_address not in addresses:
         raise ExecutionBackendError(
@@ -540,9 +533,7 @@ def _bind_nuclei_argv(
         "-no-httpx",
     }
     if any(value in forbidden for value in rewritten):
-        raise ExecutionBackendError(
-            "Nuclei adapter unexpectedly pre-bound sandbox-only arguments"
-        )
+        raise ExecutionBackendError("Nuclei adapter unexpectedly pre-bound sandbox-only arguments")
     rewritten.extend(("-templates", runtime.template_root, "-disable-redirects", "-no-httpx"))
     if binding.hostname != binding.ip_address:
         rewritten.extend(("-header", f"Host: {binding.host_header}"))

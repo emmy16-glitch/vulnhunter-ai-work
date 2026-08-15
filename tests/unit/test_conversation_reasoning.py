@@ -100,12 +100,12 @@ def test_selected_reasoning_takes_effect_on_next_message(client, settings, actor
     assert response.json()["message"]["metadata"]["reasoning_effort"] == "high"
 
 
-def test_failed_high_reasoning_does_not_fall_back_to_another_provider_or_canned_copy():
+def test_failed_chat_reasoning_does_not_fail_over_provider_or_use_canned_ai_copy():
     with (
         patch.object(
             conversation_service,
             "_groq_advisory",
-            return_value=(None, "configured high-reasoning model unavailable"),
+            return_value=(None, "configured chat models unavailable"),
         ) as groq,
         patch.object(conversation_service, "_huggingface_advisory") as huggingface,
     ):
@@ -121,8 +121,8 @@ def test_failed_high_reasoning_does_not_fall_back_to_another_provider_or_canned_
     assert interpreted.model is None
     assert interpreted.reasoning_effort == "high"
     assert interpreted.assistant_copy is not None
-    assert "High-reasoning AI is unavailable" in interpreted.assistant_copy
-    assert "did not substitute" in interpreted.assistant_copy
+    assert "AI conversation is temporarily unavailable" in interpreted.assistant_copy
+    assert "No security action was authorized or executed" in interpreted.assistant_copy
     groq.assert_called_once()
     huggingface.assert_not_called()
 

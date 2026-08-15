@@ -2,9 +2,9 @@
 
 Remote AI may interpret and explain a request, but deterministic authorization and
 assessment services remain authoritative. Raw private targets are never sent to
-the remote advisory provider. Conversational reasoning is fixed to the configured
-high-capability model and never falls back to a smaller model, another provider,
-or canned deterministic reasoning copy.
+the remote advisory provider. Ordinary chat may fall back to one explicitly configured
+same-provider reasoning model when the primary model abstains; protected actions,
+Source Hunt, authorization, execution and verification never gain authority from that fallback.
 """
 
 from __future__ import annotations
@@ -119,9 +119,9 @@ _STATUS_WORDS = (
 _REQUIRED_REASONING_EFFORT = "high"
 _DEFAULT_REASONING_PROVIDER = "groq"
 _HIGH_REASONING_UNAVAILABLE = (
-    "High-reasoning AI is unavailable for this response. VulnHunter did not substitute a "
-    "lower-capability model, another provider, or a canned deterministic reasoning answer. "
-    "Deterministic authorization, status, scope, and execution controls remain available."
+    "AI conversation is temporarily unavailable after the configured advisory path could not "
+    "return a usable answer. No security action was authorized or executed. Deterministic "
+    "authorization, status, scope, and execution controls remain available. Retry in a moment."
 )
 
 
@@ -268,9 +268,21 @@ def _sanitize_for_groq(text: str) -> str:
     return sanitized[:24_000]
 
 
-def _reasoning_budget(_effort: str = _REQUIRED_REASONING_EFFORT) -> dict[str, int]:
-    """Return the only supported conversational reasoning budget."""
+def _reasoning_budget(
+    _effort: str = _REQUIRED_REASONING_EFFORT,
+    *,
+    compact_chat: bool = False,
+) -> dict[str, int]:
+    """Return bounded reasoning budgets, with a smaller ordinary-chat envelope."""
 
+    if compact_chat:
+        return {
+            "input_bytes": 24_000,
+            "input_tokens": 6_000,
+            "output_tokens": 1_200,
+            "output_bytes": 10_000,
+            "timeout": 90,
+        }
     return {
         "input_bytes": 96_000,
         "input_tokens": 24_000,
@@ -288,17 +300,21 @@ def _advisory_prompt(
     memory_summary: str,
     tool_context: str,
     reasoning_effort: str,
+    compact_chat: bool = False,
 ) -> str:
-    budget = _reasoning_budget(reasoning_effort)
+    budget = _reasoning_budget(reasoning_effort, compact_chat=compact_chat)
+    context_limit = 6 if compact_chat else 30
+    item_limit = 600 if compact_chat else 2_000
     context_items = [
-        {"role": role, "content": _sanitize_for_groq(content)[:2_000]}
-        for role, content in conversation_context[-30:]
+        {"role": role, "content": _sanitize_for_groq(content)[:item_limit]}
+        for role, content in conversation_context[-context_limit:]
         if role in {"user", "assistant"} and content.strip()
     ]
     envelope = {
         "reasoning_effort": _REQUIRED_REASONING_EFFORT,
         "reasoning_policy": {
-            "model_downgrade_allowed": False,
+            "model_downgrade_allowed": compact_chat,
+            "model_downgrade_scope": "ordinary_chat_only" if compact_chat else "none",
             "provider_fallback_allowed": False,
             "deterministic_chat_fallback_allowed": False,
         },
@@ -308,10 +324,12 @@ def _advisory_prompt(
             "steps."
         ),
         "available_profiles": list(available_profiles),
-        "durable_memory": _sanitize_for_groq(memory_summary)[:12_000],
+        "durable_memory": _sanitize_for_groq(memory_summary)[: (2_000 if compact_chat else 12_000)],
         "recent_conversation": context_items,
-        "read_only_workspace_tools": _sanitize_for_groq(tool_context)[:24_000],
-        "user_request": _sanitize_for_groq(text)[:8_000],
+        "read_only_workspace_tools": _sanitize_for_groq(tool_context)[
+            : (4_000 if compact_chat else 24_000)
+        ],
+        "user_request": _sanitize_for_groq(text)[: (3_000 if compact_chat else 8_000)],
         "output_limit_tokens": budget["output_tokens"],
     }
     return (
@@ -340,8 +358,9 @@ def _provider_invocation(
     prompt: str,
     reasoning_effort: str,
     timeout_cap: int,
+    compact_chat: bool = False,
 ) -> ProviderInvocation:
-    budget = _reasoning_budget(reasoning_effort)
+    budget = _reasoning_budget(reasoning_effort, compact_chat=compact_chat)
     raw = prompt.encode("utf-8")
     invocation_id = f"chat-{uuid4().hex[:20]}"
     return ProviderInvocation(
@@ -397,6 +416,8 @@ def _groq_advisory(
     key_path = Path(settings.VULNHUNTER_GROQ_API_KEY_FILE).expanduser()
     if not key_path.is_file():
         return None, "Groq high-reasoning API key has not been configured."
+
+    compact_chat = deterministic_intent(text) == "chat"
     prompt = _advisory_prompt(
         text,
         available_profiles=available_profiles,
@@ -404,33 +425,54 @@ def _groq_advisory(
         memory_summary=memory_summary,
         tool_context=tool_context,
         reasoning_effort=_REQUIRED_REASONING_EFFORT,
+        compact_chat=compact_chat,
     )
-    model = settings.VULNHUNTER_GROQ_MODEL
-    invocation = _provider_invocation(
-        provider=ProviderKind.GROQ_ADVISORY,
-        model=model,
-        prompt=prompt,
-        reasoning_effort=_REQUIRED_REASONING_EFFORT,
-        timeout_cap=settings.VULNHUNTER_GROQ_TIMEOUT_SECONDS,
-    )
+    primary_model = settings.VULNHUNTER_GROQ_MODEL
+    fallback_model = getattr(settings, "VULNHUNTER_GROQ_FALLBACK_MODEL", "").strip()
+    models = [primary_model]
+    if compact_chat and fallback_model and fallback_model != primary_model:
+        models.append(fallback_model)
+
     try:
         provider = GroqProvider.from_key_file(
             key_path,
-            approved_models=(model,),
+            approved_models=tuple(models),
             api_base=settings.VULNHUNTER_GROQ_API_BASE,
         )
-        response = provider.invoke(invocation, prompt)
     except GroqProviderError as exc:
         return None, f"Groq high-reasoning configuration was rejected safely: {exc}"
-    if response.output_kind == ProviderOutputKind.ABSTAIN:
-        return None, response.safe_error or "Groq high-reasoning model abstained safely."
-    if response.model != model:
-        return None, "Groq returned a different model than the configured high-reasoning model."
-    try:
-        result = _decode_advisory(response, available_profiles)
-    except ValueError as exc:
-        return None, str(exc)
-    return result, f"Groq high-reasoning model: {response.model}"
+
+    failures: list[str] = []
+    for index, model in enumerate(models):
+        invocation = _provider_invocation(
+            provider=ProviderKind.GROQ_ADVISORY,
+            model=model,
+            prompt=prompt,
+            reasoning_effort=_REQUIRED_REASONING_EFFORT,
+            timeout_cap=settings.VULNHUNTER_GROQ_TIMEOUT_SECONDS,
+            compact_chat=compact_chat,
+        )
+        try:
+            response = provider.invoke(invocation, prompt)
+        except GroqProviderError as exc:
+            failures.append(f"{model}: configuration rejected safely: {exc}")
+            continue
+        if response.output_kind == ProviderOutputKind.ABSTAIN:
+            failures.append(response.safe_error or f"{model}: advisory model abstained safely.")
+            continue
+        if response.model != model:
+            failures.append(f"{model}: Groq returned an unexpected model identity.")
+            continue
+        try:
+            result = _decode_advisory(response, available_profiles)
+        except ValueError as exc:
+            failures.append(f"{model}: {exc}")
+            continue
+        label = "Groq high-reasoning model" if index == 0 else "Groq resilient chat fallback model"
+        return result, f"{label}: {response.model}"
+
+    detail = " | ".join(failures)[:2_000]
+    return None, detail or "Groq advisory models did not return a usable response."
 
 
 def _huggingface_advisory(
@@ -520,10 +562,11 @@ def interpret_request(
     reasoning_effort: str = _REQUIRED_REASONING_EFFORT,
     provider_preference: str = _DEFAULT_REASONING_PROVIDER,
 ) -> InterpretedRequest:
-    """Combine deterministic action routing with one high-reasoning AI provider.
+    """Combine deterministic action routing with bounded advisory conversation.
 
-    Deterministic code remains authoritative for intent/action routing. It does not
-    replace failed conversational reasoning with a canned assistant answer.
+    Deterministic code remains authoritative for intent/action routing. Ordinary chat
+    may use the configured same-provider fallback model, but no model fallback can
+    authorize, approve, execute, verify, publish, or alter lifecycle state.
     """
 
     del reasoning_effort
@@ -607,6 +650,11 @@ def advisory_runtime_status() -> dict[str, object]:
         label = f"{' + '.join(providers)} high-reasoning provider configured"
     else:
         label = "High-reasoning AI provider setup required"
+    fallback_model = (
+        settings.VULNHUNTER_GROQ_FALLBACK_MODEL
+        if groq_configured
+        else settings.VULNHUNTER_HUGGINGFACE_FALLBACK_MODEL
+    )
     return {
         "enabled": groq_enabled or hf_enabled,
         "configured": configured,
@@ -615,9 +663,11 @@ def advisory_runtime_status() -> dict[str, object]:
         "model": settings.VULNHUNTER_GROQ_MODEL
         if groq_configured
         else settings.VULNHUNTER_HUGGINGFACE_MODEL,
+        "fallback_model": fallback_model,
         "providers": providers,
         "reasoning_effort": _REQUIRED_REASONING_EFFORT,
-        "model_fallback_allowed": False,
+        "model_fallback_allowed": bool(groq_configured),
+        "model_fallback_scope": "ordinary_chat_only" if groq_configured else "none",
         "provider_fallback_allowed": False,
     }
 

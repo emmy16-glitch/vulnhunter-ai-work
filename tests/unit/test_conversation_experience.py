@@ -2,9 +2,12 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
+from vulnhunter.providers import ProviderOutputKind
 from vulnhunter.web.conversation_service import (
+    _groq_advisory,
     deterministic_intent,
     interpret_request,
 )
@@ -13,7 +16,7 @@ from vulnhunter.web.mobile_conversation_state import mobile_chat_reply
 ROOT = Path(__file__).resolve().parents[2]
 
 
-def test_ordinary_question_reports_high_reasoning_unavailable_without_starting_scan(settings):
+def test_ordinary_question_reports_chat_unavailable_without_starting_scan(settings):
     settings.VULNHUNTER_GROQ_ENABLED = False
 
     result = interpret_request(
@@ -27,8 +30,8 @@ def test_ordinary_question_reports_high_reasoning_unavailable_without_starting_s
     assert result.model is None
     assert result.reasoning_effort == "high"
     assert result.assistant_copy
-    assert "High-reasoning AI is unavailable" in result.assistant_copy
-    assert "did not substitute" in result.assistant_copy
+    assert "AI conversation is temporarily unavailable" in result.assistant_copy
+    assert "No security action was authorized or executed" in result.assistant_copy
 
 
 def test_groq_chat_copy_is_used_without_turning_question_into_scan(settings):
@@ -55,6 +58,106 @@ def test_groq_chat_copy_is_used_without_turning_question_into_scan(settings):
     assert result.assistant_copy == (
         "The active workspace link is shown with the current assessment."
     )
+
+
+def _configure_groq_chat_test(settings, tmp_path) -> None:
+    key = tmp_path / "groq.key"
+    key.write_text("gsk_test_value", encoding="utf-8")
+    key.chmod(0o600)
+    settings.VULNHUNTER_GROQ_ENABLED = True
+    settings.VULNHUNTER_GROQ_API_KEY_FILE = str(key)
+    settings.VULNHUNTER_GROQ_API_BASE = "https://api.groq.com/openai/v1"
+    settings.VULNHUNTER_GROQ_MODEL = "openai/gpt-oss-120b"
+    settings.VULNHUNTER_GROQ_FALLBACK_MODEL = "openai/gpt-oss-20b"
+    settings.VULNHUNTER_GROQ_TIMEOUT_SECONDS = 90
+
+
+def test_ordinary_chat_uses_same_provider_fallback_after_primary_abstains(settings, tmp_path):
+    _configure_groq_chat_test(settings, tmp_path)
+    calls: list[tuple[str, int, int]] = []
+
+    class FakeProvider:
+        def invoke(self, invocation, prompt):
+            del prompt
+            calls.append(
+                (
+                    invocation.model,
+                    invocation.maximum_input_tokens,
+                    invocation.maximum_output_tokens,
+                )
+            )
+            if len(calls) == 1:
+                return SimpleNamespace(
+                    output_kind=ProviderOutputKind.ABSTAIN,
+                    safe_error="Groq request was rate-limited.",
+                    model=invocation.model,
+                    content="",
+                )
+            return SimpleNamespace(
+                output_kind=ProviderOutputKind.CANDIDATE_ANALYSIS,
+                safe_error=None,
+                model=invocation.model,
+                content=json.dumps(
+                    {
+                        "message": "Fallback answered normally.",
+                        "recommended_profile": None,
+                    }
+                ),
+            )
+
+    with patch(
+        "vulnhunter.web.conversation_service.GroqProvider.from_key_file",
+        return_value=FakeProvider(),
+    ):
+        advisory, detail = _groq_advisory(
+            "Can you explain APK analysis?",
+            available_profiles=("passive",),
+        )
+
+    assert advisory is not None
+    payload = json.loads(advisory)
+    assert payload["message"] == "Fallback answered normally."
+    assert payload["model"] == "openai/gpt-oss-20b"
+    assert calls == [
+        ("openai/gpt-oss-120b", 6_000, 1_200),
+        ("openai/gpt-oss-20b", 6_000, 1_200),
+    ]
+    assert "resilient chat fallback" in detail
+
+
+def test_scan_request_never_downgrades_to_chat_fallback_model(settings, tmp_path):
+    _configure_groq_chat_test(settings, tmp_path)
+    calls: list[tuple[str, int, int]] = []
+
+    class AbstainingProvider:
+        def invoke(self, invocation, prompt):
+            del prompt
+            calls.append(
+                (
+                    invocation.model,
+                    invocation.maximum_input_tokens,
+                    invocation.maximum_output_tokens,
+                )
+            )
+            return SimpleNamespace(
+                output_kind=ProviderOutputKind.ABSTAIN,
+                safe_error="Groq request was rate-limited.",
+                model=invocation.model,
+                content="",
+            )
+
+    with patch(
+        "vulnhunter.web.conversation_service.GroqProvider.from_key_file",
+        return_value=AbstainingProvider(),
+    ):
+        advisory, _detail = _groq_advisory(
+            "Scan this website",
+            available_profiles=("passive",),
+        )
+
+    assert advisory is None
+    assert deterministic_intent("Scan this website") == "scan"
+    assert calls == [("openai/gpt-oss-120b", 24_000, 6_000)]
 
 
 def test_natural_progress_questions_are_status_requests():

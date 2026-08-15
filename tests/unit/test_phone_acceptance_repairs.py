@@ -91,8 +91,10 @@ def test_conversation_prompt_matches_the_provider_envelope():
     assert "CANDIDATE_ANALYSIS" in service
     assert "Do not return message and" in service
     assert "recommended_profile as the outer object" in service
-    assert '"model_downgrade_allowed": False' in service
+    assert '"model_downgrade_allowed": compact_chat' in service
+    assert '"model_downgrade_scope": "ordinary_chat_only" if compact_chat else "none"' in service
     assert '"provider_fallback_allowed": False' in service
+    assert 'compact_chat = deterministic_intent(text) == "chat"' in service
 
 
 def test_phone_runtime_contracts_are_wired():

@@ -52,9 +52,7 @@ class FakeSandboxSdk:
     ) -> int:
         if self.fail_run:
             raise RuntimeError("simulated sandbox transport failure")
-        self.payload = json.loads(
-            self.files["/tmp/vulnhunter/control/plan.json"].decode("utf-8")
-        )
+        self.payload = json.loads(self.files["/tmp/vulnhunter/control/plan.json"].decode("utf-8"))
         outputs = self.payload["outputs"]
         artifacts = []
         for output in outputs:

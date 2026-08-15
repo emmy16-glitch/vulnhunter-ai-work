@@ -1,0 +1,64 @@
+name: Governed external web verification evidence
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/web-verification-evidence.yml"
+      - "vulnhunter/web_verification/**"
+      - "tests/unit/test_web_verification.py"
+      - "tests/unit/test_web_verification_external_evidence.py"
+      - "docs/intelligence/GOVERNED_EXTERNAL_WEB_VERIFICATION_EVIDENCE.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contracts:
+    name: Python ${{ matrix.python-version }} external evidence contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install focused test dependencies
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install -e . pytest cryptography ruff
+
+      - name: Lint external evidence contracts
+        run: |
+          set -euo pipefail
+          python -m ruff check --output-format=github vulnhunter/web_verification tests/unit/test_web_verification.py tests/unit/test_web_verification_external_evidence.py
+
+      - name: Verify external evidence model formatting
+        run: python -m ruff format --check vulnhunter/web_verification/external_models.py
+
+      - name: Verify external evidence service formatting
+        run: python -m ruff format --check vulnhunter/web_verification/external_evidence.py
+
+      - name: Verify external evidence test formatting
+        run: python -m ruff format --check tests/unit/test_web_verification_external_evidence.py
+
+      - name: Verify inherited verifier formatting
+        run: |
+          set -euo pipefail
+          python -m ruff format --check vulnhunter/web_verification/__init__.py vulnhunter/web_verification/errors.py vulnhunter/web_verification/models.py vulnhunter/web_verification/policy.py vulnhunter/web_verification/verifier.py tests/unit/test_web_verification.py
+
+      - name: Compile external evidence package
+        run: python -m compileall -q vulnhunter/web_verification
+
+      - name: Run external evidence contract tests
+        run: python -m pytest -q tests/unit/test_web_verification.py tests/unit/test_web_verification_external_evidence.py

@@ -181,7 +181,7 @@ def test_revoked_signed_worker_fails_activation(tmp_path: Path) -> None:
         bandit_image=_image(),
         status="revoked",
     )
-    with pytest.raises(OpenSandboxActivationError, match="is revoked"):
+    with pytest.raises(OpenSandboxActivationError, match="has no approved signed release"):
         build_opensandbox_backend_from_environment(environment)
 
 

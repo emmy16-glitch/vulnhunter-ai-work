@@ -6,7 +6,7 @@ import pytest
 
 from vulnhunter.security_tools import default_catalog
 from vulnhunter.security_tools.execution_backend import ExecutionBackendError, OpenSandboxConnection
-from vulnhunter.security_tools.executor import SecurityToolExecutor
+from vulnhunter.security_tools.executor import SecurityToolExecutionError, SecurityToolExecutor
 from vulnhunter.security_tools.models import SecurityToolRequest, ToolProfile, ToolTargetKind
 from vulnhunter.security_tools.opensandbox_network_backend import (
     NucleiOpenSandboxRuntimeSpec,
@@ -152,6 +152,5 @@ def test_first_network_worker_rejects_non_passive_nuclei_profile(tmp_path: Path)
         parameters={"scan_profile": "standard", "tags": ["misconfig"]},
     )
 
-    with pytest.raises(ExecutionBackendError, match="passive scans only"):
-        plan = executor.plan(request)
-        backend.bind_plan(plan, request)
+    with pytest.raises(SecurityToolExecutionError, match="passive scans only"):
+        executor.plan(request)

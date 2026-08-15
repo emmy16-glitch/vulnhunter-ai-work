@@ -6,25 +6,19 @@ import re
 
 from pydantic import model_validator
 
-from vulnhunter.source_hunt.controlled_corpus_models import (
-    ControlledBenchmarkCampaignEvidence as _ControlledBenchmarkCampaignEvidence,
-    ControlledCorpusDraft as _ControlledCorpusDraft,
-    ControlledCorpusRelease as _ControlledCorpusRelease,
-    ControlledFixtureFile,
-    ControlledGroundTruthCase,
-    ControlledGroundTruthSpec,
-    CorpusReviewAttestation as _CorpusReviewAttestation,
-    CorpusReviewerBinding,
-    CorpusReviewLedger as _CorpusReviewLedger,
-    CorpusReviewVerdict,
-    ReviewedSourceBenchmarkSuite as _ReviewedSourceBenchmarkSuite,
-)
+from vulnhunter.source_hunt import controlled_corpus_models as _models
 from vulnhunter.source_hunt.controlled_corpus_service import (
     ControlledBenchmarkCampaignRunner,
     ControlledCorpusDraftBuilder,
     ControlledCorpusReleaseService,
     ReviewedSourceBenchmarkSuiteBuilder,
 )
+
+ControlledFixtureFile = _models.ControlledFixtureFile
+ControlledGroundTruthCase = _models.ControlledGroundTruthCase
+ControlledGroundTruthSpec = _models.ControlledGroundTruthSpec
+CorpusReviewerBinding = _models.CorpusReviewerBinding
+CorpusReviewVerdict = _models.CorpusReviewVerdict
 
 _DRAFT_ID_PATTERN = re.compile(r"^source-corpus-draft-[0-9a-f]{24}$")
 
@@ -39,7 +33,7 @@ def _require_non_production_artifact(value: object, label: str) -> None:
         raise ValueError(f"{label} cannot permit production accuracy claims")
 
 
-def _validate_release_governance(release: _ControlledCorpusRelease) -> None:
+def _validate_release_governance(release: _models.ControlledCorpusRelease) -> None:
     _require_non_production_artifact(release, "controlled-corpus release")
     _require_non_production_artifact(release.draft, "controlled-corpus draft")
 
@@ -59,13 +53,13 @@ def _validate_release_governance(release: _ControlledCorpusRelease) -> None:
             raise ValueError("controlled-corpus review identity does not match its assignment")
 
 
-def _validate_suite_governance(suite_release: _ReviewedSourceBenchmarkSuite) -> None:
+def _validate_suite_governance(suite_release: _models.ReviewedSourceBenchmarkSuite) -> None:
     _require_non_production_artifact(suite_release, "reviewed benchmark suite")
     for release in suite_release.corpus_releases:
         _validate_release_governance(release)
 
 
-class ControlledCorpusDraft(_ControlledCorpusDraft):
+class ControlledCorpusDraft(_models.ControlledCorpusDraft):
     """Operational draft loader with non-production invariants enforced."""
 
     @model_validator(mode="after")
@@ -74,7 +68,7 @@ class ControlledCorpusDraft(_ControlledCorpusDraft):
         return self
 
 
-class CorpusReviewAttestation(_CorpusReviewAttestation):
+class CorpusReviewAttestation(_models.CorpusReviewAttestation):
     """Operational review loader that forbids path-like draft identifiers."""
 
     @model_validator(mode="after")
@@ -83,7 +77,7 @@ class CorpusReviewAttestation(_CorpusReviewAttestation):
         return self
 
 
-class CorpusReviewLedger(_CorpusReviewLedger):
+class CorpusReviewLedger(_models.CorpusReviewLedger):
     """Review ledger hardened against draft-id path traversal."""
 
     def _path(self, draft_id: str, reviewer_id: str):
@@ -91,7 +85,7 @@ class CorpusReviewLedger(_CorpusReviewLedger):
         return super()._path(draft_id, reviewer_id)
 
 
-class ControlledCorpusRelease(_ControlledCorpusRelease):
+class ControlledCorpusRelease(_models.ControlledCorpusRelease):
     """Operational release loader that replays governance bindings on load."""
 
     @model_validator(mode="after")
@@ -100,7 +94,7 @@ class ControlledCorpusRelease(_ControlledCorpusRelease):
         return self
 
 
-class ReviewedSourceBenchmarkSuite(_ReviewedSourceBenchmarkSuite):
+class ReviewedSourceBenchmarkSuite(_models.ReviewedSourceBenchmarkSuite):
     """Operational suite loader that recursively revalidates controlled releases."""
 
     @model_validator(mode="after")
@@ -109,7 +103,7 @@ class ReviewedSourceBenchmarkSuite(_ReviewedSourceBenchmarkSuite):
         return self
 
 
-class ControlledBenchmarkCampaignEvidence(_ControlledBenchmarkCampaignEvidence):
+class ControlledBenchmarkCampaignEvidence(_models.ControlledBenchmarkCampaignEvidence):
     """Operational campaign loader with recursive non-production guarantees."""
 
     @model_validator(mode="after")

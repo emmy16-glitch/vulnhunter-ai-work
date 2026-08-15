@@ -286,6 +286,20 @@ const report = {
 
           const bodyText = document.body.innerText;
           const root = document.documentElement;
+          const conversationWorkspace = Boolean(
+            document.querySelector("[data-conversation-workspace]"),
+          );
+          const conversationFeed = document.querySelector("[data-conversation-feed]");
+          const conversationFeedOverflowY = conversationFeed
+            ? getComputedStyle(conversationFeed).overflowY
+            : null;
+          const conversationInternalScrollReady =
+            !conversationWorkspace ||
+            Boolean(
+              conversationFeed &&
+                visible(conversationFeed) &&
+                ["auto", "scroll"].includes(conversationFeedOverflowY),
+            );
           const pageIsLong = root.scrollHeight > root.clientHeight + 1;
           const initialScrollY = window.scrollY;
           let pageCanScrollVertically = true;
@@ -326,7 +340,9 @@ const report = {
             emptyLinks,
             brokenAnchors: [...new Set(brokenAnchors)],
             activeNavigation: activeNavigation.map((item) => item.textContent.trim()),
-            conversationWorkspace: Boolean(document.querySelector("[data-conversation-workspace]")),
+            conversationWorkspace,
+            conversationFeedOverflowY,
+            conversationInternalScrollReady,
             djangoError:
               Boolean(document.querySelector("#traceback, .technical-500")) ||
               /TemplateSyntaxError at\/|Server Error \(500\)/i.test(bodyText),
@@ -342,11 +358,18 @@ const report = {
         if (audit.overflowX) {
           report.failures.push(`${routeKey} has body-level horizontal overflow`);
         }
-        if (audit.pageIsLong && !audit.pageCanScrollVertically) {
+        if (audit.pageIsLong && !audit.pageCanScrollVertically && !audit.conversationWorkspace) {
           report.failures.push(`${routeKey} is long but cannot scroll vertically`);
         }
-        if (audit.pageIsLong && audit.rootOverflowY === "hidden") {
+        if (
+          audit.pageIsLong &&
+          audit.rootOverflowY === "hidden" &&
+          !audit.conversationWorkspace
+        ) {
           report.failures.push(`${routeKey} hides the page-level vertical scrollbar`);
+        }
+        if (audit.conversationWorkspace && !audit.conversationInternalScrollReady) {
+          report.failures.push(`${routeKey} has no usable internal conversation scroll container`);
         }
         if (audit.sidebarNeedsScroll && !audit.sidebarCanScroll) {
           report.failures.push(`${routeKey} has clipped sidebar navigation`);

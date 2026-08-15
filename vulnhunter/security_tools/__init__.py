@@ -54,6 +54,12 @@ from vulnhunter.security_tools.nuclei_execution import (
     NucleiRuntimeReadiness,
     NucleiScannerAdapter,
 )
+from vulnhunter.security_tools.opensandbox_activation import (
+    ConfiguredOpenSandboxExecutionBackend,
+    OpenSandboxActivationConfig,
+    OpenSandboxActivationError,
+    build_opensandbox_backend_from_environment,
+)
 from vulnhunter.security_tools.scanner_protocol import (
     SCANNER_PROTOCOL_VERSION,
     PlannedScannerAdapter,
@@ -78,6 +84,7 @@ __all__ = [
     "BackendExecutionResult",
     "BoundedTextCapture",
     "CommandPlan",
+    "ConfiguredOpenSandboxExecutionBackend",
     "DeterministicFakeRunner",
     "DisabledNucleiRunner",
     "DuplicateNucleiExecutionError",
@@ -99,6 +106,8 @@ __all__ = [
     "NucleiScannerAdapter",
     "NucleiTemplateManifest",
     "NucleiTemplateManifestEntry",
+    "OpenSandboxActivationConfig",
+    "OpenSandboxActivationError",
     "OpenSandboxConnection",
     "OpenSandboxExecutionBackend",
     "OpenSandboxRuntimeSpec",
@@ -130,6 +139,7 @@ __all__ = [
     "ToolExecutionResult",
     "ToolProfile",
     "ToolTargetKind",
+    "build_opensandbox_backend_from_environment",
     "default_catalog",
     "normalize_execution_findings",
     "validate_evidence_directory",

@@ -30,7 +30,9 @@ _PROTOCOL_ENV = "VULNHUNTER_OPENSANDBOX_PROTOCOL"
 _BANDIT_IMAGE_ENV = "VULNHUNTER_OPENSANDBOX_BANDIT_IMAGE"
 _NUCLEI_IMAGE_ENV = "VULNHUNTER_OPENSANDBOX_NUCLEI_IMAGE"
 _MAX_INPUT_ENV = "VULNHUNTER_OPENSANDBOX_MAX_INPUT_BYTES"
-_NUCLEI_TEMPLATE_MANIFEST_SHA256 = "088f533aaa631f178bde29c3589d286b3bb136f839772a39d9276f16b545d35c"
+_NUCLEI_TEMPLATE_MANIFEST_SHA256 = (
+    "088f533aaa631f178bde29c3589d286b3bb136f839772a39d9276f16b545d35c"
+)
 
 _TRUE_VALUES = frozenset({"1", "true", "yes", "on"})
 _FALSE_VALUES = frozenset({"0", "false", "no", "off", ""})
@@ -238,7 +240,9 @@ class OpenSandboxActivationConfig:
         runtimes = {}
         if self.bandit_image is not None:
             runtimes["bandit"] = _bandit_runtime(self.bandit_image)
-        nuclei_runtime = _nuclei_runtime(self.nuclei_image) if self.nuclei_image is not None else None
+        nuclei_runtime = (
+            _nuclei_runtime(self.nuclei_image) if self.nuclei_image is not None else None
+        )
         return ConfiguredOpenSandboxExecutionBackend(
             runtimes=runtimes,
             connection=connection,

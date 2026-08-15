@@ -6,7 +6,7 @@ import argparse
 import json
 from datetime import timedelta
 
-_PROBE = r'''
+_PROBE = r"""
 import json
 import socket
 from pathlib import Path
@@ -27,7 +27,7 @@ receipt = {
 Path("/tmp/vulnhunter-network-probe/receipt.json").write_text(
     json.dumps(receipt, sort_keys=True), encoding="utf-8"
 )
-'''
+"""
 
 
 def _parser() -> argparse.ArgumentParser:

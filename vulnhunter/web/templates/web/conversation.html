@@ -101,16 +101,14 @@
           <details class="vh-composer-advanced" data-composer-advanced>
             <summary>Advanced</summary>
             <div class="vh-composer-advanced-body">
-              <label class="vh-reasoning-control" title="Answer detail for the next response">
-                <span>Answer detail</span>
-                <select name="reasoning_effort" data-reasoning-effort aria-label="Answer detail">
-                  <option value="low"{% if conversation.reasoning_effort == "low" %} selected{% endif %}>Brief</option>
-                  <option value="medium"{% if conversation.reasoning_effort == "medium" %} selected{% endif %}>Balanced</option>
-                  <option value="high"{% if conversation.reasoning_effort == "high" %} selected{% endif %}>Detailed</option>
+              <label class="vh-reasoning-control" title="High reasoning is enforced for every AI response">
+                <span>Reasoning mode</span>
+                <select name="reasoning_effort" data-reasoning-effort aria-label="Reasoning mode">
+                  <option value="high" selected>High</option>
                 </select>
               </label>
-              <p><b data-reasoning-copy>{{ conversation.reasoning_effort|title }}</b> answer detail</p>
-              <p class="vh-provider-runtime{% if groq.live_verified %} is-ready{% elif groq.configured %} is-warning{% else %} is-offline{% endif %}" data-provider-runtime>{% if groq.live_verified %}Advisory provider ready{% elif groq.configured %}Advisory provider needs operator verification{% else %}Advisory provider unavailable; deterministic workflows remain available{% endif %}</p>
+              <p><b data-reasoning-copy>High</b> reasoning enforced</p>
+              <p class="vh-provider-runtime{% if groq.live_verified %} is-ready{% elif groq.configured %} is-warning{% else %} is-offline{% endif %}" data-provider-runtime>{% if groq.live_verified %}High-reasoning provider ready{% elif groq.configured %}High-reasoning provider needs operator verification{% else %}High-reasoning AI unavailable; deterministic workflows remain available{% endif %}</p>
             </div>
           </details>
         </div>

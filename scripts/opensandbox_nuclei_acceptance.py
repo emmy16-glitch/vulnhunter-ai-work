@@ -97,7 +97,9 @@ def run_acceptance(*, image: str, target_url: str, domain: str, protocol: str) -
         if plan.template_manifest_sha256 is None:
             raise RuntimeError("Nuclei acceptance plan did not bind reviewed template identity")
         if "-disable-redirects" not in plan.argv or "-no-httpx" not in plan.argv:
-            raise RuntimeError("Nuclei acceptance plan did not retain exact-target scanner controls")
+            raise RuntimeError(
+                "Nuclei acceptance plan did not retain exact-target scanner controls"
+            )
 
         result = executor.execute(
             plan,

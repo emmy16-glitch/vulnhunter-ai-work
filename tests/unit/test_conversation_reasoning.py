@@ -165,15 +165,16 @@ def test_general_security_questions_are_not_forced_into_scan_flow():
     assert deterministic_intent("Scan the target website") == "scan"
 
 
-def test_reasoning_selector_is_visible_in_workspace_template():
+def test_workspace_exposes_only_the_enforced_high_reasoning_mode():
     from pathlib import Path
 
     root = Path(__file__).resolve().parents[2]
     template = (root / "vulnhunter/web/templates/web/conversation.html").read_text()
     script = (root / "vulnhunter/web/static/web/conversation.js").read_text()
     assert "data-reasoning-effort" in template
-    assert 'value="low"' in template
-    assert 'value="medium"' in template
-    assert 'value="high"' in template
+    assert 'value="high" selected' in template
+    assert 'value="low"' not in template
+    assert 'value="medium"' not in template
+    assert "High reasoning is enforced for every AI response" in template
     assert "initial.reasoning_url" in script
     assert "reasoning_effort" in script

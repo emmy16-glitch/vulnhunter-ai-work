@@ -334,7 +334,9 @@ def update_thread_preferences(
         raise ValueError("Reasoning effort must be low, medium, or high.")
     effort = REQUIRED_REASONING_EFFORT
 
-    requested_provider = (provider_preference or thread.provider_preference or "auto").strip().casefold()
+    requested_provider = (
+        (provider_preference or thread.provider_preference or "auto").strip().casefold()
+    )
     if requested_provider not in PROVIDER_PREFERENCES:
         raise ValueError("Provider preference must be automatic, Groq, or Hugging Face.")
     provider = _effective_provider(requested_provider)

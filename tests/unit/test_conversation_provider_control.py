@@ -20,12 +20,16 @@ def test_provider_routing_is_automatic_and_hidden_from_the_user() -> None:
 
     assert 'options.body.set("provider_preference", "auto")' in script
     assert 'runtime.dataset.providerPreferenceActive = "auto"' in script
-    assert 'runtime.textContent = "AI reasoning ready"' in script
+    assert 'runtime.textContent = "Automatic routing"' in script
+    assert "runtime.hidden = true" in script
+    assert 'runtime.setAttribute("aria-hidden", "true")' in script
+    assert 'runtime.classList.remove("is-ready", "is-warning", "is-offline")' in script
     assert 'querySelectorAll(".vh-provider-control")' in script
     assert "initial.thread_id" in script
     assert 'option value="groq"' not in script
     assert 'option value="huggingface"' not in script
     assert "select[data-provider-preference]" not in script
+    assert '"AI reasoning ready"' not in script
 
 
 def test_provider_progress_is_incremental_without_exposing_partial_model_json() -> None:
@@ -47,7 +51,8 @@ def test_provider_progress_is_incremental_without_exposing_partial_model_json() 
 def test_finished_message_does_not_expose_provider_or_model_identity() -> None:
     script = SCRIPT.read_text(encoding="utf-8")
 
-    assert 'runtime.textContent = "AI reasoning ready"' in script
+    assert 'runtime.textContent = "Automatic routing"' in script
+    assert "runtime.hidden = true" in script
     assert 'feed.querySelectorAll(".vh-message-reasoning")' not in script
     assert "state.lastProvider" not in script
     assert "state.lastModel" not in script

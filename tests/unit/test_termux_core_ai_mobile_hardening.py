@@ -68,7 +68,7 @@ def test_mobile_progress_and_secondary_composer_controls_stay_compact() -> None:
 
     assert "grid-template-columns: minmax(0, 1fr) auto auto" in styles
     assert ".vh-llm-progress-track" in styles
-    assert "min-height: 30px" in styles
+    assert "min-height: 32px" in styles
     assert ".vh-chat-composer-meta > span:not(.vh-draft-status)" in styles
     assert ".vh-composer-counter" in styles
     assert "@media (max-width: 640px)" in styles

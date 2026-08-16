@@ -33,6 +33,12 @@
   runtime.dataset.providerPreferenceActive = "auto";
   runtime.classList.remove("is-ready", "is-warning", "is-offline");
 
+  // The base thinking node remains the state signal used by the conversation client,
+  // but the validated progress component below is the only visible working indicator.
+  // This prevents duplicate "thinking" panels from stacking on small screens.
+  thinking.classList.add("is-progress-delegated");
+  thinking.setAttribute("aria-hidden", "true");
+
   // Remove any legacy provider selector if an older cached script inserted one.
   composerMeta.querySelectorAll(".vh-provider-control").forEach((node) => node.remove());
 

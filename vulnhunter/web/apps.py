@@ -7,8 +7,11 @@ class VulnHunterWebConfig(AppConfig):
     verbose_name = "VulnHunter Web"
 
     def ready(self) -> None:
-        # Install the advisory-only provider router after Django has loaded the app.
-        # Deterministic authorization/execution controls remain untouched.
-        from vulnhunter.web.ai_failover import install
+        # Presentation/session hooks keep the workspace chat-first; provider routing
+        # remains advisory-only. Deterministic authorization/execution controls stay
+        # inside their existing governed services.
+        from vulnhunter.web.ai_failover import install as install_ai_failover
+        from vulnhunter.web.chat_experience import install as install_chat_experience
 
-        install()
+        install_ai_failover()
+        install_chat_experience()

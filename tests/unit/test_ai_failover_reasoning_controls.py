@@ -17,9 +17,7 @@ class _Response:
 
 
 def _conversation_service():
-    return SimpleNamespace(
-        _advisory_prompt=lambda *_args, **_kwargs: '{"reasoning_effort":"high"}'
-    )
+    return SimpleNamespace(_advisory_prompt=lambda *_args, **_kwargs: '{"reasoning_effort":"high"}')
 
 
 def test_gemini_forces_high_thinking_level(monkeypatch):
@@ -31,17 +29,7 @@ def test_gemini_forces_high_thinking_level(monkeypatch):
     def fake_post(*_args, **kwargs):
         captured.update(kwargs)
         return _Response(
-            {
-                "candidates": [
-                    {
-                        "content": {
-                            "parts": [
-                                {"text": json.dumps({"message": "ok"})}
-                            ]
-                        }
-                    }
-                ]
-            }
+            {"candidates": [{"content": {"parts": [{"text": json.dumps({"message": "ok"})}]}}]}
         )
 
     monkeypatch.setattr(ai_failover.httpx, "post", fake_post)
@@ -65,9 +53,7 @@ def test_ollama_qwen3_explicitly_enables_thinking(monkeypatch):
 
     def fake_post(*_args, **kwargs):
         captured.update(kwargs)
-        return _Response(
-            {"message": {"content": json.dumps({"message": "ok"})}}
-        )
+        return _Response({"message": {"content": json.dumps({"message": "ok"})}})
 
     monkeypatch.setattr(ai_failover.httpx, "post", fake_post)
 
@@ -89,9 +75,7 @@ def test_ollama_gpt_oss_uses_high_reasoning_level(monkeypatch):
 
     def fake_post(*_args, **kwargs):
         captured.update(kwargs)
-        return _Response(
-            {"message": {"content": json.dumps({"message": "ok"})}}
-        )
+        return _Response({"message": {"content": json.dumps({"message": "ok"})}})
 
     monkeypatch.setattr(ai_failover.httpx, "post", fake_post)
 

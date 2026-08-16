@@ -227,6 +227,31 @@
     });
   };
 
+  const confirmNewAssessmentInChat = (button) => {
+    const stay = document.createElement("button");
+    stay.type = "button";
+    stay.textContent = "Stay here";
+    stay.addEventListener("click", () => removeTransientCards("new-assessment"));
+
+    const confirm = document.createElement("button");
+    confirm.type = "button";
+    confirm.className = "is-primary";
+    confirm.textContent = "Start new assessment";
+    confirm.addEventListener("click", () => {
+      removeTransientCards("new-assessment");
+      button.dataset.commandCenterConfirmed = "true";
+      button.click();
+    });
+
+    actionCard({
+      type: "new-assessment",
+      label: "Conversation action",
+      title: "Start a clean assessment thread?",
+      copy: "This changes the active conversation context. It does not authorise a target, start a scanner, or cancel a running assessment by itself.",
+      actions: [stay, confirm],
+    });
+  };
+
   const routeOperationalLink = (anchor) => {
     if (!(anchor instanceof HTMLAnchorElement)) return false;
     if (anchor.matches(".vh-thread-item")) return false;
@@ -349,6 +374,19 @@
     (event) => {
       const target = event.target instanceof Element ? event.target : null;
       if (!target) return;
+
+      const reset = target.closest("[data-conversation-reset], [data-thread-create]");
+      if (reset) {
+        if (reset.dataset.commandCenterConfirmed === "true") {
+          delete reset.dataset.commandCenterConfirmed;
+        } else {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+          confirmNewAssessmentInChat(reset);
+          return;
+        }
+      }
+
       const cancel = target.closest("[data-run-cancel], [data-approval-cancel]");
       if (cancel) {
         event.preventDefault();

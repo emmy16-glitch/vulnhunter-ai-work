@@ -56,6 +56,14 @@
     document.dispatchEvent(new CustomEvent(name, { detail }));
   };
 
+  const setSpecialistThinking = (busy, label = "") => {
+    const workspace = document.querySelector("[data-conversation-workspace]");
+    const thinking = workspace?.querySelector("[data-conversation-thinking]");
+    const copy = workspace?.querySelector("[data-thinking-copy]");
+    if (thinking) thinking.hidden = !busy;
+    if (copy && busy) copy.textContent = `${label || "Governed workflow"} · working…`;
+  };
+
   document.addEventListener(
     "submit",
     async (event) => {
@@ -113,6 +121,7 @@
                 ? "Remediation"
                 : "Source Hunt";
 
+      setSpecialistThinking(true, label);
       dispatch("vulnhunter:specialist-start", { label, message, endpoint });
 
       try {
@@ -136,6 +145,7 @@
           endpoint,
         });
       } finally {
+        setSpecialistThinking(false);
         form.dataset.specialistBusy = "false";
         if (send) send.disabled = false;
         if (input) {
@@ -152,7 +162,7 @@
     if (document.querySelector(`script[${marker}]`)) return;
     const url = new URL(current, window.location.href);
     url.pathname = url.pathname.replace(/conversation-runtime-compat\.js$/, filename);
-    url.search = "?v=20260816-command-center2";
+    url.search = "?v=20260816-command-center3";
     const script = document.createElement("script");
     script.src = url.toString();
     script.async = false;

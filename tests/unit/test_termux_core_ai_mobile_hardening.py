@@ -43,12 +43,21 @@ def test_groq_configuration_verifies_the_high_reasoning_path() -> None:
 def test_submitted_prompt_is_separate_from_unsent_draft_across_reload() -> None:
     source = DRAFT.read_text(encoding="utf-8")
 
+    pending_guard = (
+        "if (!state.pendingPrompt && !pendingStorage.read()?.value) "
+        "saveDraft({ quiet: true });"
+    )
+    pending_notice = (
+        "Previous request was already submitted. "
+        "Check the conversation before retrying."
+    )
+
     assert "vulnhunter:conversation-pending:" in source
     assert "pendingStorage.write(value)" in source
     assert "storage.clear()" in source
     assert "state.pageLeaving = true" in source
-    assert "if (!state.pendingPrompt && !pendingStorage.read()?.value) saveDraft({ quiet: true });" in source
-    assert "Previous request was already submitted. Check the conversation before retrying." in source
+    assert pending_guard in source
+    assert pending_notice in source
     assert "restorePending" in source
 
 

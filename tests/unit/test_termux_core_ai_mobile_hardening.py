@@ -44,12 +44,10 @@ def test_submitted_prompt_is_separate_from_unsent_draft_across_reload() -> None:
     source = DRAFT.read_text(encoding="utf-8")
 
     pending_guard = (
-        "if (!state.pendingPrompt && !pendingStorage.read()?.value) "
-        "saveDraft({ quiet: true });"
+        "if (!state.pendingPrompt && !pendingStorage.read()?.value) saveDraft({ quiet: true });"
     )
     pending_notice = (
-        "Previous request was already submitted. "
-        "Check the conversation before retrying."
+        "Previous request was already submitted. Check the conversation before retrying."
     )
 
     assert "vulnhunter:conversation-pending:" in source

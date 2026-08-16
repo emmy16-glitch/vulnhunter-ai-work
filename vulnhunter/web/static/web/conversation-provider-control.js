@@ -25,13 +25,13 @@
     timer: null,
   };
 
-  // Provider routing is intentionally automatic. Users see one stable AI surface while
-  // the server silently selects/fails over between configured providers.
-  runtime.textContent = "AI reasoning ready";
-  runtime.title = "High reasoning with automatic provider routing is ready.";
+  // Provider routing is intentionally automatic and infrastructure status is private.
+  runtime.hidden = true;
+  runtime.setAttribute("aria-hidden", "true");
+  runtime.textContent = "Automatic routing";
+  runtime.removeAttribute("title");
   runtime.dataset.providerPreferenceActive = "auto";
-  runtime.classList.add("is-ready");
-  runtime.classList.remove("is-warning", "is-offline");
+  runtime.classList.remove("is-ready", "is-warning", "is-offline");
 
   // Remove any legacy provider selector if an older cached script inserted one.
   composerMeta.querySelectorAll(".vh-provider-control").forEach((node) => node.remove());

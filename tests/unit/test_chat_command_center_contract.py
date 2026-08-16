@@ -3,14 +3,14 @@ from __future__ import annotations
 from pathlib import Path
 from types import SimpleNamespace
 
-from vulnhunter.web import chat_experience, conversational_views
-
 
 ROOT = Path(__file__).resolve().parents[2]
 STATIC = ROOT / "vulnhunter" / "web" / "static" / "web"
 
 
 def test_empty_conversation_has_no_synthetic_assistant_message():
+    from vulnhunter.web import chat_experience, conversational_views
+
     chat_experience.install()
     request = SimpleNamespace(session={})
 

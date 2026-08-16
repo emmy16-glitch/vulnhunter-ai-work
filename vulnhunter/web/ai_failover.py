@@ -382,6 +382,9 @@ def install() -> None:
         reasoning_effort: str,
         provider_preference: str,
     ) -> tuple[str | None, str, str]:
+        # Keep the legacy parameter only for call-signature compatibility. Provider
+        # selection is fully internal and always starts at the governed primary route.
+        del provider_preference
         common = {
             "available_profiles": available_profiles,
             "conversation_context": conversation_context,
@@ -390,22 +393,17 @@ def install() -> None:
             "reasoning_effort": reasoning_effort,
         }
 
-        providers: list[tuple[str, Callable[..., tuple[str | None, str]]]] = []
-        if provider_preference == "huggingface":
-            providers.append(("huggingface", conversation_service._huggingface_advisory))
-        providers.extend(
-            [
-                ("groq", conversation_service._groq_advisory),
-                (
-                    "gemini",
-                    lambda value, **kwargs: _gemini_advisory(conversation_service, value, **kwargs),
-                ),
-                (
-                    "ollama",
-                    lambda value, **kwargs: _ollama_advisory(conversation_service, value, **kwargs),
-                ),
-            ]
-        )
+        providers: list[tuple[str, Callable[..., tuple[str | None, str]]]] = [
+            ("groq", conversation_service._groq_advisory),
+            (
+                "gemini",
+                lambda value, **kwargs: _gemini_advisory(conversation_service, value, **kwargs),
+            ),
+            (
+                "ollama",
+                lambda value, **kwargs: _ollama_advisory(conversation_service, value, **kwargs),
+            ),
+        ]
 
         attempted: list[str] = []
         for provider_name, provider in providers:
@@ -440,21 +438,19 @@ def install() -> None:
     def advisory_runtime_status() -> dict[str, object]:
         status = dict(original_status())
         extra = _provider_status()
-        providers = list(status.get("providers") or [])
-        if extra["gemini"] and "Gemini" not in providers:
-            providers.append("Gemini")
-        if extra["ollama"] and "Ollama" not in providers:
-            providers.append("Ollama")
-        status.update(
-            {
-                "enabled": bool(status.get("enabled")) or any(extra.values()),
-                "configured": bool(status.get("configured")) or any(extra.values()),
-                "providers": providers,
-                "provider_fallback_allowed": True,
-                "label": "AI conversation router ready" if providers else status.get("label"),
-            }
-        )
-        return status
+        enabled = bool(status.get("enabled")) or any(extra.values())
+        configured = bool(status.get("configured")) or any(extra.values())
+        # This dictionary is consumed by the workspace template, so expose only
+        # aggregate capability state. Provider/model inventory belongs in server logs.
+        return {
+            "enabled": enabled,
+            "configured": configured,
+            "live_verified": bool(status.get("live_verified")),
+            "label": "AI reasoning available" if configured else "AI reasoning unavailable",
+            "reasoning_effort": "high",
+            "model_fallback_allowed": False,
+            "provider_fallback_allowed": True,
+        }
 
     conversation_service._advisory_prompt = advisory_prompt
     conversation_service._remote_advisory = remote_advisory

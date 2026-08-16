@@ -254,11 +254,7 @@ def _gemini_advisory(
         payload = response.json()
         candidates = payload.get("candidates") or []
         parts = candidates[0]["content"]["parts"]
-        raw_text = "".join(
-            str(part.get("text", ""))
-            for part in parts
-            if isinstance(part, dict)
-        )
+        raw_text = "".join(str(part.get("text", "")) for part in parts if isinstance(part, dict))
     except (ValueError, KeyError, IndexError, TypeError, AttributeError):
         return None, "Gemini returned a malformed response."
 
@@ -402,15 +398,11 @@ def install() -> None:
                 ("groq", conversation_service._groq_advisory),
                 (
                     "gemini",
-                    lambda value, **kwargs: _gemini_advisory(
-                        conversation_service, value, **kwargs
-                    ),
+                    lambda value, **kwargs: _gemini_advisory(conversation_service, value, **kwargs),
                 ),
                 (
                     "ollama",
-                    lambda value, **kwargs: _ollama_advisory(
-                        conversation_service, value, **kwargs
-                    ),
+                    lambda value, **kwargs: _ollama_advisory(conversation_service, value, **kwargs),
                 ),
             ]
         )

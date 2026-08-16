@@ -15,7 +15,7 @@
   const current = document.currentScript?.src;
   if (!current) return;
 
-  const siblingUrl = (filename, version = "20260816-command-center4") => {
+  const siblingUrl = (filename, version = "20260816-termux-hardening1") => {
     const url = new URL(current, window.location.href);
     url.pathname = url.pathname.replace(/conversation-runtime-compat\.js$/, filename);
     url.search = `?v=${version}`;

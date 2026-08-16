@@ -223,6 +223,7 @@ def _gemini_advisory(
         "generationConfig": {
             "responseMimeType": "application/json",
             "maxOutputTokens": 6000,
+            "thinkingConfig": {"thinkingLevel": "high"},
         },
     }
 
@@ -303,6 +304,7 @@ def _ollama_advisory(
         tool_context=tool_context,
         reasoning_effort=reasoning_effort,
     )
+    thinking_control: bool | str = "high" if "gpt-oss" in model.casefold() else True
     body = {
         "model": model,
         "messages": [
@@ -313,6 +315,7 @@ def _ollama_advisory(
             {"role": "user", "content": prompt},
         ],
         "format": "json",
+        "think": thinking_control,
         "stream": False,
     }
 

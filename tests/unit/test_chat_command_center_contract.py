@@ -42,6 +42,9 @@ def test_specialist_bridge_does_not_reload_redirect_or_alert():
     assert "vulnhunter:specialist-start" in compat
     assert "vulnhunter:specialist-response" in compat
     assert "vulnhunter:specialist-error" in compat
+    assert "setSpecialistThinking(true, label)" in compat
+    assert "setSpecialistThinking(false)" in compat
+    assert "[data-conversation-thinking]" in compat
     assert "window.location.reload" not in compat
     assert "window.location.assign(body.redirect_url)" not in compat
     assert "window.alert" not in compat

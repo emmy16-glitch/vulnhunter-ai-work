@@ -28,6 +28,9 @@ def test_command_center_keeps_operational_actions_in_chat():
     assert "Show the current assessment details in this conversation" in script
     assert "Open Source Hunt in this conversation" in script
     assert "High reasoning · governed context" in script
+    assert "data-conversation-reset" in script
+    assert "Start a clean assessment thread?" in script
+    assert "commandCenterConfirmed" in script
     assert "Asking Groq" not in script
     assert "Gemini" not in script
     assert "Ollama" not in script
@@ -43,6 +46,14 @@ def test_specialist_bridge_does_not_reload_redirect_or_alert():
     assert "window.location.assign(body.redirect_url)" not in compat
     assert "window.alert" not in compat
     assert "AI reasoning ready" in compat
+
+
+def test_command_center_keeps_secret_reauthentication_out_of_chat_text():
+    script = (STATIC / "conversation-command-center.js").read_text(encoding="utf-8")
+
+    assert "Password re-authentication and provider-processing consent must never be put in chat text" in script
+    assert "Continue protected step" in script
+    assert "window.location.assign(redirectUrl)" in script
 
 
 def test_command_center_visuals_reuse_product_tokens_and_respect_reduced_motion():

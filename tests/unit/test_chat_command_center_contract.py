@@ -3,8 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 from types import SimpleNamespace
 
-from vulnhunter.web.chat_experience import install as install_chat_experience
 from vulnhunter.web import conversational_views
+from vulnhunter.web.chat_experience import install as install_chat_experience
 
 
 ROOT = Path(__file__).resolve().parents[2]

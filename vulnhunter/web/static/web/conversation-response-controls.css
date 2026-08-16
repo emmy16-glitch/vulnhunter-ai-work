@@ -1,3 +1,7 @@
+.vh-chat-thinking.is-progress-delegated {
+  display: none !important;
+}
+
 .vh-llm-progress {
   display: grid;
   gap: 8px;
@@ -144,31 +148,105 @@
 
 @media (max-width: 640px) {
   .vh-llm-progress {
-    margin-inline: 2px;
+    width: auto;
+    min-height: 40px;
+    gap: 0;
+    margin: 4px 10px 6px;
+    padding: 5px 7px 5px 9px;
+    border-color: var(--vh-line);
+    border-left: 3px solid var(--vh-pink);
+    background: color-mix(in srgb, var(--vh-surface) 97%, transparent);
   }
 
   .vh-llm-progress-head {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    min-width: 0;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: 7px;
+  }
+
+  .vh-llm-progress-head strong {
+    min-width: 0;
+    overflow: hidden;
+    font-size: 9.5px;
+    line-height: 1.25;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .vh-llm-progress-head [data-llm-progress-elapsed] {
-    grid-column: 2;
-    grid-row: 1;
+    color: var(--vh-muted);
+    font-size: 9px;
+    white-space: nowrap;
+  }
+
+  .vh-llm-progress-track {
+    display: none;
   }
 
   .vh-stop-response {
-    width: 100%;
-    min-height: 44px;
-    grid-column: 1 / -1;
+    width: auto;
+    min-width: 0;
+    min-height: 30px;
     margin-left: 0;
-    font-size: 10px;
+    padding: 4px 7px;
+    font-size: 8.5px;
+    white-space: nowrap;
+  }
+
+  .vh-chat-composer-meta {
+    min-height: 32px;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 5px;
+    padding-top: 3px;
+  }
+
+  .vh-chat-composer-meta > span:not(.vh-draft-status) {
+    display: none;
+  }
+
+  .vh-draft-status {
+    margin-right: auto;
+  }
+
+  .vh-composer-tools {
+    margin-left: 0;
+    gap: 4px;
+  }
+
+  .vh-composer-counter {
+    display: none;
+  }
+
+  .vh-composer-tools-trigger,
+  .vh-composer-clear,
+  .vh-composer-advanced > summary {
+    min-height: 30px;
+    padding: 4px 7px;
+    font-size: 9px;
+    line-height: 1;
   }
 
   .vh-message-utility-button {
-    min-height: 44px;
-    padding-inline: 10px;
-    font-size: 10px;
+    min-height: 38px;
+    padding-inline: 9px;
+    font-size: 9.5px;
+  }
+}
+
+@media (max-width: 390px) {
+  .vh-llm-progress {
+    margin-inline: 8px;
+  }
+
+  .vh-composer-tools-trigger {
+    max-width: 56px;
+  }
+
+  .vh-composer-advanced > summary {
+    max-width: 56px;
   }
 }
 

@@ -77,6 +77,6 @@ class Command(BaseCommand):
         call_command(
             "vh_verify_llm",
             provider="groq",
-            reasoning="low",
+            reasoning="high",
             stdout=self.stdout,
         )

@@ -3,8 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 from types import SimpleNamespace
 
-from vulnhunter.web import conversational_views
 from vulnhunter.web.chat_experience import install as install_chat_experience
+from vulnhunter.web import conversational_views
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -51,7 +51,11 @@ def test_specialist_bridge_does_not_reload_redirect_or_alert():
 def test_command_center_keeps_secret_reauthentication_out_of_chat_text():
     script = (STATIC / "conversation-command-center.js").read_text(encoding="utf-8")
 
-    assert "Password re-authentication and provider-processing consent must never be put in chat text" in script
+    protected_copy = (
+        "Password re-authentication and provider-processing consent must never be put "
+        "in chat text"
+    )
+    assert protected_copy in script
     assert "Continue protected step" in script
     assert "window.location.assign(redirectUrl)" in script
 

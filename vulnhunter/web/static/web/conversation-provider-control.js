@@ -21,7 +21,7 @@
   const state = {
     active: false,
     startedAt: 0,
-    stage: 0,
+    stage: 1,
     timer: null,
   };
 
@@ -44,7 +44,7 @@
   progress.setAttribute("aria-live", "polite");
   progress.innerHTML = `
     <div class="vh-llm-progress-head">
-      <strong data-llm-progress-copy>Preparing request…</strong>
+      <strong data-llm-progress-copy>Reasoning over the request…</strong>
       <span data-llm-progress-elapsed>0s</span>
     </div>
     <div class="vh-llm-progress-track" aria-hidden="true">
@@ -87,14 +87,12 @@
   };
 
   const currentStage = (elapsed) => {
-    if (elapsed < 1) return 0;
     if (elapsed < 3) return 1;
     if (elapsed < 7) return 2;
     return 3;
   };
 
   const stageCopy = (stage, elapsed) => {
-    if (stage === 0) return "Preparing safe workspace context…";
     if (stage === 1) return "Reasoning over the request…";
     if (stage === 2) return "Validating the response…";
     if (elapsed >= 15) return "Still working through the request…";
@@ -118,7 +116,7 @@
     if (state.active) return;
     state.active = true;
     state.startedAt = Date.now();
-    state.stage = 0;
+    state.stage = 1;
     if (state.timer) window.clearInterval(state.timer);
     renderProgress();
     state.timer = window.setInterval(renderProgress, 400);

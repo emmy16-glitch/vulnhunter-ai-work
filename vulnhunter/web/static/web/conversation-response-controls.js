@@ -10,7 +10,7 @@
       /conversation-response-controls\.js$/,
       "conversation-response-controls.css",
     );
-    styleUrl.search = "?v=20260801-chat-controls1";
+    styleUrl.search = "?v=20260816-termux-hardening1";
     const link = document.createElement("link");
     link.rel = "stylesheet";
     link.href = styleUrl.toString();
@@ -36,7 +36,7 @@
       /conversation-response-controls\.js$/,
       "conversation-draft.js",
     );
-    draftUrl.search = "?v=20260801-draft1";
+    draftUrl.search = "?v=20260816-termux-hardening1";
     const script = document.createElement("script");
     script.src = draftUrl.toString();
     script.async = false;

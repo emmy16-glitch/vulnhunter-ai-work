@@ -41,7 +41,7 @@ def test_configure_groq_stores_owner_only_key_and_verifies_web_chat(monkeypatch,
     assert stat.S_IMODE(key_path.stat().st_mode) == 0o600
     assert captured["name"] == "vh_verify_llm"
     assert captured["provider"] == "groq"
-    assert captured["reasoning"] == "low"
+    assert captured["reasoning"] == "high"
     assert "Groq key stored securely" in stdout.getvalue()
 
 

@@ -10,7 +10,7 @@
       /conversation-draft\.js$/,
       "conversation-draft.css",
     );
-    styleUrl.search = "?v=20260801-draft1";
+    styleUrl.search = "?v=20260816-pending-state1";
     const link = document.createElement("link");
     link.rel = "stylesheet";
     link.href = styleUrl.toString();
@@ -49,14 +49,13 @@
   const messageUrl = new URL(initial.message_url, window.location.href);
   const threadId = String(initial.thread_id || workspace.dataset.threadId || "new");
   const storageKey = `vulnhunter:conversation-draft:${window.location.pathname}:${threadId}`;
-  const maximumLength = Math.min(
-    input.maxLength > 0 ? input.maxLength : 20000,
-    20000,
-  );
+  const pendingStorageKey = `vulnhunter:conversation-pending:${window.location.pathname}:${threadId}`;
+  const maximumLength = Math.min(input.maxLength > 0 ? input.maxLength : 20000, 20000);
   const state = {
     pendingPrompt: "",
     saveTimer: null,
     statusTimer: null,
+    pageLeaving: false,
   };
 
   const status = document.createElement("span");
@@ -119,6 +118,45 @@
     },
   };
 
+  const pendingStorage = {
+    read() {
+      try {
+        const raw = window.sessionStorage.getItem(pendingStorageKey);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (parsed?.version !== 1 || typeof parsed.value !== "string") return null;
+        return {
+          value: parsed.value.slice(0, maximumLength),
+          submittedAt: String(parsed.submitted_at || ""),
+        };
+      } catch (_error) {
+        return null;
+      }
+    },
+    write(value) {
+      try {
+        window.sessionStorage.setItem(
+          pendingStorageKey,
+          JSON.stringify({
+            version: 1,
+            value: String(value || "").slice(0, maximumLength),
+            submitted_at: new Date().toISOString(),
+          }),
+        );
+        return true;
+      } catch (_error) {
+        return false;
+      }
+    },
+    clear() {
+      try {
+        window.sessionStorage.removeItem(pendingStorageKey);
+      } catch (_error) {
+        // Session storage may be unavailable in hardened browser modes.
+      }
+    },
+  };
+
   const announce = (copy, stateName = "saved", duration = 1800) => {
     if (state.statusTimer) window.clearTimeout(state.statusTimer);
     status.textContent = copy;
@@ -143,6 +181,7 @@
   };
 
   const saveDraft = ({ quiet = false } = {}) => {
+    if (state.pendingPrompt || pendingStorage.read()?.value) return;
     const value = String(input.value || "").slice(0, maximumLength);
     if (!value.trim()) {
       storage.clear();
@@ -156,8 +195,11 @@
   };
 
   const restorePrompt = (copy = "Prompt restored") => {
-    const value = state.pendingPrompt || storage.read();
+    const pending = pendingStorage.read();
+    const value = state.pendingPrompt || pending?.value || storage.read();
     if (!value) return;
+    pendingStorage.clear();
+    state.pendingPrompt = "";
     storage.write(value);
     window.queueMicrotask(() => {
       if (!input.value.trim()) setInputValue(value);
@@ -166,9 +208,16 @@
   };
 
   const restored = storage.read();
+  const previousPending = pendingStorage.read();
   if (restored && !input.value.trim()) {
     setInputValue(restored);
     announce("Draft restored", "restored", 2400);
+  } else if (previousPending?.value && !input.value.trim()) {
+    announce(
+      "Previous request was already submitted. Check the conversation before retrying.",
+      "pending",
+      4200,
+    );
   }
 
   input.addEventListener("input", () => {
@@ -181,8 +230,11 @@
     () => {
       const value = String(input.value || "").slice(0, maximumLength);
       if (!value.trim()) return;
+      if (state.saveTimer) window.clearTimeout(state.saveTimer);
+      state.saveTimer = null;
       state.pendingPrompt = value;
-      storage.write(value);
+      storage.clear();
+      pendingStorage.write(value);
       announce("Sending…", "sending", 0);
     },
     true,
@@ -222,29 +274,44 @@
         restorePrompt("Prompt restored after stopping");
       } else if (response.ok) {
         storage.clear();
+        pendingStorage.clear();
         state.pendingPrompt = "";
         announce("Sent", "sent", 1000);
       } else {
+        pendingStorage.clear();
         restorePrompt("Draft kept after the failed request");
       }
       return response;
     } catch (error) {
-      restorePrompt("Draft kept after the connection error");
+      if (!state.pageLeaving) {
+        pendingStorage.clear();
+        restorePrompt("Draft kept after the connection error");
+      }
       throw error;
     }
   };
 
   reset?.addEventListener("click", () => {
     storage.clear();
+    pendingStorage.clear();
     state.pendingPrompt = "";
     announce("Draft cleared", "cleared", 1000);
   });
 
-  window.addEventListener("pagehide", () => saveDraft({ quiet: true }));
+  window.addEventListener("pagehide", () => {
+    state.pageLeaving = true;
+    if (!state.pendingPrompt && !pendingStorage.read()?.value) saveDraft({ quiet: true });
+  });
 
   window.VulnHunterConversationDraft = Object.freeze({
     storageKey,
+    pendingStorageKey,
     restore: () => restorePrompt("Draft restored"),
-    clear: () => storage.clear(),
+    restorePending: () => restorePrompt("Submitted prompt restored for retry"),
+    clear: () => {
+      storage.clear();
+      pendingStorage.clear();
+      state.pendingPrompt = "";
+    },
   });
 })();

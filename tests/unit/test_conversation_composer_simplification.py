@@ -23,12 +23,15 @@ def test_primary_composer_keeps_infrastructure_controls_behind_disclosure() -> N
     assert "data-provider-runtime" in template
 
 
-def test_provider_preference_control_stays_inside_advanced_container() -> None:
+def test_provider_routing_is_automatic_with_no_manual_selector() -> None:
     client = PROVIDER_CLIENT.read_text(encoding="utf-8")
 
-    assert "const providerContainer = runtime.parentElement;" in client
-    assert "providerContainer.insertBefore(control, runtime);" in client
-    assert "composerMeta.insertBefore(control, runtime);" not in client
+    assert 'options.body.set("provider_preference", "auto")' in client
+    assert 'runtime.dataset.providerPreferenceActive = "auto"' in client
+    assert 'querySelectorAll(".vh-provider-control")' in client
+    assert "select[data-provider-preference]" not in client
+    assert 'option value="groq"' not in client
+    assert 'option value="huggingface"' not in client
 
 
 def test_composer_exposes_only_the_enforced_high_reasoning_mode() -> None:

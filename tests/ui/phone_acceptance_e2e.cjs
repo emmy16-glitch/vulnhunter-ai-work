@@ -28,7 +28,11 @@ async function openAdvancedSettings(page) {
     await disclosure.locator("summary").click();
   }
   await page.locator("[data-reasoning-effort]").waitFor({ state: "visible" });
-  await page.locator("[data-provider-runtime]").waitFor({ state: "visible" });
+  const providerRuntime = page.locator("[data-provider-runtime]");
+  await providerRuntime.waitFor({ state: "attached" });
+  if (await providerRuntime.isVisible()) {
+    throw new Error("Provider runtime infrastructure became visible in Advanced settings");
+  }
 }
 
 async function verifyContextualSearchAccess(page) {
@@ -187,8 +191,8 @@ async function verifyContextualSearchAccess(page) {
       if (layout.reasoningOptions.join(",") !== "High") {
         throw new Error(`High-only reasoning mode is not enforced: ${layout.reasoningOptions.join(",")}`);
       }
-      if (!layout.providerVisible || !/AI reasoning ready/i.test(layout.providerText)) {
-        throw new Error(`Automatic reasoning status is not clear at ${viewport.width}px`);
+      if (layout.providerVisible || !/Automatic routing/i.test(layout.providerText)) {
+        throw new Error(`Provider runtime infrastructure is not private at ${viewport.width}px`);
       }
       if (layout.providerPreferencePresent) {
         throw new Error("A manual provider selector is visible even though routing must be automatic");
@@ -318,12 +322,16 @@ async function verifyContextualSearchAccess(page) {
           `The successful response did not clear its session draft: ${JSON.stringify(draftState)}`,
         );
       }
-      const runtimeText = await page.locator("[data-provider-runtime]").textContent();
-      if (!/AI reasoning ready/i.test(runtimeText || "")) {
-        throw new Error(`Automatic reasoning status changed unexpectedly: ${runtimeText}`);
+      const runtime = page.locator("[data-provider-runtime]");
+      if (await runtime.isVisible()) {
+        throw new Error("Provider runtime infrastructure became visible after a completed response");
+      }
+      const runtimeText = await runtime.textContent();
+      if (!/Automatic routing/i.test(runtimeText || "")) {
+        throw new Error(`Automatic routing marker changed unexpectedly: ${runtimeText}`);
       }
       if (/Groq|Gemini|Hugging Face|Ollama/i.test(runtimeText || "")) {
-        throw new Error(`Provider leaked through runtime status: ${runtimeText}`);
+        throw new Error(`Provider leaked through hidden runtime state: ${runtimeText}`);
       }
 
       const finalAnswer = page
@@ -332,6 +340,10 @@ async function verifyContextualSearchAccess(page) {
         .last();
       await finalAnswer.locator(".vh-rich-heading").waitFor({ state: "visible" });
       await finalAnswer.locator(".vh-rich-list li").first().waitFor({ state: "visible" });
+      const finalAnswerText = await finalAnswer.textContent();
+      if (/Hugging Face|test\/huggingface-model|internal provider detail/i.test(finalAnswerText || "")) {
+        throw new Error(`Provider metadata leaked into the rendered answer: ${finalAnswerText}`);
+      }
       const codeBlock = finalAnswer.locator(".vh-rich-code");
       await codeBlock.waitFor({ state: "visible" });
       const renderedCode = await codeBlock.locator("pre code").textContent();
@@ -480,7 +492,7 @@ async function verifyContextualSearchAccess(page) {
       await context.close();
     }
     console.log(
-      "Phone contextual search, automatic reasoning, drafts, stop/retry, rich answers, upload recovery and layout acceptance passed.",
+      "Phone contextual search, automatic hidden reasoning, drafts, stop/retry, rich answers, upload recovery and layout acceptance passed.",
     );
   } finally {
     await browser.close();

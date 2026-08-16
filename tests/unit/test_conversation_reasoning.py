@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -100,14 +101,25 @@ def test_selected_reasoning_takes_effect_on_next_message(client, settings, actor
     assert response.json()["message"]["metadata"]["reasoning_effort"] == "high"
 
 
-def test_failed_high_reasoning_does_not_fall_back_to_another_provider_or_canned_copy():
+def test_failed_groq_falls_through_to_gemini_without_user_visible_provider_switch():
+    gemini_answer = json.dumps(
+        {
+            "message": "This behavior can be a false positive when the evidence is contextual.",
+            "recommended_profile": None,
+            "model": "gemini-3.6-flash",
+        }
+    )
     with (
         patch.object(
             conversation_service,
             "_groq_advisory",
-            return_value=(None, "configured high-reasoning model unavailable"),
+            return_value=(None, "Groq free-tier rate limit reached"),
         ) as groq,
-        patch.object(conversation_service, "_huggingface_advisory") as huggingface,
+        patch(
+            "vulnhunter.web.ai_failover._gemini_advisory",
+            return_value=(gemini_answer, "Gemini answer normalised"),
+        ) as gemini,
+        patch("vulnhunter.web.ai_failover._ollama_advisory") as ollama,
     ):
         interpreted = conversation_service.interpret_request(
             "Explain how this security behavior could be a false positive",
@@ -117,14 +129,84 @@ def test_failed_high_reasoning_does_not_fall_back_to_another_provider_or_canned_
         )
 
     assert interpreted.intent == "chat"
-    assert interpreted.provider == "groq"
-    assert interpreted.model is None
+    assert interpreted.provider == "auto"
+    assert interpreted.provider_detail == "AI reasoning completed."
+    assert interpreted.model == "gemini-3.6-flash"
     assert interpreted.reasoning_effort == "high"
-    assert interpreted.assistant_copy is not None
-    assert "High-reasoning AI is unavailable" in interpreted.assistant_copy
-    assert "did not substitute" in interpreted.assistant_copy
+    assert interpreted.assistant_copy == (
+        "This behavior can be a false positive when the evidence is contextual."
+    )
     groq.assert_called_once()
-    huggingface.assert_not_called()
+    gemini.assert_called_once()
+    ollama.assert_not_called()
+
+
+def test_failed_groq_and_gemini_fall_through_to_ollama():
+    ollama_answer = json.dumps(
+        {
+            "message": "Local fallback answer.",
+            "recommended_profile": None,
+            "model": "qwen3:1.7b",
+        }
+    )
+    with (
+        patch.object(
+            conversation_service,
+            "_groq_advisory",
+            return_value=(None, "Groq unavailable"),
+        ),
+        patch(
+            "vulnhunter.web.ai_failover._gemini_advisory",
+            return_value=(None, "Gemini unavailable"),
+        ),
+        patch(
+            "vulnhunter.web.ai_failover._ollama_advisory",
+            return_value=(ollama_answer, "Ollama answer normalised"),
+        ) as ollama,
+    ):
+        interpreted = conversation_service.interpret_request(
+            "Explain the supplied result",
+            available_profiles=("passive",),
+            provider_preference="auto",
+        )
+
+    assert interpreted.provider == "auto"
+    assert interpreted.provider_detail == "AI reasoning completed."
+    assert interpreted.model == "qwen3:1.7b"
+    assert interpreted.assistant_copy == "Local fallback answer."
+    ollama.assert_called_once()
+
+
+def test_all_ai_providers_unavailable_returns_generic_retry_copy():
+    with (
+        patch.object(
+            conversation_service,
+            "_groq_advisory",
+            return_value=(None, "Groq unavailable"),
+        ),
+        patch(
+            "vulnhunter.web.ai_failover._gemini_advisory",
+            return_value=(None, "Gemini unavailable"),
+        ),
+        patch(
+            "vulnhunter.web.ai_failover._ollama_advisory",
+            return_value=(None, "Ollama unavailable"),
+        ),
+    ):
+        interpreted = conversation_service.interpret_request(
+            "Explain this result",
+            available_profiles=("passive",),
+            provider_preference="auto",
+        )
+
+    assert interpreted.provider == "auto"
+    assert interpreted.model is None
+    assert interpreted.assistant_copy == (
+        "I couldn't complete that response right now. Please retry in a moment."
+    )
+    assert "Groq" not in interpreted.provider_detail
+    assert "Gemini" not in interpreted.provider_detail
+    assert "Ollama" not in interpreted.provider_detail
 
 
 @pytest.mark.django_db

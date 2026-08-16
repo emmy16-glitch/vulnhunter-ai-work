@@ -113,8 +113,7 @@ def test_command_center_keeps_secret_reauthentication_out_of_chat_text():
     script = (STATIC / "conversation-command-center.js").read_text(encoding="utf-8")
 
     protected_copy = (
-        "Password re-authentication and provider-processing consent must never be put "
-        "in chat text"
+        "Password re-authentication and provider-processing consent must never be put in chat text"
     )
     assert protected_copy in script
     assert "Continue protected step" in script

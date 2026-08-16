@@ -77,11 +77,14 @@ def _clear_legacy_data(session: object) -> None:
 
 
 def _effective_provider(value: str | None) -> str:
-    """Resolve legacy automatic preference without enabling runtime fallback."""
+    """Collapse all legacy client preferences to the internal primary route.
 
-    normalized = str(value or "").strip().casefold()
-    if normalized == "huggingface":
-        return "huggingface"
+    Provider selection is an implementation detail. Older durable threads may still
+    contain ``auto`` or ``huggingface`` from the retired manual-provider UI, but those
+    values must never alter routing for a current conversation.
+    """
+
+    del value
     return DEFAULT_PROVIDER_PREFERENCE
 
 
@@ -184,7 +187,6 @@ def thread_summary(thread: ConversationThread) -> dict[str, object]:
         "status": status,
         "upload_count": len(uploads),
         "reasoning_effort": REQUIRED_REASONING_EFFORT,
-        "provider_preference": _effective_provider(thread.provider_preference),
         "url": workspace_url(thread),
     }
 
@@ -307,16 +309,13 @@ class ThreadSessionProxy:
 
 
 def thread_preferences(request: object) -> tuple[str, str]:
-    """Return the enforced high-reasoning policy for this workspace.
+    """Return the enforced high-reasoning and internal primary-route policy.
 
-    Legacy ``low``/``medium`` effort and ``auto`` provider values remain readable,
-    but they cannot lower reasoning quality or enable automatic provider failover.
+    Legacy thread provider values remain readable for storage compatibility only. They
+    cannot select a provider or alter the automatic failover chain.
     """
 
-    thread = getattr(request, "vulnhunter_thread", None)
-    if not isinstance(thread, ConversationThread):
-        return REQUIRED_REASONING_EFFORT, DEFAULT_PROVIDER_PREFERENCE
-    return REQUIRED_REASONING_EFFORT, _effective_provider(thread.provider_preference)
+    return REQUIRED_REASONING_EFFORT, DEFAULT_PROVIDER_PREFERENCE
 
 
 def update_thread_preferences(
@@ -334,12 +333,11 @@ def update_thread_preferences(
         raise ValueError("Reasoning effort must be low, medium, or high.")
     effort = REQUIRED_REASONING_EFFORT
 
-    requested_provider = (
-        (provider_preference or thread.provider_preference or "auto").strip().casefold()
-    )
-    if requested_provider not in PROVIDER_PREFERENCES:
-        raise ValueError("Provider preference must be automatic, Groq, or Hugging Face.")
-    provider = _effective_provider(requested_provider)
+    if provider_preference:
+        requested_provider = provider_preference.strip().casefold()
+        if requested_provider not in PROVIDER_PREFERENCES:
+            raise ValueError("Provider preference is no longer configurable.")
+    provider = DEFAULT_PROVIDER_PREFERENCE
 
     with transaction.atomic():
         current = ConversationThread.objects.select_for_update().get(

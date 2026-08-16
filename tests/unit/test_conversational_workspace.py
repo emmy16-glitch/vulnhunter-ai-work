@@ -32,7 +32,7 @@ def test_conversation_parser_extracts_authoritative_target_port_and_profile(sett
     assert result.protocol == "http"
     assert result.port == 8010
     assert result.profile == "passive"
-    assert result.provider == "groq"
+    assert result.provider == "auto"
     assert result.model is None
     assert result.assistant_copy is None
     assert result.reasoning_effort == "high"

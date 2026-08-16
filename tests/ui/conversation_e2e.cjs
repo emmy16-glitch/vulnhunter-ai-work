@@ -38,18 +38,34 @@ let page;
     await overflow.click();
     const newAssessment = page.locator("[data-thread-create]");
     await newAssessment.waitFor({ state: "visible", timeout: 5000 });
+    await newAssessment.click();
+
+    const newAssessmentCard = page.locator(
+      '.vh-chat-action-card[data-action-type="new-assessment"]',
+    );
+    await newAssessmentCard.waitFor({ state: "visible", timeout: 5000 });
+    const newAssessmentCopy = (await newAssessmentCard.textContent()) || "";
+    if (!/Start a clean assessment thread\?/i.test(newAssessmentCopy)) {
+      throw new Error(`New-assessment confirmation was not rendered in chat: ${newAssessmentCopy}`);
+    }
+
     await Promise.all([
       page.waitForURL(
         (url) => url.toString() !== previousWorkspaceUrl && url.searchParams.has("thread"),
         { timeout: 15000 },
       ),
-      newAssessment.click(),
+      newAssessmentCard.getByRole("button", { name: /start new assessment/i }).click(),
     ]);
     await page.locator("[data-conversation-workspace]").waitFor({ timeout: 15000 });
 
     const input = page.locator("[data-conversation-input]");
     const send = page.locator("[data-conversation-send]");
     const assistantMessages = page.locator(".vh-chat-message.is-assistant .vh-message-copy");
+
+    if (await assistantMessages.count()) {
+      throw new Error("A fresh conversation must not contain a synthetic assistant message");
+    }
+    await page.locator("[data-chat-empty-state]").waitFor({ state: "visible", timeout: 5000 });
 
     async function waitForNewAssistantMessage(previousCount, expected, timeout = 15000) {
       const message = assistantMessages.nth(previousCount);

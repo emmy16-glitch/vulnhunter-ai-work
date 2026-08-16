@@ -15,38 +15,49 @@ def test_provider_control_is_loaded_by_the_existing_workspace_runtime() -> None:
     assert "data-provider-control-loader" in runtime
 
 
-def test_provider_control_persists_and_submits_the_selected_provider() -> None:
+def test_provider_routing_is_automatic_and_hidden_from_the_user() -> None:
     script = SCRIPT.read_text(encoding="utf-8")
 
-    assert 'option value="auto"' in script
-    assert 'option value="groq"' in script
-    assert 'option value="huggingface"' in script
-    assert "initial.reasoning_url" in script
-    assert 'payload.set("provider_preference", nextValue)' in script
-    assert 'options.body.set("provider_preference", state.preference)' in script
+    assert 'options.body.set("provider_preference", "auto")' in script
+    assert 'runtime.dataset.providerPreferenceActive = "auto"' in script
+    assert 'runtime.textContent = "Automatic routing"' in script
+    assert "runtime.hidden = true" in script
+    assert 'runtime.setAttribute("aria-hidden", "true")' in script
+    assert 'runtime.classList.remove("is-ready", "is-warning", "is-offline")' in script
+    assert 'querySelectorAll(".vh-provider-control")' in script
     assert "initial.thread_id" in script
+    assert 'option value="groq"' not in script
+    assert 'option value="huggingface"' not in script
+    assert "select[data-provider-preference]" not in script
+    assert '"AI reasoning ready"' not in script
 
 
 def test_provider_progress_is_incremental_without_exposing_partial_model_json() -> None:
     script = SCRIPT.read_text(encoding="utf-8")
 
     assert 'progress.dataset.progressMode = "validated-stages"' in script
-    assert "Preparing safe workspace context" in script
-    assert "Waiting for a validated model response" in script
-    assert "Checking and formatting the final answer" in script
+    assert "Reasoning over the request" in script
+    assert "Validating the response" in script
+    assert "Formatting the final answer" in script
     assert "data-llm-progress-elapsed" in script
     assert "stream: true" not in script
     assert "partial JSON" not in script
+    assert "Contacting Groq" not in script
+    assert "Contacting Hugging Face" not in script
+    assert "Contacting Gemini" not in script
+    assert "Contacting Ollama" not in script
 
 
-def test_actual_provider_and_model_are_taken_from_the_finished_message_badge() -> None:
+def test_finished_message_does_not_expose_provider_or_model_identity() -> None:
     script = SCRIPT.read_text(encoding="utf-8")
 
-    assert 'feed.querySelectorAll(".vh-message-reasoning")' in script
-    assert 'state.lastProvider = "Hugging Face"' in script
-    assert 'state.lastProvider = "Groq"' in script
-    assert "state.lastModel" in script
-    assert "AI unavailable · local fallback" in script
+    assert 'runtime.textContent = "Automatic routing"' in script
+    assert "runtime.hidden = true" in script
+    assert 'feed.querySelectorAll(".vh-message-reasoning")' not in script
+    assert "state.lastProvider" not in script
+    assert "state.lastModel" not in script
+    assert "AI unavailable · local fallback" not in script
+    assert "observe(thinkingCopy" not in script
 
 
 def test_provider_control_uses_only_self_hosted_live_static_styles() -> None:
@@ -59,8 +70,6 @@ def test_provider_control_uses_only_self_hosted_live_static_styles() -> None:
     assert ".style.setProperty" not in script
     assert ".style.removeProperty" not in script
     assert "ResizeObserver" not in script
-    assert ".vh-provider-control" in composer_styles
-    assert ".vh-provider-control select" in composer_styles
     assert ".vh-llm-progress" in response_styles
     assert ".vh-llm-progress-step.is-active" in response_styles
     assert "background: var(--vh-pink)" in response_styles

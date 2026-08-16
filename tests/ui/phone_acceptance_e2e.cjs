@@ -27,7 +27,12 @@ async function openAdvancedSettings(page) {
   if (!(await disclosure.evaluate((element) => element.open))) {
     await disclosure.locator("summary").click();
   }
-  await page.locator("select[data-provider-preference]").waitFor({ state: "visible" });
+  await page.locator("[data-reasoning-effort]").waitFor({ state: "visible" });
+  const providerRuntime = page.locator("[data-provider-runtime]");
+  await providerRuntime.waitFor({ state: "attached" });
+  if (await providerRuntime.isVisible()) {
+    throw new Error("Provider runtime infrastructure became visible in Advanced settings");
+  }
 }
 
 async function verifyContextualSearchAccess(page) {
@@ -84,15 +89,7 @@ async function verifyContextualSearchAccess(page) {
         const stopResponse = document.querySelector("[data-stop-response]");
         const draftStatus = document.querySelector("[data-draft-status]");
         const searchTrigger = document.querySelector("[data-conversation-search-toggle]");
-        if (
-          !composer ||
-          !reasoning ||
-          !provider ||
-          !providerPreference ||
-          !stopResponse ||
-          !draftStatus ||
-          !searchTrigger
-        ) {
+        if (!composer || !reasoning || !provider || !stopResponse || !draftStatus || !searchTrigger) {
           return { missing: true };
         }
 
@@ -110,14 +107,10 @@ async function verifyContextualSearchAccess(page) {
         const dockRect = dock.getBoundingClientRect();
         const reasoningRect = reasoning.getBoundingClientRect();
         const providerRect = provider.getBoundingClientRect();
-        const providerPreferenceRect = providerPreference.getBoundingClientRect();
         const stopResponseStyle = getComputedStyle(stopResponse);
         const draftStatusStyle = getComputedStyle(draftStatus);
         const dockStyle = getComputedStyle(dock);
         const options = [...reasoning.options].map((option) => option.textContent.trim());
-        const providerOptions = [...providerPreference.options].map((option) =>
-          option.textContent.trim(),
-        );
         const overlapsComposer = !(
           dockRect.bottom <= composerRect.top + 1 ||
           dockRect.top >= composerRect.bottom - 1
@@ -169,9 +162,8 @@ async function verifyContextualSearchAccess(page) {
           reasoningVisible: reasoningRect.width >= 80 && reasoningRect.height >= 38,
           reasoningOptions: options,
           providerVisible: providerRect.width > 0 && providerRect.height > 0,
-          providerPreferenceVisible:
-            providerPreferenceRect.width >= 110 && providerPreferenceRect.height >= 32,
-          providerOptions,
+          providerPreferencePresent: Boolean(providerPreference),
+          providerText: provider.textContent || "",
           dockVisible: dockRect.width > 0 && dockRect.height > 0,
           dockInsideViewport:
             dockRect.left >= -1 &&
@@ -199,16 +191,11 @@ async function verifyContextualSearchAccess(page) {
       if (layout.reasoningOptions.join(",") !== "High") {
         throw new Error(`High-only reasoning mode is not enforced: ${layout.reasoningOptions.join(",")}`);
       }
-      if (!layout.providerVisible) {
-        throw new Error(`Advisory provider status is hidden at ${viewport.width}px`);
+      if (layout.providerVisible || !/Automatic routing/i.test(layout.providerText)) {
+        throw new Error(`Provider runtime infrastructure is not private at ${viewport.width}px`);
       }
-      if (!layout.providerPreferenceVisible) {
-        throw new Error(
-          `Provider selector is not usable at ${viewport.width}px: ${JSON.stringify(layout)}`,
-        );
-      }
-      if (layout.providerOptions.join(",") !== "Auto,Groq,Hugging Face") {
-        throw new Error(`Provider options are incomplete: ${layout.providerOptions.join(",")}`);
+      if (layout.providerPreferencePresent) {
+        throw new Error("A manual provider selector is visible even though routing must be automatic");
       }
       if (
         !layout.responseStylePresent ||
@@ -223,18 +210,6 @@ async function verifyContextualSearchAccess(page) {
       }
       if (!layout.dockVisible || !layout.dockInsideViewport || layout.overlapsComposer) {
         throw new Error(`Upload dock overlaps or leaves the viewport: ${JSON.stringify(layout)}`);
-      }
-
-      const providerSelect = page.locator("select[data-provider-preference]");
-      await providerSelect.selectOption("huggingface");
-      for (let attempt = 0; attempt < 80; attempt += 1) {
-        if ((await providerSelect.inputValue()) === "huggingface" && (await providerSelect.isEnabled())) {
-          break;
-        }
-        await page.waitForTimeout(50);
-      }
-      if ((await providerSelect.inputValue()) !== "huggingface") {
-        throw new Error("The Hugging Face preference did not persist in the active workspace");
       }
 
       const messageUrl = await page.locator("[data-conversation-form]").getAttribute("action");
@@ -267,13 +242,13 @@ async function verifyContextualSearchAccess(page) {
               role: "assistant",
               kind: "text",
               content: [
-                "## Provider selection test complete.",
+                "## Automatic reasoning test complete.",
                 "",
-                "- **Provider:** Hugging Face",
-                "- Model: `test/huggingface-model`",
+                "- **Mode:** Automatic",
+                "- Status: `validated`",
                 "",
                 "```bash",
-                "python manage.py vh_verify_llm --provider huggingface",
+                "python manage.py vh_verify_llm --mode auto",
                 "```",
               ].join("\n"),
               timestamp: new Date().toISOString(),
@@ -281,14 +256,14 @@ async function verifyContextualSearchAccess(page) {
                 provider: "huggingface",
                 model: "test/huggingface-model",
                 reasoning_effort: "high",
-                provider_detail: "Hugging Face high-reasoning model: test/huggingface-model",
+                provider_detail: "internal provider detail must stay hidden",
               },
             },
           }),
         });
       });
 
-      const prompt = "Explain the current workspace provider selection";
+      const prompt = "Explain the current automatic reasoning mode";
       await input.fill(prompt);
       await page.locator("[data-conversation-send]").click();
       const progress = page.locator("[data-progress-mode='validated-stages']");
@@ -297,8 +272,11 @@ async function verifyContextualSearchAccess(page) {
       await stopResponse.waitFor({ state: "visible" });
       await page.waitForTimeout(1100);
       const progressText = await progress.textContent();
-      if (!/Contacting Hugging Face|validated model response/i.test(progressText || "")) {
-        throw new Error(`Provider progress did not advance: ${progressText}`);
+      if (!/Reasoning over the request|Validating the response/i.test(progressText || "")) {
+        throw new Error(`Automatic reasoning progress did not advance: ${progressText}`);
+      }
+      if (/Groq|Gemini|Hugging Face|Ollama/i.test(progressText || "")) {
+        throw new Error(`Provider leaked through progress UI: ${progressText}`);
       }
       await stopResponse.click();
       await page
@@ -320,16 +298,19 @@ async function verifyContextualSearchAccess(page) {
       await retryStopped.waitFor({ state: "visible" });
       await retryStopped.click();
       await progress.waitFor({ state: "visible" });
-      await page.getByText("Provider selection test complete.").waitFor({ state: "visible" });
+      await page.getByText("Automatic reasoning test complete.").waitFor({ state: "visible" });
       await progress.waitFor({ state: "hidden" });
       if (messageAttempts !== 2) {
         throw new Error(`Expected the stopped prompt to retry once, observed ${messageAttempts} requests`);
       }
       if (!providerPostData.includes('name="provider_preference"')) {
-        throw new Error("The provider preference field was missing from the retried chat request");
+        throw new Error("The automatic provider preference field was missing from the retried chat request");
       }
-      if (!providerPostData.includes("huggingface")) {
-        throw new Error("The selected Hugging Face provider was not submitted with the retried request");
+      if (!providerPostData.includes("auto")) {
+        throw new Error("The retried chat request did not force automatic provider routing");
+      }
+      if (/huggingface|groq/i.test(providerPostData)) {
+        throw new Error("A specific provider leaked into the automatic routing request");
       }
       const draftState = await page.evaluate(() => {
         const api = window.VulnHunterConversationDraft;
@@ -341,28 +322,39 @@ async function verifyContextualSearchAccess(page) {
           `The successful response did not clear its session draft: ${JSON.stringify(draftState)}`,
         );
       }
-      const runtimeText = await page.locator("[data-provider-runtime]").textContent();
-      if (!/Hugging Face answered/i.test(runtimeText || "")) {
-        throw new Error(`The actual response provider was not shown: ${runtimeText}`);
+      const runtime = page.locator("[data-provider-runtime]");
+      if (await runtime.isVisible()) {
+        throw new Error("Provider runtime infrastructure became visible after a completed response");
+      }
+      const runtimeText = await runtime.textContent();
+      if (!/Automatic routing/i.test(runtimeText || "")) {
+        throw new Error(`Automatic routing marker changed unexpectedly: ${runtimeText}`);
+      }
+      if (/Groq|Gemini|Hugging Face|Ollama/i.test(runtimeText || "")) {
+        throw new Error(`Provider leaked through hidden runtime state: ${runtimeText}`);
       }
 
       const finalAnswer = page
         .locator(".vh-chat-message.is-assistant")
-        .filter({ hasText: "Provider selection test complete." })
+        .filter({ hasText: "Automatic reasoning test complete." })
         .last();
       await finalAnswer.locator(".vh-rich-heading").waitFor({ state: "visible" });
       await finalAnswer.locator(".vh-rich-list li").first().waitFor({ state: "visible" });
+      const finalAnswerText = await finalAnswer.textContent();
+      if (/Hugging Face|test\/huggingface-model|internal provider detail/i.test(finalAnswerText || "")) {
+        throw new Error(`Provider metadata leaked into the rendered answer: ${finalAnswerText}`);
+      }
       const codeBlock = finalAnswer.locator(".vh-rich-code");
       await codeBlock.waitFor({ state: "visible" });
       const renderedCode = await codeBlock.locator("pre code").textContent();
-      if (renderedCode !== "python manage.py vh_verify_llm --provider huggingface") {
+      if (renderedCode !== "python manage.py vh_verify_llm --mode auto") {
         throw new Error(`The fenced command was not preserved safely: ${renderedCode}`);
       }
       await codeBlock
         .getByRole("button", { name: /copy bash block/i })
         .waitFor({ state: "visible" });
       const rawAnswer = await finalAnswer.locator(".vh-message-copy").getAttribute("data-raw-message");
-      if (!rawAnswer?.includes("```bash") || !rawAnswer.includes("**Provider:**")) {
+      if (!rawAnswer?.includes("```bash") || !rawAnswer.includes("**Mode:**")) {
         throw new Error("The original assistant answer was not preserved for whole-message copying");
       }
 
@@ -500,7 +492,7 @@ async function verifyContextualSearchAccess(page) {
       await context.close();
     }
     console.log(
-      "Phone contextual search, provider selection, drafts, stop/retry, rich answers, upload recovery and layout acceptance passed.",
+      "Phone contextual search, automatic hidden reasoning, drafts, stop/retry, rich answers, upload recovery and layout acceptance passed.",
     );
   } finally {
     await browser.close();

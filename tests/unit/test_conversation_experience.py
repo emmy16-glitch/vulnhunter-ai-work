@@ -23,12 +23,14 @@ def test_ordinary_question_reports_high_reasoning_unavailable_without_starting_s
 
     assert result.intent == "chat"
     assert result.target is None
-    assert result.provider == "groq"
+    assert result.provider == "auto"
     assert result.model is None
     assert result.reasoning_effort == "high"
     assert result.assistant_copy
-    assert "High-reasoning AI is unavailable" in result.assistant_copy
-    assert "did not substitute" in result.assistant_copy
+    assert "couldn't complete that response" in result.assistant_copy
+    assert "Groq" not in result.assistant_copy
+    assert "Gemini" not in result.assistant_copy
+    assert "Ollama" not in result.assistant_copy
 
 
 def test_groq_chat_copy_is_used_without_turning_question_into_scan(settings):
@@ -51,7 +53,7 @@ def test_groq_chat_copy_is_used_without_turning_question_into_scan(settings):
         )
 
     assert result.intent == "chat"
-    assert result.provider == "groq"
+    assert result.provider == "auto"
     assert result.assistant_copy == (
         "The active workspace link is shown with the current assessment."
     )

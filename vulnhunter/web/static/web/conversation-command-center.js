@@ -69,7 +69,7 @@
     actions.append(
       makeButton("Assess a website", "I want to assess an authorised website"),
       makeButton("Analyse an APK", "I want to analyse an APK"),
-      makeButton("Review findings", "Show me all findings in this workspace"),
+      makeButton("Review findings", "Show me the findings for the current assessment"),
       makeButton("Source Hunt", "Open Source Hunt in this conversation"),
     );
 
@@ -91,16 +91,11 @@
 
   const sanitizeRuntime = () => {
     if (!providerRuntime) return;
-    const detail = String(providerRuntime.getAttribute("title") || "");
-    const unavailable = /unavailable|disabled|not configured/i.test(detail);
-    const nextCopy = unavailable ? "AI reasoning unavailable" : "AI reasoning ready";
-    const nextTitle = unavailable
-      ? "High-reasoning conversational assistance is currently unavailable."
-      : "High reasoning with automatic provider routing is ready.";
-    if (providerRuntime.textContent !== nextCopy) providerRuntime.textContent = nextCopy;
-    if (providerRuntime.getAttribute("title") !== nextTitle) {
-      providerRuntime.setAttribute("title", nextTitle);
-    }
+    providerRuntime.hidden = true;
+    providerRuntime.setAttribute("aria-hidden", "true");
+    providerRuntime.textContent = "Automatic routing";
+    providerRuntime.removeAttribute("title");
+    providerRuntime.classList.remove("is-ready", "is-warning", "is-offline");
   };
 
   const activityCopy = (value) => {
@@ -227,7 +222,7 @@
     });
   };
 
-  const confirmNewAssessmentInChat = (button) => {
+  const confirmNewAssessmentInChat = (trigger) => {
     const stay = document.createElement("button");
     stay.type = "button";
     stay.textContent = "Stay here";
@@ -239,8 +234,12 @@
     confirm.textContent = "Start new assessment";
     confirm.addEventListener("click", () => {
       removeTransientCards("new-assessment");
-      button.dataset.commandCenterConfirmed = "true";
-      button.click();
+      const resetTarget = trigger.matches(".vh-new-assessment")
+        ? workspace.querySelector("[data-conversation-reset]")
+        : trigger;
+      if (!resetTarget) return;
+      resetTarget.dataset.commandCenterConfirmed = "true";
+      resetTarget.click();
     });
 
     actionCard({
@@ -250,6 +249,20 @@
       copy: "This changes the active conversation context. It does not authorise a target, start a scanner, or cancel a running assessment by itself.",
       actions: [stay, confirm],
     });
+  };
+
+  const runIdFromUrl = (url) => {
+    const parts = url.pathname.split("/").filter(Boolean).map((part) => decodeURIComponent(part));
+    const markers = new Set(["run", "runs", "agent-run", "agent-runs", "scan-run", "scan-runs"]);
+    for (let index = 0; index < parts.length - 1; index += 1) {
+      if (markers.has(parts[index].toLowerCase())) return parts[index + 1];
+    }
+    return "";
+  };
+
+  const exactRunCommand = (url, fallback) => {
+    const runId = runIdFromUrl(url);
+    return runId ? `${fallback} for assessment run ${runId}` : fallback;
   };
 
   const routeOperationalLink = (anchor) => {
@@ -267,24 +280,31 @@
 
     let command = "";
     const path = url.pathname.toLowerCase();
-    if (anchor.matches("[data-run-detail-link]")) {
-      command = "Show the current assessment details in this conversation";
+    if (anchor.matches(".vh-chat-history-item")) {
+      command = exactRunCommand(url, "Show me the findings and current status");
+    } else if (anchor.matches("[data-run-detail-link]")) {
+      command = exactRunCommand(url, "Show the assessment details in this conversation");
     } else if (anchor.matches("[data-findings-link], .vh-chat-history-link")) {
-      command = "Show me all findings in this workspace";
+      command = "Show me the findings for the current assessment";
     } else if (path.includes("source-hunt")) {
       command = "Open Source Hunt in this conversation";
+    } else if (path.includes("active-validation")) {
+      command = "Open Active Validation for the current assessment in this conversation";
+    } else if (path.includes("remediation-final-report")) {
+      command = "Open the final remediation report in this conversation";
+    } else if (path.includes("remediation-review")) {
+      command = "Review remediation independently in this conversation";
+    } else if (path.includes("retest")) {
+      command = "Show the governed retest status and verification result in this conversation";
+    } else if (path.includes("remediation")) {
+      command = "Show remediation status and the next governed step in this conversation";
     } else if (anchor.closest(".vh-finding-row") || /\/findings?\//.test(path)) {
       const id = path.split("/").filter(Boolean).pop();
       command = id && id !== "findings"
         ? `Explain finding ${id} with its evidence, verification state and remediation`
-        : "Show me all findings in this workspace";
-    } else if (anchor.matches(".vh-chat-history-item")) {
-      const target = anchor.querySelector("strong")?.textContent?.trim();
-      command = target
-        ? `Show the assessment history and current results for ${target} in this conversation`
-        : "Show my recent assessments in this conversation";
+        : "Show me the findings for the current assessment";
     } else if (/\/runs?\//.test(path) || path.includes("scan-run")) {
-      command = "Show the current assessment details in this conversation";
+      command = exactRunCommand(url, "Show the assessment details in this conversation");
     }
 
     if (!command) return false;
@@ -334,7 +354,7 @@
       renderMessage({
         role: "assistant",
         kind: "status",
-        content: `${detail.label || "Governed workflow"} updated in this workspace.`,
+        content: `${detail.label || "Governed workflow"} completed. Ask for its status, evidence, findings or next governed step here.`,
       });
     }
     if (body.redirect_url) {
@@ -375,6 +395,9 @@
       if (
         anchor.matches("[data-run-detail-link], [data-findings-link], .vh-chat-history-link, .vh-chat-history-item") ||
         path.includes("source-hunt") ||
+        path.includes("active-validation") ||
+        path.includes("remediation") ||
+        path.includes("retest") ||
         /\/findings?\//.test(path) ||
         /\/runs?\//.test(path)
       ) {
@@ -389,7 +412,7 @@
       const target = event.target instanceof Element ? event.target : null;
       if (!target) return;
 
-      const reset = target.closest("[data-conversation-reset], [data-thread-create]");
+      const reset = target.closest("[data-conversation-reset], [data-thread-create], .vh-new-assessment");
       if (reset) {
         if (reset.dataset.commandCenterConfirmed === "true") {
           delete reset.dataset.commandCenterConfirmed;

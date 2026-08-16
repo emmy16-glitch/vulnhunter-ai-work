@@ -21,9 +21,7 @@ def _public_metadata(value: object) -> dict[str, object]:
     if not isinstance(value, dict):
         return {}
     return {
-        str(key): item
-        for key, item in value.items()
-        if str(key) not in _PRIVATE_MESSAGE_METADATA
+        str(key): item for key, item in value.items() if str(key) not in _PRIVATE_MESSAGE_METADATA
     }
 
 
@@ -54,11 +52,7 @@ def install() -> None:
         if not isinstance(raw, list):
             raw = []
         bounded = raw[-conversational_views._MAX_MESSAGES :]
-        cleaned = [
-            message
-            for item in bounded
-            if (message := _public_message(item)) is not None
-        ]
+        cleaned = [message for item in bounded if (message := _public_message(item)) is not None]
         if cleaned != bounded:
             request.session[conversational_views._SESSION_MESSAGES] = cleaned
             request.session.modified = True

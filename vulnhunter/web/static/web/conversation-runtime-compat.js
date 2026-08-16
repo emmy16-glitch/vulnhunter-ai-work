@@ -15,6 +15,27 @@
   const current = document.currentScript?.src;
   if (!current) return;
 
+  const siblingUrl = (filename, version = "20260816-command-center4") => {
+    const url = new URL(current, window.location.href);
+    url.pathname = url.pathname.replace(/conversation-runtime-compat\.js$/, filename);
+    url.search = `?v=${version}`;
+    return url.toString();
+  };
+
+  const preloadCommandCenterStyles = () => {
+    if (document.querySelector("link[data-command-center-styles]")) return;
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = siblingUrl("conversation-command-center.css");
+    link.dataset.commandCenterStyles = "true";
+    document.head.append(link);
+  };
+
+  // This script is parser-blocking in the document head. Start loading the chat privacy
+  // stylesheet before the conversation body is parsed so infrastructure-only runtime copy
+  // is never presented as a user-facing product status.
+  preloadCommandCenterStyles();
+
   const normalized = (value) => String(value || "").toLowerCase().replace(/\s+/g, " ").trim();
 
   const sourceHuntMessage = (value) => {
@@ -160,11 +181,8 @@
 
   const loadScript = (filename, marker) => {
     if (document.querySelector(`script[${marker}]`)) return;
-    const url = new URL(current, window.location.href);
-    url.pathname = url.pathname.replace(/conversation-runtime-compat\.js$/, filename);
-    url.search = "?v=20260816-command-center3";
     const script = document.createElement("script");
-    script.src = url.toString();
+    script.src = siblingUrl(filename);
     script.async = false;
     script.setAttribute(marker, "true");
     document.head.append(script);
@@ -191,17 +209,12 @@
 
   const bindProviderRuntime = () => {
     const runtime = document.querySelector("[data-provider-runtime]");
-    if (runtime) {
-      const detail = String(runtime.getAttribute("title") || "");
-      const unavailable = /unavailable|disabled|not configured/i.test(detail);
-      runtime.textContent = unavailable ? "AI reasoning unavailable" : "AI reasoning ready";
-      runtime.setAttribute(
-        "title",
-        unavailable
-          ? "High-reasoning conversational assistance is currently unavailable."
-          : "High reasoning with automatic provider routing is ready.",
-      );
-    }
+    if (!runtime) return;
+    runtime.hidden = true;
+    runtime.setAttribute("aria-hidden", "true");
+    runtime.textContent = "Automatic routing";
+    runtime.removeAttribute("title");
+    runtime.classList.remove("is-ready", "is-warning", "is-offline");
   };
 
   const loadWorkspaceBridges = () => {

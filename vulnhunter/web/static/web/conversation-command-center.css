@@ -1,5 +1,9 @@
 /* Chat-first command center enhancements. Reuses the existing VulnHunter visual tokens. */
 
+[data-provider-runtime] {
+  display: none !important;
+}
+
 .vh-chat-empty-state {
   display: grid;
   width: min(100%, 720px);

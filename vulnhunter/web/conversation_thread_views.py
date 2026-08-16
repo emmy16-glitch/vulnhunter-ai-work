@@ -98,20 +98,17 @@ def thread_reasoning_view(request: HttpRequest) -> JsonResponse:
     )
 
     effort = request.POST.get("reasoning_effort", "").strip().casefold()
-    provider = request.POST.get("provider_preference", "").strip().casefold()
     try:
         thread = update_thread_preferences(
             request,
             reasoning_effort=effort or None,
-            provider_preference=provider or None,
         )
     except ValueError as exc:
         return JsonResponse({"detail": str(exc)}, status=400)
-    current_effort, current_provider = thread_preferences(request)
+    current_effort, _ = thread_preferences(request)
     return JsonResponse(
         {
             "thread_id": str(thread.thread_id),
             "reasoning_effort": current_effort,
-            "provider_preference": current_provider,
         }
     )

@@ -34,6 +34,23 @@ def test_command_center_keeps_operational_actions_in_chat():
     assert "Ollama" not in script
 
 
+def test_provider_control_is_automatic_and_provider_names_stay_hidden():
+    script = (STATIC / "conversation-provider-control.js").read_text(encoding="utf-8")
+
+    assert 'options.body.set("provider_preference", "auto")' in script
+    assert 'runtime.textContent = "AI reasoning ready"' in script
+    assert "Reasoning over the request…" in script
+    assert "Validating the response…" in script
+    assert "Formatting the final answer…" in script
+    assert 'querySelectorAll(".vh-provider-control")' in script
+    assert "select[data-provider-preference]" not in script
+    assert "Contacting Groq" not in script
+    assert "Contacting Hugging Face" not in script
+    assert "Contacting Gemini" not in script
+    assert "Contacting Ollama" not in script
+    assert "observe(thinkingCopy" not in script
+
+
 def test_specialist_bridge_does_not_reload_redirect_or_alert():
     compat = (STATIC / "conversation-runtime-compat.js").read_text(encoding="utf-8")
 

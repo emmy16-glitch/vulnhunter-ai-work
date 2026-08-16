@@ -16,10 +16,9 @@
 
   const loadStyles = () => {
     if (!current || document.querySelector("link[data-command-center-styles]")) return;
-    const href = new URL("./conversation-command-center.css", current).toString();
     const link = document.createElement("link");
     link.rel = "stylesheet";
-    link.href = href;
+    link.href = new URL("./conversation-command-center.css", current).toString();
     link.dataset.commandCenterStyles = "true";
     document.head.append(link);
   };
@@ -85,22 +84,23 @@
     const existing = feed.querySelector("[data-chat-empty-state]");
     if (hasConversation) {
       existing?.remove();
-      return;
+    } else if (!existing) {
+      feed.append(makeEmptyState());
     }
-    if (!existing) feed.append(makeEmptyState());
   };
 
   const sanitizeRuntime = () => {
     if (!providerRuntime) return;
     const detail = String(providerRuntime.getAttribute("title") || "");
     const unavailable = /unavailable|disabled|not configured/i.test(detail);
-    providerRuntime.textContent = unavailable ? "AI reasoning unavailable" : "AI reasoning ready";
-    providerRuntime.setAttribute(
-      "title",
-      unavailable
-        ? "High-reasoning conversational assistance is currently unavailable."
-        : "High reasoning with automatic provider routing is ready.",
-    );
+    const nextCopy = unavailable ? "AI reasoning unavailable" : "AI reasoning ready";
+    const nextTitle = unavailable
+      ? "High-reasoning conversational assistance is currently unavailable."
+      : "High reasoning with automatic provider routing is ready.";
+    if (providerRuntime.textContent !== nextCopy) providerRuntime.textContent = nextCopy;
+    if (providerRuntime.getAttribute("title") !== nextTitle) {
+      providerRuntime.setAttribute("title", nextTitle);
+    }
   };
 
   const activityCopy = (value) => {
@@ -116,7 +116,7 @@
   };
 
   const sanitizeThinking = () => {
-    if (thinking) thinking.classList.add("is-command-center-active");
+    thinking?.classList.add("is-command-center-active");
     if (!thinkingCopy) return;
     const safe = activityCopy(thinkingCopy.textContent);
     if (thinkingCopy.textContent !== safe) thinkingCopy.textContent = safe;
@@ -128,7 +128,7 @@
       if (badge.textContent !== "High reasoning · governed context") {
         badge.textContent = "High reasoning · governed context";
       }
-      badge.removeAttribute("title");
+      if (badge.hasAttribute("title")) badge.removeAttribute("title");
     });
   };
 
@@ -267,10 +267,13 @@
 
     let command = "";
     const path = url.pathname.toLowerCase();
-    if (anchor.matches("[data-run-detail-link]")) command = "Show the current assessment details in this conversation";
-    else if (anchor.matches("[data-findings-link], .vh-chat-history-link")) command = "Show me all findings in this workspace";
-    else if (path.includes("source-hunt")) command = "Open Source Hunt in this conversation";
-    else if (anchor.closest(".vh-finding-row") || /\/findings?\//.test(path)) {
+    if (anchor.matches("[data-run-detail-link]")) {
+      command = "Show the current assessment details in this conversation";
+    } else if (anchor.matches("[data-findings-link], .vh-chat-history-link")) {
+      command = "Show me all findings in this workspace";
+    } else if (path.includes("source-hunt")) {
+      command = "Open Source Hunt in this conversation";
+    } else if (anchor.closest(".vh-finding-row") || /\/findings?\//.test(path)) {
       const id = path.split("/").filter(Boolean).pop();
       command = id && id !== "findings"
         ? `Explain finding ${id} with its evidence, verification state and remediation`
@@ -351,21 +354,32 @@
       title: `${detail.label || "Governed workflow"} could not complete`,
       copy: detail.message || "The request could not be completed. You can adjust the request and try again in this conversation.",
       tone: "is-error",
-      actions: [makeButton("Ask what happened", "Explain what blocked the last governed action and what I should do next")],
+      actions: [
+        makeButton(
+          "Ask what happened",
+          "Explain what blocked the last governed action and what I should do next",
+        ),
+      ],
     });
   };
 
   const markOperationalLinks = () => {
     document.querySelectorAll("a[href]").forEach((anchor) => {
       let url;
-      try { url = new URL(anchor.href, window.location.href); } catch (_error) { return; }
+      try {
+        url = new URL(anchor.href, window.location.href);
+      } catch (_error) {
+        return;
+      }
       const path = url.pathname.toLowerCase();
       if (
         anchor.matches("[data-run-detail-link], [data-findings-link], .vh-chat-history-link, .vh-chat-history-item") ||
         path.includes("source-hunt") ||
         /\/findings?\//.test(path) ||
         /\/runs?\//.test(path)
-      ) anchor.dataset.chatRouted = "true";
+      ) {
+        anchor.dataset.chatRouted = "true";
+      }
     });
   };
 
@@ -394,6 +408,7 @@
         confirmCancelInChat(cancel);
         return;
       }
+
       const anchor = target.closest("a[href]");
       if (anchor && routeOperationalLink(anchor)) {
         event.preventDefault();
@@ -416,9 +431,23 @@
     syncEmptyState();
   };
 
+  let reconcileFrame = 0;
+  const queueReconcile = () => {
+    if (reconcileFrame) return;
+    reconcileFrame = window.requestAnimationFrame(() => {
+      reconcileFrame = 0;
+      reconcile();
+    });
+  };
+
   loadStyles();
   reconcile();
-  new MutationObserver(reconcile).observe(feed, { childList: true, subtree: true });
+
+  // Only top-level feed changes need reconciliation. Observing every descendant mutation
+  // can starve message submission when several existing conversation helpers also observe
+  // the feed. Dynamic clicks are routed at the document level, so this stays fully functional.
+  new MutationObserver(queueReconcile).observe(feed, { childList: true });
+
   if (thinkingCopy) {
     new MutationObserver(sanitizeThinking).observe(thinkingCopy, {
       childList: true,

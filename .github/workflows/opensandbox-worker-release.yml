@@ -193,7 +193,7 @@ jobs:
 
       - name: Generate GitHub SLSA provenance attestation
         id: github-provenance
-        uses: actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
         with:
           subject-name: ${{ steps.meta.outputs.image_name }}
           subject-digest: ${{ steps.push.outputs.digest }}
@@ -202,7 +202,7 @@ jobs:
 
       - name: Generate GitHub SPDX SBOM attestation
         id: github-sbom
-        uses: actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
         with:
           subject-name: ${{ steps.meta.outputs.image_name }}
           subject-digest: ${{ steps.push.outputs.digest }}

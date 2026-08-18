@@ -89,7 +89,10 @@ def _consent_url(target: ApprovedTarget) -> str:
 def _parse_challenge(body: bytes, *, token: str, content_type: str) -> None:
     if len(body) > _MAX_CHALLENGE_BYTES:
         raise PublicConsentError("The consent challenge response exceeded the bounded size limit.")
-    text = body.decode("utf-8", errors="strict").strip()
+    try:
+        text = body.decode("utf-8", errors="strict").strip()
+    except UnicodeDecodeError as exc:
+        raise PublicConsentError("The consent challenge was not valid UTF-8.") from exc
     candidates: list[object] = []
     if "json" in content_type.lower() or text.startswith("{"):
         try:

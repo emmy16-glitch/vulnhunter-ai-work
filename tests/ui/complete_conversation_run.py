@@ -73,6 +73,11 @@ def transition(
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--run-id", required=True)
+    parser.add_argument(
+        "--start-only",
+        action="store_true",
+        help="Transition the run to executing and return without completing it.",
+    )
     args = parser.parse_args()
     store = AgentStore(Path(settings.VULNHUNTER_AGENT_DATABASE))
     activity = AgentActivityService(
@@ -88,6 +93,8 @@ def main() -> int:
         summary="Running passive checks…",
         source="tool",
     )
+    if args.start_only:
+        return 0
     time.sleep(3.0)
     transition(
         store,

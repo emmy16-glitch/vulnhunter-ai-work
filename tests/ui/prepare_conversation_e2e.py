@@ -30,7 +30,7 @@ from vulnhunter.web.models import WebUserMapping
 
 
 USERNAME = "conversation-e2e"
-IDENTITY_ID = "admin-a"
+IDENTITY_ID = os.environ.get("VULNHUNTER_UI_GOVERNANCE_IDENTITY", "admin-a")
 PASSWORD = "Vh-Conversation-E2E-2026!"
 
 

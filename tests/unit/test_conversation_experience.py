@@ -93,6 +93,19 @@ def test_conversation_scroll_respects_manual_reading_position():
     assert "VulnHunterConversationScroll" in script
 
 
+def test_desktop_browser_acceptance_covers_live_sse_lifecycle():
+    script = (ROOT / "tests/ui/conversation_e2e.cjs").read_text(encoding="utf-8")
+
+    assert "data-activity-entry" in script
+    assert "after_sequence" in script
+    assert "SSE did not reconnect from a persisted cursor" in script
+    assert "data-conversation-stop" in script
+    assert "data-cancel-dialog" in script
+    assert "--start-only" in script
+    assert "data-run-card].is-cancelled" in script
+    assert "Show me the results" in script
+
+
 def test_first_class_activity_entries_have_state_aware_presentation():
     template = (ROOT / "vulnhunter/web/templates/web/conversation.html").read_text(encoding="utf-8")
     script = (ROOT / "vulnhunter/web/static/web/conversation.js").read_text(encoding="utf-8")

@@ -21,8 +21,12 @@ let page;
     browser = await chromium.launch({ headless: true });
     page = await browser.newPage({ viewport: { width: 1280, height: 820 } });
     const consoleErrors = [];
+    const activityRequests = [];
     page.on("console", (message) => {
       if (message.type() === "error") consoleErrors.push(message.text());
+    });
+    page.on("request", (request) => {
+      if (request.url().includes("/activity/stream/")) activityRequests.push(request.url());
     });
     await page.goto(`${baseUrl}/login/`, { waitUntil: "networkidle" });
     await page.getByLabel("Username").fill(username);
@@ -101,18 +105,19 @@ let page;
     if (workerResult.stderr) {
       fs.appendFileSync(serverLog, `\n--- Browser E2E worker stderr ---\n${workerResult.stderr}\n`);
     }
-    await assistantMessages
-      .filter({ hasText: /^Running passive checks…$/ })
-      .last()
-      .waitFor({ timeout: 15000 });
-    await assistantMessages
-      .filter({ hasText: /^Verifying one possible finding…$/ })
-      .last()
-      .waitFor({ timeout: 15000 });
-    await assistantMessages
-      .filter({ hasText: /Analysis complete in/ })
-      .last()
-      .waitFor({ timeout: 20000 });
+    const activityEntries = page.locator("[data-activity-entry]");
+    await activityEntries.filter({ hasText: /Running passive checks…/ }).waitFor({ timeout: 10000 });
+    await activityEntries.filter({ hasText: /Verifying one possible finding…/ }).waitFor({ timeout: 10000 });
+    await activityEntries.filter({ hasText: /Analysis complete\./ }).waitFor({ timeout: 10000 });
+    if ((await activityEntries.count()) < 3) {
+      throw new Error(`Expected at least three first-class activity entries, found ${await activityEntries.count()}`);
+    }
+    const activityCursors = activityRequests
+      .map((url) => Number(new URL(url).searchParams.get("after_sequence") || 0))
+      .filter((cursor, index, cursors) => cursors.indexOf(cursor) === index);
+    if (!activityCursors.some((cursor) => cursor > 0)) {
+      throw new Error(`SSE did not reconnect from a persisted cursor: ${activityRequests.join(" | ")}`);
+    }
 
     const resultIndex = await assistantMessages.count();
     await input.fill("Show me the results");
@@ -131,6 +136,60 @@ let page;
     );
     if (nextCopy === resultsCopy) {
       throw new Error(`Next-step reply repeated the results reply: ${nextCopy}`);
+    }
+
+    const previousThreadUrl = page.url();
+    await overflow.click();
+    await newAssessment.waitFor({ state: "visible", timeout: 5000 });
+    await newAssessment.click();
+    const stopThreadCard = page.locator(
+      '.vh-chat-action-card[data-action-type="new-assessment"]',
+    );
+    await stopThreadCard.waitFor({ state: "visible", timeout: 5000 });
+    await Promise.all([
+      page.waitForURL(
+        (url) => url.toString() !== previousThreadUrl && url.searchParams.has("thread"),
+        { timeout: 15000 },
+      ),
+      stopThreadCard.getByRole("button", { name: /start new assessment/i }).click(),
+    ]);
+    await page.locator("[data-conversation-workspace]").waitFor({ timeout: 15000 });
+
+    const stopInput = page.locator("[data-conversation-input]");
+    const stopSend = page.locator("[data-conversation-send]");
+    await stopInput.fill("Scan http://10.0.11.34:8010/ using the passive profile");
+    await stopSend.click();
+    await page.locator("[data-inline-approval]").waitFor({ state: "visible", timeout: 15000 });
+    await stopInput.fill("Confirm");
+    await stopSend.click();
+    await page
+      .locator(".vh-chat-message.is-assistant")
+      .filter({ hasText: /Approved\. Starting the governed assessment/ })
+      .last()
+      .waitFor({ timeout: 15000 });
+    const stopRunId = await page.locator("[data-run-card]").last().getAttribute("data-run-id");
+    if (!stopRunId) throw new Error("The cancellation acceptance run did not expose a run id");
+    const startOnlyResult = await execFileAsync("python", [
+      "tests/ui/complete_conversation_run.py",
+      "--run-id",
+      stopRunId,
+      "--start-only",
+    ]);
+    if (startOnlyResult.stderr) {
+      fs.appendFileSync(serverLog, `\n--- Browser E2E start-only worker stderr ---\n${startOnlyResult.stderr}\n`);
+    }
+    const stopControl = page.locator("[data-conversation-stop]");
+    await stopControl.waitFor({ state: "visible", timeout: 15000 });
+    await stopControl.click();
+    const cancelDialog = page.locator("[data-cancel-dialog]");
+    await cancelDialog.waitFor({ state: "attached", timeout: 5000 });
+    if (!(await cancelDialog.evaluate((dialog) => dialog.open))) {
+      throw new Error("The governed cancellation dialog did not enter the native open state");
+    }
+    await cancelDialog.locator("[data-cancel-dialog-confirm]").evaluate((button) => button.click());
+    await page.locator("[data-run-card].is-cancelled").waitFor({ state: "visible", timeout: 15000 });
+    if (await stopControl.isVisible()) {
+      throw new Error("The governed stop control remained visible after cancellation became terminal");
     }
 
     const technicalOpen = await page.locator('details[data-section="technical"]').evaluate(

@@ -888,9 +888,27 @@
     const mergedEvents = [...byKey.values()].sort(
       (left, right) => Number(left.sequence || 0) - Number(right.sequence || 0),
     );
+    const latestPersistedEvent = mergedEvents.at(-1);
+    const incomingProjection =
+      payload.assessment_projection && typeof payload.assessment_projection === "object"
+        ? payload.assessment_projection
+        : null;
+    const priorProjection =
+      previous?.assessment_projection && typeof previous.assessment_projection === "object"
+        ? previous.assessment_projection
+        : null;
+    const mergedProjection = Array.isArray(incomingProjection?.allowed_actions)
+      ? incomingProjection
+      : priorProjection;
     const next = normalizeRun({
       ...(previous || {}),
       ...payload,
+      ...(mergedProjection ? { assessment_projection: mergedProjection } : {}),
+      state: payload.run_state || payload.state || latestPersistedEvent?.run_state || previous?.state,
+      execution_state:
+        payload.execution_state || latestPersistedEvent?.execution_state || previous?.execution_state,
+      active_summary: payload.active_summary || previous?.active_summary,
+      terminal: payload.terminal ?? previous?.terminal,
       events: mergedEvents,
       last_sequence: Math.max(
         Number(previous?.last_sequence || 0),

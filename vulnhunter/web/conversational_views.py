@@ -417,6 +417,18 @@ def _run_payload(run: object) -> dict[str, object]:
     }
     command_plan = getattr(run, "command_plan_summary", {})
     plan = command_plan if isinstance(command_plan, Mapping) else {}
+    memory = getattr(run, "memory", {})
+    workflow_memory = memory.get("assessment_workflow", {}) if isinstance(memory, Mapping) else {}
+    authorization_id = (
+        str(
+            workflow_memory.get("authorization_id")
+            or plan.get("authorization_id")
+            or getattr(run, "authorization_id", "")
+            or ""
+        ).strip()
+        if isinstance(workflow_memory, Mapping)
+        else str(plan.get("authorization_id") or getattr(run, "authorization_id", "") or "").strip()
+    )
     template_hashes = plan.get("template_manifest_hashes", ())
     if not isinstance(template_hashes, (list, tuple)):
         template_hashes = ()
@@ -438,11 +450,14 @@ def _run_payload(run: object) -> dict[str, object]:
         "artifacts": [_safe_artifact(item) for item in artifacts],
         "last_sequence": (timeline.get("last_sequence", 0) if isinstance(timeline, dict) else 0),
         "approval": _approval_payload(run),
+        "authorization_id": authorization_id or None,
         "detail_url": reverse("web-scan-run-detail", kwargs={"run_id": run_id}),
         "findings_url": reverse("web-findings-overview"),
     }
     graph_payload = _assessment_graph_service().status_payload(run_id)
     if graph_payload is not None:
+        if authorization_id and not graph_payload.get("authorization_id"):
+            graph_payload = {**graph_payload, "authorization_id": authorization_id}
         payload["task_graph"] = graph_payload
         payload["chat_stage"] = graph_payload["chat_stage"]
     return enrich_run_payload(

@@ -108,6 +108,7 @@ def validate_scan_authorization(
     request_delay_seconds: float,
     now: datetime | None = None,
     record_event: bool = True,
+    allow_public: bool = False,
 ) -> AuthorizationDecision:
     """Validate permission, target containment, time, and requested limits."""
     checked_at = _normalise_time(now or datetime.now(UTC), field_name="checked_at")
@@ -124,6 +125,21 @@ def validate_scan_authorization(
 
     if record.status != "active":
         raise reject(f"Authorization {authorization_id} is revoked.")
+
+    import ipaddress
+
+    is_public_target = all(
+        ipaddress.ip_address(address).is_global for address in target.resolved_addresses
+    ) if target.resolved_addresses else False
+    if is_public_target:
+        if not allow_public:
+            raise reject("Public targets require an explicit consent-enabled validation path.")
+        from vulnhunter.authorization.public_consent import has_verified_public_consent
+
+        if not has_verified_public_consent(store, authorization_id):
+            raise reject("Public target lacks a verified ownership-consent record.")
+    elif allow_public:
+        raise reject("Public-consent validation may only be used for public targets.")
     if checked_at < record.valid_from:
         raise reject(f"Authorization {authorization_id} is not active yet.")
     if checked_at >= record.expires_at:

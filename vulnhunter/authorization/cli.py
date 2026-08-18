@@ -10,6 +10,7 @@ import typer
 from pydantic import ValidationError
 
 from vulnhunter.authorization.models import AuthorizationLimits
+from vulnhunter.authorization.public_consent import create_public_consent_authorization
 from vulnhunter.authorization.service import (
     issue_authorization,
     validate_scan_authorization,
@@ -137,6 +138,68 @@ def create_authorization(
     typer.echo(f"Valid from: {record.valid_from.isoformat()}")
     typer.echo(f"Expires: {record.expires_at.isoformat()}")
     typer.echo(f"Record SHA-256: {record.record_sha256}")
+
+
+@app.command("verify-public-consent")
+def verify_public_consent(
+    url: str,
+    challenge_token: Annotated[
+        str,
+        typer.Option(
+            "--challenge-token",
+            help="Token published at the target well-known consent URL.",
+        ),
+    ],
+    owner: Annotated[str, typer.Option("--owner", help="Owner of the public target.")],
+    approved_by: Annotated[
+        str,
+        typer.Option("--approved-by", help="Person approving this bounded passive scan."),
+    ],
+    purpose: Annotated[
+        str,
+        typer.Option("--purpose", help="Specific approved passive purpose."),
+    ],
+    expires_at: Annotated[
+        str,
+        typer.Option("--expires-at", help="Timezone-aware ISO-8601 expiry."),
+    ],
+    database: AuthorizationDatabaseOption = Path("authorizations.db"),
+    maximum_pages: Annotated[int, typer.Option("--max-pages", min=1, max=100)] = 20,
+    maximum_depth: Annotated[int, typer.Option("--max-depth", min=0, max=2)] = 1,
+    maximum_requests: Annotated[int, typer.Option("--max-requests", min=1, max=500)] = 100,
+    minimum_delay: Annotated[float, typer.Option("--minimum-delay", min=0.2, max=10)] = 1.0,
+) -> None:
+    """Verify public domain control and create a passive-only authorization."""
+    try:
+        result = create_public_consent_authorization(
+            target_url=url,
+            challenge_token=challenge_token,
+            owner=owner,
+            approved_by=approved_by,
+            purpose=purpose,
+            expires_at=parse_iso_timestamp(expires_at),
+            limits=AuthorizationLimits(
+                maximum_pages=maximum_pages,
+                maximum_depth=maximum_depth,
+                maximum_requests=maximum_requests,
+                minimum_request_delay_seconds=minimum_delay,
+            ),
+            authorization_store=open_authorization_store(database),
+        )
+    except (AuthorizationError, ScopeValidationError, ValidationError, ValueError) as exc:
+        typer.secho(
+            f"Public consent verification failed safely: {exc}",
+            fg=typer.colors.RED,
+            err=True,
+        )
+        raise typer.Exit(code=2) from exc
+
+    typer.secho("Public consent verified; passive authorization created", fg=typer.colors.GREEN)
+    typer.echo(f"Authorization ID: {result.record.authorization_id}")
+    typer.echo(f"Target: {result.record.target_url}")
+    typer.echo(f"Consent URL: {result.consent_url}")
+    typer.echo(f"Consent SHA-256: {result.consent_sha256}")
+    typer.echo(f"Expires: {result.record.expires_at.isoformat()}")
 
 
 @app.command("list")

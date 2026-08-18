@@ -21,6 +21,7 @@ from vulnhunter.authorization.cli import (
 from vulnhunter.authorization.cli import (
     open_authorization_store,
 )
+from vulnhunter.authorization.public_consent import has_verified_public_consent
 from vulnhunter.authorization.service import validate_scan_authorization
 from vulnhunter.benchmark import (
     apply_scenario_review,
@@ -225,8 +226,9 @@ def scan_run(
 ) -> None:
     """Map one approved target and persist passive observations."""
     try:
-        target = validate_target(url)
         authorization_store = open_authorization_store(authorization_database)
+        allow_public = has_verified_public_consent(authorization_store, authorization_id)
+        target = validate_target(url, allow_public=allow_public)
         validate_scan_authorization(
             authorization_store,
             authorization_id,
@@ -235,6 +237,7 @@ def scan_run(
             maximum_depth=maximum_depth,
             maximum_requests=maximum_requests,
             request_delay_seconds=request_delay_seconds,
+            allow_public=allow_public,
         )
     except (
         AuthorizationError,

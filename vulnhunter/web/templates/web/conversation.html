@@ -94,7 +94,10 @@
           <button type="button" class="vh-chat-attach" data-conversation-attach aria-label="Attach an Android APK" title="Attach an Android APK"><span aria-hidden="true">+</span></button>
           <input type="file" name="attachment" accept=".apk,application/vnd.android.package-archive" data-conversation-file hidden>
           <textarea id="vh-chat-message" name="message" rows="1" maxlength="4000" autocomplete="off" spellcheck="true" placeholder="Ask VulnHunter about an authorised target, APK, finding or evidence…" data-conversation-input required></textarea>
-          <button type="submit" class="vh-chat-send" data-conversation-send aria-label="Send message"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="m4 12 16-8-5.5 16-3.2-6.8z"/><path d="m11.3 13.2 4.6-4.6"/></svg></button>
+          <div class="vh-chat-send-actions">
+            <button type="button" class="vh-chat-stop" data-conversation-stop hidden aria-label="Stop current assessment" title="Stop current assessment">■</button>
+            <button type="submit" class="vh-chat-send" data-conversation-send aria-label="Send message"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="m4 12 16-8-5.5 16-3.2-6.8z"/><path d="m11.3 13.2 4.6-4.6"/></svg></button>
+          </div>
         </div>
         <div class="vh-chat-composer-meta">
           <span>Enter to send · Shift+Enter for a new line</span>

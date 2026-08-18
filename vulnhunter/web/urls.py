@@ -175,6 +175,11 @@ urlpatterns = [
         conversational_views.status_view,
         name="web-conversation-status",
     ),
+    path(
+        "workspace/runs/<str:run_id>/activity/stream/",
+        conversational_views.activity_stream_view,
+        name="web-conversation-activity-stream",
+    ),
     path("source-hunt/", source_hunt_views.source_hunt_view, name="web-source-hunt"),
     path("status/", views.status_view, name="web-status"),
     path("audit/", audit_views.audit_overview_view, name="web-audit-overview"),

@@ -73,6 +73,7 @@ def test_conversation_template_keeps_history_and_details_progressive():
     template = (ROOT / "vulnhunter/web/templates/web/conversation.html").read_text(encoding="utf-8")
 
     assert "data-history-toggle" in template
+    assert "data-conversation-stop" in template
     assert "data-history-panel hidden" in template
     assert "data-run-live-copy" in template
     assert '<details data-section="summary">' in template
@@ -90,13 +91,16 @@ def test_conversation_scroll_respects_manual_reading_position():
     assert "VulnHunterConversationScroll" in script
 
 
-def test_conversation_ui_has_elapsed_thinking_and_contextual_answers():
+def test_conversation_ui_uses_sse_and_keeps_the_composer_available():
     script = (ROOT / "vulnhunter/web/static/web/conversation.js").read_text(encoding="utf-8")
 
     assert "updateBusyCopy" in script
-    assert "announceRunProgress" in script
-    assert "next.final_message" in script
-    assert "run.current_step" in script
+    assert "new EventSource" in script
+    assert "mergeActivityPayload" in script
+    assert "last_sequence" in script
+    assert "closeActivityStream" in script
+    assert "input.disabled = false" in script
+    assert "announceRunProgress" not in script
     assert "contextualReply" not in script
     assert "confirmedRuns" in script
 

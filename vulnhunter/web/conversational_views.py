@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
 from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import urlsplit
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
-from django.http import Http404, HttpRequest, HttpResponse, JsonResponse
+from django.http import Http404, HttpRequest, HttpResponse, JsonResponse, StreamingHttpResponse
 from django.shortcuts import render
 from django.urls import reverse
 from django.views.decorators.cache import cache_control
@@ -19,6 +19,7 @@ from vulnhunter.approvals import ApprovalStatus, ApprovalStore
 from vulnhunter.approvals.store import ApprovalConflictError, ApprovalStoreError
 from vulnhunter.assessment_graph import AssessmentGraphError, AssessmentGraphService
 from vulnhunter.product import ProductServiceError
+from vulnhunter.web import stream_views
 from vulnhunter.web.assessment_workflow import (
     AssessmentWorkflowError,
     AssessmentWorkflowService,
@@ -451,6 +452,29 @@ def _run_payload(run: object) -> dict[str, object]:
     )
 
 
+def _conversation_stream_payload(run: object, *, after_sequence: int) -> dict[str, object]:
+    """Build one bounded conversation snapshot with only new activity events."""
+
+    payload = _run_payload(run)
+    incremental = activity_payload(str(run.run_id), after_sequence=after_sequence)
+    events = incremental.get("events", []) if isinstance(incremental, dict) else []
+    payload["events"] = events if isinstance(events, list) else []
+    payload["last_sequence"] = int(
+        incremental.get("last_sequence", after_sequence)
+        if isinstance(incremental, dict)
+        else after_sequence
+    )
+    payload["run_state"] = (
+        incremental.get("run_state") or payload.get("state")
+        if isinstance(incremental, dict)
+        else payload.get("state")
+    )
+    payload["active_summary"] = stream_views._active_summary(run)
+    if isinstance(incremental, dict) and incremental.get("terminal"):
+        payload["terminal"] = True
+    return payload
+
+
 def _visible_run(run_id: str, actor: object):
     try:
         run = product_service().get_agent_run(run_id)
@@ -510,6 +534,10 @@ def workspace_view(request: HttpRequest) -> HttpResponse:
         "message_url": reverse("web-conversation-message"),
         "status_url_template": reverse(
             "web-conversation-status",
+            kwargs={"run_id": "RUN_ID"},
+        ),
+        "activity_stream_url_template": reverse(
+            "web-conversation-activity-stream",
             kwargs={"run_id": "RUN_ID"},
         ),
         "approval_url": reverse("web-conversation-approve"),
@@ -1039,6 +1067,36 @@ def message_view(request: HttpRequest) -> JsonResponse:
         },
     )
     return JsonResponse({"message": message, "run": _run_payload(run)}, status=201)
+
+
+@cache_control(private=True, no_store=True)
+@login_required
+@require_GET
+def activity_stream_view(request: HttpRequest, run_id: str):
+    """Stream one persisted conversation activity snapshot for EventSource."""
+
+    try:
+        actor = _actor(request, "scan.read")
+    except WebPermissionDenied as exc:
+        return JsonResponse({"detail": str(exc)}, status=403)
+    try:
+        after_sequence = stream_views._after_sequence_or_error(request)
+    except ValueError as exc:
+        return JsonResponse({"detail": str(exc)}, status=400)
+    run = _visible_run(run_id, actor)
+    payload = _conversation_stream_payload(run, after_sequence=after_sequence)
+    sequence = int(payload.get("last_sequence", after_sequence))
+
+    def event_stream() -> Iterator[str]:
+        yield from stream_views._event_stream(sequence=sequence, payload=payload)
+
+    response = StreamingHttpResponse(
+        event_stream(),
+        content_type="text/event-stream; charset=utf-8",
+    )
+    response["Cache-Control"] = "private, no-cache, no-store, must-revalidate"
+    response["X-Accel-Buffering"] = "no"
+    return response
 
 
 @cache_control(private=True, no_store=True)

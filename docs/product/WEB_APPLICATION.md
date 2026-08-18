@@ -36,6 +36,11 @@ and is conversation/task-first rather than dashboard-first:
   reduced-motion support;
 - responsive mobile behavior based on an off-canvas task drawer and one-column
   conversation workspace rather than a compressed desktop dashboard.
+- persisted assessment activity is projected into the conversation through a
+  cursor-based server-sent event stream; reconnect resumes from the last event
+  sequence and does not restart the assessment;
+- the composer remains available while a task runs, while cancellation continues
+  to use the governed backend stop contract.
 
 The standalone frontend prototype and external references are interaction or
 visual references only. The following behaviours are intentionally not carried

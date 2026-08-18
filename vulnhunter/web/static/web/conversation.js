@@ -16,6 +16,7 @@
   const form = workspace.querySelector("[data-conversation-form]");
   const input = workspace.querySelector("[data-conversation-input]");
   const send = workspace.querySelector("[data-conversation-send]");
+  const stop = workspace.querySelector("[data-conversation-stop]");
   const thinking = workspace.querySelector("[data-conversation-thinking]");
   const thinkingCopy = workspace.querySelector("[data-thinking-copy]");
   const reset = workspace.querySelector("[data-conversation-reset]");
@@ -38,7 +39,8 @@
 
   let activeRun = initial.active_run || null;
   let runCard = null;
-  let pollTimer = null;
+  let activitySource = null;
+  let activityReconnectTimer = null;
   let requestBusy = false;
   let busyStartedAt = 0;
   let busyTimer = null;
@@ -46,7 +48,6 @@
   let lastRunSignature = "";
   const confirmedRuns = new Set();
   const renderedMessages = new Set();
-  const announcedEvents = new Set();
 
   const stageDefinitions = [
     ["scope", "Checking authorised scope"],
@@ -107,8 +108,8 @@
   const setBusy = (busy, copy = "Understanding the request…") => {
     requestBusy = busy;
     if (send) send.disabled = busy;
-    input.disabled = busy;
-    if (thinking) thinking.hidden = !busy;
+    input.disabled = false;
+    if (thinking) thinking.hidden = !busy && !(activeRun && !activeRun.terminal);
     if (busyTimer) window.clearInterval(busyTimer);
     busyTimer = null;
     if (busy) {
@@ -622,7 +623,9 @@
     const allowed = Array.isArray(run.assessment_projection?.allowed_actions)
       ? run.assessment_projection.allowed_actions
       : [];
-    if (cancel) cancel.hidden = !allowed.includes("request_cancel");
+    const canCancel = allowed.includes("request_cancel");
+    if (cancel) cancel.hidden = !canCancel;
+    if (stop) stop.hidden = !canCancel;
     renderApproval(card, run);
     renderStages(card, run);
     renderExecutionState(card, run);
@@ -666,26 +669,6 @@
       terminal: run.terminal,
       projection_revision: run.assessment_projection?.projection_revision,
     });
-  };
-
-  const announceRunProgress = (previous, next) => {
-    const previousState = text(previous?.state);
-    const nextState = text(next?.state);
-    if (previousState === nextState && !next.terminal) return;
-    const key = `${text(next.run_id)}:${nextState}:${next.terminal ? "terminal" : "live"}`;
-    if (announcedEvents.has(key)) return;
-    announcedEvents.add(key);
-    const copy = next.terminal ? next.final_message : next.current_step;
-    if (!copy) return;
-    appendMessage(
-      {
-        role: "assistant",
-        kind: next.terminal ? "result" : "status",
-        content: copy,
-        timestamp: next.updated_at || new Date().toISOString(),
-      },
-      { animate: true, forceScroll: false },
-    );
   };
 
   const refreshSessionProtection = async () => {
@@ -756,7 +739,7 @@
         activeRun = normalizeRun(data.run);
         lastRunSignature = runSignature(activeRun);
         ensureRunCard(activeRun, { forceScroll: true });
-        beginPolling(activeRun, { immediate: true });
+        openActivityStream(activeRun);
       }
     } catch (error) {
       appendMessage(
@@ -770,7 +753,7 @@
   };
 
   const cancelRun = async (card) => {
-    const target = card.querySelector("[data-run-target]")?.textContent || "this assessment";
+    const target = card?.querySelector("[data-run-target]")?.textContent || activeRun?.target || "this assessment";
     cancelTarget = target;
     const copy = cancelDialog?.querySelector("[data-cancel-dialog-copy]");
     if (copy) copy.textContent = `Cancel ${target}? No additional scanner work will be started.`;
@@ -780,6 +763,8 @@
   cancelDialog?.querySelector("[data-cancel-dialog-close]")?.addEventListener("click", () => {
     cancelDialog.close();
   });
+  stop?.addEventListener("click", () => cancelRun(runCard));
+
   cancelDialog?.querySelector("[data-cancel-dialog-confirm]")?.addEventListener("click", () => {
     if (!cancelTarget) return;
     input.value = `Cancel the current assessment for ${cancelTarget}`;
@@ -802,37 +787,108 @@
     });
   };
 
-  const fetchStatus = async (runId) => {
-    const url = text(initial.status_url_template).replace("RUN_ID", encodeURIComponent(runId));
-    const response = await fetch(url, {
-      credentials: "same-origin",
-      headers: { Accept: "application/json" },
-    });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.detail || "Assessment status is unavailable.");
-    return normalizeRun(data.run);
+  const closeActivityStream = () => {
+    if (activityReconnectTimer) window.clearTimeout(activityReconnectTimer);
+    activityReconnectTimer = null;
+    activitySource?.close();
+    activitySource = null;
   };
 
-  const beginPolling = (run, { immediate = false } = {}) => {
-    if (pollTimer) window.clearTimeout(pollTimer);
+  const updateLiveNotice = (run, copy = "") => {
+    if (!thinking || !thinkingCopy) return;
+    if (!run || run.terminal) {
+      thinking.hidden = true;
+      return;
+    }
+    thinking.hidden = false;
+    thinkingCopy.textContent = copy || text(run.active_summary || run.current_step || "Working with the current assessment state…");
+  };
+
+  const mergeActivityPayload = (payload) => {
+    if (!payload || typeof payload !== "object") return null;
+    const previous = activeRun;
+    const priorEvents = Array.isArray(previous?.events) ? previous.events : [];
+    const incomingEvents = Array.isArray(payload.events) ? payload.events : [];
+    const byKey = new Map();
+    [...priorEvents, ...incomingEvents].forEach((event) => {
+      if (!event || typeof event !== "object") return;
+      byKey.set(eventKey(event), event);
+    });
+    const mergedEvents = [...byKey.values()].sort(
+      (left, right) => Number(left.sequence || 0) - Number(right.sequence || 0),
+    );
+    const next = normalizeRun({
+      ...(previous || {}),
+      ...payload,
+      events: mergedEvents,
+      last_sequence: Math.max(
+        Number(previous?.last_sequence || 0),
+        Number(payload.last_sequence || 0),
+      ),
+    });
+    activeRun = next;
+    lastRunSignature = runSignature(next);
+    ensureRunCard(next);
+    updateLiveNotice(next);
+    return { previous, next };
+  };
+
+  const scheduleActivityReconnect = (run, delay = 1500) => {
     if (!run || run.terminal) return;
-    const tick = async () => {
+    if (activityReconnectTimer) window.clearTimeout(activityReconnectTimer);
+    activityReconnectTimer = window.setTimeout(() => {
+      activityReconnectTimer = null;
+      openActivityStream(activeRun || run);
+    }, delay);
+  };
+
+  const openActivityStream = (run) => {
+    closeActivityStream();
+    if (!run || run.terminal) {
+      updateLiveNotice(run);
+      return;
+    }
+    const template = text(initial.activity_stream_url_template);
+    if (!template || !("EventSource" in window)) {
+      updateLiveNotice(run, "Live activity is unavailable; saved state remains available.");
+      return;
+    }
+    const url = new URL(
+      template.replace("RUN_ID", encodeURIComponent(run.run_id)),
+      window.location.href,
+    );
+    url.searchParams.set("after_sequence", String(Number(run.last_sequence || 0)));
+    updateLiveNotice(run, "Connecting to live assessment activity…");
+    const source = new EventSource(url.toString(), { withCredentials: true });
+    activitySource = source;
+    source.addEventListener("activity", (message) => {
+      if (activitySource !== source) return;
       try {
-        const previous = activeRun;
-        const next = await fetchStatus(run.run_id);
-        const signature = runSignature(next);
-        if (signature !== lastRunSignature) {
-          announceRunProgress(previous, next);
-          activeRun = next;
-          lastRunSignature = signature;
-          ensureRunCard(activeRun);
+        const payload = JSON.parse(message.data);
+        const previousSequence = Number(activeRun?.last_sequence || 0);
+        const { next } = mergeActivityPayload(payload);
+        source.close();
+        activitySource = null;
+        if (next?.terminal) {
+          updateLiveNotice(next);
+          return;
         }
-        if (!next.terminal) pollTimer = window.setTimeout(tick, 1500);
+        const hasNewActivity = Number(payload.last_sequence || 0) > previousSequence;
+        scheduleActivityReconnect(next, hasNewActivity ? 120 : 1500);
       } catch (_error) {
-        pollTimer = window.setTimeout(tick, 4000);
+        source.close();
+        activitySource = null;
+        updateLiveNotice(activeRun, "Live activity could not be read safely; reconnecting…");
+        scheduleActivityReconnect(activeRun, 1500);
       }
+    });
+    source.onerror = () => {
+      if (activitySource !== source) return;
+      source.close();
+      activitySource = null;
+      updateLiveNotice(activeRun, "Live activity reconnecting…");
+      scheduleActivityReconnect(activeRun, 1500);
     };
-    pollTimer = window.setTimeout(tick, immediate ? 100 : 1200);
   };
 
   const resizeInput = () => {
@@ -902,7 +958,7 @@
       });
       if (data.message) appendMessage(data.message, { animate: true });
       if (data.clear_run) {
-        if (pollTimer) window.clearTimeout(pollTimer);
+        closeActivityStream();
         runCard?.remove();
         runCard = null;
         activeRun = null;
@@ -911,9 +967,8 @@
       if (data.run) {
         activeRun = normalizeRun(data.run);
         lastRunSignature = runSignature(activeRun);
-        (activeRun.events || []).forEach((item) => announcedEvents.add(eventKey(item)));
         ensureRunCard(activeRun, { forceScroll: true });
-        beginPolling(activeRun);
+        openActivityStream(activeRun);
       }
     } catch (error) {
       appendMessage(
@@ -939,9 +994,8 @@
     setBusy(true, "Starting a clean conversation…");
     try {
       const data = await postForm(initial.reset_url, {});
-      if (pollTimer) window.clearTimeout(pollTimer);
+      closeActivityStream();
       renderedMessages.clear();
-      announcedEvents.clear();
       confirmedRuns.clear();
       feed.replaceChildren();
       runCard = null;
@@ -961,9 +1015,8 @@
   if (activeRun) {
     activeRun = normalizeRun(activeRun);
     lastRunSignature = runSignature(activeRun);
-    (activeRun.events || []).forEach((item) => announcedEvents.add(eventKey(item)));
     ensureRunCard(activeRun);
-    beginPolling(activeRun);
+    openActivityStream(activeRun);
   }
   resizeInput();
   input.focus({ preventScroll: true });

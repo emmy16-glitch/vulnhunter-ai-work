@@ -18,6 +18,7 @@ from vulnhunter.web import (
     intelligence_views,
     lab_views,
     operations_views,
+    public_consent_views,
     readiness,
     remediation_final_report_conversation_views,
     remediation_final_report_views,
@@ -44,6 +45,11 @@ urlpatterns = [
         "workspace/message/",
         conversational_views.message_view,
         name="web-conversation-message",
+    ),
+    path(
+        "workspace/public-consent/verify/",
+        public_consent_views.verify_public_consent_view,
+        name="web-public-consent-verify",
     ),
     path(
         "workspace/active-validation/",

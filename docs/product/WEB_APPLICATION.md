@@ -39,6 +39,9 @@ and is conversation/task-first rather than dashboard-first:
 - persisted assessment activity is projected into the conversation through a
   cursor-based server-sent event stream; reconnect resumes from the last event
   sequence and does not restart the assessment;
+- each persisted event is rendered as a first-class conversation timeline entry
+  with a safe summary, timestamp, state marker and governance metadata, while
+  the run card remains the detailed control and evidence surface;
 - the composer remains available while a task runs, while cancellation continues
   to use the governed backend stop contract.
 

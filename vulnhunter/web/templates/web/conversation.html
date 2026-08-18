@@ -163,6 +163,23 @@
   </article>
 </template>
 
+<template id="vh-activity-template">
+  <article class="vh-chat-activity-entry" data-activity-entry>
+    <div class="vh-activity-entry-marker" data-activity-marker aria-hidden="true">•</div>
+    <div class="vh-activity-entry-body">
+      <header class="vh-activity-entry-header">
+        <div>
+          <p class="vh-eyebrow" data-activity-type>Assessment activity</p>
+          <strong data-activity-summary>Recorded assessment activity.</strong>
+        </div>
+        <time data-activity-time></time>
+      </header>
+      <p class="vh-activity-entry-detail" data-activity-detail hidden></p>
+      <div class="vh-activity-entry-meta" data-activity-meta></div>
+    </div>
+  </article>
+</template>
+
 <template id="vh-run-template">
   <article class="vh-run-card" data-run-card>
     <header class="vh-run-card-header">

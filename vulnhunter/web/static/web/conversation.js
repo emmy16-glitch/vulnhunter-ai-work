@@ -26,6 +26,7 @@
   const historyPanel = workspace.querySelector("[data-history-panel]");
   const historyClose = workspace.querySelector("[data-history-close]");
   const messageTemplate = document.getElementById("vh-message-template");
+  const activityTemplate = document.getElementById("vh-activity-template");
   const runTemplate = document.getElementById("vh-run-template");
   const cancelDialog = document.querySelector("[data-cancel-dialog]");
   let cancelTarget = "";
@@ -35,7 +36,7 @@
     return form?.querySelector("input[name='csrfmiddlewaretoken']")?.value || "";
   };
 
-  if (!feed || !form || !input || !messageTemplate || !runTemplate) return;
+  if (!feed || !form || !input || !messageTemplate || !activityTemplate || !runTemplate) return;
 
   let activeRun = initial.active_run || null;
   let runCard = null;
@@ -48,6 +49,7 @@
   let lastRunSignature = "";
   const confirmedRuns = new Set();
   const renderedMessages = new Set();
+  const renderedActivity = new Map();
 
   const stageDefinitions = [
     ["scope", "Checking authorised scope"],
@@ -295,6 +297,73 @@
   const latestEvent = (run) => {
     const events = Array.isArray(run?.events) ? run.events : [];
     return events.length ? events[events.length - 1] : null;
+  };
+
+  const clearActivityEntries = () => {
+    renderedActivity.forEach((entry) => entry.remove());
+    renderedActivity.clear();
+  };
+
+  const safeActivityState = (event) => {
+    const value = text(event?.execution_state || event?.run_state || "recorded")
+      .toLowerCase()
+      .replace(/[^a-z0-9_-]+/g, "-");
+    return value || "recorded";
+  };
+
+  const renderActivityEntries = (run, { forceScroll = false } = {}) => {
+    const events = Array.isArray(run?.events) ? run.events : [];
+    events.forEach((event) => {
+      if (!event || typeof event !== "object") return;
+      const key = eventKey(event);
+      if (!key) return;
+      let article = renderedActivity.get(key);
+      if (!article) {
+        const fragment = activityTemplate.content.cloneNode(true);
+        article = fragment.querySelector("[data-activity-entry]");
+        article.dataset.activityKey = key;
+        renderedActivity.set(key, article);
+        feed.append(article);
+      }
+      const state = safeActivityState(event);
+      article.className = `vh-chat-activity-entry is-${state}`;
+      article.querySelector("[data-activity-marker]").textContent = [
+        "completed",
+        "success",
+        "verified",
+      ].includes(state)
+        ? "✓"
+        : ["failed", "error", "blocked", "cancelled"].includes(state)
+          ? "!"
+          : "•";
+      article.querySelector("[data-activity-type]").textContent = prettyState(
+        event.event_type || event.type || "Assessment activity",
+      );
+      article.querySelector("[data-activity-summary]").textContent = eventSummary(event);
+      const timestamp = event.timestamp || event.created_at || "";
+      const time = article.querySelector("[data-activity-time]");
+      time.dateTime = text(timestamp);
+      time.textContent = formatTimestamp(timestamp) || text(timestamp);
+      const detail = article.querySelector("[data-activity-detail]");
+      const detailText = text(event.error_message || event.detail || "");
+      detail.hidden = !detailText;
+      detail.textContent = detailText;
+      const meta = article.querySelector("[data-activity-meta]");
+      meta.replaceChildren();
+      [
+        event.tool_id ? `Tool ${event.tool_id}` : "",
+        event.policy_outcome ? prettyState(event.policy_outcome) : "",
+        event.approval_state ? `Approval ${prettyState(event.approval_state)}` : "",
+        event.authorization_reference ? `Auth ${event.authorization_reference}` : "",
+      ]
+        .filter(Boolean)
+        .forEach((value) => {
+          const chip = document.createElement("span");
+          chip.textContent = value;
+          meta.append(chip);
+        });
+    });
+    if (events.length && forceScroll) scrollFeed({ force: true });
   };
 
   const stageStatus = (run, key) => {
@@ -641,6 +710,7 @@
 
   const ensureRunCard = (run, { forceScroll = false } = {}) => {
     if (!runCard || runCard.dataset.runId !== text(run.run_id)) {
+      if (runCard) clearActivityEntries();
       runCard?.remove();
       const fragment = runTemplate.content.cloneNode(true);
       runCard = fragment.querySelector("[data-run-card]");
@@ -739,6 +809,7 @@
         activeRun = normalizeRun(data.run);
         lastRunSignature = runSignature(activeRun);
         ensureRunCard(activeRun, { forceScroll: true });
+        renderActivityEntries(activeRun, { forceScroll: true });
         openActivityStream(activeRun);
       }
     } catch (error) {
@@ -828,8 +899,10 @@
     });
     activeRun = next;
     lastRunSignature = runSignature(next);
-    ensureRunCard(next);
-    updateLiveNotice(next);
+          ensureRunCard(next);
+      renderActivityEntries(next);
+      updateLiveNotice(next);
+
     return { previous, next };
   };
 
@@ -959,6 +1032,7 @@
       if (data.message) appendMessage(data.message, { animate: true });
       if (data.clear_run) {
         closeActivityStream();
+        clearActivityEntries();
         runCard?.remove();
         runCard = null;
         activeRun = null;
@@ -968,6 +1042,7 @@
         activeRun = normalizeRun(data.run);
         lastRunSignature = runSignature(activeRun);
         ensureRunCard(activeRun, { forceScroll: true });
+        renderActivityEntries(activeRun, { forceScroll: true });
         openActivityStream(activeRun);
       }
     } catch (error) {
@@ -1016,6 +1091,7 @@
     activeRun = normalizeRun(activeRun);
     lastRunSignature = runSignature(activeRun);
     ensureRunCard(activeRun);
+    renderActivityEntries(activeRun, { forceScroll: false });
     openActivityStream(activeRun);
   }
   resizeInput();

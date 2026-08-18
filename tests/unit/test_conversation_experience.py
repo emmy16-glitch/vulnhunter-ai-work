@@ -74,6 +74,8 @@ def test_conversation_template_keeps_history_and_details_progressive():
 
     assert "data-history-toggle" in template
     assert "data-conversation-stop" in template
+    assert "vh-activity-template" in template
+    assert "data-activity-entry" in template
     assert "data-history-panel hidden" in template
     assert "data-run-live-copy" in template
     assert '<details data-section="summary">' in template
@@ -91,12 +93,29 @@ def test_conversation_scroll_respects_manual_reading_position():
     assert "VulnHunterConversationScroll" in script
 
 
-def test_conversation_ui_uses_sse_and_keeps_the_composer_available():
+def test_first_class_activity_entries_have_state_aware_presentation():
+    template = (ROOT / "vulnhunter/web/templates/web/conversation.html").read_text(encoding="utf-8")
+    script = (ROOT / "vulnhunter/web/static/web/conversation.js").read_text(encoding="utf-8")
+    styles = (ROOT / "vulnhunter/web/static/web/conversation.css").read_text(encoding="utf-8")
+
+    assert "data-activity-entry" in template
+    assert "data-activity-marker" in template
+    assert "data-activity-meta" in template
+    assert "safeActivityState" in script
+    assert "event.error_message" in script
+    assert ".vh-chat-activity-entry.is-running" in styles
+    assert ".vh-chat-activity-entry.is-failed" in styles
+
+
+def test_conversation_runtime_uses_persisted_sse_and_keeps_composer_available():
     script = (ROOT / "vulnhunter/web/static/web/conversation.js").read_text(encoding="utf-8")
 
     assert "updateBusyCopy" in script
     assert "new EventSource" in script
     assert "mergeActivityPayload" in script
+    assert "renderActivityEntries" in script
+    assert "renderedActivity" in script
+    assert "clearActivityEntries" in script
     assert "last_sequence" in script
     assert "closeActivityStream" in script
     assert "input.disabled = false" in script

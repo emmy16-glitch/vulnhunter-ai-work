@@ -107,8 +107,34 @@ async function login(page) {
           },
         ],
         last_sequence: 1,
-        run_state: "planning",
-        terminal: false,
+        run_state: "completed",
+        terminal: true,
+        mobile_execution: {
+          state: "completed",
+          progress: {
+            active_tool: null,
+            events: [
+              {
+                sequence: 1,
+                at: "2026-08-19T12:00:01+00:00",
+                state: "running",
+                stage: "decompile",
+                detail: "JADX is collecting bounded source evidence.",
+                tool: "jadx",
+                tool_state: "running",
+              },
+              {
+                sequence: 2,
+                at: "2026-08-19T12:00:02+00:00",
+                state: "completed",
+                stage: "decompile",
+                detail: "JADX completed and persisted its bounded capture.",
+                tool: "jadx",
+                tool_state: "completed",
+              },
+            ],
+          },
+        },
       };
       await route.fulfill({
         status: 200,
@@ -134,6 +160,12 @@ async function login(page) {
     if (!/browser-demo\.apk/i.test(feedText || "")) throw new Error("The uploaded APK was not shown in the chat feed");
     if (!/JADX/i.test(feedText || "")) throw new Error("The selected safe tool was not shown in the chat feed");
     if (!/plan is ready/i.test(feedText || "")) throw new Error("The persisted APK activity was not shown in the chat feed");
+    const liveBlock = page.locator(`[data-mobile-live-execution="${plan.run_id}"]`);
+    await liveBlock.waitFor();
+    const liveText = await liveBlock.textContent();
+    if (!/JADX completed and persisted/i.test(liveText || "")) throw new Error("The live APK block did not show the completed step in place");
+    if (await liveBlock.locator("[data-mobile-live-steps] > li").count() !== 1) throw new Error("The same APK step was rendered more than once instead of updating in place");
+    if (await page.locator("[data-activity-entry].is-mobile-activity").count() < 3) throw new Error("Structured APK activity entries were not preserved in the chat history");
     console.log("Unified APK chat activity acceptance passed.");
   } finally {
     await browser.close();

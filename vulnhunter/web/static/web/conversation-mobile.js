@@ -13,7 +13,19 @@
   const thinkingCopy = workspace?.querySelector("[data-thinking-copy]");
   const reset = workspace?.querySelector("[data-conversation-reset]");
   const messageTemplate = document.getElementById("vh-message-template");
-  if (!form || !feed || !input || !attachButton || !fileInput || !tray || !messageTemplate) return;
+  const activityTemplate = document.getElementById("vh-activity-template");
+  const liveExecutionTemplate = document.getElementById("vh-mobile-live-execution-template");
+  if (
+    !form ||
+    !feed ||
+    !input ||
+    !attachButton ||
+    !fileInput ||
+    !tray ||
+    !messageTemplate ||
+    !activityTemplate ||
+    !liveExecutionTemplate
+  ) return;
 
   const csrfToken = form.querySelector("input[name='csrfmiddlewaretoken']")?.value || "";
   const attachmentUrl = form.dataset.attachmentUrl || "";
@@ -27,6 +39,8 @@
   let mobileActivitySequence = 0;
   let mobileActivityRunId = "";
   const mobileActivityKeys = new Set();
+  const mobileActivityEntries = new Map();
+  const mobileLiveStepEntries = new Map();
 
   const text = (value) => (value === null || value === undefined ? "" : String(value));
   const pretty = (value) =>
@@ -34,6 +48,11 @@
       .replaceAll("_", " ")
       .replace(/\b\w/g, (letter) => letter.toUpperCase());
   const sleep = (milliseconds) => new Promise((resolve) => window.setTimeout(resolve, milliseconds));
+  const formatTimestamp = (value) => {
+    const parsed = Date.parse(value || "");
+    if (!Number.isFinite(parsed)) return "";
+    return new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit" }).format(parsed);
+  };
 
   const formatBytes = (value) => {
     const bytes = Math.max(0, Number(value) || 0);
@@ -100,30 +119,197 @@
     mobileActivitySource = null;
   };
 
-  const appendMobileActivity = (event) => {
-    if (!event || typeof event !== "object") return;
-    const key = text(event.event_id || `${event.sequence}|${event.event_type}|${event.summary}`);
-    if (mobileActivityKeys.has(key)) return;
-    mobileActivityKeys.add(key);
-    const detail = event.metadata?.reason ? ` ${text(event.metadata.reason)}` : "";
-    appendMessage(
-      {
-        role: "assistant",
-        kind: "activity",
-        content: `${text(event.summary || "APK assessment activity.")}${detail}`,
-        timestamp: event.timestamp,
-      },
-      { animate: true },
-    );
+  const mobileState = (event) => {
+    const value = text(
+      event?.execution_state || event?.metadata?.mobile_progress_tool_state || event?.run_state || "recorded",
+    )
+      .toLowerCase()
+      .replace(/[^a-z0-9_-]+/g, "-");
+    return value || "recorded";
   };
 
-  const openMobileActivityStream = (runId) => {
+  const mobileMarker = (state) => {
+    if (["completed", "success", "succeeded", "verified"].includes(state)) return "✓";
+    if (["failed", "error", "blocked", "cancelled", "rejected"].includes(state)) return "!";
+    if (["running", "executing", "queued"].includes(state)) return "◌";
+    return "•";
+  };
+
+  const renderMobileActivityEntry = (event) => {
+    const fragment = activityTemplate.content.cloneNode(true);
+    const article = fragment.querySelector("[data-activity-entry]");
+    const state = mobileState(event);
+    const metadata = event.metadata && typeof event.metadata === "object" ? event.metadata : {};
+    const key = text(
+      event.event_id ||
+        (metadata.mobile_progress_sequence
+          ? `mobile-progress-${event.run_id || mobileActivityRunId}-${metadata.mobile_progress_sequence}`
+          : `${event.sequence}|${event.event_type}|${event.summary}`),
+    );
+    article.dataset.activityKey = key;
+    article.className = `vh-chat-activity-entry is-${state} is-mobile-activity`;
+    article.querySelector("[data-activity-marker]").textContent = mobileMarker(state);
+    article.querySelector("[data-activity-type]").textContent = pretty(
+      event.event_type || event.type || metadata.mobile_progress_stage || "APK activity",
+    );
+    article.querySelector("[data-activity-summary]").textContent = text(
+      event.summary || metadata.mobile_progress_detail || "APK assessment activity.",
+    );
+    const timestamp = event.timestamp || event.created_at || metadata.mobile_progress_at || "";
+    const time = article.querySelector("[data-activity-time]");
+    time.dateTime = text(timestamp);
+    time.textContent = formatTimestamp(timestamp) || text(timestamp);
+    const detail = article.querySelector("[data-activity-detail]");
+    const detailText = text(
+      event.error_message || event.detail || metadata.reason || metadata.mobile_progress_detail || "",
+    );
+    detail.hidden = !detailText;
+    detail.textContent = detailText;
+    const meta = article.querySelector("[data-activity-meta]");
+    [
+      event.tool_id || metadata.mobile_progress_tool ? `Tool ${event.tool_id || metadata.mobile_progress_tool}` : "",
+      metadata.mobile_progress_stage ? `Stage ${pretty(metadata.mobile_progress_stage)}` : "",
+      event.policy_outcome ? pretty(event.policy_outcome) : "",
+      metadata.mobile_progress_sequence ? `Step ${metadata.mobile_progress_sequence}` : "",
+    ]
+      .filter(Boolean)
+      .forEach((value) => {
+        const chip = document.createElement("span");
+        chip.textContent = value;
+        meta.append(chip);
+      });
+    return { key, article };
+  };
+
+  const appendMobileActivity = (event) => {
+    if (!event || typeof event !== "object") return;
+    const metadata = event.metadata && typeof event.metadata === "object" ? event.metadata : {};
+    const key = text(
+      event.event_id ||
+        (metadata.mobile_progress_sequence
+          ? `mobile-progress-${event.run_id || mobileActivityRunId}-${metadata.mobile_progress_sequence}`
+          : `${event.sequence}|${event.event_type}|${event.summary}`),
+    );
+    if (mobileActivityKeys.has(key)) return;
+    mobileActivityKeys.add(key);
+    const rendered = renderMobileActivityEntry(event);
+    mobileActivityEntries.set(key, rendered.article);
+    feed.append(rendered.article);
+  };
+
+  const ensureMobileLiveBlock = (runId, plan = {}) => {
+    let block = workspace.querySelector(`[data-mobile-live-execution='${CSS.escape(runId)}']`);
+    if (block) return block;
+    const fragment = liveExecutionTemplate.content.cloneNode(true);
+    block = fragment.querySelector("[data-mobile-live-execution]");
+    block.dataset.mobileLiveExecution = runId;
+    block.querySelector("[data-mobile-live-title]").textContent = `${pretty(plan.profile || "mobile")} APK execution`;
+    block.querySelector("[data-mobile-live-run]").textContent = text(plan.plan_digest || runId).slice(0, 24);
+    const anchor = feed.querySelector(`[data-mobile-hunt-run='${CSS.escape(runId)}']`);
+    if (anchor) anchor.after(block);
+    else feed.append(block);
+    return block;
+  };
+
+  const upsertMobileLiveStep = (runId, step) => {
+    if (!step || typeof step !== "object") return;
+    const block = ensureMobileLiveBlock(runId, step.plan || {});
+    const stepKey = text(step.step_key || `${step.tool || "worker"}:${step.stage || "execution"}`);
+    let item = mobileLiveStepEntries.get(`${runId}|${stepKey}`);
+    if (!item || !item.isConnected) {
+      item = document.createElement("li");
+      item.dataset.mobileStepKey = stepKey;
+      item.className = "vh-mobile-live-step";
+      const marker = document.createElement("span");
+      marker.className = "vh-mobile-live-step-marker";
+      const copy = document.createElement("div");
+      const label = document.createElement("strong");
+      const detail = document.createElement("small");
+      copy.append(label, detail);
+      item.append(marker, copy);
+      block.querySelector("[data-mobile-live-steps]").append(item);
+      mobileLiveStepEntries.set(`${runId}|${stepKey}`, item);
+    }
+    const state = text(step.state || step.tool_state || "running").toLowerCase();
+    item.className = `vh-mobile-live-step is-${state}`;
+    item.querySelector(".vh-mobile-live-step-marker").textContent = mobileMarker(state);
+    item.querySelector("strong").textContent = text(step.label || step.tool || step.stage || "APK worker step");
+    item.querySelector("small").textContent = text(step.detail || "Collecting bounded evidence…");
+    block.querySelector("[data-mobile-live-current]").textContent = text(
+      step.current || step.detail || "Waiting for the next persisted worker event…",
+    );
+    block.classList.toggle("is-running", ["queued", "running", "executing"].includes(state));
+    block.classList.toggle("is-complete", ["completed", "success", "succeeded"].includes(state));
+    block.classList.toggle("is-failed", ["failed", "blocked", "rejected", "cancelled"].includes(state));
+  };
+
+  const syncMobileProgress = (runId, execution, plan = {}) => {
+    if (!execution || typeof execution !== "object") return;
+    const progress = execution.progress && typeof execution.progress === "object" ? execution.progress : {};
+    const events = Array.isArray(progress.events) ? progress.events : [];
+    ensureMobileLiveBlock(runId, plan);
+    if (events.length) {
+      const placeholderKey = `${runId}|worker:execution`;
+      const placeholder = mobileLiveStepEntries.get(placeholderKey);
+      placeholder?.remove();
+      mobileLiveStepEntries.delete(placeholderKey);
+    }
+    events.forEach((progressEvent) => {
+      if (!progressEvent || typeof progressEvent !== "object") return;
+      const sequence = text(progressEvent.sequence || "");
+      const tool = text(progressEvent.tool || progress.active_tool || "worker");
+      const stage = text(progressEvent.stage || "worker");
+      const detail = text(progressEvent.detail || "Worker progress updated.");
+      const synthetic = {
+        run_id: runId,
+        event_id: `mobile-progress-${runId}-${sequence}`,
+        event_type: progressEvent.tool ? "tool_progress" : "mobile_progress",
+        summary: detail,
+        timestamp: progressEvent.at,
+        execution_state: progressEvent.tool_state || progressEvent.state || execution.state,
+        tool_id: progressEvent.tool,
+        metadata: {
+          mobile_progress_sequence: sequence,
+          mobile_progress_stage: stage,
+          mobile_progress_tool: progressEvent.tool,
+          mobile_progress_tool_state: progressEvent.tool_state,
+          mobile_progress_detail: detail,
+        },
+      };
+      appendMobileActivity(synthetic);
+      upsertMobileLiveStep(runId, {
+        step_key: `${tool}:${stage}`,
+        tool,
+        stage,
+        state: progressEvent.tool_state || progressEvent.state || execution.state,
+        detail,
+        current: progress.active_tool ? `Running ${progress.active_tool} · ${detail}` : detail,
+        plan,
+      });
+    });
+    if (!events.length) {
+      upsertMobileLiveStep(runId, {
+        step_key: "worker:execution",
+        label: execution.state === "queued" ? "Queued for static inspection" : "Preparing APK execution",
+        state: execution.state || "queued",
+        detail: execution.reason || "Waiting for the signed worker progress snapshot…",
+        current: execution.reason || "Waiting for the signed worker progress snapshot…",
+        plan,
+      });
+    }
+  };
+
+  const openMobileActivityStream = (runId, plan = {}) => {
     if (!mobileActivityTemplate || !runId || !("EventSource" in window)) return;
     if (mobileActivityRunId !== runId) {
       mobileActivityRunId = runId;
       mobileActivitySequence = 0;
       mobileActivityKeys.clear();
+      mobileActivityEntries.clear();
+      mobileLiveStepEntries.clear();
     }
+    ensureMobileLiveBlock(runId, plan);
+    syncMobileProgress(runId, plan.execution || {}, plan);
     closeMobileActivityStream();
     const url = new URL(
       mobileActivityTemplate.replace("RUN_ID", encodeURIComponent(runId)),
@@ -137,6 +323,7 @@
       try {
         const payload = JSON.parse(message.data);
         (Array.isArray(payload.events) ? payload.events : []).forEach(appendMobileActivity);
+        syncMobileProgress(runId, payload.mobile_execution || {}, payload.mobile_plan || plan);
         mobileActivitySequence = Math.max(
           mobileActivitySequence,
           Number(payload.last_sequence || 0),
@@ -145,21 +332,21 @@
         mobileActivitySource = null;
         if (!payload.terminal) {
           mobileActivityReconnect = window.setTimeout(
-            () => openMobileActivityStream(runId),
+            () => openMobileActivityStream(runId, plan),
             payload.events?.length ? 120 : 1500,
           );
         }
       } catch (_error) {
         source.close();
         mobileActivitySource = null;
-        mobileActivityReconnect = window.setTimeout(() => openMobileActivityStream(runId), 1500);
+        mobileActivityReconnect = window.setTimeout(() => openMobileActivityStream(runId, plan), 1500);
       }
     });
     source.onerror = () => {
       if (mobileActivitySource !== source) return;
       source.close();
       mobileActivitySource = null;
-      mobileActivityReconnect = window.setTimeout(() => openMobileActivityStream(runId), 1500);
+      mobileActivityReconnect = window.setTimeout(() => openMobileActivityStream(runId, plan), 1500);
     };
   };
 
@@ -261,7 +448,7 @@
     scrollLatest();
 
     const execution = plan?.execution;
-    if (plan?.run_id) openMobileActivityStream(plan.run_id);
+    if (plan?.run_id) openMobileActivityStream(plan.run_id, plan);
     if (planCard && execution?.state === "queued" && execution.status_url) {
       window.setTimeout(() => watchMobileExecution(execution.status_url, planCard), 250);
     }
@@ -309,6 +496,7 @@
     const card = document.createElement("section");
     card.className = "vh-mobile-hunt-card";
     card.dataset.mobileHuntCard = "";
+    if (plan.run_id) card.dataset.mobileHuntRun = text(plan.run_id);
     const header = document.createElement("header");
     const heading = document.createElement("div");
     const eyebrow = document.createElement("small");
@@ -455,6 +643,8 @@
         const execution = payload.mobile_execution || { state: "unknown" };
         temporaryFailures = 0;
         applyExecutionState(card, execution);
+        const runId = text(card.dataset.mobileHuntRun || mobileActivityRunId);
+        syncMobileProgress(runId, execution, { run_id: runId });
         if (terminal.has(execution.state)) return;
       } catch (error) {
         temporaryFailures += 1;
@@ -497,7 +687,7 @@
         },
         { attachment, plan },
       );
-      if (plan?.run_id) openMobileActivityStream(plan.run_id);
+      if (plan?.run_id) openMobileActivityStream(plan.run_id, plan);
       activeAttachment = null;
       fileInput.value = "";
       tray.replaceChildren();
@@ -624,7 +814,7 @@
         };
         const plan = data.mobile_plan || message.metadata?.mobile_plan;
         appendMessage(message, { attachment, plan });
-        if (plan?.run_id) openMobileActivityStream(plan.run_id);
+        if (plan?.run_id) openMobileActivityStream(plan.run_id, plan);
         activeAttachment = null;
         fileInput.value = "";
         tray.replaceChildren();

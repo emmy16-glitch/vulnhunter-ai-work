@@ -397,3 +397,76 @@ def test_mobile_activity_stream_returns_persisted_apk_events(client, monkeypatch
     assert "event: activity" in body
     assert "policy_denied" in body
     assert "Static worker is disabled." in body
+
+
+@pytest.mark.django_db
+def test_mobile_activity_stream_includes_latest_signed_progress(client, monkeypatch):
+    user = get_user_model().objects.create_user(
+        username="mobile-progress-user",
+        password="long-test-password-1234",
+    )
+    client.force_login(user)
+    actor = SimpleNamespace(
+        governance_identity=SimpleNamespace(reviewer_id="mobile-progress-user"),
+        product_roles=("campaign-operator",),
+    )
+    plan = {
+        "run_id": "mobile-progress-01",
+        "execution": {
+            "state": "queued",
+            "job_id": "mobile-progress-01",
+            "reason": "Waiting for the static worker.",
+        },
+        "profile": "static",
+    }
+    latest = {
+        "state": "running",
+        "job_id": "mobile-progress-01",
+        "progress": {
+            "active_tool": "jadx",
+            "events": [
+                {
+                    "sequence": 4,
+                    "at": "2026-08-19T12:00:04+00:00",
+                    "state": "running",
+                    "stage": "decompile",
+                    "detail": "JADX is collecting bounded source evidence.",
+                    "tool": "jadx",
+                    "tool_state": "running",
+                }
+            ],
+        },
+    }
+    monkeypatch.setattr(
+        "vulnhunter.web.conversation_mobile_views._actor",
+        lambda *_args, **_kwargs: actor,
+    )
+    monkeypatch.setattr(
+        "vulnhunter.web.conversation_mobile_views.current_mobile_plan",
+        lambda *_args, **_kwargs: plan,
+    )
+    monkeypatch.setattr(
+        "vulnhunter.web.conversation_mobile_views.mobile_static_status",
+        lambda *_args, **_kwargs: latest,
+    )
+    monkeypatch.setattr(
+        "vulnhunter.web.conversation_mobile_views._record_mobile_activity",
+        lambda **_kwargs: None,
+    )
+    monkeypatch.setattr(
+        "vulnhunter.web.conversation_mobile_views.activity_payload",
+        lambda *_args, **_kwargs: {
+            "events": [],
+            "last_sequence": 0,
+            "terminal": False,
+            "run_state": "executing",
+        },
+    )
+
+    response = client.get("/workspace/mobile-activity/mobile-progress-01/stream/?after_sequence=0")
+    body = b"".join(response.streaming_content).decode()
+
+    assert response.status_code == 200
+    assert '"sequence":4' in body
+    assert '"active_tool":"jadx"' in body
+    assert "JADX is collecting bounded source evidence." in body

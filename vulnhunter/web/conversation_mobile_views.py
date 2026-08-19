@@ -68,15 +68,30 @@ def _record_mobile_activity(
         return
     state = str(execution.get("state") or "prepared")
     reason = str(execution.get("reason") or "")
-    signature = "|".join((state, reason, str(execution.get("job_id") or "")))
+    progress = execution.get("progress")
+    progress_map = progress if isinstance(progress, dict) else {}
+    progress_events = progress_map.get("events")
+    progress_list = progress_events if isinstance(progress_events, list) else []
+    latest_progress = progress_list[-1] if progress_list else {}
+    latest_progress_sequence = (
+        str(latest_progress.get("sequence") or "") if isinstance(latest_progress, dict) else ""
+    )
+    signature = "|".join(
+        (
+            state,
+            reason,
+            str(execution.get("job_id") or ""),
+            str(progress_map.get("active_tool") or ""),
+            latest_progress_sequence,
+            str(latest_progress.get("detail") or "") if isinstance(latest_progress, dict) else "",
+        )
+    )
     activity = activity_service()
     try:
         events = activity.feed(run_id, after_sequence=0).events
         latest = events[-1] if events else None
         latest_signature = (
-            str(latest.metadata.get("mobile_execution_signature"))
-            if latest is not None
-            else ""
+            str(latest.metadata.get("mobile_execution_signature")) if latest is not None else ""
         )
         if latest_signature == signature:
             return
@@ -146,6 +161,19 @@ def _record_mobile_activity(
                 "dynamic_deferred": plan.get("dynamic_deferred", False),
                 "reason": reason,
                 "job_id": execution.get("job_id"),
+                "mobile_progress_sequence": latest_progress_sequence or None,
+                "mobile_progress_stage": (
+                    latest_progress.get("stage") if isinstance(latest_progress, dict) else None
+                ),
+                "mobile_progress_tool": (
+                    latest_progress.get("tool") if isinstance(latest_progress, dict) else None
+                ),
+                "mobile_progress_tool_state": (
+                    latest_progress.get("tool_state") if isinstance(latest_progress, dict) else None
+                ),
+                "mobile_progress_detail": (
+                    latest_progress.get("detail") if isinstance(latest_progress, dict) else None
+                ),
             },
         )
     except (OSError, RuntimeError, TypeError, ValueError):
@@ -602,6 +630,15 @@ def mobile_activity_stream_view(
     execution = plan.get("execution")
     if not isinstance(execution, dict):
         execution = {"state": "prepared"}
+    job_id = str(execution.get("job_id") or "")
+    if job_id:
+        latest = mobile_static_status(
+            request,
+            job_id=job_id,
+            requested_by=requested_by,
+        )
+        if isinstance(latest, dict):
+            execution = {**execution, **latest}
     _record_mobile_activity(plan=plan, execution=execution, requested_by=requested_by)
     try:
         after_sequence = int(request.GET.get("after_sequence", "0"))

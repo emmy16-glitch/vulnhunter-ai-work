@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from django.urls import path
+from django.urls import include, path
 from django.views.generic import RedirectView
 
 from vulnhunter.web import (
@@ -36,6 +36,7 @@ from vulnhunter.web import (
 )
 
 urlpatterns = [
+    path("api/v1/", include("vulnhunter.api.urls")),
     path(
         "favicon.ico",
         RedirectView.as_view(url="/static/web/favicon.svg", permanent=False),

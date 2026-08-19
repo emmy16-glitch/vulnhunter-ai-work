@@ -39,3 +39,9 @@ The following static tools were installed and verified without executing the APK
 The installed-tool acceptance job was `mobile-v380-installed-tools-20260819b`. It produced 7 captures and 32 observations: JADX remained partial with 41,748 generated files and timeout return code 124; AAPT2, apksigner, APKiD, Apktool, Androguard and YARA completed; Radare2 and Ghidra were correctly planned but not run due to zero native libraries. Manifest analysis added a verified cleartext-traffic configuration and 17 exported components without component permissions. These are persisted configuration observations, not exploit demonstrations.
 
 Official references used for installation review: [Android AAPT2 documentation](https://developer.android.com/tools/aapt2), [Android apksigner documentation](https://developer.android.com/tools/apksigner), [APKiD v3.1.0 releases](https://github.com/rednaga/APKiD/releases), [Apktool install guide](https://apktool.org/docs/install/), and the repository’s pinned Ghidra installer in `scripts/install_mobile_release_tools.py`.
+
+## Final durable-policy acceptance rerun
+
+A final real V380.apk acceptance run used an externalized worker-policy copy whose `workspace_root` was outside the repository while retaining the committed durable executable paths. Run ID: `mobile-v380-durable-installed-20260819-final`. Receipt: `docs/acceptance/V380_durable_installed_tools_acceptance_receipt.json`.
+
+The receipt state is `completed`, with 7 captures and 32 candidate observations. AAPT2, apksigner, APKiD, Apktool, Androguard, and YARA completed with return code 0. JADX remained explicitly `PARTIAL` with return code 124 and 41,622 generated files in this rerun. Radare2 and Ghidra were `NOT RUN` because the APK contained zero native libraries. Dynamic execution was not unlocked: the worker remained fail-closed because no approved isolated runtime, device identity, private MobSF policy, and exact digest-bound approval were present.

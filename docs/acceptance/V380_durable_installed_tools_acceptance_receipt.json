@@ -1,0 +1,615 @@
+{
+  "job_id": "mobile-v380-durable-installed-20260819-final",
+  "run_id": "mobile-v380-durable-installed-20260819-final",
+  "artifact_id": "apk-70a48a532156cd275bbf4efd",
+  "state": "completed",
+  "result_sha256": "61868e167de0cf6fe9ba3be39cf6693d386fd4233ff8cb651685add2600cd7e9",
+  "completed_at": "2026-08-19T16:57:24.757827Z",
+  "reason": "Read-only static and native APK inspection completed.",
+  "captures": [
+    {
+      "tool": "aapt2",
+      "return_code": 0,
+      "output_sha256": "18208272848a8d9a36e4fb912ee5262ef5b96d8d35897d168f259d656a18643d",
+      "truncated": false
+    },
+    {
+      "tool": "apksigner",
+      "return_code": 0,
+      "output_sha256": "9581dce5147d0fcbce6e2291c0a4941053e668a237caac2a671af931f0e3a7f6",
+      "truncated": false
+    },
+    {
+      "tool": "apkid",
+      "return_code": 0,
+      "output_sha256": "0981311006dcd4f98c9c3a6df5d0996bebcb11579c98be8fd9d3cc7aea4e8a99",
+      "truncated": false
+    },
+    {
+      "tool": "apktool",
+      "return_code": 0,
+      "output_sha256": "1ff98b435ff9f52e91964989bb68c05e8e47a69e2043754a1aa0067a0f36b4a8",
+      "truncated": false
+    },
+    {
+      "tool": "jadx",
+      "return_code": 124,
+      "output_sha256": "63bd81fbcd7eb75e12669fac4ed95aa0ecf6f37b2427ade52dee136280fd922e",
+      "truncated": false
+    },
+    {
+      "tool": "androguard",
+      "return_code": 0,
+      "output_sha256": "4b9baec49af920cb4efab95aaddc9752904b9a15da031e3a6ed39322e3b72489",
+      "truncated": false
+    },
+    {
+      "tool": "yara",
+      "return_code": 0,
+      "output_sha256": "a0c023e0e41ee5e1c86c1b63cb855c7c1f2765a728fe122dfc161dd64d606317",
+      "truncated": false
+    }
+  ],
+  "candidate_observations": [
+    {
+      "observation_id": "mobile-tool-jadx-63bd81fbcd7eb75e",
+      "title": "jadx could not complete static inspection",
+      "status": "operational_failure",
+      "return_code": 124,
+      "evidence": {
+        "tool": "jadx",
+        "output_sha256": "63bd81fbcd7eb75e12669fac4ed95aa0ecf6f37b2427ade52dee136280fd922e"
+      }
+    },
+    {
+      "observation_id": "finding-278cb3382501895bbd1c2657",
+      "weakness_id": "android-cleartext-traffic",
+      "title": "Application explicitly permits cleartext network traffic",
+      "severity": "high",
+      "status": "verified_configuration",
+      "component": "application",
+      "evidence": {
+        "source_sha256": "b0f1dddaeeffdeab47689245c1bcbdf4e4a6a1c71f32d14d9cfeca32741bcc1c"
+      },
+      "tool_ids": [
+        "apktool-manifest"
+      ]
+    },
+    {
+      "observation_id": "finding-86fbe0e8cbc24beffe495678",
+      "weakness_id": "android-exported-component",
+      "title": "Exported activity has no component permission",
+      "severity": "medium",
+      "status": "verified_configuration",
+      "component": "com.macrovideo.v380pro.activities.LaunchActivityWithAd",
+      "evidence": {
+        "component_type": "activity",
+        "source_sha256": "b0f1dddaeeffdeab47689245c1bcbdf4e4a6a1c71f32d14d9cfeca32741bcc1c"
+      },
+      "tool_ids": [
+        "apktool-manifest"
+      ]
+    },
+    {
+      "observation_id": "finding-c132593149958fa92f943546",
+      "weakness_id": "android-exported-component",
+      "title": "Exported activity has no component permission",
+      "severity": "medium",
+      "status": "verified_configuration",
+      "component": "com.macrovideo.v380pro.activities.NotificationWebViewActivity",
+      "evidence": {
+        "component_type": "activity",
+        "source_sha256": "b0f1dddaeeffdeab47689245c1bcbdf4e4a6a1c71f32d14d9cfeca32741bcc1c"
+      },
+      "tool_ids": [
+        "apktool-manifest"
+      ]
+    },
+    {
+      "observation_id": "finding-700eb367d9f8343bf33e9d00",
+      "weakness_id": "android-exported-component",
+      "title": "Exported activity has no component permission",
+      "severity": "medium",
+      "status": "verified_configuration",
+      "component": "com.macrovideo.v380pro.activities.HomePageActivity",
+      "evidence": {
+        "component_type": "activity",
+        "source_sha256": "b0f1dddaeeffdeab47689245c1bcbdf4e4a6a1c71f32d14d9cfeca32741bcc1c"
+      },
+      "tool_ids": [
+        "apktool-manifest"
+      ]
+    },
+    {
+      "observation_id": "finding-4ef6deae233feda1f1a945e9",
+      "weakness_id": "android-exported-component",
+      "title": "Exported activity has no component permission",
+      "severity": "medium",
+      "status": "verified_configuration",
+      "component": "com.macrovideo.v380pro.activities.LoginActivity",
+      "evidence": {
+        "component_type": "activity",
+        "source_sha256": "b0f1dddaeeffdeab47689245c1bcbdf4e4a6a1c71f32d14d9cfeca32741bcc1c"
+      },
+      "tool_ids": [
+        "apktool-manifest"
+      ]
+    },
+    {
+      "observation_id": "finding-49d4d0fcc37f88c9bd1e2d0b",
+      "weakness_id": "android-exported-component",
+      "title": "Exported activity has no component permission",
+      "severity": "medium",
+      "status": "verified_configuration",
+      "component": "com.macrovideo.v380pro.activities.DeviceAlarmMessageActivity",
+      "evidence": {
+        "component_type": "activity",
+        "source_sha256": "b0f1dddaeeffdeab47689245c1bcbdf4e4a6a1c71f32d14d9cfeca32741bcc1c"
+      },
+      "tool_ids": [
+        "apktool-manifest"
+      ]
+    },
+    {
+      "observation_id": "finding-414e290ef4451720f9be9c54",
+      "weakness_id": "android-exported-component",
+      "title": "Exported activity has no component permission",
+      "severity": "medium",
+      "status": "verified_configuration",
+      "component": "com.macrovideo.v380pro.wxapi.WXPayEntryActivity",
+      "evidence": {
+        "component_type": "activity",
+        "source_sha256": "b0f1dddaeeffdeab47689245c1bcbdf4e4a6a1c71f32d14d9cfeca32741bcc1c"
+      },
+      "tool_ids": [
+        "apktool-manifest"
+      ]
+    },
+    {
+      "observation_id": "finding-9f71d0112202554137c4b85c",
+      "weakness_id": "android-exported-component",
+      "title": "Exported activity has no component permission",
+      "severity": "medium",
+      "status": "verified_configuration",
+      "component": "com.macrovideo.v380pro.wxapi.WXEntryActivity",
+      "evidence": {
+        "component_type": "activity",
+        "source_sha256": "b0f1dddaeeffdeab47689245c1bcbdf4e4a6a1c71f32d14d9cfeca32741bcc1c"
+      },
+      "tool_ids": [
+        "apktool-manifest"
+      ]
+    },
+    {
+      "observation_id": "finding-2b5eeb6141f9786a0859e76a",
+      "weakness_id": "android-exported-component",
+      "title": "Exported activity has no component permission",
+      "severity": "medium",
+      "status": "verified_configuration",
+      "component": "com.macrovideo.v380pro.activities.H5PayActivity",
+      "evidence": {
+        "component_type": "activity",
+        "source_sha256": "b0f1dddaeeffdeab47689245c1bcbdf4e4a6a1c71f32d14d9cfeca32741bcc1c"
+      },
+      "tool_ids": [
+        "apktool-manifest"
+      ]
+    },
+    {
+      "observation_id": "finding-4190bca8190ef272aa4fd9a0",
+      "weakness_id": "android-exported-component",
+      "title": "Exported activity has no component permission",
+      "severity": "medium",
+      "status": "verified_configuration",
+      "component": "com.facebook.CustomTabActivity",
+      "evidence": {
+        "component_type": "activity",
+        "source_sha256": "b0f1dddaeeffdeab47689245c1bcbdf4e4a6a1c71f32d14d9cfeca32741bcc1c"
+      },
+      "tool_ids": [
+        "apktool-manifest"
+      ]
+    },
+    {
+      "observation_id": "finding-43e48710ca777dbd3da2043a",
+      "weakness_id": "android-exported-component",
+      "title": "Exported activity has no component permission",
+      "severity": "medium",
+      "status": "verified_configuration",
+      "component": "com.linecorp.linesdk.auth.internal.LineAuthenticationCallbackActivity",
+      "evidence": {
+        "component_type": "activity",
+        "source_sha256": "b0f1dddaeeffdeab47689245c1bcbdf4e4a6a1c71f32d14d9cfeca32741bcc1c"
+      },
+      "tool_ids": [
+        "apktool-manifest"
+      ]
+    },
+    {
+      "observation_id": "finding-c21d8d0d0e246aa079892108",
+      "weakness_id": "android-exported-component",
+      "title": "Exported activity has no component permission",
+      "severity": "medium",
+      "status": "verified_configuration",
+      "component": "com.vk.id.internal.auth.RedirectUriReceiverActivity",
+      "evidence": {
+        "component_type": "activity",
+        "source_sha256": "b0f1dddaeeffdeab47689245c1bcbdf4e4a6a1c71f32d14d9cfeca32741bcc1c"
+      },
+      "tool_ids": [
+        "apktool-manifest"
+      ]
+    },
+    {
+      "observation_id": "finding-cbbbeef1b9e30d7bb1c8a914",
+      "weakness_id": "android-exported-component",
+      "title": "Exported activity has no component permission",
+      "severity": "medium",
+      "status": "verified_configuration",
+      "component": "cn.jpush.android.service.JNotifyActivity",
+      "evidence": {
+        "component_type": "activity",
+        "source_sha256": "b0f1dddaeeffdeab47689245c1bcbdf4e4a6a1c71f32d14d9cfeca32741bcc1c"
+      },
+      "tool_ids": [
+        "apktool-manifest"
+      ]
+    },
+    {
+      "observation_id": "finding-82622934e4791a881d837d51",
+      "weakness_id": "android-exported-component",
+      "title": "Exported activity has no component permission",
+      "severity": "medium",
+      "status": "verified_configuration",
+      "component": "cn.android.service.JTransitActivity",
+      "evidence": {
+        "component_type": "activity",
+        "source_sha256": "b0f1dddaeeffdeab47689245c1bcbdf4e4a6a1c71f32d14d9cfeca32741bcc1c"
+      },
+      "tool_ids": [
+        "apktool-manifest"
+      ]
+    },
+    {
+      "observation_id": "finding-d59d975863171fad540cf271",
+      "weakness_id": "android-exported-component",
+      "title": "Exported service has no component permission",
+      "severity": "medium",
+      "status": "verified_configuration",
+      "component": "com.huawei.hms.support.api.push.service.HmsMsgService",
+      "evidence": {
+        "component_type": "service",
+        "source_sha256": "b0f1dddaeeffdeab47689245c1bcbdf4e4a6a1c71f32d14d9cfeca32741bcc1c"
+      },
+      "tool_ids": [
+        "apktool-manifest"
+      ]
+    },
+    {
+      "observation_id": "finding-726b80608d81c499c5bf60c5",
+      "weakness_id": "android-exported-component",
+      "title": "Exported receiver has no component permission",
+      "severity": "medium",
+      "status": "verified_configuration",
+      "component": "com.mbridge.msdk.foundation.same.broadcast.NetWorkChangeReceiver",
+      "evidence": {
+        "component_type": "receiver",
+        "source_sha256": "b0f1dddaeeffdeab47689245c1bcbdf4e4a6a1c71f32d14d9cfeca32741bcc1c"
+      },
+      "tool_ids": [
+        "apktool-manifest"
+      ]
+    },
+    {
+      "observation_id": "finding-f59c346f909ff9cee946845b",
+      "weakness_id": "android-exported-component",
+      "title": "Exported provider has no component permission",
+      "severity": "medium",
+      "status": "verified_configuration",
+      "component": "io.appmetrica.analytics.internal.PreloadInfoContentProvider",
+      "evidence": {
+        "component_type": "provider",
+        "source_sha256": "b0f1dddaeeffdeab47689245c1bcbdf4e4a6a1c71f32d14d9cfeca32741bcc1c"
+      },
+      "tool_ids": [
+        "apktool-manifest"
+      ]
+    },
+    {
+      "observation_id": "finding-2375ea595eb21b1ee9dfb280",
+      "weakness_id": "android-exported-component",
+      "title": "Exported provider has no component permission",
+      "severity": "medium",
+      "status": "verified_configuration",
+      "component": "com.huawei.hms.support.api.push.PushProvider",
+      "evidence": {
+        "component_type": "provider",
+        "source_sha256": "b0f1dddaeeffdeab47689245c1bcbdf4e4a6a1c71f32d14d9cfeca32741bcc1c"
+      },
+      "tool_ids": [
+        "apktool-manifest"
+      ]
+    },
+    {
+      "observation_id": "finding-5e20fbaedf5aaf667e48c530",
+      "weakness_id": "android-dangerous-permissions",
+      "title": "Application requests high-impact Android permissions",
+      "severity": "info",
+      "status": "evidence_required",
+      "component": "manifest",
+      "evidence": {
+        "permissions": [
+          "android.permission.ACCESS_FINE_LOCATION",
+          "android.permission.CAMERA",
+          "android.permission.RECORD_AUDIO"
+        ],
+        "source_sha256": "b0f1dddaeeffdeab47689245c1bcbdf4e4a6a1c71f32d14d9cfeca32741bcc1c"
+      },
+      "tool_ids": [
+        "apktool-manifest"
+      ]
+    },
+    {
+      "observation_id": "androguard-permissions-70a48a532156cd27",
+      "weakness_id": "mobile-dangerous-permissions",
+      "title": "Application requests sensitive Android permissions",
+      "severity": "info",
+      "status": "evidence_required",
+      "component": "AndroidManifest.xml",
+      "evidence": {
+        "permissions": [
+          "android.permission.ACCESS_COARSE_LOCATION",
+          "android.permission.ACCESS_FINE_LOCATION",
+          "android.permission.BLUETOOTH_ADVERTISE",
+          "android.permission.BLUETOOTH_CONNECT",
+          "android.permission.BLUETOOTH_SCAN",
+          "android.permission.CAMERA",
+          "android.permission.POST_NOTIFICATIONS",
+          "android.permission.READ_CALENDAR",
+          "android.permission.READ_EXTERNAL_STORAGE",
+          "android.permission.READ_MEDIA_AUDIO",
+          "android.permission.READ_MEDIA_IMAGES",
+          "android.permission.READ_MEDIA_VIDEO",
+          "android.permission.RECORD_AUDIO",
+          "android.permission.WRITE_CALENDAR",
+          "android.permission.WRITE_EXTERNAL_STORAGE"
+        ],
+        "package_name": "com.macrovideo.v380pro"
+      },
+      "tool_ids": [
+        "androguard"
+      ]
+    },
+    {
+      "observation_id": "yara-7b6b93ab7d953bc97a08",
+      "weakness_id": "cwe-749",
+      "title": "WebView JavaScript bridge attack surface is present",
+      "severity": "medium",
+      "status": "evidence_required",
+      "component": "extracted/dex/0b46093464b0713c/classes3.dex",
+      "evidence": {
+        "rule": "android_webview_javascript_bridge_surface",
+        "namespace": "default",
+        "tags": [
+          "review_required",
+          "webview"
+        ],
+        "strings": [],
+        "ruleset_sha256": "0c5a74ffe624f9c7bef86745a6ce598517fa6a85f8533c609f60f1c8cf90bbde"
+      },
+      "tool_ids": [
+        "yara"
+      ]
+    },
+    {
+      "observation_id": "yara-200face92856142fa05e",
+      "weakness_id": "cwe-749",
+      "title": "WebView JavaScript bridge attack surface is present",
+      "severity": "medium",
+      "status": "evidence_required",
+      "component": "extracted/dex/1f13ccceb486d7e3/classes8.dex",
+      "evidence": {
+        "rule": "android_webview_javascript_bridge_surface",
+        "namespace": "default",
+        "tags": [
+          "review_required",
+          "webview"
+        ],
+        "strings": [],
+        "ruleset_sha256": "0c5a74ffe624f9c7bef86745a6ce598517fa6a85f8533c609f60f1c8cf90bbde"
+      },
+      "tool_ids": [
+        "yara"
+      ]
+    },
+    {
+      "observation_id": "yara-ee44c3d099f11a936508",
+      "weakness_id": "cwe-494",
+      "title": "Remote dynamic-code loading surface is present",
+      "severity": "medium",
+      "status": "evidence_required",
+      "component": "extracted/dex/1f13ccceb486d7e3/classes8.dex",
+      "evidence": {
+        "rule": "android_remote_dynamic_code_loading_surface",
+        "namespace": "default",
+        "tags": [
+          "dynamic_loading",
+          "review_required"
+        ],
+        "strings": [],
+        "ruleset_sha256": "0c5a74ffe624f9c7bef86745a6ce598517fa6a85f8533c609f60f1c8cf90bbde"
+      },
+      "tool_ids": [
+        "yara"
+      ]
+    },
+    {
+      "observation_id": "yara-455aa7a0471f2d290ffe",
+      "weakness_id": "cwe-749",
+      "title": "WebView JavaScript bridge attack surface is present",
+      "severity": "medium",
+      "status": "evidence_required",
+      "component": "extracted/dex/4c623919768e8175/classes6.dex",
+      "evidence": {
+        "rule": "android_webview_javascript_bridge_surface",
+        "namespace": "default",
+        "tags": [
+          "review_required",
+          "webview"
+        ],
+        "strings": [],
+        "ruleset_sha256": "0c5a74ffe624f9c7bef86745a6ce598517fa6a85f8533c609f60f1c8cf90bbde"
+      },
+      "tool_ids": [
+        "yara"
+      ]
+    },
+    {
+      "observation_id": "yara-e31a9c4cff59838ccd51",
+      "weakness_id": "cwe-494",
+      "title": "Remote dynamic-code loading surface is present",
+      "severity": "medium",
+      "status": "evidence_required",
+      "component": "extracted/dex/4c623919768e8175/classes6.dex",
+      "evidence": {
+        "rule": "android_remote_dynamic_code_loading_surface",
+        "namespace": "default",
+        "tags": [
+          "dynamic_loading",
+          "review_required"
+        ],
+        "strings": [],
+        "ruleset_sha256": "0c5a74ffe624f9c7bef86745a6ce598517fa6a85f8533c609f60f1c8cf90bbde"
+      },
+      "tool_ids": [
+        "yara"
+      ]
+    },
+    {
+      "observation_id": "yara-23e94776765ca485de78",
+      "weakness_id": "cwe-749",
+      "title": "WebView JavaScript bridge attack surface is present",
+      "severity": "medium",
+      "status": "evidence_required",
+      "component": "extracted/dex/8fe142b0c205c3a7/classes4.dex",
+      "evidence": {
+        "rule": "android_webview_javascript_bridge_surface",
+        "namespace": "default",
+        "tags": [
+          "review_required",
+          "webview"
+        ],
+        "strings": [],
+        "ruleset_sha256": "0c5a74ffe624f9c7bef86745a6ce598517fa6a85f8533c609f60f1c8cf90bbde"
+      },
+      "tool_ids": [
+        "yara"
+      ]
+    },
+    {
+      "observation_id": "yara-6830bbfb28c1ee285d44",
+      "weakness_id": "cwe-749",
+      "title": "WebView JavaScript bridge attack surface is present",
+      "severity": "medium",
+      "status": "evidence_required",
+      "component": "extracted/dex/c17cafad83ec1b85/classes11.dex",
+      "evidence": {
+        "rule": "android_webview_javascript_bridge_surface",
+        "namespace": "default",
+        "tags": [
+          "review_required",
+          "webview"
+        ],
+        "strings": [],
+        "ruleset_sha256": "0c5a74ffe624f9c7bef86745a6ce598517fa6a85f8533c609f60f1c8cf90bbde"
+      },
+      "tool_ids": [
+        "yara"
+      ]
+    },
+    {
+      "observation_id": "yara-b67e8584eec7e7f6159a",
+      "weakness_id": "cwe-749",
+      "title": "WebView JavaScript bridge attack surface is present",
+      "severity": "medium",
+      "status": "evidence_required",
+      "component": "extracted/dex/d29a8b6e09c84536/classes5.dex",
+      "evidence": {
+        "rule": "android_webview_javascript_bridge_surface",
+        "namespace": "default",
+        "tags": [
+          "review_required",
+          "webview"
+        ],
+        "strings": [],
+        "ruleset_sha256": "0c5a74ffe624f9c7bef86745a6ce598517fa6a85f8533c609f60f1c8cf90bbde"
+      },
+      "tool_ids": [
+        "yara"
+      ]
+    },
+    {
+      "observation_id": "yara-23c4e5ef16e46f02d3cd",
+      "weakness_id": "cwe-494",
+      "title": "Remote dynamic-code loading surface is present",
+      "severity": "medium",
+      "status": "evidence_required",
+      "component": "extracted/dex/d29a8b6e09c84536/classes5.dex",
+      "evidence": {
+        "rule": "android_remote_dynamic_code_loading_surface",
+        "namespace": "default",
+        "tags": [
+          "dynamic_loading",
+          "review_required"
+        ],
+        "strings": [],
+        "ruleset_sha256": "0c5a74ffe624f9c7bef86745a6ce598517fa6a85f8533c609f60f1c8cf90bbde"
+      },
+      "tool_ids": [
+        "yara"
+      ]
+    },
+    {
+      "observation_id": "yara-1b7ef9a9fb436fa4cb2a",
+      "weakness_id": "cwe-494",
+      "title": "Remote dynamic-code loading surface is present",
+      "severity": "medium",
+      "status": "evidence_required",
+      "component": "extracted/dex/d3ef2465519fa011/classes7.dex",
+      "evidence": {
+        "rule": "android_remote_dynamic_code_loading_surface",
+        "namespace": "default",
+        "tags": [
+          "dynamic_loading",
+          "review_required"
+        ],
+        "strings": [],
+        "ruleset_sha256": "0c5a74ffe624f9c7bef86745a6ce598517fa6a85f8533c609f60f1c8cf90bbde"
+      },
+      "tool_ids": [
+        "yara"
+      ]
+    },
+    {
+      "observation_id": "yara-b1fa4bf2c5f766f499a0",
+      "weakness_id": "cwe-749",
+      "title": "WebView JavaScript bridge attack surface is present",
+      "severity": "medium",
+      "status": "evidence_required",
+      "component": "extracted/dex/f5c9c7ab77e71c10/classes9.dex",
+      "evidence": {
+        "rule": "android_webview_javascript_bridge_surface",
+        "namespace": "default",
+        "tags": [
+          "review_required",
+          "webview"
+        ],
+        "strings": [],
+        "ruleset_sha256": "0c5a74ffe624f9c7bef86745a6ce598517fa6a85f8533c609f60f1c8cf90bbde"
+      },
+      "tool_ids": [
+        "yara"
+      ]
+    }
+  ]
+}

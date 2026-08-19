@@ -1,5 +1,149 @@
 export type JsonObject = Record<string, unknown>;
 
+export type BrowserRuntimeName = "obscura" | "playwright";
+export type BrowserSessionState =
+  | "queued"
+  | "starting"
+  | "ready"
+  | "navigating"
+  | "active"
+  | "waiting"
+  | "completed"
+  | "cancelled"
+  | "failed"
+  | "expired";
+export type BrowserActionStatus = "queued" | "running" | "completed" | "blocked" | "failed" | "cancelled";
+export type BrowserActionType =
+  | "navigate"
+  | "snapshot"
+  | "read_page"
+  | "get_links"
+  | "get_interactive_elements"
+  | "detect_forms"
+  | "get_attribute"
+  | "count"
+  | "search_text"
+  | "click"
+  | "fill"
+  | "type"
+  | "press_key"
+  | "select_option"
+  | "scroll"
+  | "wait"
+  | "wait_for_text"
+  | "get_network_requests"
+  | "get_console_messages"
+  | "take_screenshot"
+  | "get_current_url";
+
+export interface BrowserRuntimeCapabilities {
+  runtime?: BrowserRuntimeName;
+  version?: string;
+  mcp_available?: boolean;
+  screenshot_available?: boolean;
+  network_available?: boolean;
+  console_available?: boolean;
+  forms_available?: boolean;
+  interactive_elements_available?: boolean;
+  evaluate_available?: boolean;
+  [key: string]: unknown;
+}
+
+export interface BrowserSession {
+  session_id: string;
+  assessment_id: string;
+  attempt_id?: string | null;
+  workspace_id: string;
+  owner_id?: string;
+  authorization_id: string;
+  target_url: string;
+  allowed_origins?: string[];
+  mode?: "passive" | "controlled_interactive";
+  runtime: BrowserRuntimeName;
+  runtime_version?: string;
+  capabilities?: BrowserRuntimeCapabilities;
+  state?: BrowserSessionState;
+  current_url?: string | null;
+  action_count?: number;
+  expires_at?: string;
+  [key: string]: unknown;
+}
+
+export interface BrowserActionReceipt {
+  action_id?: string;
+  session_id?: string;
+  sequence?: number;
+  action_type: BrowserActionType | string;
+  status: BrowserActionStatus | string;
+  current_url?: string | null;
+  result_summary?: JsonObject;
+  evidence_ids?: string[];
+  error_category?: string | null;
+  error_message?: string | null;
+  [key: string]: unknown;
+}
+
+export interface BrowserNetworkObservation {
+  observation_id?: string;
+  method?: string;
+  scheme?: string;
+  host?: string;
+  port?: number | null;
+  path?: string;
+  status_code?: number | null;
+  same_origin?: boolean;
+  request_body_present?: boolean;
+  evidence_id?: string | null;
+  [key: string]: unknown;
+}
+
+export interface BrowserConsoleObservation {
+  observation_id?: string;
+  level?: string;
+  message?: string;
+  current_url?: string | null;
+  evidence_id?: string | null;
+  [key: string]: unknown;
+}
+
+export interface BrowserScreenshotArtifact {
+  artifact_type?: "screenshot" | string;
+  evidence_id?: string;
+  relative_path?: string;
+  media_type?: string;
+  sha256?: string;
+  size_bytes?: number;
+  viewport_width?: number;
+  viewport_height?: number;
+  current_url?: string | null;
+  runtime?: BrowserRuntimeName;
+  runtime_version?: string;
+  [key: string]: unknown;
+}
+
+export interface BrowserIntelligenceReport {
+  report_id?: string;
+  report_sha256?: string;
+  assessment_id?: string;
+  attempt_id?: string | null;
+  workspace_id?: string;
+  session_id?: string;
+  target_url?: string;
+  current_url?: string | null;
+  runtime?: BrowserRuntimeName;
+  runtime_version?: string;
+  action_receipts?: BrowserActionReceipt[];
+  network_observations?: BrowserNetworkObservation[];
+  console_observations?: BrowserConsoleObservation[];
+  screenshots?: BrowserScreenshotArtifact[];
+  endpoint_paths?: string[];
+  pages_visited?: number;
+  forms_observed?: number;
+  source_hunt_correlation_ids?: string[];
+  limitations?: string[];
+  [key: string]: unknown;
+}
+
 export interface MePayload {
   id: string;
   username: string;

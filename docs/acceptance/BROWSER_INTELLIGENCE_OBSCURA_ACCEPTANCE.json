@@ -1,0 +1,51 @@
+{
+  "acceptance": "accepted",
+  "runtime": "obscura",
+  "runtime_version": "0.2.0",
+  "scope": "deterministic local browser fixture only",
+  "authorization_boundary": "test-only explicit controlled-interactive policy with loopback private-network flag",
+  "actions": [
+    "navigate",
+    "snapshot",
+    "detect_forms",
+    "get_interactive_elements",
+    "fill",
+    "fill",
+    "click",
+    "navigate",
+    "wait",
+    "snapshot",
+    "get_network_requests",
+    "get_console_messages",
+    "take_screenshot",
+    "get_current_url"
+  ],
+  "action_status": "all completed",
+  "dashboard_render_proof": {
+    "snapshot_contains": [
+      "Dashboard ready",
+      "JavaScript executed"
+    ],
+    "current_url_path": "/dashboard"
+  },
+  "network_endpoint_paths": [
+    "/dashboard",
+    "/api/profile",
+    "/api/settings"
+  ],
+  "network_status": "all observed responses returned HTTP 200",
+  "console_capture_status": "runtime_returned_no_messages",
+  "console_claim": "No console observation is claimed; the Obscura console MCP action completed and returned an empty result.",
+  "screenshot": {
+    "media_type": "image/png",
+    "sha256": "75a3b34f6cedce31fa7158621d5b62173b61f3f79d3348436f273a1d5b72db99",
+    "size_bytes": 17454,
+    "viewport": [1280, 900]
+  },
+  "report_sha256": "401beb4c96e4044ba1d1177cc4f69083225f2b28ca31ff16c42e82a25d8853bd",
+  "limitations": [
+    "Obscura is a runtime observer and does not verify vulnerabilities.",
+    "The installed Obscura runtime returned no console messages for the fixture despite rendered JavaScript content; this is recorded as an unverified console observation rather than fabricated evidence.",
+    "The acceptance did not contact external targets and did not execute an APK or unlock dynamic APK analysis."
+  ]
+}

@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="{% static 'web/assessment-workspace.css' %}?v=20260812-ui2">
   <link rel="stylesheet" href="{% static 'web/public-consent.css' %}?v=20260819-consent1">
   <link rel="stylesheet" href="{% static 'web/analysis-activity.css' %}?v=20260819-activity1">
+  <link rel="stylesheet" href="{% static 'web/browser-intelligence.css' %}?v=20260820-obscura1">
 {% endblock %}
 
 {% block extra_scripts %}
@@ -24,6 +25,7 @@
   <script src="{% static 'web/assessment-workspace.js' %}?v=20260812-ui2" defer></script>
   <script src="{% static 'web/public-consent.js' %}?v=20260819-consent1" defer></script>
   <script src="{% static 'web/analysis-activity.js' %}?v=20260819-activity1" defer></script>
+  <script src="{% static 'web/conversation-browser-intelligence.js' %}?v=20260820-obscura1" defer></script>
 {% endblock %}
 
 {% block content %}
@@ -125,6 +127,20 @@
           </div>
           <div class="vh-public-consent-actions"><button type="submit" class="vh-button-primary" data-public-consent-submit>Verify consent</button><span data-public-consent-status role="status" aria-live="polite"></span></div>
         </form>
+      </details>
+
+      <details class="vh-browser-intelligence-panel" data-browser-intelligence-panel>
+        <summary><span><strong>Browser Intelligence</strong><small>Run bounded browser evidence through the governed worker</small></span><b aria-hidden="true">+</b></summary>
+        <form data-browser-intelligence-form action="{% url 'web-conversation-browser-intelligence-start' %}" method="post">
+          {% csrf_token %}
+          <div class="vh-browser-intelligence-grid">
+            <label>Authorized target URL<input name="target_url" type="url" placeholder="https://authorized.example/" required></label>
+            <label>Authorization ID<input name="authorization_id" type="text" placeholder="auth-…" autocomplete="off" required></label>
+          </div>
+          <p class="vh-browser-intelligence-boundary">Passive browser actions are available by default. Controlled interaction and credentials remain governed by the server policy; arbitrary evaluation is disabled.</p>
+          <div class="vh-browser-intelligence-actions"><button type="submit" class="vh-button-primary" data-browser-intelligence-start>Start Browser Intelligence</button><span data-browser-intelligence-status role="status" aria-live="polite"></span></div>
+        </form>
+        <div data-browser-intelligence-sessions></div>
       </details>
       <div class="vh-chat-feed" data-conversation-feed data-follow-latest="true" aria-live="polite" aria-relevant="additions text">
         <noscript><p class="vh-operational-notice is-danger">JavaScript is required for the interactive assessment workspace.</p></noscript>
@@ -291,6 +307,22 @@
       <ol class="vh-mobile-live-technical-list" data-mobile-live-technical-events></ol>
     </details>
   </section>
+</template>
+
+<template id="vh-browser-intelligence-template">
+  <article class="vh-browser-intelligence-card" data-browser-intelligence-card>
+    <header><div><p class="vh-eyebrow">Browser Intelligence</p><strong data-browser-intelligence-target>Authorized browser session</strong><small data-browser-intelligence-runtime></small></div><span data-browser-intelligence-state>Starting</span></header>
+    <div class="vh-browser-intelligence-controls" data-browser-intelligence-controls>
+      <button type="button" data-browser-action="snapshot">Snapshot</button>
+      <button type="button" data-browser-action="detect_forms">Detect forms</button>
+      <button type="button" data-browser-action="get_network_requests">Network</button>
+      <button type="button" data-browser-action="get_console_messages">Console</button>
+      <button type="button" data-browser-action="take_screenshot">Screenshot</button>
+      <button type="button" data-browser-action="finish">Finish report</button>
+    </div>
+    <div class="vh-browser-intelligence-live" data-browser-intelligence-live aria-live="polite"></div>
+    <a data-browser-intelligence-evidence hidden target="_blank" rel="noreferrer">Open private screenshot evidence</a>
+  </article>
 </template>
 
 <template id="vh-run-template">

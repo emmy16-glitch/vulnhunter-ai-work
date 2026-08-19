@@ -328,6 +328,103 @@ class MobileIntelligence {
       );
 }
 
+class BrowserSession {
+  const BrowserSession({required this.raw});
+
+  final JsonMap raw;
+
+  String get sessionId => '${raw['session_id'] ?? ''}';
+  String get targetUrl => '${raw['target_url'] ?? ''}';
+  String get runtime => '${raw['runtime'] ?? ''}';
+  String get state => '${raw['state'] ?? 'queued'}';
+  String? get currentUrl => _stringOrNull(raw['current_url']);
+  JsonMap get capabilities => _map(raw['capabilities']);
+
+  factory BrowserSession.fromJson(JsonMap json) => BrowserSession(raw: json);
+}
+
+class BrowserActionReceipt {
+  const BrowserActionReceipt({required this.raw});
+
+  final JsonMap raw;
+
+  String get actionType => '${raw['action_type'] ?? ''}';
+  String get status => '${raw['status'] ?? ''}';
+  String? get currentUrl => _stringOrNull(raw['current_url']);
+  JsonMap get resultSummary => _map(raw['result_summary']);
+  List<String> get evidenceIds => _stringList(raw['evidence_ids']);
+
+  factory BrowserActionReceipt.fromJson(JsonMap json) =>
+      BrowserActionReceipt(raw: json);
+}
+
+class BrowserNetworkObservation {
+  const BrowserNetworkObservation({required this.raw});
+
+  final JsonMap raw;
+
+  String get method => '${raw['method'] ?? ''}';
+  String get host => '${raw['host'] ?? ''}';
+  String get path => '${raw['path'] ?? ''}';
+  int? get statusCode => raw['status_code'] is num
+      ? (raw['status_code'] as num).toInt()
+      : null;
+
+  factory BrowserNetworkObservation.fromJson(JsonMap json) =>
+      BrowserNetworkObservation(raw: json);
+}
+
+class BrowserConsoleObservation {
+  const BrowserConsoleObservation({required this.raw});
+
+  final JsonMap raw;
+
+  String get level => '${raw['level'] ?? 'log'}';
+  String get message => '${raw['message'] ?? ''}';
+
+  factory BrowserConsoleObservation.fromJson(JsonMap json) =>
+      BrowserConsoleObservation(raw: json);
+}
+
+class BrowserScreenshotArtifact {
+  const BrowserScreenshotArtifact({required this.raw});
+
+  final JsonMap raw;
+
+  String get evidenceId => '${raw['evidence_id'] ?? ''}';
+  String get relativePath => '${raw['relative_path'] ?? ''}';
+  String get sha256 => '${raw['sha256'] ?? ''}';
+  int get sizeBytes => _int(raw['size_bytes']);
+
+  factory BrowserScreenshotArtifact.fromJson(JsonMap json) =>
+      BrowserScreenshotArtifact(raw: json);
+}
+
+class BrowserIntelligenceReport {
+  const BrowserIntelligenceReport({required this.raw});
+
+  final JsonMap raw;
+
+  String get reportId => '${raw['report_id'] ?? ''}';
+  String get runtime => '${raw['runtime'] ?? ''}';
+  String? get currentUrl => _stringOrNull(raw['current_url']);
+  List<BrowserActionReceipt> get actionReceipts =>
+      _maps(raw['action_receipts']).map(BrowserActionReceipt.fromJson).toList();
+  List<BrowserNetworkObservation> get networkObservations => _maps(
+        raw['network_observations'],
+      ).map(BrowserNetworkObservation.fromJson).toList();
+  List<BrowserConsoleObservation> get consoleObservations => _maps(
+        raw['console_observations'],
+      ).map(BrowserConsoleObservation.fromJson).toList();
+  List<BrowserScreenshotArtifact> get screenshots => _maps(
+        raw['screenshots'],
+      ).map(BrowserScreenshotArtifact.fromJson).toList();
+  List<String> get endpointPaths => _stringList(raw['endpoint_paths']);
+
+  factory BrowserIntelligenceReport.fromJson(JsonMap json) =>
+      BrowserIntelligenceReport(raw: json);
+}
+
 class Assessment {
   const Assessment({
     required this.runId,

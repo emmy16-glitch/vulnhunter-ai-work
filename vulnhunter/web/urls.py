@@ -6,11 +6,11 @@ from django.views.generic import RedirectView
 from vulnhunter.web import (
     active_validation_conversation_views,
     audit_views,
+    browser_intelligence_views,
     conversation_approval_views,
     conversation_mobile_extension_views,
     conversation_mobile_retry_views,
     conversation_mobile_views,
-    mobile_source_hunt_views,
     conversation_thread_views,
     conversational_views,
     dashboard_dispatch_views,
@@ -18,6 +18,7 @@ from vulnhunter.web import (
     governance_workspace_views,
     intelligence_views,
     lab_views,
+    mobile_source_hunt_views,
     operations_views,
     public_consent_views,
     readiness,
@@ -147,6 +148,31 @@ urlpatterns = [
         "workspace/mobile-source-hunt/",
         mobile_source_hunt_views.mobile_source_hunt_handoff_view,
         name="web-conversation-mobile-source-hunt",
+    ),
+    path(
+        "workspace/browser-intelligence/start/",
+        browser_intelligence_views.browser_intelligence_start_view,
+        name="web-conversation-browser-intelligence-start",
+    ),
+    path(
+        "workspace/browser-intelligence/<str:session_id>/action/",
+        browser_intelligence_views.browser_intelligence_action_view,
+        name="web-conversation-browser-intelligence-action",
+    ),
+    path(
+        "workspace/browser-intelligence/<str:session_id>/state/",
+        browser_intelligence_views.browser_intelligence_state_view,
+        name="web-conversation-browser-intelligence-state",
+    ),
+    path(
+        "workspace/browser-intelligence/<str:session_id>/finish/",
+        browser_intelligence_views.browser_intelligence_finish_view,
+        name="web-conversation-browser-intelligence-finish",
+    ),
+    path(
+        "workspace/browser-intelligence/<str:session_id>/evidence/<path:relative_path>/",
+        browser_intelligence_views.browser_intelligence_evidence_view,
+        name="web-conversation-browser-intelligence-evidence",
     ),
     path(
         "workspace/mobile-context/",

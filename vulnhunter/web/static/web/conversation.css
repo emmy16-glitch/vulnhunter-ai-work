@@ -2019,3 +2019,100 @@ body[data-route="web-dashboard"] .vh-main,
     animation: none;
   }
 }
+
+
+/* Screenshot-driven layout corrections: keep disclosures in flow, strengthen reading rhythm, and prevent control-label wrapping. */
+.vh-chat-main > .vh-public-consent-panel {
+  position: relative;
+  z-index: 2;
+  flex: 0 0 auto;
+  margin: 0 0 22px;
+}
+
+.vh-chat-feed {
+  padding-top: 42px;
+  scroll-padding-top: 42px;
+}
+
+.vh-mobile-plan-context {
+  margin-top: 8px;
+  margin-bottom: 8px;
+}
+
+.vh-mobile-plan-context > div {
+  column-gap: 10px;
+}
+
+.vh-mobile-plan-context strong,
+.vh-mobile-plan-context code,
+.vh-mobile-plan-context small {
+  white-space: normal;
+}
+
+.vh-chat-composer-meta {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.vh-chat-composer-meta > span:first-child {
+  min-width: 0;
+  line-height: 1.35;
+}
+
+.vh-composer-advanced > summary,
+.vh-composer-tools-trigger,
+.vh-composer-counter {
+  white-space: nowrap;
+}
+
+@media (min-width: 1100px) {
+  .vh-chat-feed {
+    padding-right: max(28px, calc((100% - 980px) / 2));
+    padding-left: max(28px, calc((100% - 980px) / 2));
+  }
+
+  .vh-chat-message {
+    width: min(100%, 980px);
+  }
+
+  .vh-chat-message.is-assistant .vh-message-body {
+    max-width: min(100%, 900px);
+  }
+
+  .vh-mobile-live-execution,
+  .vh-mobile-plan-context {
+    width: min(100%, 980px);
+  }
+}
+
+@media (max-width: 640px) {
+  .vh-chat-main > .vh-public-consent-panel {
+    margin-bottom: 18px;
+  }
+
+  .vh-chat-feed {
+    padding-top: 28px;
+    scroll-padding-top: 28px;
+  }
+
+  .vh-chat-composer-meta {
+    gap: 6px;
+    font-size: 9px;
+  }
+
+  .vh-chat-composer-meta > span:first-child {
+    max-width: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .vh-composer-advanced > summary,
+  .vh-composer-tools-trigger,
+  .vh-composer-counter {
+    flex: 0 0 auto;
+  }
+}

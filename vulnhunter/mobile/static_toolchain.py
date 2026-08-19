@@ -514,12 +514,25 @@ class MobileStaticToolchain:
         )
 
         def apply_limits() -> None:
-            file_limit = self.policy.maximum_generated_file_bytes
+            # RLIMIT_FSIZE is a limit on each individual file, not on the
+            # aggregate analysis workspace. Directory-writing tools such as
+            # JADX and Apktool can create many bounded files and may also use
+            # temporary files while their aggregate output approaches the
+            # workspace ceiling. Use the aggregate ceiling for the kernel
+            # guard, then enforce the stricter per-file and total bounds after
+            # each tool returns in enforce_workspace_bound().
+            file_limit = self.policy.maximum_generated_bytes
             resource.setrlimit(resource.RLIMIT_FSIZE, (file_limit, file_limit))
             resource.setrlimit(resource.RLIMIT_NOFILE, (128, 128))
+            # RLIMIT_CPU is aggregate CPU time across all threads, while
+            # subprocess.run(timeout=...) is wall-clock time. JVM tools such
+            # as JADX can consume more than one CPU second per wall-clock
+            # second even with bounded decompilation threads, so a one-to-one
+            # CPU limit causes SIGXCPU (exit code -24) before the wall timeout.
+            cpu_limit = spec.timeout_seconds * 4
             resource.setrlimit(
                 resource.RLIMIT_CPU,
-                (spec.timeout_seconds, spec.timeout_seconds + 2),
+                (cpu_limit, cpu_limit + 2),
             )
             memory = self.policy.maximum_memory_bytes
             resource.setrlimit(resource.RLIMIT_AS, (memory, memory))
@@ -631,7 +644,7 @@ class MobileStaticToolchain:
                 if payload is not None:
                     evidence["structured"] = payload
                     break
-        elif capture.return_code == 0 and capture.tool == "jadx":
+        elif capture.tool == "jadx":
             root = workspace / "jadx-output"
             files = (
                 [item for item in root.rglob("*") if item.is_file() and not item.is_symlink()]

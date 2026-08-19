@@ -27,6 +27,7 @@ dev = [
     "pytest>=8,<10",
     "pytest-asyncio>=0.24,<2",
     "pytest-django>=4.9,<5",
+    "pytest-cov>=6,<8",
     "ruff>=0.9,<1",
     "cryptography>=48.0.1,<50",
 ]

@@ -59,3 +59,19 @@ def test_scrollable_workspace_regions_have_visible_scrollbars():
     assert ".vh-chat-feed" in conversation
     assert "scrollbar-width: thin" in conversation
     assert "min-height: 44px" in conversation
+
+
+def test_directory_writing_tools_use_aggregate_kernel_file_limit():
+    toolchain = _text("vulnhunter/mobile/static_toolchain.py")
+
+    assert "file_limit = self.policy.maximum_generated_bytes" in toolchain
+    assert "enforce_workspace_bound(workspace)" in toolchain
+    assert "RLIMIT_FSIZE is a limit on each individual file" in toolchain
+
+
+def test_multithreaded_tools_get_separate_cpu_guard_from_wall_timeout():
+    toolchain = _text("vulnhunter/mobile/static_toolchain.py")
+
+    assert "cpu_limit = spec.timeout_seconds * 4" in toolchain
+    assert "RLIMIT_CPU" in toolchain
+    assert "subprocess.run(timeout=...) is wall-clock time" in toolchain

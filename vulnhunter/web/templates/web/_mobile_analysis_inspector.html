@@ -26,6 +26,7 @@
       <button type="button" role="tab" data-inspector-tab="activity" aria-selected="false" aria-controls="vh-inspector-activity" tabindex="-1">Activity</button>
       <button type="button" role="tab" data-inspector-tab="findings" aria-selected="false" aria-controls="vh-inspector-findings" tabindex="-1">Findings <b data-inspector-findings-count aria-label="Finding count unavailable">—</b></button>
       <button type="button" role="tab" data-inspector-tab="artifacts" aria-selected="false" aria-controls="vh-inspector-artifacts" tabindex="-1">Evidence <b data-inspector-artifacts-count aria-label="Evidence count unavailable">—</b></button>
+      <button type="button" role="tab" data-inspector-tab="source-hunt" aria-selected="false" aria-controls="vh-inspector-source-hunt" tabindex="-1">Source Hunt <b data-inspector-source-hunt-count aria-label="Source Hunt graph count unavailable">—</b></button>
       <button type="button" role="tab" data-inspector-tab="reports" aria-selected="false" aria-controls="vh-inspector-reports" tabindex="-1">Report <b data-inspector-reports-count aria-label="Report readiness unavailable">—</b></button>
     </div>
 
@@ -63,6 +64,16 @@
           <div data-inspector-graph></div>
           <span data-inspector-graph-count hidden aria-label="Evidence-link count unavailable">—</span>
         </section>
+      </section>
+
+      <section id="vh-inspector-source-hunt" class="vh-analysis-panel" data-inspector-panel="source-hunt" role="tabpanel" aria-label="APK Source Hunt graph" hidden>
+        <div class="vh-analysis-section">
+          <div class="vh-analysis-section-heading"><h3>APK Source Hunt</h3><small>Persisted deterministic graph</small></div>
+          <p class="vh-inspector-empty" data-inspector-empty-source-hunt role="status" aria-live="polite">Run Source Hunt from the selected completed APK assessment to reconstruct its bounded attack surface.</p>
+          <div class="vh-source-hunt-summary" data-inspector-source-hunt-summary></div>
+          <div class="vh-source-hunt-results" data-inspector-source-hunt-results></div>
+          <div class="vh-source-hunt-graph" data-inspector-source-hunt-graph></div>
+        </div>
       </section>
 
       <section id="vh-inspector-reports" class="vh-analysis-panel" data-inspector-panel="reports" role="tabpanel" aria-label="Assessment report" hidden>

@@ -10,6 +10,7 @@ from vulnhunter.web import (
     conversation_mobile_extension_views,
     conversation_mobile_retry_views,
     conversation_mobile_views,
+    mobile_source_hunt_views,
     conversation_thread_views,
     conversational_views,
     dashboard_dispatch_views,
@@ -141,6 +142,11 @@ urlpatterns = [
         "workspace/mobile-followup/",
         conversation_mobile_views.mobile_followup_view,
         name="web-conversation-mobile-followup",
+    ),
+    path(
+        "workspace/mobile-source-hunt/",
+        mobile_source_hunt_views.mobile_source_hunt_handoff_view,
+        name="web-conversation-mobile-source-hunt",
     ),
     path(
         "workspace/mobile-context/",

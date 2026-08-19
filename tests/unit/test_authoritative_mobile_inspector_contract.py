@@ -112,7 +112,7 @@ def test_inspector_tabs_have_keyboard_roving_focus():
     for key in ("ArrowLeft", "ArrowRight", "Home", "End"):
         assert key in script
     assert "tab.tabIndex = selected ? 0 : -1" in script
-    assert template.count('tabindex="-1"') == 5
+    assert template.count('tabindex="-1"') == 6
 
 
 def test_assessment_empty_states_are_compact_ordinary_language_statuses():
@@ -126,8 +126,8 @@ def test_assessment_empty_states_are_compact_ordinary_language_statuses():
         "report contract.",
     ):
         assert copy in template
-    assert template.count('role="status"') == 5
-    assert template.count('aria-live="polite"') == 4
+    assert template.count('role="status"') == 6
+    assert template.count('aria-live="polite"') == 5
     assert "until a real worker observation has been persisted and judged" not in template
     assert "The graph is created only from real target" not in template
 

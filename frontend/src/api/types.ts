@@ -140,6 +140,137 @@ export interface MobileCapabilityStatus {
   [key: string]: unknown;
 }
 
+export type MobileSourceHuntState =
+  | "verified"
+  | "rejected"
+  | "inconclusive"
+  | "evidence_required"
+  | "blocked";
+
+export interface MobileGraphProvenance {
+  artifact_sha256?: string;
+  source_identity?: string;
+  source_path?: string | null;
+  source_sha256?: string | null;
+  line_start?: number | null;
+  line_end?: number | null;
+  analysis_run_id?: string;
+  confidence?: string;
+  coverage?: string;
+  evidence_references?: string[];
+  [key: string]: unknown;
+}
+
+export interface MobileAttackGraphNode {
+  node_id?: string;
+  node_type?: string;
+  label?: string;
+  ownership?: MobileOwnership;
+  state?: MobileSourceHuntState | null;
+  evidence_references?: string[];
+  provenance?: MobileGraphProvenance[];
+  attributes?: JsonObject;
+  [key: string]: unknown;
+}
+
+export interface MobileAttackGraphEdge {
+  edge_id?: string;
+  source_node_id?: string;
+  target_node_id?: string;
+  relation?: string;
+  confidence?: string;
+  state?: MobileSourceHuntState | null;
+  evidence_references?: string[];
+  provenance?: MobileGraphProvenance[];
+  attributes?: JsonObject;
+  [key: string]: unknown;
+}
+
+export interface MobileAttackGraph {
+  graph_id?: string;
+  artifact_sha256?: string;
+  source_identity?: string;
+  analysis_run_id?: string;
+  nodes?: MobileAttackGraphNode[];
+  edges?: MobileAttackGraphEdge[];
+  coverage?: {
+    status?: string;
+    source_file_count?: number;
+    source_bytes?: number;
+    limitations?: string[];
+    evidence_references?: string[];
+    [key: string]: unknown;
+  };
+  graph_sha256?: string;
+  [key: string]: unknown;
+}
+
+export interface MobileSourceHuntSeed {
+  seed_id?: string;
+  seed_type?: string;
+  title?: string;
+  weakness_id?: string | null;
+  component_name?: string | null;
+  ownership?: MobileOwnership;
+  evidence_references?: string[];
+  source_intelligence_record_id?: string | null;
+  attributes?: JsonObject;
+  [key: string]: unknown;
+}
+
+export interface MobileSourceHuntResult {
+  seed?: MobileSourceHuntSeed;
+  state?: MobileSourceHuntState;
+  summary?: string;
+  entry_point?: string | null;
+  source_symbols?: string[];
+  sink_symbols?: string[];
+  controls_observed?: string[];
+  missing_evidence?: string[];
+  source_references?: JsonObject[];
+  graph_node_ids?: string[];
+  graph_edge_ids?: string[];
+  bounded_negative?: boolean;
+  verified_finding?: boolean;
+  remediation?: string | null;
+  deterministic_validation?: string | null;
+  [key: string]: unknown;
+}
+
+export interface MobileSourceHuntReport {
+  report_id?: string;
+  artifact_id?: string;
+  artifact_sha256?: string;
+  source_identity?: string;
+  analysis_run_id?: string;
+  coverage?: MobileAttackGraph["coverage"];
+  seeds_examined?: number;
+  results?: MobileSourceHuntResult[];
+  graph?: MobileAttackGraph;
+  verified_finding_count?: number;
+  rejected_count?: number;
+  inconclusive_count?: number;
+  evidence_required_count?: number;
+  blocked_count?: number;
+  created_at?: string;
+  safe_error?: string | null;
+  selected_seed_id?: string | null;
+  [key: string]: unknown;
+}
+
+export interface MobileSourceHuntProjection {
+  state?: "not_started" | "queued" | "running" | "completed" | MobileSourceHuntState;
+  available?: boolean;
+  report_id?: string | null;
+  report_ready?: boolean;
+  selected_seed_id?: string | null;
+  selected_result?: MobileSourceHuntResult;
+  coverage?: MobileAttackGraph["coverage"];
+  graph?: MobileAttackGraph & { node_count?: number; edge_count?: number };
+  error?: string | null;
+  [key: string]: unknown;
+}
+
 export interface MobileIntelligence {
   schema_version?: string;
   intelligence_sha256?: string;
@@ -221,6 +352,7 @@ export interface Assessment {
   evaluation_result?: unknown;
   findings?: AssessmentFinding[];
   mobile_intelligence?: MobileIntelligence;
+  source_hunt?: MobileSourceHuntProjection;
   artifacts?: AssessmentArtifact[];
   events?: AssessmentEvent[];
   last_sequence?: number;
@@ -255,6 +387,7 @@ export interface AssessmentEventsPayload {
   updated_at?: string | null;
   activity_tree?: JsonObject;
   mobile_intelligence?: MobileIntelligence;
+  source_hunt?: MobileSourceHuntProjection;
   terminal: boolean;
 }
 

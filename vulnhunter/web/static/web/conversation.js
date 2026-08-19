@@ -219,6 +219,26 @@
       attached.append(label, detail);
       body.insertBefore(attached, copy);
     }
+    const sourceHuntResult = metadata.source_hunt_result && typeof metadata.source_hunt_result === "object" ? metadata.source_hunt_result : null;
+    if (sourceHuntResult) {
+      const report = document.createElement("section");
+      report.className = "vh-source-hunt-result";
+      const reportTitle = document.createElement("strong");
+      reportTitle.textContent = "Source Hunt report";
+      const reportState = document.createElement("small");
+      reportState.textContent = `${prettyState(sourceHuntResult.coverage?.status || "bounded")} coverage · ${prettyState(sourceHuntResult.results?.length ? "completed" : "recorded")}`;
+      const reportDetail = document.createElement("p");
+      const nodes = Number(sourceHuntResult.graph?.nodes?.length || 0);
+      const edges = Number(sourceHuntResult.graph?.edges?.length || 0);
+      reportDetail.textContent = `${Number(sourceHuntResult.seeds_examined || 0)} seeds examined · ${nodes} nodes · ${edges} edges · ${Number(sourceHuntResult.verified_finding_count || 0)} verified findings`;
+      report.append(reportTitle, reportState, reportDetail);
+      if (sourceHuntResult.safe_error) {
+        const limitation = document.createElement("small");
+        limitation.textContent = text(sourceHuntResult.safe_error);
+        report.append(limitation);
+      }
+      body.append(report);
+    }
     const mobilePlan = metadata.mobile_plan && typeof metadata.mobile_plan === "object" ? metadata.mobile_plan : null;
     if (mobilePlan) {
       const planSummary = document.createElement("div");
@@ -264,6 +284,11 @@
     feed.append(fragment);
     scrollFeed({ force: forceScroll });
   };
+
+  document.addEventListener("vh:conversation-message", (event) => {
+    const message = event.detail;
+    if (message && typeof message === "object") appendMessage(message, { animate: true });
+  });
 
   const emptyBlock = (title, detail) => {
     const wrapper = document.createElement("div");

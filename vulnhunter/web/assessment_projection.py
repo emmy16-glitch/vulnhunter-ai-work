@@ -112,6 +112,9 @@ def _actions(
     state: str,
     report_ready: bool,
     failure: Mapping[str, object] | None,
+    *,
+    source_hunt_ready: bool = False,
+    source_hunt_report: bool = False,
 ) -> list[str]:
     actions = ["view_activity", "view_evidence", "view_findings"]
     if state in _ACTIVE:
@@ -125,6 +128,10 @@ def _actions(
         actions.append("request_retry")
     if report_ready:
         actions.append("view_report")
+    if source_hunt_report:
+        actions.append("view_source_hunt_graph")
+    elif source_hunt_ready:
+        actions.append("start_source_hunt")
     return actions
 
 
@@ -232,6 +239,39 @@ def _intelligence_projection(result_summary: Mapping[str, object]) -> dict[str, 
         "endpoint_references": endpoint_references,
         "transport_correlations": transport_correlations,
         "exported_component_surfaces": exported_component_surfaces,
+    }
+
+
+def _source_hunt_projection(plan: Mapping[str, object]) -> dict[str, object]:
+    raw = _map(plan.get("source_hunt"))
+    report = _map(raw.get("report"))
+    graph = _map(report.get("graph"))
+    state = _text(raw.get("state")) or "not_started"
+    report_id = _text(report.get("report_id"))
+    return {
+        "state": state,
+        "available": state in {"queued", "running", "completed"},
+        "report_id": report_id,
+        "report_ready": state == "completed" and report_id is not None,
+        "selected_seed_id": _text(report.get("selected_seed_id")),
+        "selected_result": _map(report.get("selected_result")),
+        "results": _rows(report.get("results")),
+        "seeds_examined": _integer(report.get("seeds_examined")) or 0,
+        "verified_finding_count": _integer(report.get("verified_finding_count")) or 0,
+        "rejected_count": _integer(report.get("rejected_count")) or 0,
+        "inconclusive_count": _integer(report.get("inconclusive_count")) or 0,
+        "evidence_required_count": _integer(report.get("evidence_required_count")) or 0,
+        "blocked_count": _integer(report.get("blocked_count")) or 0,
+        "coverage": _map(report.get("coverage")),
+        "graph": {
+            "graph_id": _text(graph.get("graph_id")),
+            "graph_sha256": _text(graph.get("graph_sha256")),
+            "node_count": len(_rows(graph.get("nodes"))),
+            "edge_count": len(_rows(graph.get("edges"))),
+            "nodes": _rows(graph.get("nodes")),
+            "edges": _rows(graph.get("edges")),
+        },
+        "error": _text(raw.get("error")),
     }
 
 
@@ -344,6 +384,7 @@ def mobile_assessment_projection(
     failure = _failure(execution)
     verification = _verification_projection(result_summary)
     report = _report_projection(result_summary, stages)
+    source_hunt = _source_hunt_projection(plan)
     label = (
         _text(artifact.get("original_filename"))
         or _text(artifact.get("artifact_id"))
@@ -411,7 +452,16 @@ def mobile_assessment_projection(
         },
         "verification": verification,
         "report": report,
-        "allowed_actions": _actions(state, bool(report["ready"]), failure),
+        "source_hunt": source_hunt,
+        "allowed_actions": _actions(
+            state,
+            bool(report["ready"]),
+            failure,
+            source_hunt_ready=state == "completed"
+            and intelligence.get("schema_version") != "legacy"
+            and not source_hunt["report_ready"],
+            source_hunt_report=source_hunt["report_ready"],
+        ),
     }
     if intelligence.get("schema_version") != "legacy":
         projection["intelligence"] = intelligence
@@ -450,6 +500,7 @@ def assert_mobile_projection_invariants(projection: Mapping[str, object]) -> Non
     execution = _map(projection.get("execution"))
     verification = _map(projection.get("verification"))
     report = _map(projection.get("report"))
+    source_hunt = _map(projection.get("source_hunt"))
     task_card = _map(projection.get("task_card"))
     stage_progress = _map(task_card.get("stage_progress"))
     byte_progress = _map(task_card.get("byte_progress"))
@@ -497,6 +548,8 @@ def assert_mobile_projection_invariants(projection: Mapping[str, object]) -> Non
         )
     if isinstance(actions, list) and ("view_report" in actions) != report_ready:
         raise ValueError("Report action must agree with persisted report readiness.")
+    if not source_hunt:
+        raise ValueError("APK projections must expose Source Hunt handoff state.")
     retry_action = isinstance(actions, list) and "request_retry" in actions
     retry_available = retry.get("available") is True
     failure_retryable = (

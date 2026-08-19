@@ -26,6 +26,11 @@
     graphSection: select("graph-section"),
     reports: select("reports"),
     reportsCount: select("reports-count"),
+    sourceHuntCount: select("source-hunt-count"),
+    sourceHuntSummary: select("source-hunt-summary"),
+    sourceHuntResults: select("source-hunt-results"),
+    sourceHuntGraph: select("source-hunt-graph"),
+    emptySourceHunt: select("empty-source-hunt"),
     emptyFindings: select("empty-findings"),
     emptyArtifacts: select("empty-artifacts"),
     emptyGraph: select("empty-graph"),
@@ -479,6 +484,77 @@
     elements.graph.append(summary);
   };
 
+  const updateSourceHunt = () => {
+    const hunt = state.projection?.source_hunt || {};
+    const graph = hunt.graph || {};
+    const results = safeArray(hunt.results);
+    const nodes = safeArray(graph.nodes);
+    const edges = safeArray(graph.edges);
+    const ready = hunt.report_ready === true;
+    elements.sourceHuntCount.textContent = ready ? String(nodes.length) : "—";
+    elements.emptySourceHunt.hidden = ready;
+    elements.sourceHuntSummary.replaceChildren();
+    elements.sourceHuntResults.replaceChildren();
+    elements.sourceHuntGraph.replaceChildren();
+    if (!ready) return;
+
+    const summary = document.createElement("p");
+    summary.textContent = [
+      `${pretty(hunt.state)} state`,
+      `${Number(hunt.seeds_examined || results.length)} seeds examined`,
+      `${nodes.length} nodes`,
+      `${edges.length} edges`,
+      `${Number(hunt.verified_finding_count || 0)} verified findings`,
+    ].join(" · ");
+    elements.sourceHuntSummary.append(summary);
+
+    const coverage = document.createElement("small");
+    coverage.textContent = `${pretty(hunt.coverage?.status || "bounded")} retained-source coverage${safeArray(hunt.coverage?.limitations).length ? ` · ${safeArray(hunt.coverage.limitations).join(" ")}` : ""}`;
+    elements.sourceHuntSummary.append(coverage);
+
+    results.slice(0, 24).forEach((result) => {
+      const item = document.createElement("article");
+      item.className = `vh-inspector-finding is-${text(result.state || "inconclusive")}`;
+      const heading = document.createElement("strong");
+      heading.textContent = text(result.seed?.title || "Source Hunt seed");
+      const stateLabel = document.createElement("b");
+      stateLabel.textContent = pretty(result.state || "inconclusive");
+      const detail = document.createElement("p");
+      detail.textContent = text(result.summary || "No deterministic validation summary was recorded.");
+      const evidence = document.createElement("small");
+      evidence.textContent = [
+        result.bounded_negative ? "Bounded negative" : "Evidence status recorded",
+        safeArray(result.graph_node_ids).length ? `${safeArray(result.graph_node_ids).length} nodes` : "",
+        safeArray(result.graph_edge_ids).length ? `${safeArray(result.graph_edge_ids).length} edges` : "",
+      ].filter(Boolean).join(" · ");
+      item.append(heading, stateLabel, detail, evidence);
+      elements.sourceHuntResults.append(item);
+    });
+
+    const graphList = document.createElement("ol");
+    graphList.className = "vh-source-hunt-graph-list";
+    nodes.slice(0, 40).forEach((node) => {
+      const item = document.createElement("li");
+      const label = document.createElement("strong");
+      label.textContent = text(node.label || node.node_id || "Graph node");
+      const meta = document.createElement("small");
+      const provenance = safeArray(node.provenance)[0] || {};
+      meta.textContent = [
+        pretty(node.node_type || "node"),
+        pretty(node.state || "observed"),
+        provenance.source_path ? `${provenance.source_path}${provenance.line_start ? `:${provenance.line_start}` : ""}` : "provenance retained",
+      ].join(" · ");
+      item.append(label, meta);
+      graphList.append(item);
+    });
+    elements.sourceHuntGraph.append(graphList);
+    if (edges.length > 40) {
+      const note = document.createElement("small");
+      note.textContent = `${edges.length} persisted relations total; graph preview shows the first 40 nodes with provenance.`;
+      elements.sourceHuntGraph.append(note);
+    }
+  };
+
   const reportFormats = [
     ["html", "HTML"],
     ["json", "JSON"],
@@ -572,6 +648,7 @@
     updateFindings();
     updateArtifacts();
     updateGraph();
+    updateSourceHunt();
     updateReports();
   };
 

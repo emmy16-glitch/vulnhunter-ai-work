@@ -24,7 +24,8 @@ def test_provider_routing_is_automatic_and_hidden_from_the_user() -> None:
     assert "runtime.hidden = true" in script
     assert 'runtime.setAttribute("aria-hidden", "true")' in script
     assert 'runtime.classList.remove("is-ready", "is-warning", "is-offline")' in script
-    assert 'querySelectorAll(".vh-provider-control")' in script
+    assert 'querySelectorAll(".vh-provider-control")' not in script
+    assert "window.fetch = (input, options = {})" in script
     assert "initial.thread_id" in script
     assert 'option value="groq"' not in script
     assert 'option value="huggingface"' not in script
@@ -32,20 +33,18 @@ def test_provider_routing_is_automatic_and_hidden_from_the_user() -> None:
     assert '"AI reasoning ready"' not in script
 
 
-def test_provider_progress_is_incremental_without_exposing_partial_model_json() -> None:
+def test_provider_control_does_not_create_synthetic_progress() -> None:
     script = SCRIPT.read_text(encoding="utf-8")
 
-    assert 'progress.dataset.progressMode = "validated-stages"' in script
-    assert "Reasoning over the request" in script
-    assert "Validating the response" in script
-    assert "Formatting the final answer" in script
-    assert "data-llm-progress-elapsed" in script
+    assert "setInterval" not in script
+    assert "setTimeout" not in script
+    assert "vh-llm-progress" not in script
+    assert "data-llm-progress-elapsed" not in script
+    assert "Reasoning over the request" not in script
+    assert "Validating the response" not in script
+    assert "Formatting the final answer" not in script
     assert "stream: true" not in script
     assert "partial JSON" not in script
-    assert "Contacting Groq" not in script
-    assert "Contacting Hugging Face" not in script
-    assert "Contacting Gemini" not in script
-    assert "Contacting Ollama" not in script
 
 
 def test_finished_message_does_not_expose_provider_or_model_identity() -> None:

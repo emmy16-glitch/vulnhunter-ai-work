@@ -313,7 +313,19 @@
             ? "Candidate observation awaiting verification."
             : "Persisted assessment disposition."),
       );
-      item.append(header, title, component, reason);
+      const evidenceMeta = document.createElement("small");
+      const evidenceId = text(candidate.evidence_id || candidate.evidence_reference || "");
+      const confidence = text(candidate.confidence || candidate.verification_confidence || "");
+      const verification = text(candidate.verification || candidate.verification_status || "");
+      evidenceMeta.textContent = [
+        confidence ? `Confidence ${pretty(confidence)}` : "",
+        verification ? `Verification ${pretty(verification)}` : "",
+        evidenceId ? `Evidence ${evidenceId.slice(0, 24)}${evidenceId.length > 24 ? "…" : ""}` : "",
+      ]
+        .filter(Boolean)
+        .join(" · ");
+      evidenceMeta.hidden = !evidenceMeta.textContent;
+      item.append(header, title, component, reason, evidenceMeta);
       elements.findings.append(item);
     });
   };

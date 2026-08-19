@@ -166,23 +166,9 @@
     avatar.textContent = role === "user" ? "You" : "VH";
 
     const content = text(message.content || "");
-    if (
-      animate &&
-      role === "assistant" &&
-      content &&
-      !window.matchMedia("(prefers-reduced-motion: reduce)").matches
-    ) {
-      copy.textContent = "";
-      const words = content.split(" ");
-      let index = 0;
-      const interval = window.setInterval(() => {
-        copy.textContent += `${index ? " " : ""}${words[index] || ""}`;
-        index += 1;
-        if (index >= words.length) window.clearInterval(interval);
-      }, 18);
-    } else {
-      copy.textContent = content;
-    }
+    // Server responses are rendered as complete persisted messages. The browser
+    // must not simulate token or word streaming with a timer.
+    copy.textContent = content;
 
     const metadata = message.metadata && typeof message.metadata === "object" ? message.metadata : {};
     const authorization = metadata.authorization && typeof metadata.authorization === "object" ? metadata.authorization : null;
@@ -247,15 +233,7 @@
     if (role === "assistant" && metadata.reasoning_effort) {
       const badge = document.createElement("span");
       badge.className = "vh-message-reasoning";
-      const provider = text(metadata.provider || "deterministic");
-      const model = text(metadata.model || "");
-      const detail = text(metadata.provider_detail || "");
-      const degraded = provider === "deterministic" && /groq/i.test(detail);
-      if (degraded) badge.classList.add("is-degraded");
-      badge.textContent = degraded
-        ? `${prettyState(metadata.reasoning_effort)} reasoning · Groq unavailable · deterministic fallback`
-        : `${prettyState(metadata.reasoning_effort)} reasoning · ${prettyState(provider)}${model ? ` · ${model}` : ""}`;
-      if (detail) badge.title = detail;
+      badge.textContent = `${prettyState(metadata.reasoning_effort)} reasoning · response ready`;
       body.append(badge);
     }
     const suggestions = Array.isArray(metadata.suggestions) ? metadata.suggestions : [];
@@ -481,12 +459,29 @@
     container.className = `vh-execution-state is-${state}`;
     const title = document.createElement("strong");
     const detail = document.createElement("p");
-    title.textContent = state === "recovering" ? "Worker interrupted — recovering task" : prettyState(state);
+    title.textContent =
+      state === "recovering"
+        ? "Worker interrupted — recovering task"
+        : state === "failed"
+          ? "Assessment failed safely"
+          : state === "blocked"
+            ? "Assessment blocked"
+            : state === "cancelled"
+              ? "Assessment cancelled"
+              : prettyState(state);
     detail.textContent = text(
-      failure?.message || execution.reason ||
-        (state === "recovering" ? "Persisted state preserved. Restoring execution context…" : "Persisted assessment state is retained."),
+      failure?.message ||
+        execution.reason ||
+        (state === "recovering"
+          ? "Persisted state preserved. Restoring execution context…"
+          : "Persisted assessment state is retained."),
     );
     container.append(title, detail);
+    if (failure?.user_action) {
+      const action = document.createElement("small");
+      action.textContent = text(failure.user_action);
+      container.append(action);
+    }
     const preserved = Array.isArray(failure?.preserved) ? failure.preserved : [];
     if (preserved.length) {
       const kept = document.createElement("small");
@@ -826,7 +821,7 @@
       });
       const runId = text(data.run?.run_id || card.dataset.runId);
       if (runId) confirmedRuns.add(runId);
-      if (data.message) appendMessage(data.message, { animate: true });
+      if (data.message) appendMessage(data.message);
       if (data.run) {
         activeRun = normalizeRun(data.run);
         lastRunSignature = runSignature(activeRun);
@@ -838,7 +833,7 @@
     } catch (error) {
       appendMessage(
         { role: "assistant", kind: "error", content: error.message, timestamp: new Date().toISOString() },
-        { animate: true },
+        {},
       );
     } finally {
       button.disabled = false;
@@ -1073,7 +1068,7 @@
       reasoningSelect.value = initial.reasoning_effort || "medium";
       appendMessage(
         { role: "assistant", kind: "error", content: error.message, timestamp: new Date().toISOString() },
-        { animate: true },
+        {},
       );
     } finally {
       reasoningSelect.disabled = false;
@@ -1093,10 +1088,10 @@
     const selectedEffort = reasoningSelect?.value || initial.reasoning_effort || "medium";
     const busyCopy =
       selectedEffort === "high"
-        ? "Asking Groq to analyse deeply and checking governed context…"
+        ? "Analyzing the request and checking governed context…"
         : selectedEffort === "low"
-          ? "Asking Groq for a direct answer…"
-          : "Asking Groq to reason through the request…";
+          ? "Preparing a direct response…"
+          : "Reviewing the request…";
     setBusy(true, busyCopy);
     try {
       const data = await postForm(initial.message_url, {
@@ -1104,7 +1099,7 @@
         reasoning_effort: reasoningSelect?.value || initial.reasoning_effort || "medium",
         provider_preference: initial.provider_preference || "auto",
       });
-      if (data.message) appendMessage(data.message, { animate: true });
+      if (data.message) appendMessage(data.message);
       if (data.clear_run) {
         closeActivityStream();
         clearActivityEntries();
@@ -1125,7 +1120,7 @@
     } catch (error) {
       appendMessage(
         { role: "assistant", kind: "error", content: error.message, timestamp: new Date().toISOString() },
-        { animate: true },
+        {},
       );
     } finally {
       setBusy(false);

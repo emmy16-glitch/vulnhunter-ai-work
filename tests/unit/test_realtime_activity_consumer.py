@@ -298,3 +298,36 @@ async def test_reconnect_starts_from_last_persisted_cursor_and_keeps_task_identi
     sent = second.send_json.await_args.args[0]
     assert sent["activity_tree"]["task_id"] == "assessment-realtime"
     assert sent["last_sequence"] == 14
+
+
+@pytest.mark.asyncio
+async def test_snapshot_exposes_shared_state_and_terminal_fallback(monkeypatch):
+    consumer = _consumer(assessment_id="assessment-realtime")
+    consumer._payload = AsyncMock(
+        return_value={
+            "events": [],
+            "last_sequence": 9,
+            "task_state": "failed",
+            "run_state": "failed",
+            "active_summary": "The assessment failed closed.",
+            "approval_state": "approved",
+            "execution_state": "failed",
+            "workflow_state": "failed",
+            "execution_enabled": False,
+            "execution_blocking_reason": "The worker was unavailable.",
+            "readiness": {"verified": False},
+            "evaluation_result": None,
+            "updated_at": "2026-08-19T12:00:00+00:00",
+            "terminal": True,
+            "activity_tree": None,
+        }
+    )
+
+    snapshot = await consumer._snapshot(after_sequence=8)
+
+    assert snapshot["task_state"] == "failed"
+    assert snapshot["active_summary"] == "The assessment failed closed."
+    assert snapshot["execution_blocking_reason"] == "The worker was unavailable."
+    assert snapshot["terminal"] is True
+    assert snapshot["activity_tree"]["status"] == "failed"
+    assert snapshot["activity_tree"]["last_sequence"] == 9

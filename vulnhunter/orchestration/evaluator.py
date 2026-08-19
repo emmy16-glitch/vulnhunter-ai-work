@@ -318,20 +318,25 @@ def run_security_verification(
         manifest.baseline_commit,
         "--",
     ).decode("utf-8", errors="replace")
-    untracked_text: list[str] = []
-    untracked = _untracked_files(root)
+    changed_text: list[str] = []
     for relative in paths:
-        if relative not in untracked:
-            continue
         absolute = root / relative
-        if absolute.is_file() and absolute.stat().st_size <= 1_000_000:
-            try:
-                content = absolute.read_text(encoding="utf-8")
-            except UnicodeDecodeError:
-                continue
-            untracked_text.extend("+" + line for line in content.splitlines())
+        try:
+            is_bounded_file = absolute.is_file() and absolute.stat().st_size <= 1_000_000
+        except OSError:
+            continue
+        if not is_bounded_file:
+            continue
+        try:
+            content = absolute.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue
+        # Scan current changed text as well as the diff. This covers tracked,
+        # staged and untracked files without treating the browser or an AI
+        # provider as a source of security truth.
+        changed_text.extend("+" + line for line in content.splitlines())
 
-    for line in (*diff_text.splitlines(), *untracked_text):
+    for line in (*diff_text.splitlines(), *changed_text):
         if line.startswith("+++"):
             continue
         for pattern, message in _SECURITY_PATTERNS:

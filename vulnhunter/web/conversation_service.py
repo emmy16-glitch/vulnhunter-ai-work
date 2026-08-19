@@ -2,9 +2,10 @@
 
 Remote AI may interpret and explain a request, but deterministic authorization and
 assessment services remain authoritative. Raw private targets are never sent to
-the remote advisory provider. Conversational reasoning is fixed to the configured
-high-capability model and never falls back to a smaller model, another provider,
-or canned deterministic reasoning copy.
+the
+remote advisory provider. Conversational reasoning uses the configured high-capability
+route with backend-owned provider failover; no provider switch grants authority and no
+canned response is presented as model reasoning.
 """
 
 from __future__ import annotations
@@ -117,10 +118,9 @@ _STATUS_WORDS = (
     "is it finished",
 )
 _REQUIRED_REASONING_EFFORT = "high"
-_DEFAULT_REASONING_PROVIDER = "groq"
+_DEFAULT_REASONING_PROVIDER = "auto"
 _HIGH_REASONING_UNAVAILABLE = (
-    "High-reasoning AI is unavailable for this response. VulnHunter did not substitute a "
-    "lower-capability model, another provider, or a canned deterministic reasoning answer. "
+    "I couldn't complete that response right now. Please retry in a moment. "
     "Deterministic authorization, status, scope, and execution controls remain available."
 )
 
@@ -495,7 +495,7 @@ def _remote_advisory(
     reasoning_effort: str,
     provider_preference: str,
 ) -> tuple[str | None, str, str]:
-    """Invoke exactly one configured provider; never perform provider failover."""
+    """Invoke the configured advisory route; the installed failover owner may retry safely."""
 
     provider_name = "huggingface" if provider_preference == "huggingface" else "groq"
     function = _huggingface_advisory if provider_name == "huggingface" else _groq_advisory

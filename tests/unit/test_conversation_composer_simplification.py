@@ -28,7 +28,7 @@ def test_provider_routing_is_automatic_with_no_manual_selector() -> None:
 
     assert 'options.body.set("provider_preference", "auto")' in client
     assert 'runtime.dataset.providerPreferenceActive = "auto"' in client
-    assert 'querySelectorAll(".vh-provider-control")' in client
+    assert 'querySelectorAll(".vh-provider-control")' not in client
     assert "select[data-provider-preference]" not in client
     assert 'option value="groq"' not in client
     assert 'option value="huggingface"' not in client

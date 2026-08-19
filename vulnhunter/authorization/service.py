@@ -128,9 +128,11 @@ def validate_scan_authorization(
 
     import ipaddress
 
-    is_public_target = all(
-        ipaddress.ip_address(address).is_global for address in target.resolved_addresses
-    ) if target.resolved_addresses else False
+    is_public_target = (
+        all(ipaddress.ip_address(address).is_global for address in target.resolved_addresses)
+        if target.resolved_addresses
+        else False
+    )
     if is_public_target:
         if not allow_public:
             raise reject("Public targets require an explicit consent-enabled validation path.")

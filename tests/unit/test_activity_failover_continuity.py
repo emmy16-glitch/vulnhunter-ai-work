@@ -2,11 +2,20 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 
+import pytest
+
 from vulnhunter.agent_activity.hierarchy import build_activity_tree
 from vulnhunter.agent_activity.read_models import event_to_public_dict
 from vulnhunter.agent_activity.service import AgentActivityService
 from vulnhunter.agent_activity.store import AppendOnlyActivityStore
 from vulnhunter.web import ai_failover, conversation_service
+
+
+@pytest.fixture(autouse=True)
+def reset_failover_health():
+    ai_failover.reset_provider_health()
+    yield
+    ai_failover.reset_provider_health()
 
 
 def _router_call() -> tuple[str | None, str, str]:
@@ -148,3 +157,78 @@ def test_all_provider_failures_leave_task_cursor_and_tree_unchanged(monkeypatch,
     )
     assert [event.sequence for event in after_events] == [1]
     assert after_tree == before_tree
+
+
+def test_primary_circuit_cooldown_skips_repeated_failures(monkeypatch):
+    ai_failover.install()
+    calls = {"groq": 0, "gemini": 0}
+
+    def groq(*_args, **_kwargs):
+        calls["groq"] += 1
+        return None, "Groq request timed out."
+
+    def gemini(*_args, **_kwargs):
+        calls["gemini"] += 1
+        return (
+            '{"message":"secondary response","recommended_profile":null,"model":"hidden"}',
+            "ok",
+        )
+
+    monkeypatch.setattr(conversation_service, "_groq_advisory", groq)
+    monkeypatch.setattr(ai_failover, "_gemini_advisory", gemini)
+    monkeypatch.setattr(
+        ai_failover,
+        "_ollama_advisory",
+        lambda *_args, **_kwargs: (None, "Ollama advisory is disabled."),
+    )
+
+    first = _router_call()
+    second = _router_call()
+    third = _router_call()
+
+    assert first[0] and second[0] and third[0]
+    assert all(
+        result[1:] == ("AI reasoning completed.", "auto") for result in (first, second, third)
+    )
+    assert calls == {"groq": 2, "gemini": 3}
+    assert ai_failover._provider_health_snapshot()["groq"]["state"] == "cooldown"
+
+
+def test_primary_recovers_after_cooldown_probe(monkeypatch):
+    ai_failover.install()
+    monkeypatch.setattr(ai_failover, "_CIRCUIT_COOLDOWN_SECONDS", 0.0)
+    calls = {"groq": 0, "gemini": 0}
+
+    def groq(*_args, **_kwargs):
+        calls["groq"] += 1
+        if calls["groq"] < 3:
+            return None, "Groq request timed out."
+        return (
+            '{"message":"primary recovered","recommended_profile":null,"model":"hidden"}',
+            "ok",
+        )
+
+    def gemini(*_args, **_kwargs):
+        calls["gemini"] += 1
+        return (
+            '{"message":"secondary response","recommended_profile":null,"model":"hidden"}',
+            "ok",
+        )
+
+    monkeypatch.setattr(conversation_service, "_groq_advisory", groq)
+    monkeypatch.setattr(ai_failover, "_gemini_advisory", gemini)
+    monkeypatch.setattr(
+        ai_failover,
+        "_ollama_advisory",
+        lambda *_args, **_kwargs: (None, "Ollama advisory is disabled."),
+    )
+
+    first = _router_call()
+    second = _router_call()
+    recovered = _router_call()
+
+    assert "secondary response" in str(first[0])
+    assert "secondary response" in str(second[0])
+    assert "primary recovered" in str(recovered[0])
+    assert calls == {"groq": 3, "gemini": 2}
+    assert ai_failover._provider_health_snapshot()["groq"]["state"] == "healthy"

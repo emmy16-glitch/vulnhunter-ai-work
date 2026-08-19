@@ -199,15 +199,22 @@ def build_mobile_chat_plan(
 
 def mobile_plan_reply(plan: dict[str, object]) -> str:
     profile = str(plan["profile"]).replace("_", " ")
-    tool_count = int(plan["tool_count"])
+    executable_count = int(plan.get("executable_tool_count", plan.get("tool_count", 0)))
+    deferred = plan.get("deferred_tools", [])
+    deferred_count = len(deferred) if isinstance(deferred, list) else 0
     rounds = plan.get("rounds", [])
     round_count = len(rounds) if isinstance(rounds, list) else 0
     copy = (
         f"I validated the APK envelope and prepared a bounded {profile} hunt with "
-        f"{tool_count} registered tools across {round_count} investigation rounds. "
+        f"{executable_count} executable static tool(s) across {round_count} investigation rounds. "
         "The loop starts with identity and attack-surface coverage, then traces code and native "
         "candidates, challenges them against raw evidence and performs a variant sweep."
     )
+    if deferred_count:
+        copy = (
+            f"{copy} {deferred_count} additional dynamic capability(ies) remain separately "
+            "gated and are not part of the static execution claim."
+        )
     dynamic_note = plan.get("dynamic_note")
     if isinstance(dynamic_note, str) and dynamic_note:
         copy = f"{copy} {dynamic_note}"

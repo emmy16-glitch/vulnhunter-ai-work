@@ -23,6 +23,7 @@ from vulnhunter.hunt import (
 )
 from vulnhunter.mobile import MobileArtifactIngestor
 from vulnhunter.mobile.models import MobileArtifactRecord
+from vulnhunter.mobile.static_progress import MobileStaticProgressStore
 from vulnhunter.mobile.static_service import MobileStaticQueueService, create_mobile_static_job
 from vulnhunter.mobile.static_spool import MobileStaticSpool, MobileStaticSpoolError
 from vulnhunter.mobile.static_worker import MobileStaticWorkerPolicy
@@ -214,6 +215,11 @@ def test_signed_mobile_static_queue_runs_fixed_networkless_worker(tmp_path):
     assert receipt.captures[0].tool == "aapt2"
     assert receipt.captures[0].return_code == 0
     assert receipt.candidate_observations[0]["title"] == "APK contains native libraries"
+    progress = MobileStaticProgressStore(tmp_path / "spool").read(job_id=job.job_id, key=key)
+    assert progress is not None
+    candidates = progress.result_summary["hunt"]["candidates"]
+    assert candidates[0]["confidence"]
+    assert candidates[0]["evidence_receipts"]
     status = spool.status(job.job_id)
     assert status is not None
     assert status["state"] == "completed"

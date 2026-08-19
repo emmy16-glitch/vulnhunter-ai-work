@@ -7,7 +7,7 @@ from unittest.mock import patch
 import pytest
 from django.contrib.auth import get_user_model
 
-from vulnhunter.web import conversational_views
+from vulnhunter.web import ai_failover, conversational_views
 from vulnhunter.web.conversation_service import (
     _sanitize_for_groq,
     canonical_target,
@@ -77,6 +77,7 @@ def test_groq_prompt_sanitizer_removes_targets_and_protected_values():
 
 
 def test_remote_advisory_cannot_turn_a_scan_request_into_cancellation(settings):
+    ai_failover.reset_provider_health()
     settings.VULNHUNTER_GROQ_ENABLED = True
     advisory = json.dumps(
         {

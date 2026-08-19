@@ -171,7 +171,9 @@ def test_default_fetcher_returns_bounded_response_metadata() -> None:
 def test_default_fetcher_translates_network_failures(failure) -> None:
     with patch.object(public_consent, "urlopen", side_effect=failure):
         with pytest.raises(PublicConsentError, match="could not be fetched safely") as error:
-            public_consent._default_fetcher("https://example.test/.well-known/vulnhunter-consent.json")
+            public_consent._default_fetcher(
+                "https://example.test/.well-known/vulnhunter-consent.json"
+            )
 
     assert error.value.__cause__ is failure
 

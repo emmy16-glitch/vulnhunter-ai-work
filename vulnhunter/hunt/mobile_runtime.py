@@ -28,6 +28,7 @@ class MobileHuntCandidateReceipt(BaseModel):
     title: str
     severity: str
     state: CandidateState
+    confidence: str = "unknown"
     source_status: str = "candidate"
     component: str | None = None
     tool_ids: tuple[str, ...] = ()
@@ -157,6 +158,7 @@ def _receipt(
         title=candidate.title,
         severity=candidate.severity,
         state=candidate.state,
+        confidence=str(observation.get("confidence") or observation.get("status") or "unknown"),
         source_status=str(observation.get("status") or "candidate"),
         component=candidate.component,
         tool_ids=tools,

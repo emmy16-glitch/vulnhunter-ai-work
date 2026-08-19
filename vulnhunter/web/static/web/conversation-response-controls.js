@@ -115,8 +115,8 @@
 
   const installStopButton = () => {
     if (state.stopButton?.isConnected) return;
-    const progressHead = document.querySelector(".vh-llm-progress-head");
-    if (!progressHead) return;
+    const thinkingNode = document.querySelector("[data-conversation-thinking]");
+    if (!thinkingNode) return;
     const button = document.createElement("button");
     button.type = "button";
     button.className = "vh-stop-response";
@@ -126,7 +126,7 @@
       "Stop waiting for this response. The remote provider may already have received the request.";
     button.hidden = true;
     button.addEventListener("click", stopCurrentResponse);
-    progressHead.append(button);
+    thinkingNode.append(button);
     state.stopButton = button;
     updateStopButton();
   };

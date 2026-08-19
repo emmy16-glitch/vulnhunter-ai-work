@@ -129,19 +129,32 @@ class AssessmentEventsConsumer(AsyncJsonWebsocketConsumer):
         except (TypeError, ValueError):
             cursor = 0
         payload = await self._payload(cursor)
+        last_sequence = int(payload.get("last_sequence", cursor))
+        run_state = payload.get("run_state")
+        terminal = bool(payload.get("terminal", False))
         return {
             "type": "assessment.snapshot",
             "assessment_id": self.assessment_id,
             "events": payload.get("events", []),
-            "last_sequence": int(payload.get("last_sequence", cursor)),
-            "run_state": payload.get("run_state"),
-            "terminal": bool(payload.get("terminal", False)),
+            "last_sequence": last_sequence,
+            "task_state": payload.get("task_state") or run_state,
+            "run_state": run_state,
+            "active_summary": payload.get("active_summary"),
+            "approval_state": payload.get("approval_state"),
+            "execution_state": payload.get("execution_state"),
+            "workflow_state": payload.get("workflow_state"),
+            "execution_enabled": bool(payload.get("execution_enabled", False)),
+            "execution_blocking_reason": payload.get("execution_blocking_reason"),
+            "readiness": payload.get("readiness") or {},
+            "evaluation_result": payload.get("evaluation_result"),
+            "updated_at": payload.get("updated_at"),
+            "terminal": terminal,
             "activity_tree": payload.get("activity_tree")
             or {
                 "schema_version": "1.0",
                 "task_id": self.assessment_id,
-                "status": "running",
-                "last_sequence": int(payload.get("last_sequence", cursor)),
+                "status": str(run_state or "completed" if terminal else "running"),
+                "last_sequence": last_sequence,
                 "nodes": [],
             },
         }

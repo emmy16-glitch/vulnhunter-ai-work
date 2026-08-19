@@ -172,21 +172,54 @@ class AssessmentEventsSnapshot {
     required this.lastSequence,
     required this.runState,
     required this.terminal,
+    this.taskState,
+    this.activeSummary,
+    this.approvalState,
+    this.executionState,
+    this.workflowState,
+    this.executionEnabled = false,
+    this.executionBlockingReason,
+    this.readiness = const {},
+    this.evaluationResult,
+    this.updatedAt,
+    this.activityTree = const {},
   });
 
   final String assessmentId;
   final List<AssessmentEvent> events;
   final int lastSequence;
+  final String? taskState;
   final String? runState;
+  final String? activeSummary;
+  final String? approvalState;
+  final String? executionState;
+  final String? workflowState;
+  final bool executionEnabled;
+  final String? executionBlockingReason;
+  final JsonMap readiness;
+  final String? evaluationResult;
+  final DateTime? updatedAt;
   final bool terminal;
+  final JsonMap activityTree;
 
   factory AssessmentEventsSnapshot.fromJson(JsonMap json) =>
       AssessmentEventsSnapshot(
         assessmentId: '${json['assessment_id'] ?? ''}',
         events: _maps(json['events']).map(AssessmentEvent.fromJson).toList(),
         lastSequence: _int(json['last_sequence']),
+        taskState: _stringOrNull(json['task_state']),
         runState: _stringOrNull(json['run_state']),
+        activeSummary: _stringOrNull(json['active_summary']),
+        approvalState: _stringOrNull(json['approval_state']),
+        executionState: _stringOrNull(json['execution_state']),
+        workflowState: _stringOrNull(json['workflow_state']),
+        executionEnabled: json['execution_enabled'] == true,
+        executionBlockingReason: _stringOrNull(json['execution_blocking_reason']),
+        readiness: _map(json['readiness']),
+        evaluationResult: _stringOrNull(json['evaluation_result']),
+        updatedAt: _date(json['updated_at']),
         terminal: json['terminal'] == true,
+        activityTree: _map(json['activity_tree']),
       );
 }
 

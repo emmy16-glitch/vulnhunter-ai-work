@@ -340,7 +340,8 @@ VULNHUNTER_NUCLEI_READINESS_REPORT = os.environ.get(
     "VULNHUNTER_NUCLEI_READINESS_REPORT",
     str(BASE_DIR / ".local" / "nuclei-readiness" / "readiness.json"),
 )
-VULNHUNTER_NUCLEI_PILOT_ENQUEUE_ENABLED = env_bool("VULNHUNTER_NUCLEI_PILOT_ENQUEUE_ENABLED", True)
+# Worker queue activation is an explicit deployment opt-in after readiness verification.
+VULNHUNTER_NUCLEI_PILOT_ENQUEUE_ENABLED = env_bool("VULNHUNTER_NUCLEI_PILOT_ENQUEUE_ENABLED", False)
 VULNHUNTER_NUCLEI_WORKER_SIGNING_KEY_FILE = os.environ.get(
     "VULNHUNTER_NUCLEI_WORKER_SIGNING_KEY_FILE",
     str(Path.home() / ".vulnhunter-nuclei-worker-key"),

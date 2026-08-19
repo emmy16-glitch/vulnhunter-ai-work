@@ -200,14 +200,25 @@ def _existing_run_bound_to_state(
     actor: object,
     target: str,
 ):
-    stored_target = state.get("target")
-    if not (
-        isinstance(stored_target, str)
-        and stored_target
-        and canonical_target(stored_target) == canonical_target(target)
-    ):
+    """Return only the explicitly persisted run for this conversation state.
+
+    A target URL is not an attempt identity. Looking up the latest run for a
+    matching target can attach a stale or superseded worker job to a new
+    conversation, so target matching is only a consistency check after the
+    persisted run ID has been resolved.
+    """
+
+    run_id = state.get("run_id")
+    if not isinstance(run_id, str) or not run_id:
         return None
-    return _latest_visible_run(actor, target=target)
+    try:
+        current = _visible_run(run_id, actor)
+    except Http404:
+        return None
+    current_target = canonical_target(
+        str(getattr(current, "scope_summary", None) or getattr(current, "objective", ""))
+    )
+    return current if current_target == canonical_target(target) else None
 
 
 def _authoritative_run(
@@ -217,22 +228,18 @@ def _authoritative_run(
     target: str | None = None,
 ):
     run_id = state.get("run_id")
-    if isinstance(run_id, str) and run_id:
-        try:
-            current = _visible_run(run_id, actor)
-        except Http404:
-            current = None
-        if current is not None:
-            if not target:
-                return current
-            current_target = canonical_target(
-                str(getattr(current, "scope_summary", None) or getattr(current, "objective", ""))
-            )
-            if current_target == canonical_target(target):
-                return current
-    if target:
-        return _existing_run_bound_to_state(state, actor, target)
-    return None
+    if not isinstance(run_id, str) or not run_id:
+        return None
+    try:
+        current = _visible_run(run_id, actor)
+    except Http404:
+        return None
+    if not target:
+        return current
+    current_target = canonical_target(
+        str(getattr(current, "scope_summary", None) or getattr(current, "objective", ""))
+    )
+    return current if current_target == canonical_target(target) else None
 
 
 def _sync_state_from_run(

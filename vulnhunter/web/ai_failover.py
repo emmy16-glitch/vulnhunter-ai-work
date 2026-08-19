@@ -11,7 +11,10 @@ import json
 import logging
 import os
 import re
+import threading
+import time
 from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -24,6 +27,19 @@ logger = logging.getLogger(__name__)
 _INSTALLED = False
 _ALLOWED_OLLAMA_HOSTS = {"127.0.0.1", "localhost", "::1"}
 _MODEL_PATTERN = re.compile(r"^[A-Za-z0-9._:/-]+$")
+_CIRCUIT_LOCK = threading.RLock()
+_CIRCUIT_FAILURE_THRESHOLD = 2
+_CIRCUIT_COOLDOWN_SECONDS = 15.0
+
+
+@dataclass
+class _ProviderCircuit:
+    failures: int = 0
+    state: str = "healthy"
+    cooldown_until: float = 0.0
+
+
+_CIRCUITS: dict[str, _ProviderCircuit] = {}
 
 
 def _env_bool(name: str, default: bool = False) -> bool:
@@ -39,6 +55,82 @@ def _env_int(name: str, default: int, *, minimum: int, maximum: int) -> int:
     except ValueError:
         return default
     return min(max(value, minimum), maximum)
+
+
+def _circuit(name: str) -> _ProviderCircuit:
+    with _CIRCUIT_LOCK:
+        return _CIRCUITS.setdefault(name, _ProviderCircuit())
+
+
+def _provider_available(name: str, now: float | None = None) -> bool:
+    instant = time.monotonic() if now is None else now
+    with _CIRCUIT_LOCK:
+        circuit = _circuit(name)
+        if circuit.state == "cooldown" and instant < circuit.cooldown_until:
+            return False
+        if circuit.state == "cooldown":
+            circuit.state = "probe"
+        return True
+
+
+def _provider_succeeded(name: str) -> None:
+    with _CIRCUIT_LOCK:
+        circuit = _circuit(name)
+        circuit.failures = 0
+        circuit.state = "healthy"
+        circuit.cooldown_until = 0.0
+
+
+def _provider_failed(name: str) -> None:
+    with _CIRCUIT_LOCK:
+        circuit = _circuit(name)
+        circuit.failures += 1
+        if circuit.failures >= _CIRCUIT_FAILURE_THRESHOLD:
+            circuit.state = "cooldown"
+            circuit.cooldown_until = time.monotonic() + _CIRCUIT_COOLDOWN_SECONDS
+        else:
+            circuit.state = "degraded"
+
+
+def _provider_health_snapshot() -> dict[str, dict[str, object]]:
+    now = time.monotonic()
+    with _CIRCUIT_LOCK:
+        snapshot: dict[str, dict[str, object]] = {}
+        for name, circuit in _CIRCUITS.items():
+            remaining = max(0.0, circuit.cooldown_until - now)
+            snapshot[name] = {
+                "state": "probe"
+                if circuit.state == "cooldown" and remaining == 0
+                else circuit.state,
+                "failures": circuit.failures,
+                "cooldown_seconds": round(remaining, 3),
+            }
+        return snapshot
+
+
+def reset_provider_health() -> None:
+    """Reset process-local health state for deterministic tests and controlled reloads."""
+    with _CIRCUIT_LOCK:
+        _CIRCUITS.clear()
+
+
+def _failure_detail(detail: str) -> bool:
+    lowered = detail.casefold()
+    return any(
+        marker in lowered
+        for marker in (
+            "timed out",
+            "transport",
+            "rate limit",
+            "unavailable",
+            "not reachable",
+            "malformed",
+            "rejected",
+            "abstained",
+            "disabled",
+            "not configured",
+        )
+    )
 
 
 def _read_secret(
@@ -407,6 +499,9 @@ def install() -> None:
 
         attempted: list[str] = []
         for provider_name, provider in providers:
+            if not _provider_available(provider_name):
+                attempted.append(f"{provider_name}: circuit cooldown")
+                continue
             try:
                 advisory, detail = provider(text, **common)
             except Exception as exc:  # fail closed at the provider boundary
@@ -418,6 +513,7 @@ def install() -> None:
                 advisory, detail = None, "unexpected provider failure"
             attempted.append(f"{provider_name}: {detail}")
             if advisory:
+                _provider_succeeded(provider_name)
                 if len(attempted) > 1:
                     logger.info(
                         "Conversational AI failover succeeded with %s after %d attempts.",
@@ -426,6 +522,8 @@ def install() -> None:
                     )
                 # Keep provider switching out of user-facing copy/metadata details.
                 return advisory, "AI reasoning completed.", "auto"
+            if _failure_detail(detail):
+                _provider_failed(provider_name)
 
         logger.warning(
             "All conversational AI providers were unavailable: %s",
@@ -442,11 +540,21 @@ def install() -> None:
         configured = bool(status.get("configured")) or any(extra.values())
         # This dictionary is consumed by the workspace template, so expose only
         # aggregate capability state. Provider/model inventory belongs in server logs.
+        health = _provider_health_snapshot()
+        degraded = any(
+            item.get("state") in {"degraded", "cooldown", "probe"} for item in health.values()
+        )
         return {
             "enabled": enabled,
             "configured": configured,
             "live_verified": bool(status.get("live_verified")),
-            "label": "AI reasoning available" if configured else "AI reasoning unavailable",
+            "label": (
+                "AI reasoning temporarily degraded"
+                if configured and degraded
+                else "AI reasoning available"
+                if configured
+                else "AI reasoning unavailable"
+            ),
             "reasoning_effort": "high",
             "model_fallback_allowed": False,
             "provider_fallback_allowed": True,

@@ -86,7 +86,18 @@ export interface AssessmentEventsPayload {
   assessment_id: string;
   events: AssessmentEvent[];
   last_sequence: number;
+  task_state?: string | null;
   run_state?: string | null;
+  active_summary?: string | null;
+  approval_state?: string | null;
+  execution_state?: string | null;
+  workflow_state?: string | null;
+  execution_enabled?: boolean;
+  execution_blocking_reason?: string | null;
+  readiness?: ReadinessPayload;
+  evaluation_result?: unknown;
+  updated_at?: string | null;
+  activity_tree?: JsonObject;
   terminal: boolean;
 }
 

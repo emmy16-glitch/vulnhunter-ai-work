@@ -32,6 +32,8 @@ class MobileArtifactRecord(BaseModel):
     original_filename: str
     stored_path: Path
     sha256: str
+    sha1: str | None = None
+    md5: str | None = None
     size_bytes: int = Field(ge=1)
     archive_entry_count: int = Field(ge=1)
     total_uncompressed_bytes: int = Field(ge=1)

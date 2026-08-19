@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import zipfile
@@ -12,6 +13,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 from vulnhunter.mobile.artifacts import MobileArtifactError, copy_artifact_for_analysis
+from vulnhunter.mobile.layered_analysis import LayeredAnalysisError, analyze_package
 from vulnhunter.mobile.models import MobileArtifactRecord
 from vulnhunter.mobile.static_toolchain import (
     MobileStaticToolchain,
@@ -35,6 +37,8 @@ class MobileStaticAnalysisResult(BaseModel):
     state: Literal["completed", "blocked", "failed"]
     captures: tuple[MobileToolCapture, ...] = ()
     candidate_observations: tuple[dict[str, object], ...] = ()
+    layered_report: dict[str, object] | None = None
+    layered_report_error: str | None = None
     completed_at: datetime
     reason: str = Field(min_length=3, max_length=500)
 
@@ -99,6 +103,27 @@ class MobileStaticWorker:
                 detail=("APK identity was rebound to the ingested SHA-256 and copied read-only."),
                 tools=self.policy.active_tools(),
             )
+            layered_report: dict[str, object] | None = None
+            layered_report_error: str | None = None
+            self._emit(
+                progress_callback,
+                state="running",
+                stage="layered_static",
+                detail="Reconstructing package, DEX, native, network and evidence layers.",
+            )
+            try:
+                layered_report = analyze_package(apk, artifact=record).model_dump(mode="json")
+            except (OSError, LayeredAnalysisError, ValueError) as exc:
+                layered_report_error = (
+                    f"Layered static reconstruction was incomplete: {type(exc).__name__}."
+                )
+                self._emit(
+                    progress_callback,
+                    state="running",
+                    stage="layered_static",
+                    tool_state="failed",
+                    detail=layered_report_error,
+                )
             captures, observations = MobileStaticToolchain(self.policy).run(
                 record=record,
                 apk=apk,
@@ -131,6 +156,8 @@ class MobileStaticWorker:
             state="completed",
             captures=captures,
             candidate_observations=observations,
+            layered_report=layered_report,
+            layered_report_error=layered_report_error,
             completed_at=datetime.now(UTC),
             reason="Read-only static and native APK inspection completed.",
         )
@@ -138,13 +165,29 @@ class MobileStaticWorker:
             workspace / "static-analysis.json",
             result.model_dump_json(indent=2) + "\n",
         )
+        if layered_report is not None:
+            self._write_exclusive(
+                workspace / "layered-analysis.json",
+                json.dumps(layered_report, indent=2, sort_keys=True) + "\n",
+            )
+        completeness = (
+            layered_report.get("completeness", {}).get("percentage")
+            if layered_report is not None
+            else None
+        )
+        report_detail = (
+            f" Layered report completeness is {completeness:.2f}% with "
+            f"{len(layered_report.get('gaps', ()))} gap(s)."
+            if isinstance(completeness, (int, float)) and layered_report is not None
+            else " Layered report was not available; the analysis-health gap is recorded."
+        )
         self._emit(
             progress_callback,
             state="completed",
             stage="report",
             detail=(
                 f"Collected {len(captures)} bounded tool receipt(s) and "
-                f"{len(observations)} candidate observation(s)."
+                f"{len(observations)} candidate observation(s).{report_detail}"
             ),
         )
         return result

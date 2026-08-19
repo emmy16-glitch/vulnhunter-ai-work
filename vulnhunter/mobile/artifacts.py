@@ -69,6 +69,8 @@ class MobileArtifactIngestor:
         descriptor, temporary_name = tempfile.mkstemp(prefix="apk-", suffix=".part", dir=incoming)
         temporary = Path(temporary_name)
         digest = hashlib.sha256()
+        sha1_digest = hashlib.sha1()
+        md5_digest = hashlib.md5()
         size = 0
         try:
             with os.fdopen(descriptor, "wb") as output:
@@ -82,6 +84,8 @@ class MobileArtifactIngestor:
                         raise MobileArtifactError("APK exceeds the configured size limit")
                     output.write(chunk)
                     digest.update(chunk)
+                    sha1_digest.update(chunk)
+                    md5_digest.update(chunk)
                 output.flush()
                 os.fsync(output.fileno())
             if size == 0:
@@ -108,6 +112,8 @@ class MobileArtifactIngestor:
                 original_filename=safe_name,
                 stored_path=destination,
                 sha256=sha256,
+                sha1=sha1_digest.hexdigest(),
+                md5=md5_digest.hexdigest(),
                 size_bytes=size,
                 archive_entry_count=archive["entry_count"],
                 total_uncompressed_bytes=archive["uncompressed_bytes"],

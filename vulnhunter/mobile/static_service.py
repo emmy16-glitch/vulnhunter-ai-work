@@ -186,6 +186,8 @@ class MobileStaticQueueService:
                 ],
                 "hunt": hunt.model_dump(mode="json"),
                 "graph": graph.model_dump(mode="json"),
+                "layered_report": result.layered_report,
+                "layered_report_error": result.layered_report_error,
             }
             if success:
                 verification = _verification_summary(hunt)

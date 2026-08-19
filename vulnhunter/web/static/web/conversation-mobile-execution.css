@@ -602,3 +602,63 @@
   }
   .vh-mobile-plan-context > small { max-width: none; text-align: left; }
 }
+
+
+/* Reference task detail: connectors and evidence-backed duration/progress metadata. */
+.vh-mobile-live-stage > summary { position: relative; }
+.vh-mobile-live-stage > summary strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vh-mobile-live-stage > summary small { justify-self: end; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right; }
+.vh-mobile-live-stage[open] > summary { background: color-mix(in srgb, var(--vh-pink-soft) 30%, transparent); }
+.vh-mobile-live-stage > summary::before {
+  position: absolute;
+  top: 29px;
+  bottom: -1px;
+  left: 26px;
+  width: 1px;
+  background: color-mix(in srgb, var(--vh-line-strong) 78%, transparent);
+  content: "";
+  pointer-events: none;
+}
+.vh-mobile-live-stage:last-child > summary::before { display: none; }
+
+.vh-mobile-live-tools {
+  position: relative;
+  margin-left: 46px;
+  padding-left: 0;
+}
+.vh-mobile-live-tools::before {
+  position: absolute;
+  top: -8px;
+  bottom: 8px;
+  left: -20px;
+  width: 1px;
+  background: color-mix(in srgb, var(--vh-line-strong) 78%, transparent);
+  content: "";
+}
+.vh-mobile-live-tool { position: relative; grid-template-columns: 18px minmax(0, 1fr); }
+.vh-mobile-live-tool::before {
+  position: absolute;
+  top: 15px;
+  left: -20px;
+  width: 14px;
+  border-top: 1px dashed color-mix(in srgb, var(--vh-line-strong) 78%, transparent);
+  content: "";
+}
+.vh-mobile-live-tool > div { grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; column-gap: 10px; }
+.vh-mobile-live-tool strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vh-mobile-live-tool small { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+@media (min-width: 1280px) {
+  .vh-mobile-live-execution { width: min(calc(100% - 32px), 920px); margin: 12px auto 16px; }
+  .vh-mobile-live-header { padding: 17px 19px 15px; }
+  .vh-mobile-live-heading strong { font-size: 17px; }
+  .vh-mobile-live-stage > summary { min-height: 48px; padding-inline: 19px; }
+  .vh-mobile-live-tools { margin-right: 19px; margin-left: 48px; }
+}
+
+@media (max-width: 720px) {
+  .vh-mobile-live-stage > summary { grid-template-columns: 22px minmax(0, 1fr) auto; }
+  .vh-mobile-live-stage > summary small { max-width: 120px; font-size: 8.5px; }
+  .vh-mobile-live-tool > div { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  .vh-mobile-live-tool small { white-space: normal; }
+}

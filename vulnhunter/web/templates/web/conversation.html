@@ -3,8 +3,8 @@
 
 {% block extra_styles %}
   <link rel="stylesheet" href="{% static 'web/conversation-upload.css' %}?v=20260727-phone-acceptance1">
-  <link rel="stylesheet" href="{% static 'web/conversation.css' %}?v=20260819-screenshot-fixes1">
-  <link rel="stylesheet" href="{% static 'web/conversation-mobile-execution.css' %}?v=20260819-canonical-apk-task1">
+  <link rel="stylesheet" href="{% static 'web/conversation.css' %}?v=20260819-reference-shell1">
+  <link rel="stylesheet" href="{% static 'web/conversation-mobile-execution.css' %}?v=20260819-reference-shell1">
   <link rel="stylesheet" href="{% static 'web/conversation-mobile-deferred-tools.css' %}?v=20260812-ui2">
   <link rel="stylesheet" href="{% static 'web/assessment-workspace.css' %}?v=20260812-ui2">
   <link rel="stylesheet" href="{% static 'web/public-consent.css' %}?v=20260819-consent1">
@@ -14,10 +14,10 @@
 {% block extra_scripts %}
   <script src="{% static 'web/conversation-thread-client.js' %}?v=20260727-phone-acceptance1" defer></script>
   <script src="{% static 'web/conversation-runtime-compat.js' %}?v=20260727-phone-acceptance1"></script>
-  <script src="{% static 'web/conversation.js' %}?v=20260812-ui2" defer></script>
+  <script src="{% static 'web/conversation.js' %}?v=20260819-reference-shell1" defer></script>
   <script src="{% static 'web/conversation-autoscroll.js' %}?v=20260727-phone-acceptance1" defer></script>
   <script src="{% static 'web/conversation-mobile-bridge.js' %}?v=20260727-phone-acceptance1" defer></script>
-  <script src="{% static 'web/conversation-mobile.js' %}?v=20260819-canonical-apk-task1" defer></script>
+  <script src="{% static 'web/conversation-mobile.js' %}?v=20260819-reference-shell1" defer></script>
   <script src="{% static 'web/conversation-mobile-context.js' %}?v=20260727-phone-acceptance1" defer></script>
   <script src="{% static 'web/conversation-mobile-inspector.js' %}?v=20260812-ui2" defer></script>
   <script src="{% static 'web/conversation-mobile-deferred-tools.js' %}?v=20260727-phone-acceptance1" defer></script>
@@ -63,6 +63,37 @@
   </button>
 
   <div class="vh-chat-layout">
+    <aside class="vh-chat-tasks-panel" data-chat-tasks-panel aria-label="Chats and tasks">
+      <header class="vh-chat-tasks-panel-header">
+        <div><p class="vh-eyebrow">Workspace</p><h2>Chats &amp; Tasks</h2></div>
+        <button type="button" class="vh-chat-tasks-expand" data-history-toggle aria-label="Open all conversations">↗</button>
+      </header>
+      <div class="vh-chat-task-filters" role="tablist" aria-label="Task status filters">
+        <button type="button" class="is-active" data-task-filter="active" role="tab" aria-selected="true">Active <b>{{ conversation.task_counts.active|default:0 }}</b></button>
+        <button type="button" data-task-filter="completed" role="tab" aria-selected="false">Completed <b>{{ conversation.task_counts.completed|default:0 }}</b></button>
+        <button type="button" data-task-filter="cancelled" role="tab" aria-selected="false">Cancelled <b>{{ conversation.task_counts.cancelled|default:0 }}</b></button>
+      </div>
+      <div class="vh-chat-tasks-list" data-desktop-task-list>
+        {% if conversation.active_run %}
+          <a class="vh-desktop-task-card is-active" data-task-state="{{ conversation.active_run.state|default:'active'|lower }}" href="{{ conversation.active_run.detail_url }}" aria-current="page">
+            <span class="vh-desktop-task-icon vh-is-apk" aria-hidden="true">APK</span>
+            <span><strong>{{ conversation.active_run.target|default:"Current APK analysis"|truncatechars:32 }}</strong><small>{{ conversation.active_run.state|default:"running"|title }} · {{ conversation.active_run.scanner|default:"static worker"|title }}</small></span>
+            <time>{{ conversation.active_run.profile|default:"active"|title }}</time>
+          </a>
+        {% endif %}
+        {% for item in conversation.recent_runs|slice:":12" %}
+          <a class="vh-desktop-task-card{% if item.run_id == conversation.active_run.run_id %} is-active{% endif %}" data-task-state="{{ item.state|default:'completed'|lower }}" href="{{ item.detail_url }}">
+            <span class="vh-desktop-task-icon{% if 'apk' in item.target|lower %} vh-is-apk{% elif 'http' in item.target|lower %} vh-is-web{% else %} vh-is-code{% endif %}" aria-hidden="true">{% if 'apk' in item.target|lower %}APK{% elif 'http' in item.target|lower %}WEB{% else %}SRC{% endif %}</span>
+            <span><strong>{{ item.target|default:"Assessment"|truncatechars:32 }}</strong><small>{{ item.state|default:"completed"|title }} · {{ item.scanner|default:item.profile|default:"assessment"|title }}</small></span>
+            <time>{{ item.profile|default:"—"|title }}</time>
+          </a>
+        {% empty %}
+          <p class="vh-chat-tasks-empty">No persisted tasks yet.</p>
+        {% endfor %}
+      </div>
+      <button type="button" class="vh-chat-tasks-all" data-history-toggle>View all conversations <span aria-hidden="true">→</span></button>
+    </aside>
+
     <main class="vh-chat-main" aria-label="Assessment conversation">
       <details class="vh-analysis-activity-panel" data-analysis-activity hidden aria-live="polite">
         <summary>
@@ -97,6 +128,29 @@
       </details>
       <div class="vh-chat-feed" data-conversation-feed data-follow-latest="true" aria-live="polite" aria-relevant="additions text">
         <noscript><p class="vh-operational-notice is-danger">JavaScript is required for the interactive assessment workspace.</p></noscript>
+        <section class="vh-empty-workspace" data-conversation-empty aria-labelledby="vh-empty-workspace-title"{% if conversation.has_user_messages or conversation.active_run %} hidden aria-hidden="true"{% endif %}>
+            <header class="vh-empty-workspace-header">
+              <span class="vh-empty-workspace-mark" aria-hidden="true"><svg><use href="#vh-i-shield"></use></svg></span>
+              <h2 id="vh-empty-workspace-title">VulnHunter Workspace</h2>
+              <p>What do you want to investigate?</p>
+            </header>
+            <div class="vh-empty-investigation-grid" aria-label="Investigation shortcuts">
+              <button type="button" class="vh-empty-investigation-card is-apk" data-empty-prompt="Please analyse this APK for security issues."><span aria-hidden="true"><svg><use href="#vh-i-mobile"></use></svg></span><strong>Analyse an APK</strong><small>Upload and analyse an Android application</small></button>
+              <button type="button" class="vh-empty-investigation-card is-web" data-empty-prompt="Assess this authorised public website for security issues."><span aria-hidden="true"><svg><use href="#vh-i-globe"></use></svg></span><strong>Assess a website</strong><small>Scan and analyse an authorised website</small></button>
+              <button type="button" class="vh-empty-investigation-card is-source" data-empty-prompt="Review this source code for security issues."><span aria-hidden="true"><svg><use href="#vh-i-policy"></use></svg></span><strong>Review source</strong><small>Inspect code, resources and configurations</small></button>
+              <button type="button" class="vh-empty-investigation-card is-findings" data-empty-prompt="Review the persisted findings from this assessment."><span aria-hidden="true"><svg><use href="#vh-i-finding"></use></svg></span><strong>Review findings</strong><small>Explore and triage previous results</small></button>
+            </div>
+            <section class="vh-empty-recent" aria-labelledby="vh-empty-recent-title">
+              <header><h3 id="vh-empty-recent-title">Recent</h3><button type="button" data-history-toggle>View all history <span aria-hidden="true">→</span></button></header>
+              <div class="vh-empty-recent-list">
+                {% for item in conversation.recent_runs|slice:":3" %}
+                  <a href="{{ item.detail_url }}" class="vh-empty-recent-item"><span class="vh-empty-recent-icon" aria-hidden="true">{% if 'apk' in item.target|lower %}APK{% elif 'http' in item.target|lower %}WEB{% else %}SRC{% endif %}</span><span><strong>{{ item.target|default:"Assessment"|truncatechars:42 }}</strong><small>{{ item.profile|default:"assessment"|title }}</small></span><span class="vh-empty-recent-state is-{{ item.state|default:'completed'|lower }}">{{ item.state|default:"completed"|title }}</span><time>{{ item.updated_at|slice:":10" }}</time></a>
+                {% empty %}
+                  <p class="vh-empty-recent-none">No persisted assessments yet.</p>
+                {% endfor %}
+              </div>
+            </section>
+        </section>
       </div>
 
       <div class="vh-chat-thinking" data-conversation-thinking hidden aria-live="polite">

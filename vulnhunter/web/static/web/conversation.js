@@ -22,8 +22,11 @@
   const reset = workspace.querySelector("[data-conversation-reset]");
   const reasoningSelect = workspace.querySelector("[data-reasoning-effort]");
   const reasoningCopy = workspace.querySelector("[data-reasoning-copy]");
-  const historyToggle = workspace.querySelector("[data-history-toggle]");
+  const historyToggles = [...workspace.querySelectorAll("[data-history-toggle]")];
+  const historyToggle = historyToggles[0] || null;
   const historyPanel = workspace.querySelector("[data-history-panel]");
+  const emptyState = workspace.querySelector("[data-conversation-empty]");
+  const taskFilterButtons = [...workspace.querySelectorAll("[data-task-filter]")];
   const historyClose = workspace.querySelector("[data-history-close]");
   const messageTemplate = document.getElementById("vh-message-template");
   const activityTemplate = document.getElementById("vh-activity-template");
@@ -130,8 +133,23 @@
   const messageKey = (message) =>
     [message.timestamp || "", message.role || "", message.kind || "", message.content || ""].join("|");
 
+  const hasUserMessage = (messages) =>
+    Array.isArray(messages) && messages.some((message) => text(message?.role).toLowerCase() === "user");
+
+  const appendPersistedMessages = (messages) => {
+    if (!hasUserMessage(messages)) return;
+    messages.forEach((message) => appendMessage(message, { forceScroll: false }));
+  };
+
+  const hideEmptyState = () => {
+    if (!emptyState) return;
+    emptyState.hidden = true;
+    emptyState.setAttribute("aria-hidden", "true");
+  };
+
   const appendMessage = (message, { animate = false, forceScroll = true } = {}) => {
     if (!message || typeof message !== "object") return;
+    hideEmptyState();
     const key = messageKey(message);
     if (renderedMessages.has(key)) return;
     renderedMessages.add(key);
@@ -1001,8 +1019,41 @@
     if (open) historyClose?.focus();
   };
 
-  historyToggle?.addEventListener("click", () => openHistory(historyPanel?.hidden !== false));
+  historyToggles.forEach((toggle) => {
+    toggle.addEventListener("click", () => openHistory(historyPanel?.hidden !== false));
+  });
   historyClose?.addEventListener("click", () => openHistory(false));
+
+  taskFilterButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      const filter = text(button.dataset.taskFilter || "active");
+      taskFilterButtons.forEach((candidate) => {
+        const selected = candidate === button;
+        candidate.classList.toggle("is-active", selected);
+        candidate.setAttribute("aria-selected", selected ? "true" : "false");
+      });
+      workspace.querySelectorAll("[data-desktop-task-list] [data-task-state]").forEach((card) => {
+        const state = text(card.dataset.taskState || "completed").toLowerCase();
+        const matches = filter === "active"
+          ? ["running", "executing", "queued", "prepared", "waiting", "active"].includes(state)
+          : filter === "cancelled"
+            ? ["cancelled", "canceled"].includes(state)
+            : !["running", "executing", "queued", "prepared", "waiting", "active", "cancelled", "canceled"].includes(state);
+        card.hidden = !matches;
+      });
+    });
+  });
+
+  workspace.querySelectorAll("[data-empty-prompt]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const prompt = text(button.dataset.emptyPrompt || "");
+      if (!prompt) return;
+      input.value = prompt;
+      resizeInput();
+      hideEmptyState();
+      input.focus();
+    });
+  });
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && historyPanel && !historyPanel.hidden) openHistory(false);
   });
@@ -1099,11 +1150,16 @@
       renderedMessages.clear();
       confirmedRuns.clear();
       feed.replaceChildren();
+      if (emptyState) {
+        feed.append(emptyState);
+        emptyState.hidden = false;
+        emptyState.removeAttribute("aria-hidden");
+      }
       runCard = null;
       activeRun = null;
       publishRunUpdate(null);
       lastRunSignature = "";
-      (data.messages || []).forEach((message) => appendMessage(message, { forceScroll: false }));
+      appendPersistedMessages(data.messages || []);
       scrollFeed({ behavior: "auto", force: true });
     } catch (error) {
       appendMessage({ role: "assistant", kind: "error", content: error.message, timestamp: new Date().toISOString() });
@@ -1113,7 +1169,7 @@
     }
   });
 
-  (initial.messages || []).forEach((message) => appendMessage(message, { forceScroll: false }));
+  appendPersistedMessages(initial.messages || []);
   if (activeRun) {
     activeRun = normalizeRun(activeRun);
     lastRunSignature = runSignature(activeRun);

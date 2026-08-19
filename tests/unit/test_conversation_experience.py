@@ -218,3 +218,24 @@ def test_apk_task_uses_one_evolving_block_with_collapsed_technical_activity():
     assert 'data-mobile-live-steps' not in script
     assert '.vh-mobile-live-stage' in styles
     assert '.vh-mobile-live-technical' in styles
+
+
+
+def test_reference_workspace_shell_and_empty_state_hooks_are_present():
+    template = (ROOT / "vulnhunter/web/templates/web/conversation.html").read_text(encoding="utf-8")
+    script = (ROOT / "vulnhunter/web/static/web/conversation.js").read_text(encoding="utf-8")
+    styles = (ROOT / "vulnhunter/web/static/web/conversation.css").read_text(encoding="utf-8")
+    mobile_script = (ROOT / "vulnhunter/web/static/web/conversation-mobile.js").read_text(
+        encoding="utf-8"
+    )
+
+    assert template.count("data-chat-tasks-panel") == 1
+    assert template.count("data-conversation-empty") == 1
+    assert template.count("data-empty-prompt") == 4
+    assert "data-task-filter" in template
+    assert "hasUserMessage" in script
+    assert "durationLabel" in mobile_script
+    assert "progressMeta" in mobile_script
+    assert ".vh-chat-tasks-panel" in styles
+    assert ".vh-empty-workspace" in styles
+    assert ".vh-empty-investigation-grid" in styles

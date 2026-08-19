@@ -44,10 +44,50 @@
   const mobileLiveTechnicalKeys = new Set();
 
   const text = (value) => (value === null || value === undefined ? "" : String(value));
-  const pretty = (value) =>
+    const pretty = (value) =>
     text(value)
       .replaceAll("_", " ")
       .replace(/\b\w/g, (letter) => letter.toUpperCase());
+
+  const durationLabel = (record = {}) => {
+    const directMs = Number(record.duration_ms ?? record.elapsed_ms);
+    const directSeconds = Number(record.duration_seconds ?? record.duration);
+    let seconds = Number.isFinite(directMs) && directMs >= 0 ? directMs / 1000 : directSeconds;
+    if (!Number.isFinite(seconds) || seconds < 0) {
+      const started = Date.parse(text(record.started_at || record.started));
+      const finished = Date.parse(text(record.completed_at || record.finished_at));
+      if (Number.isFinite(started)) {
+        seconds = ((Number.isFinite(finished) ? finished : Date.now()) - started) / 1000;
+      }
+    }
+    if (!Number.isFinite(seconds) || seconds < 0) return "";
+    if (seconds < 60) return `${seconds.toFixed(1)}s`;
+    return `${Math.floor(seconds / 60)}m ${Math.floor(seconds % 60)}s`;
+  };
+
+  const progressPercent = (record = {}, state = "") => {
+    const candidates = [record.progress_percent, record.percentage, record.percent, record.progress_value];
+    if (typeof record.progress === "number") candidates.push(record.progress);
+    let value = candidates.find((candidate) => Number.isFinite(Number(candidate)));
+    if (value === undefined || value === null) {
+      if (["completed", "success", "succeeded"].includes(mobileTaskState(state))) return 100;
+      return null;
+    }
+    value = Number(value);
+    if (value >= 0 && value <= 1) value *= 100;
+    return Math.max(0, Math.min(100, Math.round(value)));
+  };
+
+  const progressMeta = (record = {}, state = "") => {
+    const parts = [];
+    const duration = durationLabel(record);
+    const percent = progressPercent(record, state);
+    if (duration) parts.push(duration);
+    if (percent !== null) parts.push(`${percent}%`);
+    return parts.join(" · ");
+  };
+
+
   const sleep = (milliseconds) => new Promise((resolve) => window.setTimeout(resolve, milliseconds));
   const formatTimestamp = (value) => {
     const parsed = Date.parse(value || "");
@@ -235,7 +275,7 @@
     return block;
   };
 
-  const renderMobileStage = (block, stageKey, label, state = "pending") => {
+  const renderMobileStage = (block, stageKey, label, state = "pending", metadata = {}) => {
     const stages = block.querySelector("[data-mobile-live-stages]");
     let stage = mobileLiveStageEntries.get(`${block.dataset.mobileLiveExecution}|${stageKey}`);
     if (!stage || !stage.isConnected) {
@@ -260,7 +300,8 @@
     stage.classList.add(`is-${normalizedState}`);
     stage.querySelector(".vh-mobile-live-stage-marker").textContent = mobileMarker(normalizedState);
     stage.querySelector("summary strong").textContent = label;
-    stage.querySelector("summary small").textContent = pretty(normalizedState);
+    const meta = progressMeta(metadata, normalizedState);
+    stage.querySelector("summary small").textContent = [pretty(normalizedState), meta].filter(Boolean).join(" · ");
     return stage;
   };
 
@@ -273,13 +314,14 @@
           key: text(round.altitude || round.label || "stage"),
           label: text(round.label || pretty(round.altitude || "Analysis stage")),
           state: mobileTaskState(round.status || "pending"),
+          metadata: round,
         }))
       : [{ key: "tools", label: "Selected tools", state: "pending" }];
-    stageSpecs.forEach((spec) => renderMobileStage(block, spec.key, spec.label, spec.state));
+    stageSpecs.forEach((spec) => renderMobileStage(block, spec.key, spec.label, spec.state, spec.metadata));
     const fallback = stageSpecs[stageSpecs.length - 1];
     tools.forEach((tool) => {
       const stageKey = text(tool.stage || tool.altitude || fallback.key);
-      const stage = renderMobileStage(block, stageKey, stageKey === fallback.key ? fallback.label : pretty(stageKey));
+      const stage = renderMobileStage(block, stageKey, stageKey === fallback.key ? fallback.label : pretty(stageKey), tool.status || "pending", tool);
       const toolId = text(tool.tool_id || tool.name || "tool");
       const rowKey = `${block.dataset.mobileLiveExecution}|${stageKey}|${toolId}`;
       if (block.querySelector(`[data-mobile-tool-id="${CSS.escape(toolId)}"]`)) return;
@@ -294,7 +336,7 @@
       const title = document.createElement("strong");
       title.textContent = text(tool.name || tool.tool_id || "Tool");
       const detail = document.createElement("small");
-      detail.textContent = text(tool.gate ? `${pretty(tool.gate)} governed` : "Planned");
+      detail.textContent = [text(tool.gate ? `${pretty(tool.gate)} governed` : "Planned"), progressMeta(tool, tool.status || "pending")].filter(Boolean).join(" · ");
       copy.append(title, detail);
       row.append(marker, copy);
       stage.querySelector(".vh-mobile-live-tools").append(row);
@@ -307,7 +349,7 @@
     renderMobilePlanStages(block, step.plan || {});
     const state = mobileTaskState(step.state || step.tool_state || "running");
     const stageKey = text(step.stage || "execution");
-    const stage = renderMobileStage(block, stageKey, pretty(stageKey), state);
+    const stage = renderMobileStage(block, stageKey, pretty(stageKey), state, step);
     const toolId = text(step.tool || "worker");
     const stepKey = text(step.step_key || `${stageKey}:${toolId}`);
     let item = block.querySelector(`[data-mobile-tool-id="${CSS.escape(toolId)}"]`);
@@ -333,7 +375,7 @@
     item.className = `vh-mobile-live-tool is-${state}`;
     item.querySelector(".vh-mobile-live-tool-marker").textContent = mobileMarker(state);
     item.querySelector("strong").textContent = text(step.label || step.tool || step.stage || "APK worker step");
-    item.querySelector("small").textContent = text(step.detail || "Collecting bounded evidence…");
+    item.querySelector("small").textContent = [text(step.detail || "Collecting bounded evidence…"), progressMeta(step, state)].filter(Boolean).join(" · ");
     block.querySelector("[data-mobile-live-current]").hidden = false;
     block.querySelector("[data-mobile-live-current]").textContent = text(
       step.current || step.detail || "Waiting for the next persisted worker event…",

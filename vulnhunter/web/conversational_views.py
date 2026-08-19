@@ -544,15 +544,29 @@ def workspace_view(request: HttpRequest) -> HttpResponse:
         state = _sync_state_from_run(request, state, authoritative)
     current_thread = getattr(request, "vulnhunter_thread", None)
     thread_items = tuple(thread_summary(item) for item in list_threads(request.user))
+    recent_runs = _recent_runs(actor)
+    messages = _messages(request)
+    has_user_messages = any(str(item.get("role", "")).lower() == "user" for item in messages)
+    task_counts = {"active": 0, "completed": 0, "cancelled": 0}
+    for item in recent_runs:
+        state = str(item.get("state", "")).strip().lower()
+        if state in {"running", "executing", "queued", "prepared", "waiting", "active"}:
+            task_counts["active"] += 1
+        elif state in {"cancelled", "canceled"}:
+            task_counts["cancelled"] += 1
+        else:
+            task_counts["completed"] += 1
     initial = {
         "thread_id": str(current_thread.thread_id) if current_thread is not None else "",
         "thread_title": current_thread.title
         if current_thread is not None
         else "Assessment Workspace",
         "threads": thread_items,
-        "messages": _messages(request),
+        "messages": messages,
+        "has_user_messages": has_user_messages,
         "active_run": active_run,
-        "recent_runs": _recent_runs(actor),
+        "recent_runs": recent_runs,
+        "task_counts": task_counts,
         "groq": advisory_runtime_status(),
         "message_url": reverse("web-conversation-message"),
         "status_url_template": reverse(

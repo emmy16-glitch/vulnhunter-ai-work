@@ -57,6 +57,8 @@ async function login(page) {
         body: JSON.stringify({
           upload_id: "upload-browser-demo",
           chunk_url: "/workspace/uploads/upload-browser-demo/chunk/",
+          status_url: "/workspace/uploads/upload-browser-demo/status/",
+          cancel_url: "/workspace/uploads/upload-browser-demo/cancel/",
           chunk_bytes: 1024,
           maximum_bytes: 10_000_000,
         }),
@@ -66,7 +68,13 @@ async function login(page) {
       await route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ received_bytes: 128, attachment }),
+        body: JSON.stringify({
+          upload_id: "upload-browser-demo",
+          received_bytes: 128,
+          expected_bytes: 128,
+          complete: false,
+          attachment,
+        }),
       });
     });
     await page.route("**/workspace/mobile-message/", async (route) => {
@@ -114,7 +122,7 @@ async function login(page) {
     await page.locator("[data-conversation-file]").setInputFiles({
       name: "browser-demo.apk",
       mimeType: "application/vnd.android.package-archive",
-      buffer: Buffer.from("browser-demo-apk"),
+      buffer: Buffer.alloc(128, 0x41),
     });
     await page.locator("[data-attachment-tray]").getByText("browser-demo.apk").waitFor();
     await page.locator("[data-conversation-input]").fill("Scan this APK and check for vulnerabilities");

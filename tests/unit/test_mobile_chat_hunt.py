@@ -249,6 +249,9 @@ def test_conversation_ui_exposes_plus_button_progress_live_status_and_context():
     context_script = (ROOT / "vulnhunter/web/static/web/conversation-mobile-context.js").read_text(
         encoding="utf-8"
     )
+    thread_script = (ROOT / "vulnhunter/web/static/web/conversation-thread-client.js").read_text(
+        encoding="utf-8"
+    )
 
     assert "data-conversation-attach" in template
     assert "data-conversation-file" in template
@@ -262,6 +265,7 @@ def test_conversation_ui_exposes_plus_button_progress_live_status_and_context():
     assert "data-mobile-execution-results" in script
     assert "data-mobile-activity-stream-url-template" in template
     assert "openMobileActivityStream" in script
+    assert "if (!mobileChatUpload) fileInput?.addEventListener" in thread_script
     assert "activeMobilePlan" in context_script
     assert "bypassMobileFollowup" in context_script
     assert "form.requestSubmit()" in context_script

@@ -104,6 +104,16 @@ let page;
     await page.locator("[data-inline-approval]").waitFor({ state: "visible", timeout: 15000 });
     const runId = await page.locator("[data-run-card]").last().getAttribute("data-run-id");
     if (!runId) throw new Error("The conversation did not expose an authoritative run id");
+    const activityPanel = page.locator("[data-analysis-activity]");
+    await activityPanel.waitFor({ state: "visible", timeout: 10000 });
+    await activityPanel.locator(".vh-analysis-activity-node > summary").filter({ hasText: "Planning" }).waitFor({ timeout: 10000 });
+    if (await activityPanel.locator(".vh-message-copy").count()) {
+      throw new Error("Final answer markup must remain outside the operational activity panel");
+    }
+    const initialActivityCopy = (await activityPanel.textContent()) || "";
+    if (/Groq|Gemini|Ollama/i.test(initialActivityCopy)) {
+      throw new Error(`Provider details leaked into the activity panel: ${initialActivityCopy}`);
+    }
 
     await input.fill("Confirm");
     await send.click();
@@ -123,6 +133,14 @@ let page;
     await activityEntries.filter({ hasText: /Running passive checks…/ }).waitFor({ timeout: 10000 });
     await activityEntries.filter({ hasText: /Verifying one possible finding…/ }).waitFor({ timeout: 10000 });
     await activityEntries.filter({ hasText: /Analysis complete\./ }).waitFor({ timeout: 10000 });
+    if (!(await activityPanel.evaluate((element) => element.open))) {
+      await activityPanel.locator(":scope > summary").click();
+    }
+    await activityPanel.locator(".vh-analysis-activity-node > summary").filter({ hasText: "Repository and file inspection" }).waitFor({ timeout: 10000 });
+    const completedActivityCopy = (await activityPanel.textContent()) || "";
+    if (!/Persisted operational work|compatibility manifests|Analysis complete/i.test(completedActivityCopy)) {
+      throw new Error(`The activity hierarchy did not expose safe persisted summaries: ${completedActivityCopy}`);
+    }
     if ((await activityEntries.count()) < 3) {
       throw new Error(`Expected at least three first-class activity entries, found ${await activityEntries.count()}`);
     }

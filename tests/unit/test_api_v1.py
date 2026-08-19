@@ -94,6 +94,13 @@ def test_api_v1_assessment_events_are_cursor_based_and_object_scoped(
         "last_sequence": 8,
         "run_state": "executing",
         "terminal": False,
+        "activity_tree": {
+            "schema_version": "1.0",
+            "task_id": "assessment-api-01",
+            "status": "running",
+            "last_sequence": 8,
+            "nodes": [],
+        },
     }
     invalid = _client(api_user).get(
         "/api/v1/assessments/assessment-api-01/events/?after_sequence=-1"

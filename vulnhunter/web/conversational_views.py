@@ -15,6 +15,7 @@ from django.urls import reverse
 from django.views.decorators.cache import cache_control
 from django.views.decorators.http import require_GET, require_POST
 
+from vulnhunter.agent_activity.hierarchy import build_activity_tree
 from vulnhunter.approvals import ApprovalStatus, ApprovalStore
 from vulnhunter.approvals.store import ApprovalConflictError, ApprovalStoreError
 from vulnhunter.assessment_graph import AssessmentGraphError, AssessmentGraphService
@@ -487,6 +488,13 @@ def _conversation_stream_payload(run: object, *, after_sequence: int) -> dict[st
     payload["active_summary"] = stream_views._active_summary(run)
     if isinstance(incremental, dict) and incremental.get("terminal"):
         payload["terminal"] = True
+    if not isinstance(payload.get("activity_tree"), dict):
+        payload["activity_tree"] = build_activity_tree(
+            payload.get("events", []),
+            task_id=str(run.run_id),
+            run_state=str(payload.get("run_state") or payload.get("state") or "running"),
+            last_sequence=int(payload.get("last_sequence", after_sequence) or after_sequence),
+        )
     return payload
 
 
@@ -564,6 +572,10 @@ def workspace_view(request: HttpRequest) -> HttpResponse:
         "thread_create_url": reverse("web-conversation-thread-create"),
         "thread_list_url": reverse("web-conversation-thread-list"),
         "reasoning_url": reverse("web-conversation-reasoning"),
+        "realtime_ticket_url": reverse("api-v1-realtime-ticket"),
+        "realtime_websocket_enabled": bool(
+            getattr(settings, "VULNHUNTER_REALTIME_WEBSOCKET_ENABLED", False)
+        ),
         "reasoning_effort": thread_preferences(request)[0],
         "provider_preference": thread_preferences(request)[1],
     }

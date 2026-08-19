@@ -129,6 +129,10 @@ MIDDLEWARE = [
 ROOT_URLCONF = "vulnhunter.web.urls"
 WSGI_APPLICATION = "vulnhunter.web.wsgi.application"
 ASGI_APPLICATION = "vulnhunter.web.asgi.application"
+VULNHUNTER_REALTIME_WEBSOCKET_ENABLED = env_bool(
+    "VULNHUNTER_REALTIME_WEBSOCKET_ENABLED",
+    not DEBUG,
+)
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": ("rest_framework.authentication.SessionAuthentication",),

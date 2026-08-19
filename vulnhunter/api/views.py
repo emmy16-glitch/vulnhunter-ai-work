@@ -106,6 +106,14 @@ class AssessmentEventsView(APIBaseView):
                 "last_sequence": int(payload.get("last_sequence", after_sequence)),
                 "run_state": payload.get("run_state"),
                 "terminal": bool(payload.get("terminal", False)),
+                "activity_tree": payload.get("activity_tree")
+                or {
+                    "schema_version": "1.0",
+                    "task_id": assessment_id,
+                    "status": "running",
+                    "last_sequence": int(payload.get("last_sequence", after_sequence)),
+                    "nodes": [],
+                },
             }
         )
 

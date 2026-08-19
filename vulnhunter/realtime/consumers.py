@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+
 from asgiref.sync import sync_to_async
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
 from django.core import signing
@@ -24,6 +26,8 @@ class AssessmentEventsConsumer(AsyncJsonWebsocketConsumer):
         )
         self.actor = None
         self.ticket_payload = None
+        self.cursor = 0
+        self._watch_task = None
         await self.accept()
         await self.send_json({"type": "realtime.ticket_required"})
 
@@ -33,6 +37,9 @@ class AssessmentEventsConsumer(AsyncJsonWebsocketConsumer):
             return
         ticket = content.get("ticket")
         if not isinstance(ticket, str) or not ticket:
+            await self.close(code=4401)
+            return
+        if self.assessment_id:
             await self.close(code=4401)
             return
         try:
@@ -55,7 +62,15 @@ class AssessmentEventsConsumer(AsyncJsonWebsocketConsumer):
         self.actor = actor
         self.assessment_id = assessment_id
         self.ticket_payload = payload
-        await self.send_json(await self._snapshot(after_sequence=content.get("after_sequence", 0)))
+        try:
+            self.cursor = max(0, int(content.get("after_sequence", 0)))
+        except (TypeError, ValueError):
+            self.cursor = 0
+        snapshot = await self._snapshot(after_sequence=self.cursor)
+        await self.send_json(snapshot)
+        self.cursor = int(snapshot.get("last_sequence", self.cursor))
+        if not snapshot.get("terminal"):
+            self._watch_task = asyncio.create_task(self._watch_persisted_activity())
 
     @sync_to_async
     def _authorized_visibility(self, assessment_id: str):
@@ -81,6 +96,33 @@ class AssessmentEventsConsumer(AsyncJsonWebsocketConsumer):
         run = product_service().get_agent_run(self.assessment_id)
         return _conversation_stream_payload(run, after_sequence=after_sequence)
 
+    async def _watch_persisted_activity(self):
+        try:
+            while self.assessment_id:
+                await asyncio.sleep(0.75)
+                snapshot = await self._snapshot(after_sequence=self.cursor)
+                last_sequence = int(snapshot.get("last_sequence", self.cursor))
+                if last_sequence > self.cursor or snapshot.get("terminal"):
+                    await self.send_json(snapshot)
+                    self.cursor = last_sequence
+                if snapshot.get("terminal"):
+                    return
+        except asyncio.CancelledError:
+            raise
+        except (ConnectionError, OSError, ProductServiceError, RuntimeError, ValueError):
+            # The durable stream remains authoritative; the client can reconnect and catch up.
+            return
+
+    async def disconnect(self, close_code):
+        if self._watch_task is not None:
+            self._watch_task.cancel()
+            try:
+                await self._watch_task
+            except asyncio.CancelledError:
+                pass
+            self._watch_task = None
+        self.assessment_id = ""
+
     async def _snapshot(self, after_sequence):
         try:
             cursor = max(0, int(after_sequence))
@@ -94,4 +136,12 @@ class AssessmentEventsConsumer(AsyncJsonWebsocketConsumer):
             "last_sequence": int(payload.get("last_sequence", cursor)),
             "run_state": payload.get("run_state"),
             "terminal": bool(payload.get("terminal", False)),
+            "activity_tree": payload.get("activity_tree")
+            or {
+                "schema_version": "1.0",
+                "task_id": self.assessment_id,
+                "status": "running",
+                "last_sequence": int(payload.get("last_sequence", cursor)),
+                "nodes": [],
+            },
         }

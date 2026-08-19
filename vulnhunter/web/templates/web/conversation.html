@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="{% static 'web/conversation-mobile-deferred-tools.css' %}?v=20260812-ui2">
   <link rel="stylesheet" href="{% static 'web/assessment-workspace.css' %}?v=20260812-ui2">
   <link rel="stylesheet" href="{% static 'web/public-consent.css' %}?v=20260819-consent1">
+  <link rel="stylesheet" href="{% static 'web/analysis-activity.css' %}?v=20260819-activity1">
 {% endblock %}
 
 {% block extra_scripts %}
@@ -22,6 +23,7 @@
   <script src="{% static 'web/conversation-mobile-deferred-tools.js' %}?v=20260727-phone-acceptance1" defer></script>
   <script src="{% static 'web/assessment-workspace.js' %}?v=20260812-ui2" defer></script>
   <script src="{% static 'web/public-consent.js' %}?v=20260819-consent1" defer></script>
+  <script src="{% static 'web/analysis-activity.js' %}?v=20260819-activity1" defer></script>
 {% endblock %}
 
 {% block content %}
@@ -62,6 +64,21 @@
 
   <div class="vh-chat-layout">
     <main class="vh-chat-main" aria-label="Assessment conversation">
+      <details class="vh-analysis-activity-panel" data-analysis-activity hidden aria-live="polite">
+        <summary>
+          <span class="vh-analysis-activity-summary-copy">
+            <span class="vh-eyebrow">Analysis activity</span>
+            <strong>Operational activity / safe reasoning trace</strong>
+            <small>Persisted work only. Hidden reasoning and provider details are never shown.</small>
+          </span>
+          <span class="vh-analysis-activity-summary-status" data-analysis-activity-status>Waiting for a task</span>
+        </summary>
+        <div class="vh-analysis-activity-body">
+          <p class="vh-analysis-activity-connection" data-analysis-activity-connection aria-live="polite" hidden></p>
+          <div class="vh-analysis-activity-tree" data-analysis-activity-tree role="tree"></div>
+        </div>
+      </details>
+
       <details class="vh-public-consent-panel" data-public-consent-panel>
         <summary><span><strong>Authorize a public website</strong><small>Verify domain control for bounded passive mapping</small></span><b aria-hidden="true">+</b></summary>
         <form data-public-consent-form action="{% url 'web-public-consent-verify' %}" method="post">

@@ -6,6 +6,7 @@ import re
 from datetime import UTC, datetime
 from typing import Any
 
+from vulnhunter.agent_activity.hierarchy import build_activity_tree
 from vulnhunter.web.website_assessment_projection import website_assessment_projection
 
 _HIDDEN_EVENT_TYPES = {
@@ -294,6 +295,12 @@ def enrich_run_payload(
     terminal = bool(result.get("terminal") or state in _TERMINAL_STATES)
     result["terminal"] = terminal
     result["events"] = public_events(raw_events)[-30:]
+    result["activity_tree"] = build_activity_tree(
+        result["events"],
+        task_id=_text(result.get("run_id")),
+        run_state=_text(result.get("state")),
+        last_sequence=int(result.get("last_sequence", 0) or 0),
+    )
     result["analysis_note"] = _analysis_note(raw_events)
     elapsed = _elapsed_seconds(result)
     result["elapsed_seconds"] = elapsed

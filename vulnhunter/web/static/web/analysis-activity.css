@@ -1,0 +1,206 @@
+.vh-analysis-activity-panel {
+  margin: 0 0 1rem;
+  border: 1px solid var(--vh-border, #d9e2ec);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--vh-surface, #fff) 94%, #e9f2f9);
+  overflow: hidden;
+}
+
+.vh-analysis-activity-panel > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.1rem;
+  cursor: pointer;
+  list-style: none;
+}
+
+.vh-analysis-activity-panel > summary::-webkit-details-marker {
+  display: none;
+}
+
+.vh-analysis-activity-panel > summary::after {
+  content: "⌄";
+  color: var(--vh-muted, #607184);
+  transition: transform 160ms ease;
+}
+
+.vh-analysis-activity-panel[open] > summary::after {
+  transform: rotate(180deg);
+}
+
+.vh-analysis-activity-summary-copy {
+  min-width: 0;
+  display: grid;
+  gap: .2rem;
+}
+
+.vh-analysis-activity-summary-copy .vh-eyebrow {
+  margin: 0;
+}
+
+.vh-analysis-activity-summary-copy strong {
+  font-size: .98rem;
+}
+
+.vh-analysis-activity-summary-copy small {
+  color: var(--vh-muted, #607184);
+}
+
+.vh-analysis-activity-summary-status,
+.vh-analysis-activity-node-meta {
+  color: var(--vh-muted, #607184);
+  font-size: .76rem;
+  white-space: nowrap;
+}
+
+.vh-analysis-activity-body {
+  border-top: 1px solid var(--vh-border, #d9e2ec);
+  padding: .85rem 1.1rem 1rem;
+}
+
+.vh-analysis-activity-connection {
+  margin: 0 0 .7rem;
+  color: var(--vh-muted, #607184);
+  font-size: .78rem;
+}
+
+.vh-analysis-activity-tree {
+  display: grid;
+  gap: .42rem;
+}
+
+.vh-analysis-activity-node,
+.vh-analysis-activity-leaf {
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--vh-surface, #fff) 80%, #edf4f8);
+}
+
+.vh-analysis-activity-node > summary,
+.vh-analysis-activity-leaf {
+  display: grid;
+  grid-template-columns: 1.4rem minmax(0, 1fr) auto;
+  align-items: start;
+  gap: .45rem;
+  padding: .62rem .7rem;
+  cursor: pointer;
+  list-style: none;
+}
+
+.vh-analysis-activity-node > summary::-webkit-details-marker {
+  display: none;
+}
+
+.vh-analysis-activity-node > summary::before {
+  content: "›";
+  grid-column: 1;
+  grid-row: 1;
+  color: var(--vh-muted, #607184);
+  transform: translateX(-.15rem);
+}
+
+.vh-analysis-activity-node[open] > summary::before {
+  content: "⌄";
+}
+
+.vh-analysis-activity-marker {
+  grid-column: 1;
+  grid-row: 1;
+  display: inline-grid;
+  place-items: center;
+  width: 1.3rem;
+  height: 1.3rem;
+  border-radius: 50%;
+  font-size: .8rem;
+  font-weight: 700;
+  color: #557087;
+}
+
+.vh-analysis-activity-node > summary .vh-analysis-activity-marker,
+.vh-analysis-activity-leaf .vh-analysis-activity-marker {
+  transform: translateX(.15rem);
+}
+
+.vh-analysis-activity-node-copy {
+  grid-column: 2;
+  min-width: 0;
+  display: grid;
+  gap: .15rem;
+}
+
+.vh-analysis-activity-node-copy strong {
+  font-size: .86rem;
+}
+
+.vh-analysis-activity-node-copy small {
+  color: var(--vh-muted, #607184);
+  line-height: 1.35;
+}
+
+.vh-analysis-activity-node-meta {
+  grid-column: 3;
+  align-self: center;
+}
+
+.vh-analysis-activity-children {
+  display: grid;
+  gap: .3rem;
+  padding: 0 .55rem .55rem 2rem;
+}
+
+.vh-analysis-activity-leaf {
+  background: transparent;
+  border-top: 1px solid color-mix(in srgb, var(--vh-border, #d9e2ec) 65%, transparent);
+}
+
+.vh-analysis-activity-node.is-running,
+.vh-analysis-activity-leaf.is-running {
+  box-shadow: inset 3px 0 #4a91c4;
+}
+
+.vh-analysis-activity-node.is-completed,
+.vh-analysis-activity-leaf.is-completed {
+  box-shadow: inset 3px 0 #2d9665;
+}
+
+.vh-analysis-activity-node.is-blocked,
+.vh-analysis-activity-leaf.is-blocked {
+  box-shadow: inset 3px 0 #c48a25;
+}
+
+.vh-analysis-activity-node.is-failed,
+.vh-analysis-activity-leaf.is-failed {
+  box-shadow: inset 3px 0 #c65353;
+}
+
+.vh-analysis-activity-empty {
+  margin: 0;
+  color: var(--vh-muted, #607184);
+  font-size: .82rem;
+}
+
+@media (max-width: 640px) {
+  .vh-analysis-activity-panel > summary {
+    align-items: flex-start;
+  }
+
+  .vh-analysis-activity-summary-status {
+    white-space: normal;
+    text-align: right;
+  }
+
+  .vh-analysis-activity-node > summary,
+  .vh-analysis-activity-leaf {
+    grid-template-columns: 1.25rem minmax(0, 1fr);
+  }
+
+  .vh-analysis-activity-node-meta {
+    grid-column: 2;
+    justify-self: start;
+  }
+
+  .vh-analysis-activity-children {
+    padding-left: 1.1rem;
+  }
+}

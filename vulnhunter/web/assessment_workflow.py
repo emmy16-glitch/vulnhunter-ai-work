@@ -605,7 +605,47 @@ class AssessmentWorkflowService:
                 compatibility = ScannerCompatibilityManifest.load(
                     Path(settings.VULNHUNTER_SCANNER_COMPATIBILITY_MANIFEST)
                 )
-                compatibility.verify_repository_manifests(Path(settings.BASE_DIR))
+                self.activity_service.record_transition(
+                    run_id=task.task_id,
+                    timestamp=now,
+                    event_type="repository_inspection_started",
+                    summary=(
+                        "Verifying the configured repository and scanner compatibility manifests."
+                    ),
+                    run_state="checking_policy",
+                    source="policy",
+                    execution_state="not_started",
+                    metadata={"inspection": "compatibility_manifests"},
+                )
+                try:
+                    compatibility.verify_repository_manifests(Path(settings.BASE_DIR))
+                except (OSError, ValueError) as exc:
+                    self.activity_service.record_transition(
+                        run_id=task.task_id,
+                        timestamp=now,
+                        event_type="repository_inspection_failed",
+                        summary="Repository and scanner compatibility verification failed closed.",
+                        run_state="checking_policy",
+                        source="policy",
+                        execution_state="failed",
+                        error_code=type(exc).__name__,
+                        error_message="The compatibility verification step could not complete.",
+                        metadata={"inspection": "compatibility_manifests"},
+                    )
+                    raise
+                self.activity_service.record_transition(
+                    run_id=task.task_id,
+                    timestamp=now,
+                    event_type="repository_inspection_completed",
+                    summary=(
+                        "The configured repository and scanner compatibility manifests "
+                        "were verified."
+                    ),
+                    run_state="checking_policy",
+                    source="policy",
+                    execution_state="succeeded",
+                    metadata={"inspection": "compatibility_manifests"},
+                )
                 queued_job = build_approved_pilot_job(
                     task=task,
                     approval_request=request,

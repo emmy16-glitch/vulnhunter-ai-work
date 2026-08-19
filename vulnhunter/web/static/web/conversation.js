@@ -51,6 +51,10 @@
   const renderedMessages = new Set();
   const renderedActivity = new Map();
 
+  const publishRunUpdate = (run) => {
+    window.dispatchEvent(new CustomEvent("vulnhunter:run-update", { detail: { run } }));
+  };
+
   const stageDefinitions = [
     ["scope", "Checking authorised scope"],
     ["plan", "Preparing the passive plan"],
@@ -808,6 +812,7 @@
       if (data.run) {
         activeRun = normalizeRun(data.run);
         lastRunSignature = runSignature(activeRun);
+        publishRunUpdate(activeRun);
         ensureRunCard(activeRun, { forceScroll: true });
         renderActivityEntries(activeRun, { forceScroll: true });
         openActivityStream(activeRun);
@@ -917,6 +922,7 @@
     });
     activeRun = next;
     lastRunSignature = runSignature(next);
+    publishRunUpdate(next);
           ensureRunCard(next);
       renderActivityEntries(next);
       updateLiveNotice(next);
@@ -1054,11 +1060,13 @@
         runCard?.remove();
         runCard = null;
         activeRun = null;
+        publishRunUpdate(null);
         lastRunSignature = "";
       }
       if (data.run) {
         activeRun = normalizeRun(data.run);
         lastRunSignature = runSignature(activeRun);
+        publishRunUpdate(activeRun);
         ensureRunCard(activeRun, { forceScroll: true });
         renderActivityEntries(activeRun, { forceScroll: true });
         openActivityStream(activeRun);
@@ -1093,6 +1101,7 @@
       feed.replaceChildren();
       runCard = null;
       activeRun = null;
+      publishRunUpdate(null);
       lastRunSignature = "";
       (data.messages || []).forEach((message) => appendMessage(message, { forceScroll: false }));
       scrollFeed({ behavior: "auto", force: true });
@@ -1108,6 +1117,7 @@
   if (activeRun) {
     activeRun = normalizeRun(activeRun);
     lastRunSignature = runSignature(activeRun);
+    publishRunUpdate(activeRun);
     ensureRunCard(activeRun);
     renderActivityEntries(activeRun, { forceScroll: false });
     openActivityStream(activeRun);

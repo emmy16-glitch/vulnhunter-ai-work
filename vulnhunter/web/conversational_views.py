@@ -555,6 +555,10 @@ def workspace_view(request: HttpRequest) -> HttpResponse:
             "web-conversation-activity-stream",
             kwargs={"run_id": "RUN_ID"},
         ),
+        "mobile_activity_stream_url_template": reverse(
+            "web-conversation-mobile-activity-stream",
+            kwargs={"run_id": "RUN_ID"},
+        ),
         "approval_url": reverse("web-conversation-approve"),
         "reset_url": reverse("web-conversation-reset"),
         "thread_create_url": reverse("web-conversation-thread-create"),

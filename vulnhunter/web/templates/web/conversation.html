@@ -96,6 +96,7 @@
         data-mobile-followup-url="{% url 'web-conversation-mobile-followup' %}"
         data-mobile-context-url="{% url 'web-conversation-mobile-context' %}"
         data-mobile-reset-url="{% url 'web-conversation-mobile-context-reset' %}"
+        data-mobile-activity-stream-url-template="{{ conversation.mobile_activity_stream_url_template }}"
         data-mobile-extension-approve-url="{% url 'web-conversation-mobile-extension-approve' %}"
         data-thread-id="{{ conversation.thread_id }}"
         data-thread-create-url="{{ conversation.thread_create_url }}"

@@ -157,6 +157,11 @@ urlpatterns = [
         name="web-conversation-mobile-status",
     ),
     path(
+        "workspace/mobile-activity/<str:run_id>/stream/",
+        conversation_mobile_views.mobile_activity_stream_view,
+        name="web-conversation-mobile-activity-stream",
+    ),
+    path(
         "workspace/mobile-extensions/approve/",
         conversation_mobile_extension_views.mobile_extension_approve_view,
         name="web-conversation-mobile-extension-approve",

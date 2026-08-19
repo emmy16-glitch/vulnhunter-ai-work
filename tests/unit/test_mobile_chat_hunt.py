@@ -260,6 +260,8 @@ def test_conversation_ui_exposes_plus_button_progress_live_status_and_context():
     assert 'setTimeout(() => item.classList.add("is-visible")' in script
     assert "watchMobileExecution" in script
     assert "data-mobile-execution-results" in script
+    assert "data-mobile-activity-stream-url-template" in template
+    assert "openMobileActivityStream" in script
     assert "activeMobilePlan" in context_script
     assert "bypassMobileFollowup" in context_script
     assert "form.requestSubmit()" in context_script
@@ -303,6 +305,9 @@ def test_chat_uploads_apk_answers_followups_then_hands_off_to_web_scan(client, s
             "/workspace/mobile-followup/",
             {"message": "What tools did you select for this APK?"},
         )
+        activity = client.get(
+            f"/workspace/mobile-activity/{request.json()['mobile_plan']['run_id']}/stream/"
+        )
         handoff = client.post(
             "/workspace/mobile-followup/",
             {"message": "Scan https://example.com using the passive profile"},
@@ -324,3 +329,66 @@ def test_chat_uploads_apk_answers_followups_then_hands_off_to_web_scan(client, s
     assert handoff.json() == {"handoff": True}
     assert context.status_code == 200
     assert context.json() == {"mobile_plan": None}
+    activity_body = b"".join(activity.streaming_content).decode()
+    assert activity.status_code == 200
+    assert "event: activity" in activity_body
+    assert "plan_proposed" in activity_body
+    assert "policy_denied" in activity_body
+
+
+@pytest.mark.django_db
+def test_mobile_activity_stream_returns_persisted_apk_events(client, monkeypatch):
+    user = get_user_model().objects.create_user(
+        username="mobile-activity-user",
+        password="long-test-password-1234",
+    )
+    client.force_login(user)
+    actor = SimpleNamespace(
+        governance_identity=SimpleNamespace(reviewer_id="mobile-activity-user"),
+        product_roles=("campaign-operator",),
+    )
+    plan = {
+        "run_id": "mobile-activity-01",
+        "execution": {"state": "gated", "reason": "Static worker is disabled."},
+        "profile": "static",
+    }
+    payload = {
+        "events": [
+            {
+                "event_id": "evt_0123456789abcdef01234567",
+                "sequence": 1,
+                "event_type": "policy_denied",
+                "summary": "The APK worker remained blocked by deployment policy.",
+                "timestamp": "2026-08-19T12:00:00+00:00",
+                "metadata": {"reason": "Static worker is disabled."},
+            }
+        ],
+        "last_sequence": 1,
+        "terminal": True,
+        "run_state": "blocked",
+    }
+    monkeypatch.setattr(
+        "vulnhunter.web.conversation_mobile_views._actor",
+        lambda *_args, **_kwargs: actor,
+    )
+    monkeypatch.setattr(
+        "vulnhunter.web.conversation_mobile_views.current_mobile_plan",
+        lambda *_args, **_kwargs: plan,
+    )
+    monkeypatch.setattr(
+        "vulnhunter.web.conversation_mobile_views._record_mobile_activity",
+        lambda **_kwargs: None,
+    )
+    monkeypatch.setattr(
+        "vulnhunter.web.conversation_mobile_views.activity_payload",
+        lambda *_args, **_kwargs: payload,
+    )
+
+    response = client.get("/workspace/mobile-activity/mobile-activity-01/stream/?after_sequence=0")
+    body = b"".join(response.streaming_content).decode()
+
+    assert response.status_code == 200
+    assert response["Content-Type"].startswith("text/event-stream")
+    assert "event: activity" in body
+    assert "policy_denied" in body
+    assert "Static worker is disabled." in body

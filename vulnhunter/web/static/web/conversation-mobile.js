@@ -19,8 +19,14 @@
   const attachmentUrl = form.dataset.attachmentUrl || "";
   const uploadStartUrl = form.dataset.uploadStartUrl || "";
   const mobileMessageUrl = form.dataset.mobileMessageUrl || "";
+  const mobileActivityTemplate = form.dataset.mobileActivityStreamUrlTemplate || "";
   let activeAttachment = null;
   let mobileBusy = false;
+  let mobileActivitySource = null;
+  let mobileActivityReconnect = null;
+  let mobileActivitySequence = 0;
+  let mobileActivityRunId = "";
+  const mobileActivityKeys = new Set();
 
   const text = (value) => (value === null || value === undefined ? "" : String(value));
   const pretty = (value) =>
@@ -85,6 +91,76 @@
     const data = await readJson(response);
     if (!response.ok) throw new Error(data.detail || "The status request failed.");
     return data;
+  };
+
+  const closeMobileActivityStream = () => {
+    if (mobileActivityReconnect) window.clearTimeout(mobileActivityReconnect);
+    mobileActivityReconnect = null;
+    mobileActivitySource?.close();
+    mobileActivitySource = null;
+  };
+
+  const appendMobileActivity = (event) => {
+    if (!event || typeof event !== "object") return;
+    const key = text(event.event_id || `${event.sequence}|${event.event_type}|${event.summary}`);
+    if (mobileActivityKeys.has(key)) return;
+    mobileActivityKeys.add(key);
+    const detail = event.metadata?.reason ? ` ${text(event.metadata.reason)}` : "";
+    appendMessage(
+      {
+        role: "assistant",
+        kind: "activity",
+        content: `${text(event.summary || "APK assessment activity.")}${detail}`,
+        timestamp: event.timestamp,
+      },
+      { animate: true },
+    );
+  };
+
+  const openMobileActivityStream = (runId) => {
+    if (!mobileActivityTemplate || !runId || !("EventSource" in window)) return;
+    if (mobileActivityRunId !== runId) {
+      mobileActivityRunId = runId;
+      mobileActivitySequence = 0;
+      mobileActivityKeys.clear();
+    }
+    closeMobileActivityStream();
+    const url = new URL(
+      mobileActivityTemplate.replace("RUN_ID", encodeURIComponent(runId)),
+      window.location.href,
+    );
+    url.searchParams.set("after_sequence", String(mobileActivitySequence));
+    const source = new EventSource(url.toString(), { withCredentials: true });
+    mobileActivitySource = source;
+    source.addEventListener("activity", (message) => {
+      if (mobileActivitySource !== source) return;
+      try {
+        const payload = JSON.parse(message.data);
+        (Array.isArray(payload.events) ? payload.events : []).forEach(appendMobileActivity);
+        mobileActivitySequence = Math.max(
+          mobileActivitySequence,
+          Number(payload.last_sequence || 0),
+        );
+        source.close();
+        mobileActivitySource = null;
+        if (!payload.terminal) {
+          mobileActivityReconnect = window.setTimeout(
+            () => openMobileActivityStream(runId),
+            payload.events?.length ? 120 : 1500,
+          );
+        }
+      } catch (_error) {
+        source.close();
+        mobileActivitySource = null;
+        mobileActivityReconnect = window.setTimeout(() => openMobileActivityStream(runId), 1500);
+      }
+    });
+    source.onerror = () => {
+      if (mobileActivitySource !== source) return;
+      source.close();
+      mobileActivitySource = null;
+      mobileActivityReconnect = window.setTimeout(() => openMobileActivityStream(runId), 1500);
+    };
   };
 
   const attachmentCard = (attachment, { removable = false } = {}) => {
@@ -185,6 +261,7 @@
     scrollLatest();
 
     const execution = plan?.execution;
+    if (plan?.run_id) openMobileActivityStream(plan.run_id);
     if (planCard && execution?.state === "queued" && execution.status_url) {
       window.setTimeout(() => watchMobileExecution(execution.status_url, planCard), 250);
     }
@@ -420,6 +497,7 @@
         },
         { attachment, plan },
       );
+      if (plan?.run_id) openMobileActivityStream(plan.run_id);
       activeAttachment = null;
       fileInput.value = "";
       tray.replaceChildren();
@@ -543,10 +621,9 @@
           kind: "mobile_plan",
           content: "The mobile hunt plan is ready.",
         };
-        appendMessage(message, {
-          attachment,
-          plan: data.mobile_plan || message.metadata?.mobile_plan,
-        });
+        const plan = data.mobile_plan || message.metadata?.mobile_plan;
+        appendMessage(message, { attachment, plan });
+        if (plan?.run_id) openMobileActivityStream(plan.run_id);
         activeAttachment = null;
         fileInput.value = "";
         tray.replaceChildren();

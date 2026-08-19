@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@900&family=Lato:wght@300;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        .slide-container { 
+            width: 1280px; 
+            min-height: 720px; 
+            background-color: #F4F7F6; 
+            position: relative;
+            overflow: hidden;
+            font-family: 'Lato', sans-serif;
+        }
+        .content-wrapper {
+            position: absolute;
+            left: 80px;
+            bottom: 80px;
+            width: 1120px;
+        }
+        .slide-title {
+            font-family: 'Playfair Display', serif;
+            font-weight: 900;
+            font-size: 56px;
+            color: #001219;
+            line-height: 1.1;
+            margin-bottom: 24px;
+            letter-spacing: -0.5px;
+            max-width: 1000px;
+        }
+        .divider {
+            width: 120px;
+            height: 8px;
+            background-color: #CA6702;
+            margin-bottom: 48px;
+        }
+        .columns {
+            display: flex;
+            gap: 64px;
+            margin-bottom: 40px;
+        }
+        .col {
+            flex: 1;
+        }
+        .bullet-list {
+            list-style: none;
+        }
+        .bullet-list li {
+            font-weight: 300;
+            font-size: 26px;
+            color: #005F73;
+            line-height: 1.5;
+            margin-bottom: 24px;
+            position: relative;
+            padding-left: 32px;
+        }
+        .bullet-list li::before {
+            content: "■";
+            position: absolute;
+            left: 0;
+            top: 2px;
+            color: #CA6702;
+            font-size: 20px;
+        }
+        .bullet-list li strong {
+            font-weight: 700;
+            color: #001219;
+            display: block;
+            margin-bottom: 4px;
+        }
+        .remediation-note {
+            font-weight: 700;
+            font-size: 28px;
+            color: #CA6702;
+            line-height: 1.4;
+            padding-top: 24px;
+            border-top: 2px solid rgba(0, 95, 115, 0.2);
+        }
+        .remediation-note span {
+            font-weight: 300;
+            color: #001219;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide-container">
+        <div class="content-wrapper">
+            <h2 class="slide-title">SDK components remain part of the deployed attack surface</h2>
+            <div class="divider"></div>
+            
+            <div class="columns">
+                <div class="col">
+                    <ul class="bullet-list">
+                        <li><strong>Social Integrations</strong> Facebook, LINE, and VK callback activities.</li>
+                        <li><strong>Push Notifications</strong> JPush notification activities and transit activity.</li>
+                        <li><strong>Huawei Mobile Services</strong> HMS push service and provider.</li>
+                    </ul>
+                </div>
+                <div class="col">
+                    <ul class="bullet-list">
+                        <li><strong>Advertising</strong> MBridge network-change receiver.</li>
+                        <li><strong>Analytics</strong> AppMetrica preload-information provider.</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <p class="remediation-note">
+                Remediation Dependency: <br>
+                <span>May depend on SDK version, provider authority, URI grants, and upstream permission enforcement.</span>
+            </p>
+        </div>
+    </div>
+</body>
+</html>

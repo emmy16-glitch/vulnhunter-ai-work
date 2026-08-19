@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@900&family=Lato:wght@300;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        .slide-container { 
+            width: 1280px; 
+            min-height: 720px; 
+            background-color: #F4F7F6; 
+            position: relative;
+            overflow: hidden;
+            font-family: 'Lato', sans-serif;
+        }
+        .content-wrapper {
+            position: absolute;
+            left: 80px;
+            bottom: 60px;
+            width: 1120px;
+        }
+        .slide-title {
+            font-family: 'Playfair Display', serif;
+            font-weight: 900;
+            font-size: 52px;
+            color: #001219;
+            line-height: 1.1;
+            margin-bottom: 24px;
+            letter-spacing: -0.5px;
+        }
+        .divider {
+            width: 120px;
+            height: 8px;
+            background-color: #CA6702;
+            margin-bottom: 32px;
+        }
+        .bullet-list {
+            list-style: none;
+            margin-bottom: 32px;
+        }
+        .bullet-list li {
+            font-weight: 300;
+            font-size: 26px;
+            color: #005F73;
+            line-height: 1.4;
+            margin-bottom: 20px;
+            position: relative;
+            padding-left: 32px;
+        }
+        .bullet-list li::before {
+            content: "■";
+            position: absolute;
+            left: 0;
+            top: 4px;
+            color: #CA6702;
+            font-size: 18px;
+        }
+        .bullet-list li code {
+            font-family: monospace;
+            font-weight: 700;
+            color: #001219;
+            background-color: #e8eceb;
+            padding: 2px 8px;
+            font-size: 24px;
+        }
+        .caveat-box {
+            background-color: #001219;
+            padding: 24px 32px;
+            border-left: 8px solid #CA6702;
+        }
+        .caveat-box p {
+            color: #F4F7F6;
+            font-size: 24px;
+            font-weight: 300;
+            line-height: 1.5;
+        }
+        .caveat-box strong {
+            color: #CA6702;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-size: 20px;
+            display: block;
+            margin-bottom: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide-container">
+        <div class="content-wrapper">
+            <h2 class="slide-title">Server-controlled endpoint assignment is an app-owned candidate risk</h2>
+            <div class="divider"></div>
+            <ul class="bullet-list">
+                <li><code>GlobalDefines.java</code> maps response values into <code>sDynamicAssign*</code> fields.</li>
+                <li>Affected roles include IoT binding, key exchange, dispatch, device model, OTA, online service, and S3 search.</li>
+                <li>Several assignments prepend <code>http://</code>; others prepend <code>https://</code>.</li>
+            </ul>
+            <div class="caveat-box">
+                <p><strong>Evidence-required candidate</strong> Static code does not prove response authenticity, allowlisting, redirect policy, persistence, or reachability.</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@900&family=Lato:wght@300;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        .slide-container { 
+            width: 1280px; 
+            min-height: 720px; 
+            background-color: #F4F7F6; 
+            position: relative;
+            overflow: hidden;
+            font-family: 'Lato', sans-serif;
+        }
+        .content-wrapper {
+            position: absolute;
+            left: 80px;
+            bottom: 80px;
+            width: 1000px;
+        }
+        .slide-title {
+            font-family: 'Playfair Display', serif;
+            font-weight: 900;
+            font-size: 56px;
+            color: #001219;
+            line-height: 1.1;
+            margin-bottom: 24px;
+            letter-spacing: -0.5px;
+        }
+        .divider {
+            width: 120px;
+            height: 8px;
+            background-color: #CA6702;
+            margin-bottom: 40px;
+        }
+        .bullet-list {
+            list-style: none;
+        }
+        .bullet-list li {
+            font-weight: 300;
+            font-size: 28px;
+            color: #005F73;
+            line-height: 1.5;
+            margin-bottom: 24px;
+            position: relative;
+            padding-left: 32px;
+        }
+        .bullet-list li::before {
+            content: "■";
+            position: absolute;
+            left: 0;
+            top: 2px;
+            color: #CA6702;
+            font-size: 20px;
+        }
+        .bullet-list li strong {
+            font-weight: 700;
+            color: #001219;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide-container">
+        <div class="content-wrapper">
+            <h2 class="slide-title">The review found a real transport-control problem</h2>
+            <div class="divider"></div>
+            <ul class="bullet-list">
+                <li><strong>High / verified configuration:</strong> <code>android:usesCleartextTraffic="true"</code>.</li>
+                <li>App-owned source corroborates the setting with <strong>50 HTTP</strong> and <strong>29 HTTPS</strong> URL string literals.</li>
+                <li>The finding is static evidence of exposure, not a live interception demonstration.</li>
+                <li>No APK execution and no endpoint contact occurred.</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>

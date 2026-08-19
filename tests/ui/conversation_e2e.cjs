@@ -12,12 +12,26 @@ const outputDir = process.env.VULNHUNTER_UI_OUTPUT || "/tmp/vh-ui/screenshots";
 const failureScreenshot = path.join(outputDir, "conversation-e2e-failure.png");
 const serverLog =
   process.env.VULNHUNTER_UI_SERVER_LOG || path.join(path.dirname(outputDir), "server.log");
+const python = process.env.VULNHUNTER_PYTHON || "python3";
+const preparationScript = path.join(__dirname, "prepare_conversation_e2e.py");
+
+async function prepareConversationEnvironment() {
+  await execFileAsync(python, [preparationScript], {
+    env: {
+      ...process.env,
+      DJANGO_SETTINGS_MODULE: "vulnhunter.web.settings",
+      VULNHUNTER_WEB_DEBUG: process.env.VULNHUNTER_WEB_DEBUG || "true",
+      VULNHUNTER_WEB_SECRET_KEY: process.env.VULNHUNTER_WEB_SECRET_KEY || "browser-e2e-local",
+    },
+  });
+}
 
 let browser;
 let page;
 
 (async () => {
   try {
+    await prepareConversationEnvironment();
     browser = await chromium.launch({ headless: true });
     page = await browser.newPage({ viewport: { width: 1280, height: 820 } });
     const consoleErrors = [];

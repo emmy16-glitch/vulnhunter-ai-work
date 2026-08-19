@@ -29,6 +29,14 @@ Redis is intentionally not the scanner authority. Durable assessment/activity re
 
 The first API slice uses Django session authentication so it can be introduced without inventing a token format or changing browser CSRF behavior. Native mobile OAuth/OIDC or short-lived access/refresh tokens remain a subsequent migration phase and must use standardized libraries plus OS-backed secure storage in Flutter.
 
+## React/TypeScript client slice
+
+The additive `frontend/` package now provides a typed React/Vite workspace against the live `/api/v1/` contract. It uses the existing Django session and CSRF cookies, renders readiness, owner-scoped assessment history/detail, persisted findings, and a first-class event timeline, and retains Django templates as the compatibility fallback. The event client performs REST cursor catch-up, obtains an assessment-bound ticket, subscribes to the Channels endpoint, deduplicates by sequence, and reconnects from the last confirmed cursor. It contains no provider, worker, database, SSH, governance, scanner, or emulator secrets.
+
+## Flutter/Dart client foundation
+
+The additive `mobile/` package provides native modules for secure credentials, API access, assessment models, ticket-bound WebSocket reconnect, and resumable APK upload. The workspace screen displays readiness, persisted assessment detail, findings, and events, while the APK panel treats upload as an artifact step only. The current server slice does not yet expose a native token exchange or upload route, so those integration points are explicit configuration boundaries and show truthful unavailable/auth-required states rather than inventing endpoints or execution progress. `flutter analyze` and `flutter test` pass with the stable Flutter SDK used for validation.
+
 ## Remaining migration phases
 
-The repository still requires the later specification phases: post-commit Channels publication, OpenAPI generation/drift checks, PostgreSQL production acceptance, object-storage abstraction, React/TypeScript parity screens, Flutter/Dart client, native mobile token flow, Redis outage/reconnect tests, and production deployment hardening. These are intentionally not simulated by this slice.
+The repository still requires post-commit Channels publication, OpenAPI generation/drift checks, PostgreSQL production acceptance, object-storage abstraction, native mobile token exchange, a production upload/artifact API, Redis outage/reconnect tests, and production deployment hardening. These remain explicit follow-up work and are not simulated by the client slices.

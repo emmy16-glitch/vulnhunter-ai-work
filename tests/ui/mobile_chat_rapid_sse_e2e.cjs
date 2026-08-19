@@ -153,15 +153,15 @@ async function login(page) {
     await liveBlock.waitFor();
     await page.waitForFunction(() => document.body.innerText.includes('JADX completed in burst 2'));
     if (streamBurst < 2) throw new Error(`Expected at least two rapid SSE bursts, received ${streamBurst}`);
-    const stepRows = liveBlock.locator('[data-mobile-live-steps] > li');
-    if (await stepRows.count() !== 1) throw new Error(`Expected one in-place step row, found ${await stepRows.count()}`);
+    const stepRows = liveBlock.locator('[data-mobile-tool-id="jadx"]');
+    if (await stepRows.count() !== 1) throw new Error(`Expected one in-place JADX row, found ${await stepRows.count()}`);
     const rowText = await stepRows.first().textContent();
     if (!/JADX completed in burst 2/i.test(rowText || '')) throw new Error(`Final step detail missing: ${rowText}`);
     if (!(await stepRows.first().evaluate((node) => node.classList.contains('is-completed')))) {
       throw new Error('The in-place step did not transition to completed state');
     }
-    if (await page.locator('[data-activity-entry].is-mobile-activity').count() < 2) {
-      throw new Error('Rapid SSE activity history was not preserved');
+    if (await liveBlock.locator('[data-mobile-live-technical-events] > li').count() < 2) {
+      throw new Error('Rapid SSE technical activity history was not preserved');
     }
     console.log('Rapid APK SSE in-place update acceptance passed.');
   } finally {

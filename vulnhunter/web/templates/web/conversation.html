@@ -4,7 +4,7 @@
 {% block extra_styles %}
   <link rel="stylesheet" href="{% static 'web/conversation-upload.css' %}?v=20260727-phone-acceptance1">
   <link rel="stylesheet" href="{% static 'web/conversation.css' %}?v=20260812-ui2">
-  <link rel="stylesheet" href="{% static 'web/conversation-mobile-execution.css' %}?v=20260819-liveapk1">
+  <link rel="stylesheet" href="{% static 'web/conversation-mobile-execution.css' %}?v=20260819-canonical-apk-task1">
   <link rel="stylesheet" href="{% static 'web/conversation-mobile-deferred-tools.css' %}?v=20260812-ui2">
   <link rel="stylesheet" href="{% static 'web/assessment-workspace.css' %}?v=20260812-ui2">
   <link rel="stylesheet" href="{% static 'web/public-consent.css' %}?v=20260819-consent1">
@@ -17,7 +17,7 @@
   <script src="{% static 'web/conversation.js' %}?v=20260812-ui2" defer></script>
   <script src="{% static 'web/conversation-autoscroll.js' %}?v=20260727-phone-acceptance1" defer></script>
   <script src="{% static 'web/conversation-mobile-bridge.js' %}?v=20260727-phone-acceptance1" defer></script>
-  <script src="{% static 'web/conversation-mobile.js' %}?v=20260819-liveapk1" defer></script>
+  <script src="{% static 'web/conversation-mobile.js' %}?v=20260819-canonical-apk-task1" defer></script>
   <script src="{% static 'web/conversation-mobile-context.js' %}?v=20260727-phone-acceptance1" defer></script>
   <script src="{% static 'web/conversation-mobile-inspector.js' %}?v=20260812-ui2" defer></script>
   <script src="{% static 'web/conversation-mobile-deferred-tools.js' %}?v=20260727-phone-acceptance1" defer></script>
@@ -219,14 +219,23 @@
 <template id="vh-mobile-live-execution-template">
   <section class="vh-mobile-live-execution" data-mobile-live-execution aria-live="polite">
     <header class="vh-mobile-live-header">
-      <div>
-        <p class="vh-eyebrow">Live APK execution</p>
-        <strong data-mobile-live-title>Mobile APK execution</strong>
+      <div class="vh-mobile-live-heading">
+        <p class="vh-eyebrow">APK analysis</p>
+        <strong data-mobile-live-title>Mobile APK analysis</strong>
         <small>Bounded worker timeline · <code data-mobile-live-run></code></small>
       </div>
-      <span class="vh-mobile-live-status" data-mobile-live-current>Preparing the governed worker…</span>
+      <div class="vh-mobile-live-state">
+        <span class="vh-mobile-live-state-marker" data-mobile-live-state-marker aria-hidden="true">•</span>
+        <span class="vh-mobile-live-status" data-mobile-live-state>Preparing the governed worker…</span>
+      </div>
     </header>
-    <ol class="vh-mobile-live-steps" data-mobile-live-steps aria-label="Live APK execution steps"></ol>
+    <div class="vh-mobile-live-current" data-mobile-live-current hidden></div>
+    <div class="vh-mobile-live-stages" data-mobile-live-stages aria-label="APK analysis stages"></div>
+    <p class="vh-mobile-live-note" data-mobile-live-note hidden></p>
+    <details class="vh-mobile-live-technical">
+      <summary><span>Technical activity</span><b data-mobile-live-technical-count>0 events</b></summary>
+      <ol class="vh-mobile-live-technical-list" data-mobile-live-technical-events></ol>
+    </details>
   </section>
 </template>
 

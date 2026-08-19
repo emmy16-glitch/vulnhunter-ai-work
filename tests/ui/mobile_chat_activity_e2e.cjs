@@ -77,7 +77,7 @@ async function login(page) {
         }),
       });
     });
-    await page.route("**/workspace/mobile-message/", async (route) => {
+    await page.route("**/workspace/mobile-message/**", async (route) => {
       await route.fulfill({
         status: 200,
         contentType: "application/json",
@@ -155,18 +155,19 @@ async function login(page) {
     await page.getByRole("button", { name: "Send message" }).click();
 
     await page.getByText("I prepared the APK assessment and selected the safe static tools first.").waitFor();
-    await page.getByText("The governed APK assessment plan is ready.").waitFor();
+    const liveBlock = page.locator(`[data-mobile-live-execution="${plan.run_id}"]`);
+    await liveBlock.waitFor();
+    await liveBlock.locator("[data-mobile-live-technical-events]").getByText("The governed APK assessment plan is ready.").waitFor({ state: "attached" });
     const feedText = await page.locator("[data-conversation-feed]").textContent();
     if (!/browser-demo\.apk/i.test(feedText || "")) throw new Error("The uploaded APK was not shown in the chat feed");
     if (!/JADX/i.test(feedText || "")) throw new Error("The selected safe tool was not shown in the chat feed");
     if (!/plan is ready/i.test(feedText || "")) throw new Error("The persisted APK activity was not shown in the chat feed");
-    const liveBlock = page.locator(`[data-mobile-live-execution="${plan.run_id}"]`);
-    await liveBlock.waitFor();
     const liveText = await liveBlock.textContent();
     if (!/JADX completed and persisted/i.test(liveText || "")) throw new Error("The live APK block did not show the completed step in place");
-    if (await liveBlock.locator("[data-mobile-live-steps] > li").count() !== 1) throw new Error("The same APK step was rendered more than once instead of updating in place");
-    if (await page.locator("[data-activity-entry].is-mobile-activity").count() < 3) throw new Error("Structured APK activity entries were not preserved in the chat history");
-    console.log("Unified APK chat activity acceptance passed.");
+    if (await liveBlock.locator('[data-mobile-tool-id="jadx"]').count() !== 1) throw new Error("The same JADX tool was rendered more than once instead of updating in place");
+    if (await liveBlock.locator("[data-mobile-live-technical-events] > li").count() !== 3) throw new Error("Persisted APK technical activity was not consolidated inside the task block");
+    if (!/3 events/i.test(await liveBlock.locator("[data-mobile-live-technical-count]").textContent())) throw new Error("The persisted APK technical activity count is incorrect");
+    console.log("Unified APK canonical task acceptance passed.");
   } finally {
     await browser.close();
   }

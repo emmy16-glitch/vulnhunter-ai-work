@@ -260,7 +260,9 @@ def test_conversation_ui_exposes_plus_button_progress_live_status_and_context():
     assert "web-conversation-mobile-followup" in template
     assert "conversation-mobile-execution.css" in template
     assert "conversation-mobile-context.js" in template
-    assert 'setTimeout(() => item.classList.add("is-visible")' in script
+    assert "data-mobile-live-stages" in template
+    assert "mobileTaskState" in script
+    assert 'setTimeout(() => item.classList.add("is-visible")' not in script
     assert "watchMobileExecution" in script
     assert "data-mobile-execution-results" in script
     assert "data-mobile-activity-stream-url-template" in template

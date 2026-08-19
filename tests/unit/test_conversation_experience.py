@@ -202,3 +202,19 @@ def test_contextual_inspector_keeps_report_bound_to_selected_assessment():
     assert "updateReports();" in script
     assert 'event.target.closest?.("[data-analysis-inspector-open]")' in adapter
     assert "controller.click()" in adapter
+
+
+def test_apk_task_uses_one_evolving_block_with_collapsed_technical_activity():
+    template = (ROOT / "vulnhunter/web/templates/web/conversation.html").read_text(encoding="utf-8")
+    script = (ROOT / "vulnhunter/web/static/web/conversation-mobile.js").read_text(encoding="utf-8")
+    styles = (ROOT / "vulnhunter/web/static/web/conversation-mobile-execution.css").read_text(encoding="utf-8")
+
+    assert 'data-mobile-live-stages' in template
+    assert 'data-mobile-live-technical-events' in template
+    assert 'Technical activity' in template
+    assert 'data-mobile-live-stages' in script
+    assert 'data-mobile-tool-id' in script
+    assert 'mobileLiveStageEntries' in script
+    assert 'data-mobile-live-steps' not in script
+    assert '.vh-mobile-live-stage' in styles
+    assert '.vh-mobile-live-technical' in styles

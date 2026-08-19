@@ -40,7 +40,8 @@
   let mobileActivityRunId = "";
   const mobileActivityKeys = new Set();
   const mobileActivityEntries = new Map();
-  const mobileLiveStepEntries = new Map();
+  const mobileLiveStageEntries = new Map();
+  const mobileLiveTechnicalKeys = new Set();
 
   const text = (value) => (value === null || value === undefined ? "" : String(value));
   const pretty = (value) =>
@@ -128,10 +129,20 @@
     return value || "recorded";
   };
 
+  const mobileTaskState = (value) => {
+    const state = text(value || "pending").toLowerCase().replace(/[^a-z0-9_-]+/g, "-");
+    if (["planned", "waiting", "pending", "prepared", "gated"].includes(state)) return "pending";
+    if (["in_progress", "in-progress", "executing", "evaluating"].includes(state)) return "running";
+    if (["success", "succeeded", "verified"].includes(state)) return "completed";
+    if (["error", "rejected", "timed_out", "timeout"].includes(state)) return "failed";
+    return state || "pending";
+  };
+
   const mobileMarker = (state) => {
-    if (["completed", "success", "succeeded", "verified"].includes(state)) return "✓";
-    if (["failed", "error", "blocked", "cancelled", "rejected"].includes(state)) return "!";
-    if (["running", "executing", "queued"].includes(state)) return "◌";
+    const normalized = mobileTaskState(state);
+    if (normalized === "completed") return "✓";
+    if (["failed", "blocked", "cancelled"].includes(normalized)) return "!";
+    if (["running", "queued"].includes(normalized)) return "◌";
     return "•";
   };
 
@@ -192,9 +203,22 @@
     );
     if (mobileActivityKeys.has(key)) return;
     mobileActivityKeys.add(key);
-    const rendered = renderMobileActivityEntry(event);
-    mobileActivityEntries.set(key, rendered.article);
-    feed.append(rendered.article);
+    const block = ensureMobileLiveBlock(event.run_id || mobileActivityRunId, {});
+    const list = block.querySelector("[data-mobile-live-technical-events]");
+    if (!list) return;
+    const item = document.createElement("li");
+    item.className = `vh-mobile-live-technical-event is-${mobileState(event)}`;
+    const time = document.createElement("time");
+    const timestamp = event.timestamp || event.created_at || metadata.mobile_progress_at || "";
+    time.dateTime = text(timestamp);
+    time.textContent = formatTimestamp(timestamp) || text(timestamp);
+    const copy = document.createElement("span");
+    copy.textContent = text(event.summary || event.detail || metadata.mobile_progress_detail || "Recorded APK activity.");
+    item.append(time, copy);
+    list.append(item);
+    const count = block.querySelector("[data-mobile-live-technical-count]");
+    if (count) count.textContent = `${list.children.length} event${list.children.length === 1 ? "" : "s"}`;
+    mobileLiveTechnicalKeys.add(`${event.run_id || mobileActivityRunId}|${key}`);
   };
 
   const ensureMobileLiveBlock = (runId, plan = {}) => {
@@ -211,36 +235,116 @@
     return block;
   };
 
+  const renderMobileStage = (block, stageKey, label, state = "pending") => {
+    const stages = block.querySelector("[data-mobile-live-stages]");
+    let stage = mobileLiveStageEntries.get(`${block.dataset.mobileLiveExecution}|${stageKey}`);
+    if (!stage || !stage.isConnected) {
+      stage = document.createElement("details");
+      stage.className = "vh-mobile-live-stage";
+      stage.dataset.mobileStageKey = stageKey;
+      const summary = document.createElement("summary");
+      const marker = document.createElement("span");
+      marker.className = "vh-mobile-live-stage-marker";
+      const title = document.createElement("strong");
+      const status = document.createElement("small");
+      summary.append(marker, title, status);
+      const list = document.createElement("ol");
+      list.className = "vh-mobile-live-tools";
+      stage.append(summary, list);
+      stages.append(stage);
+      mobileLiveStageEntries.set(`${block.dataset.mobileLiveExecution}|${stageKey}`, stage);
+    }
+    const normalizedState = mobileTaskState(state);
+    stage.dataset.mobileStageState = normalizedState;
+    stage.classList.remove("is-queued", "is-running", "is-completed", "is-failed", "is-pending");
+    stage.classList.add(`is-${normalizedState}`);
+    stage.querySelector(".vh-mobile-live-stage-marker").textContent = mobileMarker(normalizedState);
+    stage.querySelector("summary strong").textContent = label;
+    stage.querySelector("summary small").textContent = pretty(normalizedState);
+    return stage;
+  };
+
+  const renderMobilePlanStages = (block, plan = {}) => {
+    const rounds = Array.isArray(plan.rounds) ? plan.rounds : [];
+    const tools = Array.isArray(plan.tools) ? plan.tools : [];
+    if (!rounds.length && !tools.length) return;
+    const stageSpecs = rounds.length
+      ? rounds.map((round) => ({
+          key: text(round.altitude || round.label || "stage"),
+          label: text(round.label || pretty(round.altitude || "Analysis stage")),
+          state: mobileTaskState(round.status || "pending"),
+        }))
+      : [{ key: "tools", label: "Selected tools", state: "pending" }];
+    stageSpecs.forEach((spec) => renderMobileStage(block, spec.key, spec.label, spec.state));
+    const fallback = stageSpecs[stageSpecs.length - 1];
+    tools.forEach((tool) => {
+      const stageKey = text(tool.stage || tool.altitude || fallback.key);
+      const stage = renderMobileStage(block, stageKey, stageKey === fallback.key ? fallback.label : pretty(stageKey));
+      const toolId = text(tool.tool_id || tool.name || "tool");
+      const rowKey = `${block.dataset.mobileLiveExecution}|${stageKey}|${toolId}`;
+      if (block.querySelector(`[data-mobile-tool-id="${CSS.escape(toolId)}"]`)) return;
+      const row = document.createElement("li");
+      row.className = "vh-mobile-live-tool is-pending";
+      row.dataset.mobileToolKey = rowKey;
+      row.dataset.mobileToolId = toolId;
+      const marker = document.createElement("span");
+      marker.className = "vh-mobile-live-tool-marker";
+      marker.textContent = mobileMarker("pending");
+      const copy = document.createElement("div");
+      const title = document.createElement("strong");
+      title.textContent = text(tool.name || tool.tool_id || "Tool");
+      const detail = document.createElement("small");
+      detail.textContent = text(tool.gate ? `${pretty(tool.gate)} governed` : "Planned");
+      copy.append(title, detail);
+      row.append(marker, copy);
+      stage.querySelector(".vh-mobile-live-tools").append(row);
+    });
+  };
+
   const upsertMobileLiveStep = (runId, step) => {
     if (!step || typeof step !== "object") return;
     const block = ensureMobileLiveBlock(runId, step.plan || {});
-    const stepKey = text(step.step_key || `${step.tool || "worker"}:${step.stage || "execution"}`);
-    let item = mobileLiveStepEntries.get(`${runId}|${stepKey}`);
-    if (!item || !item.isConnected) {
+    renderMobilePlanStages(block, step.plan || {});
+    const state = mobileTaskState(step.state || step.tool_state || "running");
+    const stageKey = text(step.stage || "execution");
+    const stage = renderMobileStage(block, stageKey, pretty(stageKey), state);
+    const toolId = text(step.tool || "worker");
+    const stepKey = text(step.step_key || `${stageKey}:${toolId}`);
+    let item = block.querySelector(`[data-mobile-tool-id="${CSS.escape(toolId)}"]`);
+    if (item && item.parentElement !== stage.querySelector(".vh-mobile-live-tools")) {
+      item.remove();
+      stage.querySelector(".vh-mobile-live-tools").append(item);
+    }
+    if (!item) {
       item = document.createElement("li");
+      item.dataset.mobileToolKey = `${runId}|${stageKey}|${toolId}`;
+      item.dataset.mobileToolId = toolId;
       item.dataset.mobileStepKey = stepKey;
-      item.className = "vh-mobile-live-step";
+      item.className = "vh-mobile-live-tool";
       const marker = document.createElement("span");
-      marker.className = "vh-mobile-live-step-marker";
+      marker.className = "vh-mobile-live-tool-marker";
       const copy = document.createElement("div");
       const label = document.createElement("strong");
       const detail = document.createElement("small");
       copy.append(label, detail);
       item.append(marker, copy);
-      block.querySelector("[data-mobile-live-steps]").append(item);
-      mobileLiveStepEntries.set(`${runId}|${stepKey}`, item);
+      stage.querySelector(".vh-mobile-live-tools").append(item);
     }
-    const state = text(step.state || step.tool_state || "running").toLowerCase();
-    item.className = `vh-mobile-live-step is-${state}`;
-    item.querySelector(".vh-mobile-live-step-marker").textContent = mobileMarker(state);
+    item.className = `vh-mobile-live-tool is-${state}`;
+    item.querySelector(".vh-mobile-live-tool-marker").textContent = mobileMarker(state);
     item.querySelector("strong").textContent = text(step.label || step.tool || step.stage || "APK worker step");
     item.querySelector("small").textContent = text(step.detail || "Collecting bounded evidence…");
+    block.querySelector("[data-mobile-live-current]").hidden = false;
     block.querySelector("[data-mobile-live-current]").textContent = text(
       step.current || step.detail || "Waiting for the next persisted worker event…",
     );
     block.classList.toggle("is-running", ["queued", "running", "executing"].includes(state));
     block.classList.toggle("is-complete", ["completed", "success", "succeeded"].includes(state));
     block.classList.toggle("is-failed", ["failed", "blocked", "rejected", "cancelled"].includes(state));
+    const note = block.querySelector("[data-mobile-live-note]");
+    const noteText = text(step.note || step.reason || "");
+    note.hidden = !noteText;
+    note.textContent = noteText;
   };
 
   const syncMobileProgress = (runId, execution, plan = {}) => {
@@ -248,12 +352,6 @@
     const progress = execution.progress && typeof execution.progress === "object" ? execution.progress : {};
     const events = Array.isArray(progress.events) ? progress.events : [];
     ensureMobileLiveBlock(runId, plan);
-    if (events.length) {
-      const placeholderKey = `${runId}|worker:execution`;
-      const placeholder = mobileLiveStepEntries.get(placeholderKey);
-      placeholder?.remove();
-      mobileLiveStepEntries.delete(placeholderKey);
-    }
     events.forEach((progressEvent) => {
       if (!progressEvent || typeof progressEvent !== "object") return;
       const sequence = text(progressEvent.sequence || "");
@@ -306,7 +404,8 @@
       mobileActivitySequence = 0;
       mobileActivityKeys.clear();
       mobileActivityEntries.clear();
-      mobileLiveStepEntries.clear();
+      mobileLiveStageEntries.clear();
+      mobileLiveTechnicalKeys.clear();
     }
     ensureMobileLiveBlock(runId, plan);
     syncMobileProgress(runId, plan.execution || {}, plan);
@@ -494,60 +593,22 @@
 
   const renderPlan = (plan) => {
     const card = document.createElement("section");
-    card.className = "vh-mobile-hunt-card";
+    card.className = "vh-mobile-plan-context";
     card.dataset.mobileHuntCard = "";
     if (plan.run_id) card.dataset.mobileHuntRun = text(plan.run_id);
-    const header = document.createElement("header");
     const heading = document.createElement("div");
     const eyebrow = document.createElement("small");
-    eyebrow.textContent = "Prepared Raptor-style mobile hunt";
+    eyebrow.textContent = "APK task prepared";
     const title = document.createElement("strong");
-    title.textContent = `${pretty(plan.profile)} · ${Number(plan.tool_count || 0)} tools`;
+    title.textContent = `${pretty(plan.profile || "static")} · ${Number(plan.tool_count || 0)} tools`;
     const digest = document.createElement("code");
     digest.textContent = text(plan.plan_digest || "").slice(0, 24);
-    heading.append(eyebrow, title);
-    header.append(heading, digest);
-
-    const tools = document.createElement("div");
-    tools.className = "vh-mobile-tool-chips";
-    (Array.isArray(plan.tools) ? plan.tools : []).forEach((tool) => {
-      const chip = document.createElement("span");
-      chip.textContent = text(tool.name || tool.tool_id);
-      chip.title = `${pretty(tool.gate)} gate${tool.requires_isolation ? " · isolation required" : ""}`;
-      tools.append(chip);
-    });
-
-    const rounds = document.createElement("ol");
-    rounds.className = "vh-mobile-hunt-rounds";
-    (Array.isArray(plan.rounds) ? plan.rounds : []).forEach((round, index) => {
-      const item = document.createElement("li");
-      item.className = `is-${text(round.status || "planned")}`;
-      item.dataset.altitude = text(round.altitude || "unknown");
-      const marker = document.createElement("span");
-      marker.textContent = round.status === "blocked" ? "!" : String(index + 1);
-      const content = document.createElement("div");
-      const label = document.createElement("strong");
-      label.textContent = text(round.label);
-      const purpose = document.createElement("small");
-      purpose.textContent = text(round.blocked_reason || round.purpose);
-      content.append(label, purpose);
-      item.append(marker, content);
-      rounds.append(item);
-      window.setTimeout(() => item.classList.add("is-visible"), 90 + index * 120);
-    });
-
-    const results = document.createElement("section");
-    results.className = "vh-mobile-execution-results";
-    results.dataset.mobileExecutionResults = "";
-    results.hidden = true;
-
-    const execution = plan.execution || {
-      state: "prepared",
-      reason: plan.dynamic_deferred
-        ? "Static and native coverage is prepared. Runtime work remains separately gated."
-        : "The plan is prepared; tool execution remains governed by worker policy.",
-    };
-    card.append(header, tools, rounds, executionPanel(execution), results);
+    heading.append(eyebrow, title, digest);
+    const detail = document.createElement("small");
+    detail.textContent = plan.dynamic_deferred
+      ? "Static and native coverage prepared; dynamic execution remains separately gated."
+      : "The governed worker will update the APK task below from persisted progress.";
+    card.append(heading, detail);
     return card;
   };
 

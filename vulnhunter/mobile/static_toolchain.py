@@ -274,6 +274,8 @@ class MobileStaticToolchain:
                 progress_callback=progress_callback,
             )
             yield self._enrich_capture(capture, workspace)
+            if spec.name == "apktool":
+                self._materialize_apktool_framework(private_home)
             self.enforce_workspace_bound(workspace)
 
         yara_spec = self._yara_spec(apk, workspace)
@@ -900,6 +902,31 @@ class MobileStaticToolchain:
             "pic": boolean("pic", "pie", "has_pi"),
             "relro": boolean("relro", "has_relro"),
         }
+
+    @staticmethod
+    def _materialize_apktool_framework(private_home: Path) -> None:
+        framework = private_home / ".local" / "share" / "apktool" / "framework"
+        if not framework.is_dir() or framework.is_symlink():
+            return
+        trusted_root = Path("/usr/share/android-framework-res").resolve()
+        for path in framework.iterdir():
+            if not path.is_symlink():
+                continue
+            try:
+                target = path.resolve(strict=True)
+                target.relative_to(trusted_root)
+            except (OSError, ValueError) as exc:
+                raise MobileStaticToolchainError(
+                    "apktool framework link resolves outside the trusted system framework root"
+                ) from exc
+            if target.name != "framework-res.apk" or not target.is_file():
+                raise MobileStaticToolchainError(
+                    "apktool framework link does not point to framework-res.apk"
+                )
+            content = target.read_bytes()
+            path.unlink()
+            path.write_bytes(content)
+            path.chmod(0o600)
 
     def enforce_workspace_bound(self, workspace: Path) -> None:
         total = 0

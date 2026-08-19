@@ -1,6 +1,9 @@
 from pathlib import Path
 
-from vulnhunter.mobile.static_toolchain import MobileStaticToolchainError
+from vulnhunter.mobile.static_toolchain import (
+    MobileStaticToolchain,
+    MobileStaticToolchainError,
+)
 from vulnhunter.mobile.static_worker import _controlled_failure_reason
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -39,6 +42,22 @@ def test_controlled_worker_failure_explains_the_actual_boundary():
         "Mobile static analysis stopped safely: tool generated an oversized analysis workspace."
     )
     assert "MobileStaticToolchainError" not in reason
+
+
+def test_apktool_framework_link_is_materialized_inside_private_home(tmp_path):
+    trusted_framework = Path("/usr/share/android-framework-res/framework-res.apk")
+    if not trusted_framework.is_file():
+        return
+    framework = tmp_path / "home" / ".local" / "share" / "apktool" / "framework"
+    framework.mkdir(parents=True)
+    link = framework / "1.apk"
+    link.symlink_to(trusted_framework)
+
+    MobileStaticToolchain._materialize_apktool_framework(tmp_path / "home")
+
+    assert link.is_file()
+    assert not link.is_symlink()
+    assert link.read_bytes() == trusted_framework.read_bytes()
 
 
 def test_assessment_creation_is_only_exposed_in_the_conversation_workspace():

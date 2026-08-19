@@ -36,6 +36,11 @@ from vulnhunter.web import (
 )
 
 urlpatterns = [
+    path(
+        "favicon.ico",
+        RedirectView.as_view(url="/static/web/favicon.svg", permanent=False),
+        name="web-favicon",
+    ),
     path("health/", views.health_view, name="web-health"),
     path("ready/", readiness.deployment_readiness_view, name="web-deployment-readiness"),
     path("login/", unified_assessment_views.UnifiedLoginView.as_view(), name="web-login"),

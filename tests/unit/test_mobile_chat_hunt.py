@@ -265,7 +265,8 @@ def test_conversation_ui_exposes_plus_button_progress_live_status_and_context():
     assert "data-mobile-execution-results" in script
     assert "data-mobile-activity-stream-url-template" in template
     assert "openMobileActivityStream" in script
-    assert "if (!mobileChatUpload) fileInput?.addEventListener" in thread_script
+    assert 'form.dataset.mobileUploadMode !== "background"' in thread_script
+    assert 'form.dataset.mobileUploadMode === "background"' in script
     assert "activeMobilePlan" in context_script
     assert "bypassMobileFollowup" in context_script
     assert "form.requestSubmit()" in context_script

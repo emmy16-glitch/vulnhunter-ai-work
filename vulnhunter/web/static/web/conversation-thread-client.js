@@ -149,9 +149,10 @@
     tray.append(card);
   };
 
-  if (!mobileChatUpload) fileInput?.addEventListener(
+  fileInput?.addEventListener(
     "change",
     async (event) => {
+      if (mobileChatUpload && form.dataset.mobileUploadMode !== "background") return;
       const file = fileInput.files?.[0];
       if (!file) return;
       event.stopImmediatePropagation();

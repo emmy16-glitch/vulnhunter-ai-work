@@ -581,6 +581,7 @@
   });
 
   fileInput.addEventListener("change", () => {
+    if (form.dataset.mobileUploadMode === "background") return;
     const file = fileInput.files?.[0];
     if (!file) return;
     if (!file.name.toLowerCase().endsWith(".apk")) {

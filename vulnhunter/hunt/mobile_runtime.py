@@ -173,7 +173,21 @@ def run_mobile_evidence_hunt(
 ) -> MobileHuntExecutionReceipt:
     """Run two bounded passes and stop when the variant sweep adds no candidates."""
 
-    observations = tuple(result.candidate_observations)
+    if result.intelligence is not None:
+        observations = tuple(
+            {
+                **item.model_dump(mode="json"),
+                "observation_id": item.record_id,
+                "status": item.evidence_state.value,
+                "evidence": dict(item.details.get("evidence_metadata", {}))
+                if isinstance(item.details.get("evidence_metadata"), dict)
+                else {},
+                "tool_ids": list(item.evidence_references),
+            }
+            for item in result.intelligence.candidates
+        )
+    else:
+        observations = tuple(result.candidate_observations)
     capture_receipts = tuple(f"tool:{item.tool}:{item.output_sha256}" for item in result.captures)
     candidates = tuple(
         _judge_candidate(_candidate_from_observation(item, index=index), item)

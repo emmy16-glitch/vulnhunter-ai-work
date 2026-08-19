@@ -13,6 +13,10 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 from vulnhunter.mobile.artifacts import MobileArtifactError, copy_artifact_for_analysis
+from vulnhunter.mobile.intelligence import (
+    MobileAnalysisIntelligence,
+    build_mobile_intelligence,
+)
 from vulnhunter.mobile.layered_analysis import LayeredAnalysisError, analyze_package
 from vulnhunter.mobile.models import MobileArtifactRecord
 from vulnhunter.mobile.static_toolchain import (
@@ -37,6 +41,7 @@ class MobileStaticAnalysisResult(BaseModel):
     state: Literal["completed", "blocked", "failed"]
     captures: tuple[MobileToolCapture, ...] = ()
     candidate_observations: tuple[dict[str, object], ...] = ()
+    intelligence: MobileAnalysisIntelligence | None = None
     layered_report: dict[str, object] | None = None
     layered_report_error: str | None = None
     completed_at: datetime
@@ -131,6 +136,14 @@ class MobileStaticWorker:
                 private_home=private_home,
                 progress_callback=progress_callback,
             )
+            intelligence = build_mobile_intelligence(
+                artifact_sha256=record.sha256,
+                observations=observations,
+                captures=captures,
+                layered_report=layered_report,
+                planned_tools=self.policy.active_tools(),
+                native_library_count=len(record.native_libraries),
+            )
         except (
             OSError,
             MobileArtifactError,
@@ -156,6 +169,7 @@ class MobileStaticWorker:
             state="completed",
             captures=captures,
             candidate_observations=observations,
+            intelligence=intelligence,
             layered_report=layered_report,
             layered_report_error=layered_report_error,
             completed_at=datetime.now(UTC),

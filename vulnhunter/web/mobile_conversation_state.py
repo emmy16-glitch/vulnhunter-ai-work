@@ -155,6 +155,45 @@ def _verified_results_summary(execution: dict[str, object]) -> str | None:
     )
 
 
+def _intelligence_results_summary(execution: dict[str, object]) -> str | None:
+    progress = execution.get("progress")
+    if not isinstance(progress, dict):
+        return None
+    summary = progress.get("result_summary")
+    if not isinstance(summary, dict):
+        return None
+    intelligence = summary.get("intelligence")
+    if not isinstance(intelligence, dict):
+        return None
+    observations = intelligence.get("observations")
+    verified_findings = intelligence.get("verified_findings")
+    candidates = intelligence.get("candidates")
+    operational_issues = intelligence.get("operational_issues")
+    coverage = intelligence.get("coverage")
+    observation_rows = observations if isinstance(observations, list) else []
+    verified_rows = verified_findings if isinstance(verified_findings, list) else []
+    candidate_rows = candidates if isinstance(candidates, list) else []
+    issue_rows = operational_issues if isinstance(operational_issues, list) else []
+    configuration_count = sum(
+        isinstance(item, dict) and item.get("evidence_state") == "verified_configuration"
+        for item in observation_rows
+    )
+    partial = int(coverage.get("partial") or 0) if isinstance(coverage, dict) else 0
+    not_applicable = int(coverage.get("not_applicable") or 0) if isinstance(coverage, dict) else 0
+    blocked = int(coverage.get("blocked") or 0) if isinstance(coverage, dict) else 0
+    coverage_copy = (
+        f" Tool coverage records {partial} partial, {not_applicable} not-applicable and "
+        f"{blocked} blocked capability stage(s)."
+    )
+    return (
+        "Static intelligence completed with "
+        f"{len(observation_rows)} observation(s): {configuration_count} verified configuration "
+        f"condition(s), {len(verified_rows)} verified security finding(s), "
+        f"{len(candidate_rows)} evidence-required candidate(s), and "
+        f"{len(issue_rows)} operational issue(s).{coverage_copy}"
+    )
+
+
 def _results_summary(plan: dict[str, object]) -> str:
     execution = plan.get("execution")
     if not isinstance(execution, dict):
@@ -168,6 +207,9 @@ def _results_summary(plan: dict[str, object]) -> str:
     receipt = execution.get("receipt")
     if state != "completed" or not isinstance(receipt, dict):
         return "The APK hunt is prepared, but no completed evidence receipt is available yet."
+    intelligence_copy = _intelligence_results_summary(execution)
+    if intelligence_copy:
+        return intelligence_copy
     verified_copy = _verified_results_summary(execution)
     if verified_copy:
         return verified_copy
@@ -227,7 +269,7 @@ def mobile_chat_reply(
             if verified_copy:
                 return "Open the findings, evidence or report for the completed assessment."
             return (
-                "Review the candidate observations while deterministic verification finishes; "
+                "Review the evidence-required candidates and operational coverage notes; "
                 "unsupported candidates remain unconfirmed."
             )
         reason = str(execution.get("reason") or "") if isinstance(execution, dict) else ""

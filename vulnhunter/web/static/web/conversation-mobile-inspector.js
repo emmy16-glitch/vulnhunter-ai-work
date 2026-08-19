@@ -249,21 +249,49 @@
 
   const resultSummary = () => state.execution?.progress?.result_summary || {};
   const hunt = () => resultSummary().hunt || null;
+  const intelligence = () => state.projection?.intelligence || resultSummary().intelligence || {};
 
   const updateFindings = () => {
     elements.findings.replaceChildren();
-    const candidates = safeArray(hunt()?.candidates).map((candidate) => ({ ...candidate }));
+    const intelligencePayload = intelligence();
+    const candidates = (
+      safeArray(intelligencePayload.candidates).length
+        ? safeArray(intelligencePayload.candidates)
+        : safeArray(hunt()?.candidates)
+    ).map((candidate) => ({ ...candidate, state: candidate.state || "evidence_required" }));
+    const verifiedConfigurations = safeArray(intelligencePayload.verified_configurations).map(
+      (finding) => ({
+        ...finding,
+        state: "verified_configuration",
+      }),
+    );
+    const verifiedFindings = safeArray(intelligencePayload.verified_findings).map((finding) => ({
+      ...finding,
+      state: "verified",
+    }));
     const rejected = safeArray(hunt()?.rejected).map((candidate) => ({
       ...candidate,
       state: "rejected",
     }));
+    const operationalIssues = safeArray(intelligencePayload.operational_issues);
     const findings = [...candidates, ...rejected];
+    findings.unshift(...verifiedFindings);
+    findings.unshift(...verifiedConfigurations);
     const projectedFindings = state.projection?.findings || {};
-    const candidateCount = Number(projectedFindings.candidate_count);
-    const rejectedCount = Number(projectedFindings.rejected_count);
+    const candidateCount = Number(projectedFindings.candidate_count ?? candidates.length);
+    const rejectedCount = Number(projectedFindings.rejected_count ?? rejected.length);
+    const verifiedConfigurationCount = Number(
+      projectedFindings.verified_configuration_count ?? verifiedConfigurations.length,
+    );
+    const verifiedCount = Number(
+      projectedFindings.verified_security_finding_count ?? verifiedFindings.length,
+    );
     const hasProjectedCounts = Number.isInteger(candidateCount) && Number.isInteger(rejectedCount);
-    elements.findingsCount.textContent = hasProjectedCounts
+    const legacyFindingCount = hasProjectedCounts
       ? String(candidateCount + rejectedCount)
+      : "—";
+    elements.findingsCount.textContent = hasProjectedCounts
+      ? String(Number(legacyFindingCount) + verifiedCount + verifiedConfigurationCount)
       : "—";
 
     const verification = state.projection?.verification || resultSummary().verification || {};
@@ -292,6 +320,23 @@
       elements.findings.append(summary);
     }
 
+    const coverage = intelligencePayload.coverage || {};
+    const coverageSummary = document.createElement("article");
+    coverageSummary.className = "vh-inspector-finding is-coverage";
+    const coverageTitle = document.createElement("strong");
+    coverageTitle.textContent = "Analysis coverage";
+    const coverageCopy = document.createElement("p");
+    coverageCopy.textContent = [
+      `${Number(coverage.completed || 0)} completed`,
+      `${Number(coverage.partial || 0)} partial`,
+      `${Number(coverage.not_applicable || 0)} not applicable`,
+      `${Number(coverage.not_run || 0)} not run`,
+      `${Number(coverage.blocked || 0)} blocked`,
+      `${Number(coverage.failed || 0)} failed`,
+    ].join(" · ");
+    coverageSummary.append(coverageTitle, coverageCopy);
+    elements.findings.append(coverageSummary);
+
     findings.forEach((candidate) => {
       const dispositionState = text(candidate.state || "candidate").toLowerCase();
       const item = document.createElement("article");
@@ -317,7 +362,11 @@
       const evidenceId = text(candidate.evidence_id || candidate.evidence_reference || "");
       const confidence = text(candidate.confidence || candidate.verification_confidence || "");
       const verification = text(candidate.verification || candidate.verification_status || "");
+      const ownership = text(candidate.ownership || "");
+      const securityProperty = text(candidate.security_property || "");
       evidenceMeta.textContent = [
+        ownership ? `Ownership ${pretty(ownership)}` : "",
+        securityProperty ? `Property ${pretty(securityProperty)}` : "",
         confidence ? `Confidence ${pretty(confidence)}` : "",
         verification ? `Verification ${pretty(verification)}` : "",
         evidenceId ? `Evidence ${evidenceId.slice(0, 24)}${evidenceId.length > 24 ? "…" : ""}` : "",
@@ -328,29 +377,59 @@
       item.append(header, title, component, reason, evidenceMeta);
       elements.findings.append(item);
     });
+
+    operationalIssues.forEach((issue) => {
+      const item = document.createElement("article");
+      item.className = "vh-inspector-finding is-operational_issue";
+      const header = document.createElement("header");
+      const severity = document.createElement("span");
+      severity.textContent = "Operational";
+      const disposition = document.createElement("b");
+      disposition.textContent = pretty(issue.evidence_state || "operational_failure");
+      header.append(severity, disposition);
+      const title = document.createElement("strong");
+      title.textContent = text(issue.title || "Tool execution issue");
+      const detail = document.createElement("p");
+      detail.textContent = text(issue.failure_type || "The tool did not produce a complete result.");
+      item.append(header, title, detail);
+      elements.findings.append(item);
+    });
   };
 
   const updateArtifacts = () => {
     elements.artifacts.replaceChildren();
+    const intelligencePayload = intelligence();
+    const executions = safeArray(intelligencePayload.tool_executions);
     const captures = safeArray(resultSummary().captures);
+    const rows = executions.length ? executions : captures;
     const authoritativeCount = Number(state.projection?.evidence?.record_count);
     elements.artifactsCount.textContent = String(
-      Number.isInteger(authoritativeCount) ? authoritativeCount : captures.length,
+      Number.isInteger(authoritativeCount) ? authoritativeCount : rows.length,
     );
-    elements.emptyArtifacts.hidden = captures.length > 0;
-    captures.forEach((capture) => {
+    elements.emptyArtifacts.hidden = rows.length > 0;
+    rows.forEach((row) => {
       const item = document.createElement("article");
-      item.className = Number(capture.return_code) === 0 ? "is-success" : "is-failed";
+      const status = text(row.status).toLowerCase();
+      const fallbackStatus = Number(row.return_code) === 0 ? "completed" : "failed";
+      item.className = `is-${status || fallbackStatus}`;
       const title = document.createElement("strong");
-      title.textContent = pretty(capture.tool || "tool");
+      title.textContent = pretty(row.tool || "tool");
       const meta = document.createElement("small");
-      const duration = Number(capture.duration_ms || 0);
-      meta.textContent = `Exit ${Number(capture.return_code)} · ${(duration / 1000).toFixed(1)}s`;
+      const exit = row.exit_code ?? row.return_code;
+      const statusCopy = pretty(status || fallbackStatus);
+      meta.textContent = exit == null ? statusCopy : `${statusCopy} · Exit ${Number(exit)}`;
       const digest = document.createElement("code");
-      digest.textContent = `Evidence ${text(capture.output_sha256).slice(0, 24)}…`;
+      const evidenceDigest = text(
+        row.evidence_references?.[0] || row.output_sha256 || "receipt-digest-unavailable",
+      );
+      digest.textContent = `Evidence ${evidenceDigest.slice(0, 32)}${evidenceDigest.length > 32 ? "…" : ""}`;
       const metrics = document.createElement("p");
-      const evidence = capture.evidence && typeof capture.evidence === "object" ? capture.evidence : {};
-      metrics.textContent = text(evidence.library || "Bounded structured receipt stored");
+      const generated = row.generated_files == null ? "" : `${row.generated_files} files retained`;
+      const downstream = row.downstream_usable ? "downstream usable" : "";
+      const limitation = safeArray(row.coverage_limitations).join(" ");
+      metrics.textContent = [generated, downstream, limitation || text(row.detail || "")]
+        .filter(Boolean)
+        .join(" · ") || "Bounded structured receipt stored";
       item.append(title, meta, digest, metrics);
       elements.artifacts.append(item);
     });

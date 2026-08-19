@@ -176,6 +176,65 @@ def _verification_projection(result_summary: Mapping[str, object]) -> dict[str, 
     }
 
 
+def _intelligence_projection(result_summary: Mapping[str, object]) -> dict[str, object]:
+    raw = _map(result_summary.get("intelligence"))
+    observations = _rows(raw.get("observations"))
+    verified_configurations = _rows(raw.get("verified_configurations"))
+    verified_findings = _rows(raw.get("verified_findings"))
+    candidates = _rows(raw.get("candidates"))
+    operational_issues = _rows(raw.get("operational_issues"))
+    hypotheses = _rows(raw.get("hypotheses"))
+    tool_executions = _rows(raw.get("tool_executions"))
+    endpoint_references = _rows(raw.get("endpoint_references"))
+    transport_correlations = _rows(raw.get("transport_correlations"))
+    exported_component_surfaces = _rows(raw.get("exported_component_surfaces"))
+    coverage = _map(raw.get("coverage"))
+    capabilities = _rows(coverage.get("capabilities"))
+    return {
+        "schema_version": _text(raw.get("schema_version")) or "legacy",
+        "intelligence_sha256": _text(raw.get("intelligence_sha256")),
+        "observation_count": len(observations),
+        "verified_configuration_count": len(verified_configurations)
+        or sum(
+            _text(item.get("evidence_state")) == "verified_configuration" for item in observations
+        ),
+        "verified_security_finding_count": len(verified_findings),
+        "evidence_required_count": len(candidates),
+        "operational_issue_count": len(operational_issues),
+        "hypothesis_count": len(hypotheses),
+        "tool_execution_count": len(tool_executions),
+        "endpoint_count": len(endpoint_references),
+        "transport_correlation_count": len(transport_correlations),
+        "exported_component_surface_count": len(exported_component_surfaces),
+        "bounded_negative_claims": [
+            str(item) for item in raw.get("bounded_negative_claims", []) if _text(item)
+        ],
+        "remediation_recommendations": [
+            str(item) for item in raw.get("remediation_recommendations", []) if _text(item)
+        ],
+        "coverage": {
+            "state": _text(coverage.get("state")) or "unknown",
+            "completed": _integer(coverage.get("completed")) or 0,
+            "partial": _integer(coverage.get("partial")) or 0,
+            "not_run": _integer(coverage.get("not_run")) or 0,
+            "not_applicable": _integer(coverage.get("not_applicable")) or 0,
+            "blocked": _integer(coverage.get("blocked")) or 0,
+            "failed": _integer(coverage.get("failed")) or 0,
+            "capabilities": capabilities,
+        },
+        "observations": observations,
+        "verified_configurations": verified_configurations,
+        "verified_findings": verified_findings,
+        "candidates": candidates,
+        "operational_issues": operational_issues,
+        "hypotheses": hypotheses,
+        "tool_executions": tool_executions,
+        "endpoint_references": endpoint_references,
+        "transport_correlations": transport_correlations,
+        "exported_component_surfaces": exported_component_surfaces,
+    }
+
+
 def _report_projection(
     result_summary: Mapping[str, object],
     stages: tuple[dict[str, object], ...],
@@ -208,6 +267,7 @@ def _task_card(
     events: tuple[dict[str, object], ...],
     captures: tuple[dict[str, object], ...],
     observations: tuple[dict[str, object], ...],
+    intelligence: Mapping[str, object],
     failure: Mapping[str, object] | None,
 ) -> dict[str, object]:
     received_bytes = _integer(progress.get("received_bytes"))
@@ -215,6 +275,32 @@ def _task_card(
     if expected_bytes is not None and received_bytes is not None:
         received_bytes = min(received_bytes, expected_bytes)
     completed_stages = sum(_text(item.get("status")) in {"completed", "skipped"} for item in stages)
+    activity = {
+        "event_count": len(events),
+        "receipt_count": len(captures),
+        "candidate_count": len(observations),
+        "latest_event": dict(events[-1]) if events else None,
+    }
+    if intelligence.get("schema_version") != "legacy":
+        activity.update(
+            {
+                "candidate_count": _integer(intelligence.get("evidence_required_count"))
+                or len(observations),
+                "observation_count": _integer(intelligence.get("observation_count"))
+                or len(observations),
+                "verified_configuration_count": _integer(
+                    intelligence.get("verified_configuration_count")
+                )
+                or 0,
+                "verified_security_finding_count": _integer(
+                    intelligence.get("verified_security_finding_count")
+                )
+                or 0,
+                "operational_issue_count": _integer(intelligence.get("operational_issue_count"))
+                or 0,
+                "coverage": dict(_map(intelligence.get("coverage"))),
+            }
+        )
     return {
         "task_id": f"{assessment_id}:mobile-assessment",
         "assessment_id": assessment_id,
@@ -223,12 +309,7 @@ def _task_card(
         "current_stage": _current_stage(stages),
         "stage_progress": {"completed": completed_stages, "total": len(stages)},
         "byte_progress": {"received": received_bytes, "expected": expected_bytes},
-        "activity": {
-            "event_count": len(events),
-            "receipt_count": len(captures),
-            "candidate_count": len(observations),
-            "latest_event": dict(events[-1]) if events else None,
-        },
+        "activity": activity,
         "failure": dict(failure) if failure else None,
         "retry": _retry_contract(failure),
     }
@@ -253,7 +334,10 @@ def mobile_assessment_projection(
     hunt = _map(result_summary.get("hunt"))
     stages = _rows(graph.get("nodes"))
     captures = _rows(receipt.get("captures")) or _rows(result_summary.get("captures"))
-    observations = _rows(receipt.get("candidate_observations")) or _rows(hunt.get("candidates"))
+    intelligence = _intelligence_projection(result_summary)
+    observations = _rows(intelligence.get("candidates"))
+    if not observations:
+        observations = _rows(receipt.get("candidate_observations")) or _rows(hunt.get("candidates"))
     rejected = _rows(hunt.get("rejected"))
     events = _rows(progress.get("events"))
     state = _text(execution.get("state")) or "prepared"
@@ -310,6 +394,7 @@ def mobile_assessment_projection(
             events=events,
             captures=captures,
             observations=observations,
+            intelligence=intelligence,
             failure=failure,
         ),
         "activity": {
@@ -328,6 +413,25 @@ def mobile_assessment_projection(
         "report": report,
         "allowed_actions": _actions(state, bool(report["ready"]), failure),
     }
+    if intelligence.get("schema_version") != "legacy":
+        projection["intelligence"] = intelligence
+        projection["activity"]["coverage"] = dict(_map(intelligence.get("coverage")))
+        projection["findings"].update(
+            {
+                "candidate_count": _integer(intelligence.get("evidence_required_count"))
+                or len(observations),
+                "verified_configuration_count": _integer(
+                    intelligence.get("verified_configuration_count")
+                )
+                or 0,
+                "verified_security_finding_count": _integer(
+                    intelligence.get("verified_security_finding_count")
+                )
+                or 0,
+                "operational_issue_count": _integer(intelligence.get("operational_issue_count"))
+                or 0,
+            }
+        )
     projection = finalize_workflow_projection(
         projection,
         graph=graph,

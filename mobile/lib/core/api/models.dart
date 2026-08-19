@@ -97,6 +97,57 @@ class Finding {
       );
 }
 
+class MobileIntelligence {
+  const MobileIntelligence({
+    required this.observations,
+    required this.verifiedConfigurations,
+    required this.verifiedFindings,
+    required this.candidates,
+    required this.operationalIssues,
+    required this.toolExecutions,
+    required this.hypotheses,
+    required this.endpointReferences,
+    required this.transportCorrelations,
+    required this.exportedComponentSurfaces,
+    required this.boundedNegativeClaims,
+    required this.remediationRecommendations,
+    required this.coverage,
+    required this.raw,
+  });
+
+  final List<JsonMap> observations;
+  final List<JsonMap> verifiedConfigurations;
+  final List<JsonMap> verifiedFindings;
+  final List<JsonMap> candidates;
+  final List<JsonMap> operationalIssues;
+  final List<JsonMap> toolExecutions;
+  final List<JsonMap> hypotheses;
+  final List<JsonMap> endpointReferences;
+  final List<JsonMap> transportCorrelations;
+  final List<JsonMap> exportedComponentSurfaces;
+  final List<String> boundedNegativeClaims;
+  final List<String> remediationRecommendations;
+  final JsonMap coverage;
+  final JsonMap raw;
+
+  factory MobileIntelligence.fromJson(JsonMap json) => MobileIntelligence(
+        observations: _maps(json['observations']),
+        verifiedConfigurations: _maps(json['verified_configurations']),
+        verifiedFindings: _maps(json['verified_findings']),
+        candidates: _maps(json['candidates']),
+        operationalIssues: _maps(json['operational_issues']),
+        toolExecutions: _maps(json['tool_executions']),
+        hypotheses: _maps(json['hypotheses']),
+        endpointReferences: _maps(json['endpoint_references']),
+        transportCorrelations: _maps(json['transport_correlations']),
+        exportedComponentSurfaces: _maps(json['exported_component_surfaces']),
+        boundedNegativeClaims: _strings(json['bounded_negative_claims']),
+        remediationRecommendations: _strings(json['remediation_recommendations']),
+        coverage: _map(json['coverage']),
+        raw: json,
+      );
+}
+
 class Assessment {
   const Assessment({
     required this.runId,
@@ -110,6 +161,7 @@ class Assessment {
     this.blockingReason,
     this.events = const [],
     this.findings = const [],
+    this.mobileIntelligence,
     this.lastSequence = 0,
   });
 
@@ -124,6 +176,7 @@ class Assessment {
   final String? blockingReason;
   final List<AssessmentEvent> events;
   final List<Finding> findings;
+  final MobileIntelligence? mobileIntelligence;
   final int lastSequence;
 
   Assessment copyWith({
@@ -131,6 +184,7 @@ class Assessment {
     bool? terminal,
     List<AssessmentEvent>? events,
     List<Finding>? findings,
+    MobileIntelligence? mobileIntelligence,
     int? lastSequence,
     String? blockingReason,
   }) =>
@@ -146,6 +200,7 @@ class Assessment {
         blockingReason: blockingReason ?? this.blockingReason,
         events: events ?? this.events,
         findings: findings ?? this.findings,
+        mobileIntelligence: mobileIntelligence ?? this.mobileIntelligence,
         lastSequence: lastSequence ?? this.lastSequence,
       );
 
@@ -161,6 +216,9 @@ class Assessment {
         blockingReason: _stringOrNull(json['blocking_reason']),
         events: _maps(json['events']).map(AssessmentEvent.fromJson).toList(),
         findings: _maps(json['findings']).map(Finding.fromJson).toList(),
+        mobileIntelligence: json['mobile_intelligence'] is Map
+            ? MobileIntelligence.fromJson(_map(json['mobile_intelligence']))
+            : null,
         lastSequence: _int(json['last_sequence']),
       );
 }
@@ -183,6 +241,7 @@ class AssessmentEventsSnapshot {
     this.evaluationResult,
     this.updatedAt,
     this.activityTree = const {},
+    this.mobileIntelligence,
   });
 
   final String assessmentId;
@@ -200,9 +259,11 @@ class AssessmentEventsSnapshot {
   final String? evaluationResult;
   final DateTime? updatedAt;
   final bool terminal;
-  final JsonMap activityTree;
+    final JsonMap activityTree;
+  final MobileIntelligence? mobileIntelligence;
 
-  factory AssessmentEventsSnapshot.fromJson(JsonMap json) =>
+  factory AssessmentEventsSnapshot.fromJson
+(JsonMap json) =>
       AssessmentEventsSnapshot(
         assessmentId: '${json['assessment_id'] ?? ''}',
         events: _maps(json['events']).map(AssessmentEvent.fromJson).toList(),
@@ -220,6 +281,9 @@ class AssessmentEventsSnapshot {
         updatedAt: _date(json['updated_at']),
         terminal: json['terminal'] == true,
         activityTree: _map(json['activity_tree']),
+        mobileIntelligence: json['mobile_intelligence'] is Map
+            ? MobileIntelligence.fromJson(_map(json['mobile_intelligence']))
+            : null,
       );
 }
 
@@ -252,6 +316,12 @@ List<String> _stringList(dynamic value) => value is List
 JsonMap _map(dynamic value) => value is Map
     ? value.map((key, item) => MapEntry('$key', item))
     : <String, dynamic>{};
-List<JsonMap> _maps(dynamic value) => value is List
+List<String> _strings(Object? value) {
+  if (value is! List) return const <String>[];
+  return value.whereType<String>().toList(growable: false);
+}
+
+List<JsonMap> _maps(Object? value) {
+=> value is List
     ? value.whereType<Map>().map(_map).toList(growable: false)
     : const [];

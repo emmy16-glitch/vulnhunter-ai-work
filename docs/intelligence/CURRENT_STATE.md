@@ -1,27 +1,53 @@
 # Current State
 
+## Current reconciliation — 2026-08-20
+
+This section is the present-head reconciliation. The programme/PR ledger retained later in this document is historical evidence from earlier delivery slices; where a historical status such as “PR #135 pending” conflicts with this section or the current Git history, treat it as point-in-time history rather than current repository state.
+
+The current repository now also includes capabilities delivered after that historical programme snapshot:
+
+- the chat-first workspace composition/refinement merged through PR #175, including protected conversation width, contextual inspector behavior, responsive/mobile acceptance, persisted task continuity and removal of fake client-side word streaming;
+- ordinary conversational high-reasoning availability routing with a silent `Groq -> Gemini -> loopback Ollama` chain, process-local circuit cooldown/recovery, provider-neutral user-facing copy, and short connection/long bounded read timeouts; exact-approved Source Hunt and finding-intelligence reasoning remain provider/model bound and do not inherit that cross-provider fallback;
+- normalized APK intelligence that separates verified configurations, verified security findings, evidence-required candidates, operational issues, tool coverage, component surfaces, endpoint references, ownership, transport correlations and bounded-negative limitations;
+- a real V380 static acceptance posture with six completed static tools, JADX partial, native analysis not applicable where no native libraries exist, dynamic analysis blocked behind its governed runtime gate, 18 verified configuration facts, 13 evidence-required candidates, and zero deterministically verified security vulnerabilities in the referenced acceptance slice;
+- Mobile Source Hunt as a deterministic APK-backed code-level attack-surface investigation path with persisted provenance-bearing graph nodes/edges, explicit guards/controls, bounded-negative semantics and `verified` / `rejected` / `inconclusive` / `evidence_required` / `blocked` dispositions; the V380 Source Hunt acceptance intentionally promoted zero verified findings under partial source coverage;
+- Browser Intelligence with pinned Obscura stdio MCP, typed policy-checked `BrowserAction` dispatch, screenshot/network/console evidence, owner/workspace persistence, complete supported-tool preflight, screenshot evidence byte limits, and persisted state restoration after web-process/runtime detachment without silently spawning a second browser;
+- richer ML task/review contracts in `vulnhunter/ml/tasks.py`; model outputs remain advisory and human review remains authoritative.
+
+Current important limitations remain explicit rather than implied away:
+
+- PostgreSQL is the intended production Django authority, but legacy subsystem SQLite stores still exist and the complete authoritative-state migration is not finished;
+- Browser Intelligence persists/reconstructs state and evidence, but a distributed live-runtime registry/reattachment mechanism for seamless continuation across worker-process loss is not complete;
+- Browser Intelligence does not yet claim automatic runtime-browser-to-source-code attack-graph correlation; such edges require exact persisted evidence/provenance rather than string matching;
+- APK dynamic analysis remains fail-closed until the approved isolated runtime, digest-bound approval, device identity and network policy exist;
+- JADX processing is still bounded/partial rather than a complete resumable DEX-by-DEX source denominator;
+- no V380 candidate should be called a verified vulnerability unless deterministic promotion evidence is added.
+
 ## Implemented capabilities
 
 VulnHunter is an authorised, laboratory-only security-research and decision-support platform. The repository currently includes:
 
 - strict loopback/private-lab target validation, explicit time-limited authorisation, redirect/derived-link containment, connection-time DNS revalidation, pinned approved-address transport, peer verification and bounded GET/HEAD collection;
 - central redaction, bounded response handling, passive mapping and passive security observations;
-- SQLite persistence for scans, observations, review decisions, authorisation records and audit events;
+- Django persistence with PostgreSQL production configuration plus legacy bounded subsystem stores that have not all been migrated yet;
 - two-reviewer consensus, independent adjudication, reviewer-specific queues, duplicate/conflicting-label gates and immutable review attestations;
 - governed collection campaigns, campaign/authorisation binding, application metadata, release manifests and deterministic release-provenance packages;
 - controlled reviewed-dataset export, scan-group-isolated splits, deterministic Multinomial/Bernoulli Naive Bayes research baselines, bounded JSON model artifacts and locked holdout diagnostics;
 - bounded orchestration, evaluator separation, unattended permission manifests and fail-closed verifier contracts;
-- authenticated Django product surfaces, a persistent conversational workspace, optional Groq and Hugging Face advisory providers and provider-neutral browser-path readiness verification;
-- a versioned scanner-manager protocol, signed worker spool, restricted remote bridge and one activated passive RFC1918 Nuclei laboratory path;
+- authenticated Django product surfaces, a persistent conversational workspace, optional advisory model providers with ordinary-chat failover, provider-bound protected reasoning paths, and provider-neutral browser/runtime readiness checks;
+- a versioned scanner-manager protocol, signed worker spool, restricted remote bridge and activated bounded passive laboratory scanner paths;
+- APK intelligence, Mobile Source Hunt and governed Browser Intelligence foundations described in the current reconciliation above;
 - a separately authorised publication foundation with signed state, destination policy, correction/revocation and recovery checks.
 
-The platform is not an autonomous public-Internet scanner, exploit framework, automatic vulnerability publisher or production-grade vulnerability classifier. Human review, deterministic services and verified evidence remain authoritative.
+The platform is not an autonomous public-Internet exploit framework, automatic vulnerability publisher or production-grade vulnerability classifier. Human review, deterministic services and verified evidence remain authoritative.
 
 ## Product programme status
 
+The numbered programme narrative below is retained as a historical delivery ledger. Exact PR/gate statements describe the repository at the time those sections were written; the **Current reconciliation — 2026-08-20** section above owns present-head status where later work supersedes them.
+
 ### Programme 1 — AI-first assessment workspace
 
-**Status: COMPLETE for repository-supported automated runtime scope.**
+**Historical status: COMPLETE for repository-supported automated runtime scope.**
 
 The implemented runtime provides one authoritative selected-assessment projection across Chat, Activity, inspector, history, Findings, Evidence and Report; monotonic persisted projection revisions; separate assessment/worker/provider health; typed failures and scoped retries; one durable task-card/activity timeline with measured byte/stage progress only; idempotent APK create/bind/finalise and timeout-after-success recovery; desktop and mobile contextual inspection; consolidated navigation; simplified provider controls; website/APK/Source Hunt alignment; assessment-scoped result truth; report-format readiness; and server-selected Findings continuity.
 
@@ -29,9 +55,9 @@ The final Programme 1 reconciliation is recorded through PRs #117, #119, #121, #
 
 ### Programme 2 — premium interaction, motion and conversation
 
-**Status: COMPLETE for repository-supported automated interaction scope.**
+**Historical status: COMPLETE for repository-supported automated interaction scope.**
 
-The binding twelve-step premium interaction programme is implemented in dependency order:
+The binding twelve-step premium interaction programme was implemented in dependency order:
 
 1. **Inventory and measurable baseline** — PR #132 adds a deterministic repository interaction inventory and fail-closed owner checks.
 2. **Shared semantic motion tokens** — PR #118 establishes product-wide duration, easing, distance, scale and opacity semantics.
@@ -46,7 +72,7 @@ The binding twelve-step premium interaction programme is implemented in dependen
 11. **Performance/reduced-motion/accessibility hardening** — PR #130 routes remaining transition timing through shared tokens, collapses reduced-motion transitions, improves zoom/narrow reflow and preserves forced-colors focus/overlay boundaries.
 12. **Cross-workflow cleanup** — PR #131 removes retired workspace patch layers; PR #132 verifies the canonical owner stack and measurable interaction surface.
 
-The final Programme 2 repository slice, PR #132, merged as `3b5e62b27a7bf0878b8c7115b8cefcc286550a85`. Its exact head `afbde7cebc9e588062abe6fb97a0fffbc88c6a3f` passed VulnHunter quality gates #1742, Conversational workspace quality #1234 and Phone acceptance #701. No review threads remained.
+The final Programme 2 repository slice, PR #132, merged as `3b5e62b27a7bf0878b8c7115b8cefcc286550a85`. Its exact head `afbde7cebc9e588062abe6fb97a0fffbc88c6a3f` passed the quality, conversational-workspace and phone gates recorded at that time.
 
 This completion claim is intentionally narrower than physical-device acceptance. The following remain manual evidence categories and must not be fabricated from static inventory, Playwright or responsive Chromium automation:
 
@@ -69,16 +95,21 @@ PHONE-FIRST RESPONSIVE WORKSPACE              IMPLEMENTED — AUTOMATED ACCEPTAN
 CONSOLIDATED NAVIGATION                       IMPLEMENTED
 ASSESSMENT-SCOPED FINDINGS/EVIDENCE/REPORTS   IMPLEMENTED
 REPORT FORMAT READINESS                       IMPLEMENTED — TRUTHFUL AVAILABILITY CONTRACT
-AI-FIRST PRODUCT EXPERIENCE                   IMPLEMENTED — PROGRAMME 1 AUTOMATED SCOPE
-PREMIUM INTERACTION/MOTION SYSTEM             IMPLEMENTED — PROGRAMME 2 AUTOMATED SCOPE
+AI-FIRST PRODUCT EXPERIENCE                   IMPLEMENTED — AUTOMATED SCOPE
+PREMIUM INTERACTION/MOTION SYSTEM             IMPLEMENTED — AUTOMATED SCOPE
+ORDINARY CHAT PROVIDER FAILOVER               IMPLEMENTED — POLICY-BOUNDED
+APK INTELLIGENCE NORMALIZATION                IMPLEMENTED
+MOBILE SOURCE HUNT ATTACK GRAPH               IMPLEMENTED — BOUNDED STATIC SOURCE COVERAGE
+OBSCURA BROWSER INTELLIGENCE                  IMPLEMENTED — LIVE RUNTIME REATTACHMENT PARTIAL
+FULL AUTHORITATIVE POSTGRESQL MIGRATION       NOT COMPLETE
 PHYSICAL ANDROID/TALKBACK/USABILITY EVIDENCE  MANUAL — NOT CLAIMED
 ```
 
 ## Programme 3 — ML and Hugging Face production architecture
 
-**Status: ACTIVE. P3.1 and P3.2 are merged; P3.3 is implemented on PR #135 and requires green exact-head repository gates before merge.**
+**Historical programme ledger.** The P3.1/P3.2/P3.3 status statements below record an earlier point in the delivery sequence. They are retained for provenance and must not be used to infer present Git/PR state. The current tree already includes richer task/review contracts in `vulnhunter/ml/tasks.py`; later ML production capabilities still require their own current acceptance evidence.
 
-The existing ML foundation remains a responsible research baseline: human-reviewed labels, duplicate/conflict gates, scan-group splitting, training-only candidate selection, deterministic privacy-conscious features, Multinomial/Bernoulli Naive Bayes candidates, explicit thresholds, bounded JSON artifacts, provenance, locked diagnostics, optional Groq/Hugging Face advisory providers and provider-neutral readiness verification are implemented.
+The existing ML foundation remains a responsible research baseline: human-reviewed labels, duplicate/conflict gates, scan-group splitting, training-only candidate selection, deterministic privacy-conscious features, Multinomial/Bernoulli Naive Bayes candidates, explicit thresholds, bounded JSON artifacts, provenance, locked diagnostics, optional advisory providers and provider-neutral readiness verification are implemented.
 
 ### P3.1 current-state reconciliation
 
@@ -86,15 +117,15 @@ PR #133 merged as `8f7b912197f6804cb56cdcda77e1d2cf17fea7a9` and reconciled Prog
 
 ### P3.2 governed release-to-training boundary
 
-PR #134 merged as `467b72bd0ea12cae796ba74af3a6367292bd5f67` after exact head `d3c2fde14999c402edcae8840f8c578f67133821` passed VulnHunter quality gates #1753, Conversational workspace quality #1243 and Phone acceptance #712.
+PR #134 merged as `467b72bd0ea12cae796ba74af3a6367292bd5f67` after its recorded exact-head gates passed.
 
-The merged P3.2 runtime adds an owner-private append-only training-eligibility ledger, exact governed-release registration, withdrawal/revocation/supersession blocking, deterministic content-addressed production training packages, redacted release/review lineage, package-integrity revalidation immediately before training and governed candidate provenance. It intentionally fails closed when legacy integer scan or observation identities overlap across applications because hierarchical identity belongs to P3.3.
+The merged P3.2 runtime adds an owner-private append-only training-eligibility ledger, exact governed-release registration, withdrawal/revocation/supersession blocking, deterministic content-addressed production training packages, redacted release/review lineage, package-integrity revalidation immediately before training and governed candidate provenance. It intentionally fails closed when legacy integer scan or observation identities overlap across applications because hierarchical identity belongs to the following programme slice.
 
 P3.2 does not establish application-family external holdout, calibration, OOD, model registry activation, shadow inference, monitoring, Hugging Face production capability or real-world classifier performance.
 
 ### P3.3 hierarchical application identity and group isolation
 
-PR #135 implements the next bounded boundary and remains subject to its exact-head gates and merge:
+The historical P3.3 slice introduced/planned the following bounded boundary:
 
 - stable application-family, application-instance and deployment-environment identities derived from governed release metadata rather than integer scan IDs;
 - one owner-private append-only hash-chained partition registry that freezes a whole application family to development training, development calibration or external holdout for one evaluation programme;
@@ -105,37 +136,17 @@ PR #135 implements the next bounded boundary and remains subject to its exact-he
 - external-validation availability reported only when development-training, development-calibration and external-holdout families all actually exist;
 - partitioned production-training entry points that consume development-training families only and leave calibration/external-holdout families untouched.
 
-This P3.3 implementation does not claim that a diverse external holdout already exists. It does not evaluate or expose external performance, and it does not implement P3.4 label/task expansion, calibration, OOD, model activation, shadowing or Hugging Face production features.
+This historical section does not by itself claim that a diverse external holdout exists. It does not establish real-world classifier performance, calibration/OOD quality, production model activation, or complete Hugging Face production features.
 
-The remaining production ML/Hugging Face programme continues in the binding order from `ML_AND_HUGGING_FACE_PRODUCTION_ARCHITECTURE.md`:
-
-1. current-state reconciliation — **MERGED in PR #133**;
-2. governed release-to-training boundary — **MERGED in PR #134**;
-3. hierarchical application identity and group isolation — **IMPLEMENTED on PR #135; exact-head gates and merge required**;
-4. richer label and task contracts — **NEXT after P3.3 merges**;
-5. pluggable feature-extractor interface;
-6. expanded leakage and ablation evaluation;
-7. calibration, abstention and OOD handling;
-8. complete evaluation and uncertainty reporting;
-9. model registry, signing, activation and rollback;
-10. shadow inference and reviewer-feedback linkage;
-11. monitoring, drift and incident response;
-12. revision-pinned Hugging Face capability registry;
-13. local embedding and retrieval experiments;
-14. Source Hunt code-model experiments;
-15. evidence-grounded conversational retrieval;
-16. full cross-workflow production acceptance and cleanup.
+The broader production ML/Hugging Face programme remains governed by `ML_AND_HUGGING_FACE_PRODUCTION_ARCHITECTURE.md`, including richer task contracts, pluggable feature extraction, leakage/ablation evaluation, calibration/abstention/OOD, model registry/rollback, shadow inference, monitoring/drift, revision-pinned model capability, local embeddings/retrieval, Source Hunt model experiments, evidence-grounded conversational retrieval and full cross-workflow acceptance.
 
 ### ML capability classification
 
 ```text
-GOVERNED RELEASE-BOUND TRAINING PACKAGE          IMPLEMENTED — PR #134 MERGED
-WITHDRAWAL/REVOCATION/SUPERSESSION TRAINING GATE IMPLEMENTED — PR #134 MERGED
+GOVERNED RELEASE-BOUND TRAINING PACKAGE          IMPLEMENTED
+WITHDRAWAL/REVOCATION/SUPERSESSION TRAINING GATE IMPLEMENTED
 RESEARCH NAIVE BAYES BASELINE                    IMPLEMENTED
-HIERARCHICAL APPLICATION/GROUP IDENTITY          IMPLEMENTED ON PR #135 — GATES/MERGE REQUIRED
-FAMILY-LEVEL PARTITION REGISTRY                  IMPLEMENTED ON PR #135 — GATES/MERGE REQUIRED
-APPLICATION-FAMILY EXTERNAL HOLDOUT              CAPABILITY BOUNDARY ON PR #135; REAL HOLDOUT NOT ESTABLISHED
-RICH LABEL/TASK CONTRACTS                        NOT COMPLETE — P3.4 NEXT
+RICH LABEL/TASK CONTRACTS                        IMPLEMENTED FOUNDATION
 CALIBRATION                                      NOT COMPLETE
 OOD DETECTION                                    NOT COMPLETE
 EXPLICIT CLASSIFIER ABSTENTION                   NOT COMPLETE
@@ -148,7 +159,7 @@ ASSESSMENT-SCOPED RETRIEVAL AND CITATIONS        NOT COMPLETE
 PRODUCTION VULNERABILITY CLASSIFIER              NOT ESTABLISHED
 ```
 
-The current Naive Bayes model remains the honest comparison baseline. Controlled benchmark performance is not real-application performance; raw posterior values are not calibrated real-world probabilities; and no production registry, activation, shadow, rollback or drift lifecycle exists yet.
+The current Naive Bayes model remains an honest comparison baseline. Controlled benchmark performance is not real-application performance; raw posterior values are not calibrated real-world probabilities; and no production classifier claim is permitted without its separate evidence.
 
 ## Real-world performance prerequisites
 
@@ -182,7 +193,7 @@ python manage.py vh_publication_recover --help
 python manage.py vh_campaign_release_package --help
 ```
 
-P3.2 and P3.3 are Python contracts, not new CLI commands. Commands proposed in architecture documents are not operational until they are implemented and exposed by the help surfaces above.
+Commands proposed in architecture documents are not operational until they are implemented and exposed by the help surfaces above.
 
 ## Repository health
 

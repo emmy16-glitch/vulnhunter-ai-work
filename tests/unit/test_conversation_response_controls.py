@@ -51,6 +51,19 @@ def test_terminal_assessment_state_hides_the_governed_cancel_control() -> None:
     assert 'attributeFilter: ["class"]' in script
 
 
+def test_canonical_empty_workspace_wins_over_legacy_synthetic_empty_state() -> None:
+    script = SCRIPT.read_text(encoding="utf-8")
+
+    assert 'const canonicalEmpty = feed.querySelector("[data-conversation-empty]")' in script
+    assert "const reconcileCanonicalEmptyState = () =>" in script
+    assert 'feed.querySelector("[data-chat-empty-state]")' in script
+    assert "syntheticEmpty?.remove()" in script
+    assert "canonicalEmpty.hidden = false" in script
+    assert 'canonicalEmpty.removeAttribute("aria-hidden")' in script
+    assert "if (feed.scrollTop !== 0) feed.scrollTop = 0" in script
+    assert "window.requestAnimationFrame(reconcileCanonicalEmptyState)" in script
+
+
 def test_message_actions_support_copy_edit_and_retry() -> None:
     script = SCRIPT.read_text(encoding="utf-8")
 

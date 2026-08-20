@@ -143,6 +143,44 @@ class BrowserIntelligenceStore:
             )
         )
 
+    def list_network(
+        self, *, owner_id: str, session: BrowserSession
+    ) -> tuple[BrowserNetworkObservation, ...]:
+        """Return progressively persisted, owner-scoped network observations."""
+        self._assert_session_access(session, owner_id, session.session_id)
+        return tuple(
+            BrowserNetworkObservation.model_validate(payload)
+            for payload in self._read_jsonl(
+                self._session_dir(session.workspace_id, session.session_id) / "network.jsonl"
+            )
+        )
+
+    def list_console(
+        self, *, owner_id: str, session: BrowserSession
+    ) -> tuple[BrowserConsoleObservation, ...]:
+        """Return progressively persisted, redacted console observations."""
+        self._assert_session_access(session, owner_id, session.session_id)
+        return tuple(
+            BrowserConsoleObservation.model_validate(payload)
+            for payload in self._read_jsonl(
+                self._session_dir(session.workspace_id, session.session_id) / "console.jsonl"
+            )
+        )
+
+    def load_report(
+        self, *, owner_id: str, session: BrowserSession
+    ) -> BrowserIntelligenceReport | None:
+        """Return the persisted terminal report when one exists."""
+        self._assert_session_access(session, owner_id, session.session_id)
+        path = self._session_dir(session.workspace_id, session.session_id) / "report.json"
+        if not path.is_file():
+            return None
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            return BrowserIntelligenceReport.model_validate(payload)
+        except (OSError, json.JSONDecodeError, ValueError) as exc:
+            raise BrowserStoreError("browser report is unavailable") from exc
+
     def _session_dir(self, workspace_id: str, session_id: str) -> Path:
         for value in (workspace_id, session_id):
             if not value or "/" in value or "\\" in value or value in {".", ".."}:

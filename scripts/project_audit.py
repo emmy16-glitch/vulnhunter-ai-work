@@ -70,6 +70,33 @@ SAFE_SENSITIVE_TEMPLATE_NAMES = {
     ".env.template",
 }
 
+SAFE_SOURCE_SUFFIXES = {
+    ".c",
+    ".cc",
+    ".cpp",
+    ".dart",
+    ".go",
+    ".h",
+    ".hpp",
+    ".java",
+    ".js",
+    ".jsx",
+    ".kt",
+    ".kts",
+    ".md",
+    ".py",
+    ".rs",
+    ".tsx",
+    ".ts",
+}
+
+SENSITIVE_SOURCE_WORDS = (
+    "credential",
+    "credentials",
+    "secret",
+    "private_key",
+)
+
 SENSITIVE_NAME_FRAGMENTS = (
     ".env",
     "credential",
@@ -157,11 +184,22 @@ def tree_hash(root: Path, files: tuple[Path, ...]) -> str:
 
 
 def is_sensitive_tracked_path(name: str) -> bool:
-    """Return whether a tracked path looks sensitive rather than templated."""
+    """Return whether a tracked path looks like secret material rather than source code."""
     normalized = name.lower()
     basename = normalized.rsplit("/", 1)[-1]
     if basename in SAFE_SENSITIVE_TEMPLATE_NAMES:
         return False
+
+    # Source files may legitimately implement credential/secret storage and
+    # handling. Filename-only auditing must not flag those modules as leaked
+    # secret material merely because their descriptive source filename contains
+    # words such as "credentials". Non-source secret material (for example
+    # credentials.json, private_key.pem, .env, id_rsa, token.txt) remains
+    # fail-closed below.
+    suffix = Path(basename).suffix.lower()
+    if suffix in SAFE_SOURCE_SUFFIXES and any(word in basename for word in SENSITIVE_SOURCE_WORDS):
+        return False
+
     return any(fragment in normalized for fragment in SENSITIVE_NAME_FRAGMENTS)
 
 

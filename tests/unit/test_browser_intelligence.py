@@ -134,6 +134,29 @@ def test_passive_policy_rejects_form_mutation() -> None:
         )
 
 
+def test_get_attribute_requires_a_valid_attribute_name() -> None:
+    policy = BrowserPolicy(target=_target(), authorization_id="authorization-test")
+    session = _session(datetime.now(UTC))
+    with pytest.raises(BrowserPolicyError, match="non-empty attribute"):
+        policy.validate_action(
+            BrowserAction(
+                action_type="get_attribute",
+                parameters={"selector": "#account"},
+                requested_by="test",
+            ),
+            session=session,
+        )
+    with pytest.raises(BrowserPolicyError, match="attribute name is invalid"):
+        policy.validate_action(
+            BrowserAction(
+                action_type="get_attribute",
+                parameters={"selector": "#account", "attribute": "data\u0000secret"},
+                requested_by="test",
+            ),
+            session=session,
+        )
+
+
 def test_store_isolates_workspace_and_owner(tmp_path: Path) -> None:
     store = BrowserIntelligenceStore(tmp_path)
     session = _session(datetime.now(UTC))
@@ -185,10 +208,21 @@ def test_service_persists_receipts_network_console_and_screenshot(tmp_path: Path
         )
     )
     assert screenshot.status == BrowserActionStatus.COMPLETED
+
+    # Runtime observations must already be durable before the session finishes, so a UI
+    # refresh or worker failure does not erase captured browser evidence.
+    persisted_network = store.list_network(owner_id="owner-a", session=service.session)
+    persisted_console = store.list_console(owner_id="owner-a", session=service.session)
+    assert len(persisted_network) == 1
+    assert persisted_network[0].path == "/api/profile"
+    assert len(persisted_console) == 1
+    assert persisted_console[0].message == "safe fixture message"
+
     report = service.finish()
     assert report.screenshots[0].sha256
     assert (
         tmp_path / "workspace-test" / "browser-test-session" / "screenshots" / "0004-00.png"
     ).is_file()
     assert len(store.list_receipts(owner_id="owner-a", session=service.session)) == 4
+    assert store.load_report(owner_id="owner-a", session=service.session) == report
     assert runtime.closed is True

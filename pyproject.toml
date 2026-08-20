@@ -29,7 +29,7 @@ dev = [
     "pytest-django>=4.9,<5",
     "pytest-cov>=6,<8",
     "ruff>=0.9,<1",
-    "cryptography>=48.0.1,<50",
+    "cryptography>=48.0.1,<51",
 ]
 production = [
     "gunicorn>=23,<27",
@@ -38,7 +38,7 @@ production = [
 ]
 opensandbox = [
     "opensandbox==0.1.15",
-    "cryptography>=48.0.1,<50",
+    "cryptography>=48.0.1,<51",
 ]
 
 [project.scripts]

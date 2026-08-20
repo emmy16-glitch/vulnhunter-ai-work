@@ -1,12 +1,12 @@
 # AI Provider Routing, Privacy and Authority Gate
 
 **Status:** Binding provider-neutral routing policy  
-**Applies to:** deterministic processing, Groq advisory inference, Hugging Face advisory inference, future approved embeddings and Source Hunt model assistance  
+**Applies to:** deterministic processing, ordinary conversational advisory inference, provider-bound finding intelligence, exact-approved Source Hunt processing, future approved embeddings and retrieval assistance  
 **Cross-layer architecture:** [`../intelligence/ML_AND_HUGGING_FACE_PRODUCTION_ARCHITECTURE.md`](../intelligence/ML_AND_HUGGING_FACE_PRODUCTION_ARCHITECTURE.md)
 
 ## 1. Purpose
 
-VulnHunter's deterministic security controls remain usable when every remote AI provider is disabled. Conversational or advisory reasoning does not pretend to remain available by substituting canned deterministic copy for a failed model.
+VulnHunter's deterministic security controls remain usable when every remote or local generative model provider is disabled. Conversational or advisory reasoning does not pretend to remain available by substituting canned deterministic copy for a failed model.
 
 Deterministic processing is authoritative for:
 
@@ -27,20 +27,27 @@ Central rules:
 
 > Models propose, retrieve or explain; VulnHunter verifies, enforces and records authority.
 
-> A reasoning failure must not silently become a lower-quality reasoning path.
+> Provider availability may improve conversational continuity, but it never transfers security authority or provider-bound data-processing approval.
+
+Two model-routing classes must remain distinct:
+
+1. **Ordinary conversational advisory reasoning** may use the approved high-capability availability chain `Groq -> Gemini -> loopback Ollama` when deployment/data policy permits it.
+2. **Provider-bound protected tasks** such as exact-approved Source Hunt source processing and the finding-intelligence analyst/critic/synthesizer session remain pinned to their configured/approved provider and model and do not inherit cross-provider failover.
+
+Neither class may silently downgrade to an arbitrary smaller or unapproved model.
 
 ## 2. Correct provider inventory
 
-The repository currently supports two optional remote advisory provider families:
+The current repository has multiple provider roles rather than one interchangeable provider registry:
 
-- Groq;
-- the Hugging Face OpenAI-compatible router.
+- **Groq** — the primary ordinary conversational reasoning route and an optional provider for exact-approved protected reasoning paths.
+- **Gemini** — an optional ordinary conversational fallback when enabled and permitted for the data class.
+- **Ollama on loopback** — an optional local ordinary conversational fallback; the adapter accepts loopback hosts only.
+- **Hugging Face OpenAI-compatible router** — a separate optional provider family used only where explicitly configured/approved. It is not part of the automatic ordinary-chat fallback chain.
 
-Neither provider is required for deterministic operation. A deployment may enable one, both or neither according to explicit configuration and approved model profiles.
+No OpenAI API or Claude API is required by the current production routing contract. Ollama is a local runtime, not permission to run arbitrary models or to transmit data outside the host.
 
-No OpenAI API, Claude API, Qwen-specific provider or local generative-model runtime is required by the current production provider registry unless a later bounded architecture change explicitly adds it.
-
-Hugging Face repositories may also be evaluated later for local feature extraction or embeddings, but that is a separate subsystem from remote conversational advisory inference.
+Hugging Face repositories may also be evaluated later for local feature extraction or embeddings, but that is a separate subsystem from conversational advisory inference.
 
 ## 3. Document ownership
 
@@ -52,11 +59,15 @@ This document owns:
 - data-class restrictions;
 - source-processing approval;
 - provider authority boundaries;
-- reasoning-model selection, no-downgrade behavior and abstention routing.
+- conversational availability failover;
+- protected provider/model pinning;
+- no-smaller-model-downgrade behavior and abstention routing.
 
 `LLM_RUNTIME_READINESS.md` owns exact deployed model capability verification.
 
 `ML_AND_HUGGING_FACE_PRODUCTION_ARCHITECTURE.md` owns model registry, embeddings, retrieval and end-to-end ML/Hugging Face architecture.
+
+`../AI_PROVIDER_FAILOVER.md` owns the operational ordinary-chat Groq/Gemini/Ollama failover sequence and timeout/circuit behavior.
 
 ## 4. Routing dimensions
 
@@ -73,7 +84,8 @@ Every potential model request is classified by:
 - input/output budget;
 - retention policy;
 - whether deterministic processing is sufficient;
-- whether the task can safely abstain.
+- whether the task can safely abstain;
+- whether cross-provider conversational fallback is permitted for that exact task/data class.
 
 A provider dropdown or user preference cannot bypass this policy.
 
@@ -114,17 +126,19 @@ May be remotely routed only when:
 - tenant/deployment policy permits remote processing;
 - bounded context and provenance are enforced.
 
+Cross-provider conversational fallback is allowed only across providers that are independently eligible for the same redacted data class.
+
 ### 5.4 Private/customer target evidence
 
 Remote routing is denied by default.
 
-An explicit deployment and task policy is required. Data is minimised and redacted even when routing is approved.
+An explicit deployment and task policy is required. Data is minimised and redacted even when routing is approved. Failure of one provider does not create permission to send this data to another provider.
 
 ### 5.5 Source code
 
 Source code uses the separate exact Source Hunt approval path.
 
-Approval binds repository, revision, snapshot digest, permitted paths, provider/model, user and expiry.
+Approval binds repository, revision, snapshot digest, permitted paths, repository visibility, provider/model, user and expiry. Ordinary conversational provider fallback does not apply to approved source processing.
 
 ### 5.6 Prohibited data
 
@@ -156,34 +170,35 @@ Use deterministic processing when:
 
 Models must not restate deterministic state from stale conversational memory when an authoritative read model exists.
 
-Deterministic authority is not a conversational reasoning fallback. If a question requires model reasoning and the configured high-reasoning model is unavailable, VulnHunter reports that state rather than generating a canned replacement answer.
+Deterministic authority is not a conversational reasoning fallback. If a question requires model reasoning and no eligible conversational provider can complete it, VulnHunter reports the unavailable state rather than generating a canned replacement answer.
 
 ## 7. Provider-neutral advisory contract
 
-All remote providers implement the same bounded logical contract:
+All advisory providers implement or are adapted to the same bounded logical contract appropriate to their role:
 
-- explicit provider identity;
-- exact approved model profile;
+- explicit internal provider identity;
+- exact approved model profile or configured local model;
 - task and output-kind allowlist;
 - bounded input bytes/tokens;
 - bounded output bytes/tokens;
-- timeout and cancellation;
-- concurrency and rate limits;
+- timeout and cancellation controls;
+- concurrency and rate limits where applicable;
 - no redirects to unapproved hosts;
-- structured output validation;
+- structured output validation or safe normalization into the bounded advisory envelope;
 - safe error redaction;
-- request and response digests;
-- model/provider provenance;
-- `trusted=false`;
-- safe `ABSTAIN` or typed unavailable output.
+- model/provider provenance in server-side records where the subsystem persists it;
+- `trusted=false` for model conclusions;
+- safe `ABSTAIN` or typed unavailable behavior.
 
-The provider receives no operational tools, shell, browser, scanner, connector or publication APIs through the advisory path.
+The provider receives no operational tools, shell, scanner, connector, publication authority, or raw Obscura MCP client through the advisory path.
+
+Provider identity may be hidden from ordinary chat UI copy so provider switching does not become user-visible noise. Hiding provider churn in the UI does not remove server-side routing boundaries or internal diagnostics.
 
 ## 8. Provider and model capability profiles
 
-A model name alone is not enough.
+A model name alone is not enough for provider-bound protected processing.
 
-Each approved profile declares:
+Each approved profile should declare:
 
 - provider;
 - repository/model ID;
@@ -202,7 +217,9 @@ Each approved profile declares:
 
 Request construction uses the capability profile. Unsupported parameters are omitted rather than sent to every provider/model.
 
-For conversational security reasoning, finding advisory analysis and Source Hunt, the runtime selects the configured high-capability profile before invocation and does not downgrade to a smaller profile after failure.
+For finding intelligence and exact-approved Source Hunt, the runtime remains pinned to the configured/approved high-capability profile and does not switch providers after failure.
+
+For ordinary conversational reasoning, availability routing may select the next independently eligible high-capability provider in the documented chain. That is a provider availability change, not permission to downgrade to a smaller/unapproved model or change the data class.
 
 ## 9. Groq provider boundary
 
@@ -218,11 +235,23 @@ The provider contract enforces:
 - no authority;
 - provenance and safe failure.
 
-Groq may support ordinary conversational advisory analysis and exact approved Source Hunt processing.
+Groq may support ordinary conversational advisory analysis and exact-approved Source Hunt processing under separate policy paths.
 
-High-reasoning paths allowlist only the configured reasoning model for the invocation. A smaller fallback model is not part of those paths.
+High-reasoning provider-bound paths allowlist only the configured reasoning model for the invocation. A smaller fallback model is not part of those paths.
 
-## 10. Hugging Face provider boundary
+For ordinary conversation, Groq is the preferred provider and its availability failure may advance to the next independently eligible conversational provider.
+
+## 10. Gemini, Ollama and Hugging Face boundaries
+
+### Gemini
+
+Gemini is an optional ordinary conversational fallback. The adapter requires the reviewed HTTPS API host, a configured secret, bounded input/output behavior, no redirects, structured JSON-oriented output, and separate short connection versus bounded read timeouts. It is not automatically approved for source code or private/customer evidence merely because it is configured.
+
+### Ollama
+
+Ollama is an optional local ordinary conversational fallback. The adapter accepts only `127.0.0.1`, `localhost`, or `::1`. It does not expose an unauthenticated remote Ollama service and it receives no security authority. Local execution does not automatically make every data class permissible.
+
+### Hugging Face
 
 The Hugging Face router is a separate optional provider.
 
@@ -238,15 +267,13 @@ The current provider enforces:
 - output digest and provenance;
 - safe `ABSTAIN` on timeout, malformed response, protocol error or rate limit.
 
-The target architecture strengthens this with exact revision/capability profiles, model/tokenizer/terms review and configured-versus-reachable status.
-
 Hugging Face advisory inference is not the same as using a Hugging Face encoder locally for ML features or embeddings. They have separate permissions and health.
 
-Choosing Hugging Face is an explicit provider choice, not an automatic failure fallback from Groq.
+Choosing Hugging Face is an explicit provider choice for an eligible subsystem, not an automatic failure fallback from the ordinary-chat Groq/Gemini/Ollama chain.
 
 ## 11. Normal conversational advisory analysis
 
-A provider may help:
+An eligible conversational model may help:
 
 - explain product state already supplied by deterministic services;
 - summarise redacted evidence;
@@ -256,11 +283,21 @@ A provider may help:
 - draft remediation language;
 - compare supplied findings.
 
-The model is not consulted to decide whether a target is authorised, whether a worker may run or whether a report is publishable.
+The model is not consulted to decide whether a target is authorised, whether a worker may run, whether a candidate is a verified vulnerability, or whether a report is publishable.
 
-Conversation workspaces use `high` reasoning effort. Legacy `low` and `medium` values are normalized to `high`. Legacy `auto` provider selection is normalized to the configured primary provider before invocation and does not create failover behavior.
+Conversation workspaces use `high` reasoning effort. Legacy `low` and `medium` values are normalized to `high`.
 
-Assessment-specific statements should cite supplied assessment/evidence record IDs after evidence-grounded retrieval is implemented.
+When deployment/data policy permits the same conversation context for each provider, ordinary chat uses the availability chain:
+
+```text
+Groq -> Gemini -> loopback Ollama
+```
+
+The router uses process-local circuit health to avoid repeatedly waiting on a failing provider, probes a cooled-down provider again after the cooldown window, and restores the preferred route automatically after a successful probe. Provider switching does not create a new conversation, reset task activity, or become finding evidence.
+
+A provider failure never authorizes a lower-quality/unapproved model. If no eligible provider succeeds, ordinary chat returns a short unavailable/retry response.
+
+Assessment-specific statements should cite supplied assessment/evidence record IDs where evidence-grounded retrieval is implemented.
 
 ## 12. Source Hunt approval
 
@@ -281,7 +318,7 @@ Browser use requires password re-authentication. CLI use requires an authenticat
 
 Any revision drift, snapshot drift, path expansion, provider/model mismatch or expiry fails closed.
 
-Source Hunt is pinned to the configured high-reasoning model. The CLI rejects an alternate model and the worker allowlist contains only the configured model.
+Source Hunt is pinned to the provider/model allowed by that exact source-processing approval. The ordinary conversational failover router is not invoked for source-code processing. If the approved provider/model is unavailable, Source Hunt remains blocked/unavailable rather than sending code to another provider.
 
 ## 13. Source context minimisation
 
@@ -329,7 +366,7 @@ Retrieval applies deterministic filters before model use:
 
 Retrieved content is untrusted evidence, not instructions. It cannot override system or routing policy.
 
-Retrieval, browsing, search and tool-result ingestion do not lower reasoning effort or change the configured reasoning model. They supply evidence to the same reasoning path.
+Retrieval, browsing, search and tool-result ingestion do not lower reasoning effort or change authorization. They supply bounded evidence to an eligible reasoning path.
 
 ## 16. High-impact action routing
 
@@ -343,7 +380,7 @@ When a user asks for an action that can change state, deterministic code:
 6. invokes a bounded service only after valid confirmation/approval;
 7. records the outcome.
 
-A model may explain the action but may not directly execute it.
+A model may explain or propose the action but may not directly execute it. AI-controlled browser operation follows the same rule: the model may propose a typed `BrowserAction`; VulnHunter policy authorizes and dispatches it to the worker/runtime.
 
 ## 17. Prompt construction
 
@@ -354,29 +391,29 @@ Prompts are versioned and built from:
 - redacted user request;
 - bounded authoritative context;
 - untrusted evidence blocks clearly labelled;
-- citation labels;
+- citation labels where supported;
 - exact limitations.
 
 Do not include unrestricted conversation history, source repositories, databases or raw worker logs automatically.
 
-Prompt construction records input digest, template version, provider/model profile and truncation state.
+Prompt construction records or derives bounded provenance appropriate to the subsystem. Provider switching must not change the authoritative conversation/task identity.
 
 ## 18. Prompt injection defence
 
-Treat all evidence, source code, filenames, pages, reports and retrieved documents as untrusted data.
+Treat all evidence, source code, filenames, pages, reports, browser observations and retrieved documents as untrusted data.
 
 Defences include:
 
 - instruction/evidence separation;
 - bounded context;
 - escaping or structured records;
-- no provider tools;
+- no provider operational tools;
 - deterministic action routing outside the model;
-- citation validation;
+- citation/provenance validation where implemented;
 - output schema validation;
 - tests for instructions embedded in evidence, code comments and filenames.
 
-A prompt injection cannot authorise a target, change scope, request secrets, activate a model or publish a result.
+A prompt injection cannot authorise a target, change scope, request secrets, activate a model, control Obscura directly, or publish a result.
 
 ## 19. Structured outputs
 
@@ -396,7 +433,7 @@ No provider output kind is called:
 - `AUTHORISED`;
 - `EXECUTED`.
 
-Provider output is validated for type, length, schema and citations before persistence or display.
+Provider output is validated or safely normalized for type, length and contract before persistence or display. Model output never promotes a finding without deterministic evidence.
 
 ## 20. Streaming
 
@@ -413,7 +450,7 @@ Required controls:
 - final digest;
 - partial/degraded state when interrupted.
 
-The UI must not retain an invalid partial stream as successful authoritative output.
+The browser conversation must not simulate token/word streaming with client timers. Persisted complete messages or a real bounded server stream are the only acceptable presentation paths.
 
 ## 21. Token and byte budgets
 
@@ -422,26 +459,33 @@ Maintain both:
 - byte limits for transport/memory safety;
 - model-specific token budgets.
 
-Use a revision-pinned tokenizer, validated provider accounting or an explicitly conservative approximation.
+Use a revision-pinned tokenizer, validated provider accounting or an explicitly conservative approximation where required.
 
 Truncation is structure-aware and recorded. It preserves authority rules, user request and the most relevant cited evidence.
 
-## 22. No-downgrade failure and abstention
+## 22. Failure, failover, no-downgrade and abstention
 
-Provider timeout, cancellation, capacity, rate limit, malformed output, unsupported capability or unavailable model returns a typed unavailable/abstain result.
+Failure behavior depends on the routing class.
+
+### Ordinary conversational advisory
+
+For eligible conversation data, provider timeout, capacity, rate limit, malformed output or temporary transport failure may advance to the next independently eligible provider in the approved conversational chain. Circuit cooldown prevents repeated full waits and later probes allow preferred-provider recovery.
 
 Rules:
 
-- deterministic authority workflows continue where they do not require model reasoning;
+- deterministic authority workflows continue independently;
 - provider failure cannot change assessment state;
-- the failed reasoning request does not switch to a smaller model;
-- the failed reasoning request does not switch providers automatically;
+- provider failover cannot lower the data-policy bar;
+- provider failover cannot select an arbitrary smaller/unapproved model;
 - ordinary chat does not use canned deterministic copy as a substitute AI answer;
-- the UI states that high-reasoning AI is unavailable when a reasoning answer cannot be produced;
-- retry, when allowed, targets the same configured provider/model and preserves the same reasoning level;
-- repeated open-ended remote loops are blocked.
+- if all eligible providers fail, the UI reports a short unavailable/retry state;
+- the same conversation/task identity is preserved.
 
-This is a quality invariant, not an authority change. Deterministic services still own authorization, scope, execution, evidence integrity and lifecycle decisions.
+### Provider-bound protected tasks
+
+Finding intelligence, exact-approved Source Hunt processing and any task whose approval binds provider/model do not use cross-provider failure fallback. Timeout/cancellation/capacity/rate-limit/malformed output returns a typed unavailable/abstain result or bounded same-provider retry where explicitly allowed.
+
+This separation is a quality and privacy invariant, not an authority change. Deterministic services still own authorization, scope, execution, evidence integrity, finding promotion and lifecycle decisions.
 
 ## 23. Provider selection
 
@@ -454,31 +498,32 @@ Provider selection is constrained by:
 - approval;
 - health;
 - budgets;
-- explicit user/deployment preference where safe.
+- explicit deployment/user preference where safe;
+- routing class (ordinary conversation versus provider-bound protected task).
 
-The user may choose among eligible high-capability profiles. They cannot select a model that is not approved for the data/task or use a lower-effort profile for protected reasoning paths.
+The user cannot select a model that is not approved for the data/task or use a lower-effort profile for protected reasoning paths.
 
-Selection occurs before invocation. Automatic selection may normalize legacy configuration to the deployment's primary provider, but it must not become failure-driven provider failover.
+For ordinary conversation, the deployment defines the provider priority chain and the router may move to the next independently eligible provider after failure/cooldown. For provider-bound tasks, selection occurs before invocation and failure does not change provider/model identity.
 
 ## 24. Health dimensions
 
-Expose separately:
+Expose or retain separately as appropriate:
 
 - provider enabled;
-- credentials valid;
+- credentials configured/valid where verification exists;
 - model profile approved;
 - capability verified;
 - endpoint reachable;
-- last successful invocation;
-- current degradation;
+- last successful invocation where recorded;
+- current degradation/circuit state;
 - model quality/registry state;
 - assessment and worker health.
 
-Configuration alone is not reachability.
+Configuration alone is not reachability. Conversational circuit health is process-local advisory state, not authoritative persistence.
 
 ## 25. Provenance
 
-Persist:
+Protected advisory subsystems should persist or make available:
 
 - invocation ID;
 - task;
@@ -496,9 +541,9 @@ Persist:
 - `trusted=false`;
 - degradation/error code;
 - requested reasoning effort;
-- whether model/provider fallback was permitted.
+- whether provider/model fallback was permitted for the routing class.
 
-Do not persist raw credentials or secret-bearing error bodies.
+Ordinary chat may deliberately hide provider-switch details from the user-facing message metadata while retaining safe server-side diagnostics. Do not persist raw credentials or secret-bearing error bodies.
 
 ## 26. Provider terms, retention and residency
 
@@ -513,7 +558,7 @@ Activation requires human review of:
 - model license and intended use;
 - incident handling.
 
-A change in provider terms or endpoint behaviour may degrade or disable the profile pending re-approval.
+A change in provider terms or endpoint behaviour may degrade or disable the profile pending re-approval. A provider must be independently acceptable for the data class before it can join a conversational fallback chain.
 
 ## 27. Local Hugging Face models
 
@@ -541,14 +586,17 @@ Routing tests cover:
 - exact source approval;
 - provider/model mismatch;
 - capability mismatch;
-- Groq and Hugging Face independence;
-- both providers disabled;
-- high-reasoning failure abstains without model downgrade;
-- one provider failure does not invoke another provider;
+- protected Groq/Hugging Face independence;
+- ordinary Groq -> Gemini -> Ollama conversational availability behavior;
+- all conversational providers unavailable;
+- circuit cooldown and preferred-provider recovery;
+- split connection/read timeout behavior;
+- high-reasoning failure does not downgrade to a smaller/unapproved model;
+- provider-bound Source Hunt/finding intelligence does not cross-provider fail over;
 - deterministic chat copy is not used as a reasoning substitute;
 - timeout, cancellation, rate limit and malformed output;
 - prompt injection;
-- citation validation;
+- citation/provenance validation where implemented;
 - token/byte limits;
 - streaming interruption where supported;
 - tenant/assessment retrieval isolation;
@@ -556,16 +604,16 @@ Routing tests cover:
 
 ## 29. Activation dependencies
 
-A provider/model profile remains disabled until:
+A provider/model profile remains disabled for protected data/tasks until the applicable controls pass:
 
-1. owner-private credential validation;
-2. exact model profile approval;
+1. owner-private credential validation where required;
+2. exact model profile approval where required;
 3. license/terms/retention review;
 4. harmless end-to-end capability verification;
 5. privacy/redaction acceptance;
-6. output/citation integrity tests;
+6. output/citation integrity tests where relevant;
 7. budget/rate/cancellation tests;
-8. no-downgrade and abstention tests;
+8. no-smaller-model-downgrade and abstention/failover-class tests;
 9. product-language review;
 10. current documentation reconciliation.
 
@@ -574,11 +622,14 @@ A provider/model profile remains disabled until:
 ```text
 DETERMINISTIC-FIRST AUTHORITY                    IMPLEMENTED
 GROQ BOUNDED ADVISORY PROVIDER                   IMPLEMENTED OPTIONAL
-HUGGING FACE BOUNDED ADVISORY PROVIDER           IMPLEMENTED OPTIONAL
+GEMINI ORDINARY-CHAT FALLBACK                    IMPLEMENTED OPTIONAL
+LOOPBACK OLLAMA ORDINARY-CHAT FALLBACK           IMPLEMENTED OPTIONAL
+CONVERSATIONAL CIRCUIT COOLDOWN/RECOVERY          IMPLEMENTED PROCESS-LOCAL
+HUGGING FACE BOUNDED ADVISORY PROVIDER            IMPLEMENTED OPTIONAL / EXPLICIT
 HIGH-ONLY CONVERSATION REASONING                 IMPLEMENTED
 HIGH-ONLY FINDING REASONING                      IMPLEMENTED
-SOURCE HUNT HIGH-MODEL PIN                       IMPLEMENTED
-MODEL/PROVIDER FAILURE ABSTENTION                IMPLEMENTED
+SOURCE HUNT PROVIDER/MODEL APPROVAL PIN          IMPLEMENTED
+PROVIDER-BOUND FAILURE ABSTENTION                IMPLEMENTED
 OWNER-PRIVATE CREDENTIAL FILES                   IMPLEMENTED
 MODEL ALLOWLISTS AND STRUCTURED OUTPUT            IMPLEMENTED
 PROVIDER-NEUTRAL BROWSER VERIFICATION            IMPLEMENTED
@@ -594,16 +645,16 @@ MODEL/PROVIDER TERMS RE-APPROVAL AUTOMATION       NOT COMPLETE
 
 - deterministic services own authority;
 - every provider is optional and untrusted;
-- Groq and Hugging Face remain separate provider identities;
-- protected reasoning paths use high reasoning effort;
-- protected reasoning paths do not downgrade to a smaller model;
-- protected reasoning paths do not fail over to another provider automatically;
+- ordinary conversational fallback is limited to independently eligible providers/data classes;
+- provider-bound Source Hunt and finding-intelligence tasks remain pinned to their approved/configured provider/model;
+- protected reasoning paths do not downgrade to a smaller or unapproved model;
 - deterministic copy is never represented as a replacement AI reasoning answer;
 - remote source processing requires exact approval;
 - embeddings have separate approval from conversation;
 - prohibited data is never remotely routed;
-- retrieved content is untrusted;
+- retrieved/browser content is untrusted;
 - no provider receives operational tools through the bounded advisory path;
+- AI browser control uses typed policy-checked actions rather than direct MCP access;
 - partial model output cannot change state;
 - provider health is not model quality;
 - deterministic controls remain operational with providers disabled;
@@ -613,14 +664,15 @@ MODEL/PROVIDER TERMS RE-APPROVAL AUTOMATION       NOT COMPLETE
 
 AI routing is production-complete only when:
 
-- provider-neutral policy matches actual providers;
-- model profiles are exact-revision and capability-bound;
-- data classes and approvals are enforced;
+- provider-neutral policy matches actual providers and their distinct routing roles;
+- model profiles are exact-revision and capability-bound where protected tasks require them;
+- data classes and approvals are enforced across every provider;
 - configured, reachable and capable states are distinct;
+- conversational failover and provider-bound abstention remain separate and tested;
 - source and embedding routes are separately controlled;
-- evidence-grounded citations are verified;
+- evidence-grounded citations are verified where required;
 - prompt injection cannot grant authority;
 - streaming, when enabled, is bounded and final-validated;
-- high-reasoning no-downgrade behavior and safe abstention are complete;
+- high-reasoning no-smaller-model-downgrade behavior is complete;
 - all routing/privacy tests pass;
 - deterministic authority remains complete with all providers disabled.

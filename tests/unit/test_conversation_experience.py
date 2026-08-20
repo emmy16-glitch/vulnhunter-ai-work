@@ -33,8 +33,7 @@ def test_ordinary_question_reports_high_reasoning_unavailable_without_starting_s
     assert "Ollama" not in result.assistant_copy
 
 
-def test_groq_chat_copy_is_used_without_turning_question_into_scan(settings):
-    settings.VULNHUNTER_GROQ_ENABLED = True
+def test_chat_advisory_copy_is_used_without_turning_question_into_scan():
     advisory = json.dumps(
         {
             "intent": "chat",
@@ -44,8 +43,8 @@ def test_groq_chat_copy_is_used_without_turning_question_into_scan(settings):
     )
 
     with patch(
-        "vulnhunter.web.conversation_service._groq_advisory",
-        return_value=(advisory, "mocked Groq advisory"),
+        "vulnhunter.web.conversation_service._remote_advisory",
+        return_value=(advisory, "mocked AI advisory", "auto"),
     ):
         result = interpret_request(
             "Where can I find the link?",

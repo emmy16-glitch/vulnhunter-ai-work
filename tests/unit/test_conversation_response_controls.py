@@ -55,8 +55,9 @@ def test_canonical_empty_workspace_wins_over_legacy_synthetic_empty_state() -> N
     script = SCRIPT.read_text(encoding="utf-8")
 
     assert 'const canonicalEmpty = feed.querySelector("[data-conversation-empty]")' in script
+    assert 'canonicalEmpty.dataset.chatEmptyState = "canonical"' in script
     assert "const reconcileCanonicalEmptyState = () =>" in script
-    assert 'feed.querySelector("[data-chat-empty-state]")' in script
+    assert '"[data-chat-empty-state]:not([data-conversation-empty])"' in script
     assert "syntheticEmpty?.remove()" in script
     assert "canonicalEmpty.hidden = false" in script
     assert 'canonicalEmpty.removeAttribute("aria-hidden")' in script

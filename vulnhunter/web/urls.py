@@ -18,6 +18,7 @@ from vulnhunter.web import (
     governance_workspace_views,
     intelligence_views,
     lab_views,
+    mobile_records_views,
     mobile_source_hunt_views,
     operations_views,
     public_consent_views,
@@ -148,6 +149,11 @@ urlpatterns = [
         "workspace/mobile-source-hunt/",
         mobile_source_hunt_views.mobile_source_hunt_handoff_view,
         name="web-conversation-mobile-source-hunt",
+    ),
+    path(
+        "workspace/mobile-records/",
+        mobile_records_views.mobile_records_view,
+        name="web-conversation-mobile-records",
     ),
     path(
         "workspace/browser-intelligence/start/",

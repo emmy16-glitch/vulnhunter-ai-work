@@ -47,13 +47,17 @@ def _exact_source_root(*, policy: MobileStaticWorkerPolicy, artifact_id: str, jo
     return source_root
 
 
-def _report_payload(report, *, selected_seed_id: str | None) -> dict[str, object]:
-    matching = [
-        item
-        for item in report.results
-        if selected_seed_id and item.seed.seed_id == selected_seed_id
-    ]
-    selected = matching[0] if matching else None
+def _report_payload(
+    report,
+    *,
+    selected_seed_id: str | None,
+    selected_seed_ids: tuple[str, ...] = (),
+) -> dict[str, object]:
+    selected_ids = set(selected_seed_ids)
+    if selected_seed_id:
+        selected_ids.add(selected_seed_id)
+    matching = [item for item in report.results if item.seed.seed_id in selected_ids]
+    selected = matching[0] if selected_seed_id and matching else None
     return {
         "report_id": report.report_id,
         "state": "completed",
@@ -81,6 +85,8 @@ def run_mobile_source_hunt_handoff(
     requested_by: str,
     selected_seed_id: str | None = None,
     selected_record_id: str | None = None,
+    selected_seed_ids: tuple[str, ...] = (),
+    selected_record_ids: tuple[str, ...] = (),
 ) -> dict[str, object]:
     """Run Source Hunt only from the exact persisted APK worker receipt."""
 
@@ -115,13 +121,42 @@ def run_mobile_source_hunt_handoff(
             "The mobile worker policy could not be verified for Source Hunt handoff."
         ) from exc
     source_root = _exact_source_root(policy=policy, artifact_id=artifact_id, job_id=job_id)
+    engine_kwargs: dict[str, object] = {}
+    requested_seed_ids = {item for item in selected_seed_ids if item}
+    if selected_seed_id:
+        requested_seed_ids.add(selected_seed_id)
+    requested_record_ids = {item for item in selected_record_ids if item}
+    if selected_record_id:
+        requested_record_ids.add(selected_record_id)
+    if requested_record_ids:
+        available_engine = MobileSourceHuntEngine(
+            source_root=source_root,
+            intelligence={**intelligence, "artifact_id": artifact_id},
+            analysis_run_id=f"source-hunt-{job_id}",
+        )
+        available = available_engine.available_seeds()
+        record_to_seed = {
+            seed.source_intelligence_record_id: seed.seed_id
+            for seed in available
+            if seed.source_intelligence_record_id
+        }
+        missing_records = requested_record_ids - set(record_to_seed)
+        if missing_records:
+            raise MobileSourceHuntHandoffError(
+                "One or more selected APK intelligence records are not visible in the "
+                "persisted assessment."
+            )
+        requested_seed_ids.update(record_to_seed[record_id] for record_id in requested_record_ids)
+    if requested_seed_ids:
+        engine_kwargs["selected_seed_ids"] = tuple(sorted(requested_seed_ids))
     report = MobileSourceHuntEngine(
         source_root=source_root,
         intelligence={**intelligence, "artifact_id": artifact_id},
         analysis_run_id=f"source-hunt-{job_id}",
+        **engine_kwargs,
     ).run()
-    selected_seed_ids = {item.seed.seed_id for item in report.results}
-    if selected_seed_id and selected_seed_id not in selected_seed_ids:
+    available_seed_ids = {item.seed.seed_id for item in report.results}
+    if selected_seed_id and selected_seed_id not in available_seed_ids:
         raise MobileSourceHuntHandoffError(
             "The requested Source Hunt seed is not present in the persisted APK intelligence."
         )
@@ -141,10 +176,15 @@ def run_mobile_source_hunt_handoff(
             )
     report_path = MobileSourceHuntStore(_report_root()).save(report)
     return {
-        "report": _report_payload(report, selected_seed_id=resolved_seed_id),
+        "report": _report_payload(
+            report,
+            selected_seed_id=resolved_seed_id,
+            selected_seed_ids=tuple(sorted(requested_seed_ids)),
+        ),
         "report_path": str(report_path),
         "requested_by": requested_by,
         "selected_seed_id": resolved_seed_id,
+        "selected_seed_ids": tuple(sorted(requested_seed_ids)),
     }
 
 

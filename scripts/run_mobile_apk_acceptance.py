@@ -76,9 +76,7 @@ def _tool_classification(
         evidence = "PASS"
     elif any(item.get("return_code") == 0 for item in tool_captures):
         evidence = "PARTIAL"
-    elif tool == "jadx" and any(
-        workspace.joinpath("jadx-output").rglob("*")
-    ):
+    elif tool == "jadx" and any(workspace.joinpath("jadx-output").rglob("*")):
         evidence = "PARTIAL"
     else:
         evidence = "FAIL"
@@ -94,9 +92,7 @@ def _tool_classification(
         "capability": tool,
         "code_present": (REPOSITORY / "vulnhunter/mobile").is_dir(),
         "unit_tested": (REPOSITORY / CAPABILITY_TESTS[tool]).is_file(),
-        "real_executable": (
-            str(configured_path) if configured_path is not None else None
-        ),
+        "real_executable": (str(configured_path) if configured_path is not None else None),
         "real_apk": evidence,
         "capture_count": len(tool_captures),
         "return_codes": [item.get("return_code") for item in tool_captures],

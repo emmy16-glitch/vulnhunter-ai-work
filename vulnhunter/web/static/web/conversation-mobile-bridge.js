@@ -78,7 +78,11 @@
 
   const retryCard = () => {
     const cards = document.querySelectorAll("[data-mobile-hunt-card]");
-    return cards.length ? cards[cards.length - 1] : null;
+    if (cards.length) return cards[cards.length - 1];
+    // Historical conversations render a persisted mobile-plan message rather than
+    // the live task-card marker; it is still an authoritative projection anchor.
+    const persisted = document.querySelectorAll(".vh-chat-message.is-mobile_plan");
+    return persisted.length ? persisted[persisted.length - 1] : null;
   };
 
   const removeMobileProjectionControls = () => {

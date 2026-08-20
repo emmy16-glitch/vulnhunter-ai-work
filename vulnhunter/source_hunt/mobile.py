@@ -402,14 +402,23 @@ class MobileSourceHuntEngine:
         analysis_run_id: str,
         max_source_files: int = 25_000,
         max_seed_count: int = 64,
+        selected_seed_ids: Iterable[str] | None = None,
     ) -> None:
         self.source_root = source_root.expanduser().resolve(strict=True)
         self.intelligence = intelligence
         self.analysis_run_id = analysis_run_id
         self.max_source_files = max_source_files
         self.max_seed_count = max_seed_count
+        self.selected_seed_ids = frozenset(
+            str(item).strip() for item in (selected_seed_ids or ()) if str(item).strip()
+        )
         self._files: tuple[_SourceFile, ...] = ()
         self._by_name: dict[str, tuple[_SourceFile, ...]] = {}
+
+    def available_seeds(self) -> tuple[MobileSourceHuntSeed, ...]:
+        """Return deterministic seed identities for a governed selection check."""
+        self._load_source_files()
+        return self._seeds()
 
     def run(self) -> MobileSourceHuntReport:
         artifact_sha256 = str(self.intelligence.get("artifact_sha256") or "")
@@ -432,6 +441,12 @@ class MobileSourceHuntEngine:
             provenance=(graph.provenance(evidence_references=(f"artifact:{artifact_sha256}",)),),
         )
         seeds = self._seeds()
+        if self.selected_seed_ids:
+            available = {seed.seed_id for seed in seeds}
+            unknown = self.selected_seed_ids - available
+            if unknown:
+                raise ValueError("Source Hunt selection contains an unknown persisted seed")
+            seeds = tuple(seed for seed in seeds if seed.seed_id in self.selected_seed_ids)
         results: list[MobileSourceHuntResult] = []
         for seed in seeds:
             result = self._investigate(seed, graph, artifact_node, coverage)

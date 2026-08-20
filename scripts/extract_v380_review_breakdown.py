@@ -47,11 +47,16 @@ if indicator_path.exists():
 print(f"COUNT\\t{len(seen)}")
 
 print("RECEIPT_SUMMARY")
-print(json.dumps({
-    "job_id": receipt.get("job_id"),
-    "state": receipt.get("state"),
-    "artifact_id": receipt.get("artifact_id"),
-    "captures": len(receipt.get("captures", [])),
-    "candidate_observations": len(receipt.get("candidate_observations", [])),
-    "result_sha256": receipt.get("result_sha256"),
-}, sort_keys=True))
+print(
+    json.dumps(
+        {
+            "job_id": receipt.get("job_id"),
+            "state": receipt.get("state"),
+            "artifact_id": receipt.get("artifact_id"),
+            "captures": len(receipt.get("captures", [])),
+            "candidate_observations": len(receipt.get("candidate_observations", [])),
+            "result_sha256": receipt.get("result_sha256"),
+        },
+        sort_keys=True,
+    )
+)

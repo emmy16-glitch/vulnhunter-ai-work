@@ -112,9 +112,7 @@ def inventory(dex_paths: list[Path]) -> dict[str, object]:
         for offset, value, encoding in _strings(data):
             url_values = {_clean(item) for item in _URL.findall(value)}
             host_values = {
-                _clean(item)
-                for item in _HOST.findall(value)
-                if _host_is_probable(_clean(item))
+                _clean(item) for item in _HOST.findall(value) if _host_is_probable(_clean(item))
             }
             urls.update(item for item in url_values if item)
             hosts.update(item.split("/", 1)[0] for item in host_values if item)

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, JsonResponse
 from django.views.decorators.cache import cache_control
@@ -34,11 +36,18 @@ def mobile_source_hunt_handoff_view(request: HttpRequest) -> JsonResponse:
     selected_seed_id = request.POST.get("seed_id", "").strip() or None
     selected_record_id = request.POST.get("record_id", "").strip() or None
     try:
+        selected_seed_ids = _bounded_id_list(request.POST.get("seed_ids"))
+        selected_record_ids = _bounded_id_list(request.POST.get("record_ids"))
+    except ValueError as exc:
+        return JsonResponse({"detail": str(exc)}, status=400)
+    try:
         result = run_mobile_source_hunt_handoff(
             plan=plan,
             requested_by=requested_by,
             selected_seed_id=selected_seed_id,
             selected_record_id=selected_record_id,
+            selected_seed_ids=selected_seed_ids,
+            selected_record_ids=selected_record_ids,
         )
     except MobileSourceHuntHandoffError as exc:
         return JsonResponse({"detail": str(exc)}, status=409)
@@ -76,6 +85,21 @@ def mobile_source_hunt_handoff_view(request: HttpRequest) -> JsonResponse:
             "source_hunt": report,
         }
     )
+
+
+def _bounded_id_list(raw: str | None) -> tuple[str, ...]:
+    if not raw:
+        return ()
+    try:
+        value = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise ValueError("Source Hunt selections must be valid JSON arrays.") from exc
+    if not isinstance(value, list) or len(value) > 64:
+        raise ValueError("Source Hunt selections must contain at most 64 IDs.")
+    values = tuple(dict.fromkeys(str(item).strip() for item in value if str(item).strip()))
+    if any(len(item) > 160 for item in values):
+        raise ValueError("Source Hunt selection IDs are too long.")
+    return values
 
 
 __all__ = ["mobile_source_hunt_handoff_view"]

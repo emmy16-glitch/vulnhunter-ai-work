@@ -2462,3 +2462,26 @@ body[data-route="web-dashboard"] .vh-main,
   .vh-browser-intelligence-grid { grid-template-columns: 1fr; }
   .vh-browser-intelligence-card header { display: grid; }
 }
+
+/* Authoritative context carried from inspector selections into the composer. */
+.vh-conversation-context {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin: 0 0 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--vh-line-strong);
+  border-radius: var(--vh-radius-card);
+  background: var(--vh-surface-muted);
+}
+.vh-conversation-context-copy { min-width: 0; }
+.vh-conversation-context-copy .vh-eyebrow { display: block; margin-bottom: 6px; }
+.vh-conversation-context-copy > div { display: flex; flex-wrap: wrap; gap: 7px; }
+.vh-conversation-context-chip { display: inline-flex; align-items: center; max-width: 100%; min-height: 30px; padding: 5px 9px; border: 1px solid var(--vh-line-strong); border-radius: 999px; background: var(--vh-surface); color: var(--vh-ink); font: 12px var(--vh-font-mono); overflow-wrap: anywhere; }
+.vh-conversation-context .vh-button-secondary { flex: 0 0 auto; min-height: 38px; }
+@media (max-width: 767px) {
+  .vh-conversation-context { align-items: stretch; flex-direction: column; margin-inline: 0; }
+  .vh-conversation-context .vh-button-secondary { width: 100%; min-height: 44px; }
+  .vh-conversation-context-chip { min-height: 34px; font-size: 12px; }
+}

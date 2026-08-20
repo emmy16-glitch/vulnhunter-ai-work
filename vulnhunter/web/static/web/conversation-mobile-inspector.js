@@ -19,6 +19,10 @@
     events: select("events"),
     findings: select("findings"),
     findingsCount: select("findings-count"),
+    componentsTable: select("components-table"),
+    componentsCount: select("components-count"),
+    endpointsTable: select("endpoints-table"),
+    endpointsCount: select("endpoints-count"),
     artifacts: select("artifacts"),
     artifactsCount: select("artifacts-count"),
     graph: select("graph"),
@@ -29,6 +33,7 @@
     sourceHuntCount: select("source-hunt-count"),
     sourceHuntSummary: select("source-hunt-summary"),
     sourceHuntResults: select("source-hunt-results"),
+    sourceHuntPaths: select("source-hunt-paths"),
     sourceHuntGraph: select("source-hunt-graph"),
     emptySourceHunt: select("empty-source-hunt"),
     emptyFindings: select("empty-findings"),
@@ -50,6 +55,7 @@
     returnFocus: null,
     sheetHistoryActive: false,
     unsubscribeSelectedAssessment: null,
+    securityTables: {},
   };
 
   const text = (value) => (value === null || value === undefined ? "" : String(value));
@@ -484,19 +490,181 @@
     elements.graph.append(summary);
   };
 
+  const csrfToken = () => {
+    const cookie = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
+    if (cookie) return decodeURIComponent(cookie[1]);
+    return workspace.querySelector("input[name='csrfmiddlewaretoken']")?.value || "";
+  };
+
+  const copyValue = async (value, button) => {
+    const textValue = text(value);
+    if (!textValue) return;
+    try {
+      await navigator.clipboard.writeText(textValue);
+      button.textContent = "Copied";
+    } catch (_error) {
+      button.textContent = "Copy unavailable";
+    }
+    window.setTimeout(() => { button.textContent = "Copy"; }, 1200);
+  };
+
+  const recordDetails = (row, fields) => {
+    const wrapper = document.createElement("div");
+    wrapper.className = "vh-security-table-row-details";
+    const copy = document.createElement("p");
+    copy.textContent = fields.map(([label, key]) => `${label}: ${text(row[key]) || "Not recorded"}`).join(" · ");
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "vh-button-secondary";
+    button.textContent = "Copy";
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      copyValue(row.record_id || row.endpoint_id || row.component_id || row.id, button);
+    });
+    wrapper.append(copy, button);
+    return wrapper;
+  };
+
+  const postSourceHuntRecords = async (recordIds) => {
+    const uniqueIds = [...new Set(recordIds.map(text).filter(Boolean))].slice(0, 64);
+    if (!uniqueIds.length) throw new Error("Select at least one persisted component record.");
+    const body = new URLSearchParams();
+    body.set("record_ids", JSON.stringify(uniqueIds));
+    const response = await fetch("/workspace/mobile-source-hunt/", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "X-CSRFToken": csrfToken(), Accept: "application/json" },
+      body,
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.detail || "The Source Hunt handoff could not be completed.");
+    if (data.assessment_projection && window.vhSelectedAssessmentStore?.replace) {
+      window.vhSelectedAssessmentStore.replace(data);
+    }
+    if (data.message) {
+      document.dispatchEvent(new CustomEvent("vh:conversation-message", { detail: data.message }));
+    }
+    return data;
+  };
+
+  const mountProjectionTable = (key, root, rows, columns, options = {}) => {
+    if (!root || !window.VulnHunterSecurityTable?.mount) return;
+    root.replaceChildren();
+    state.securityTables[key]?.destroy?.();
+    state.securityTables[key] = window.VulnHunterSecurityTable.mount(root, {
+      tableKey: `mobile-${selectedAssessmentId()}-${key}`,
+      title: options.title,
+      description: options.description,
+      rows,
+      columns,
+      pageSize: 10,
+      emptyText: options.emptyText,
+      savedViews: [{ id: "core", label: "Core fields", visibleColumns: columns.filter((column) => column.core).map((column) => column.key) }],
+      bulkActions: options.bulkActions || [],
+      onRowExpand: options.onRowExpand,
+    });
+  };
+
+  const updateComponents = () => {
+    const payload = intelligence();
+    const rows = safeArray(payload.components || payload.manifest_components || state.projection?.components).map((row, index) => ({
+      ...row,
+      record_id: text(row.record_id || row.component_id || row.id || `component-${index}`),
+      name: text(row.name || row.class_name || row.component || "Unnamed component"),
+      type: text(row.type || row.component_type || row.kind || "component"),
+      ownership: text(row.ownership || row.owner || "unknown"),
+      permission: text(row.permission || row.required_permission || "none recorded"),
+      evidence_state: text(row.evidence_state || row.state || "observed"),
+    }));
+    elements.componentsCount.textContent = String(rows.length || Number(payload.component_count || 0) || "—");
+    mountProjectionTable("components", elements.componentsTable, rows, [
+      { key: "name", label: "Name", core: true },
+      { key: "type", label: "Type", core: true },
+      { key: "ownership", label: "Ownership", core: true },
+      { key: "permission", label: "Permission", core: false },
+      { key: "evidence_state", label: "Evidence state", core: true },
+    ], {
+      title: "Component surfaces",
+      description: "Persisted manifest records; selection is advisory until the server revalidates it.",
+      emptyText: "No persisted component records are available.",
+      bulkActions: [{
+        id: "source-hunt",
+        label: "Investigate with Source Hunt",
+        onClick: async (ids, button) => {
+          button.disabled = true;
+          try { await postSourceHuntRecords(ids); } finally { button.disabled = false; }
+        },
+      }],
+      onRowExpand: (row) => recordDetails(row, [["Record", "record_id"], ["Evidence", "evidence_reference"], ["Source", "source_path"]]),
+    });
+  };
+
+  const updateEndpoints = () => {
+    const payload = intelligence();
+    const rows = safeArray(payload.endpoints || payload.network_endpoints || payload.endpoint_references || state.projection?.endpoints).map((row, index) => ({
+      ...row,
+      record_id: text(row.record_id || row.endpoint_id || row.id || `endpoint-${index}`),
+      protocol: text(row.protocol || row.scheme || "unknown"),
+      host: text(row.host || row.hostname || "not recorded"),
+      port: text(row.port || "—"),
+      path: text(row.path || row.url_path || "/"),
+      ownership: text(row.ownership || row.owner || "unknown"),
+      service_role: text(row.service_role || row.role || "unknown"),
+      evidence_state: text(row.evidence_state || row.state || "observed"),
+    }));
+    elements.endpointsCount.textContent = String(rows.length || Number(payload.endpoint_count || 0) || "—");
+    mountProjectionTable("endpoints", elements.endpointsTable, rows, [
+      { key: "protocol", label: "Protocol", core: true },
+      { key: "host", label: "Host", core: true },
+      { key: "port", label: "Port", core: false },
+      { key: "path", label: "Path", core: true },
+      { key: "ownership", label: "Ownership", core: true },
+      { key: "service_role", label: "Service role", core: false },
+      { key: "evidence_state", label: "Evidence state", core: true },
+    ], {
+      title: "Endpoint references",
+      description: "Static evidence only; no network request is made from this table.",
+      emptyText: "No persisted endpoint references are available.",
+      onRowExpand: (row) => recordDetails(row, [["Record", "record_id"], ["Host", "host"], ["Path", "path"], ["Evidence", "evidence_reference"]]),
+    });
+  };
+
   const updateSourceHunt = () => {
     const hunt = state.projection?.source_hunt || {};
     const graph = hunt.graph || {};
     const results = safeArray(hunt.results);
     const nodes = safeArray(graph.nodes);
     const edges = safeArray(graph.edges);
+    const paths = safeArray(hunt.attack_paths || hunt.paths || graph.attack_paths);
     const ready = hunt.report_ready === true;
     elements.sourceHuntCount.textContent = ready ? String(nodes.length) : "—";
     elements.emptySourceHunt.hidden = ready;
     elements.sourceHuntSummary.replaceChildren();
     elements.sourceHuntResults.replaceChildren();
+    elements.sourceHuntPaths.replaceChildren();
     elements.sourceHuntGraph.replaceChildren();
     if (!ready) return;
+
+    mountProjectionTable("source-hunt-paths", elements.sourceHuntPaths, paths.map((path, index) => ({
+      ...path,
+      record_id: text(path.path_id || path.id || `path-${index}`),
+      path_id: text(path.path_id || path.id || `path-${index}`),
+      state: text(path.state || path.status || "inconclusive"),
+      steps: Number(path.steps || path.step_count || path.nodes?.length || 0),
+      confidence: text(path.confidence || path.verification_confidence || "unknown"),
+      evidence: text(path.evidence_reference || path.evidence_id || "not recorded"),
+    })), [
+      { key: "path_id", label: "Path", core: true },
+      { key: "state", label: "State", core: true },
+      { key: "steps", label: "Steps", core: true },
+      { key: "confidence", label: "Confidence", core: true },
+      { key: "evidence", label: "Evidence", core: false },
+    ], {
+      title: "Persisted attack paths",
+      description: "List view remains authoritative when graph visualization is incomplete.",
+      emptyText: "No persisted attack paths are available.",
+      onRowExpand: (row) => recordDetails(row, [["Path", "path_id"], ["State", "state"], ["Evidence", "evidence"]]),
+    });
 
     const summary = document.createElement("p");
     summary.textContent = [
@@ -646,6 +814,8 @@
     updateTools();
     updateEvents();
     updateFindings();
+    updateComponents();
+    updateEndpoints();
     updateArtifacts();
     updateGraph();
     updateSourceHunt();

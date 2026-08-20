@@ -544,3 +544,95 @@ export interface RealtimeTicketPayload {
 export interface AssessmentSnapshot extends AssessmentEventsPayload {
   type?: string;
 }
+
+
+export type SecurityState =
+  | "verified_configuration"
+  | "verified_finding"
+  | "evidence_required"
+  | "rejected"
+  | "inconclusive"
+  | "partial"
+  | "blocked"
+  | "not_applicable"
+  | "operational_issue";
+
+export type ToolState =
+  | "completed"
+  | "running"
+  | "partial"
+  | "blocked"
+  | "not_applicable"
+  | "failed"
+  | "queued";
+
+export const SECURITY_STATE_LABELS: Record<SecurityState, string> = {
+  verified_configuration: "Verified configuration",
+  verified_finding: "Verified finding",
+  evidence_required: "Evidence required",
+  rejected: "Rejected",
+  inconclusive: "Inconclusive",
+  partial: "Partial",
+  blocked: "Blocked",
+  not_applicable: "Not applicable",
+  operational_issue: "Operational issue",
+};
+
+export const TOOL_STATE_LABELS: Record<ToolState, string> = {
+  completed: "Completed",
+  running: "Running",
+  partial: "Partial",
+  blocked: "Blocked",
+  not_applicable: "Not applicable",
+  failed: "Failed",
+  queued: "Queued",
+};
+
+export type SortDirection = "asc" | "desc";
+
+export interface SecurityTableColumn<Row = JsonObject> {
+  id: string;
+  label: string;
+  accessor?: keyof Row;
+  visibleByDefault?: boolean;
+  critical?: boolean;
+  sortable?: boolean;
+  width?: number | string;
+}
+
+export interface SecurityTablePagination {
+  page: number;
+  page_size: number;
+  total_items: number;
+  total_pages: number;
+}
+
+export interface SecurityTableState<Row = JsonObject> {
+  rows: Row[];
+  loading: boolean;
+  error?: string;
+  pagination?: SecurityTablePagination;
+}
+
+export interface PaginatedSecurityRows<Row = JsonObject> {
+  assessment_id: string;
+  record_type: string;
+  items: Row[];
+  pagination: SecurityTablePagination;
+}
+
+export interface BrowserNetworkRow {
+  observation_id?: string;
+  source_session_id?: string;
+  method?: string;
+  scheme?: string;
+  host?: string;
+  port?: number;
+  path?: string;
+  status_code?: number;
+  resource_type?: string;
+  origin?: string;
+  request_body_present?: boolean;
+  evidence_references?: string[];
+  [key: string]: unknown;
+}

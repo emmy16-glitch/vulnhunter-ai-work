@@ -10,6 +10,9 @@
   const thinkingCopy = workspace?.querySelector("[data-thinking-copy]");
   const reset = workspace?.querySelector("[data-conversation-reset]");
   const fileInput = workspace?.querySelector("[data-conversation-file]");
+  const contextBar = workspace?.querySelector("[data-conversation-context-bar]");
+  const contextItems = workspace?.querySelector("[data-conversation-context-items]");
+  const contextClear = workspace?.querySelector("[data-conversation-context-clear]");
   const messageTemplate = document.getElementById("vh-message-template");
   if (!form || !feed || !input || !messageTemplate) return;
 
@@ -20,8 +23,31 @@
   let activeMobilePlan = null;
   let bypassMobileFollowup = false;
   let contextBusy = false;
+  const contextState = { assessmentId: "", kind: "", ids: [] };
 
   const text = (value) => (value === null || value === undefined ? "" : String(value));
+
+  const renderContext = () => {
+    if (!contextBar || !contextItems) return;
+    contextItems.replaceChildren();
+    const values = [];
+    if (contextState.assessmentId) values.push(["Assessment", contextState.assessmentId]);
+    if (contextState.kind && contextState.ids.length) values.push([contextState.kind, contextState.ids.join(", ")]);
+    contextBar.hidden = values.length === 0;
+    values.forEach(([label, value]) => {
+      const chip = document.createElement("span");
+      chip.className = "vh-conversation-context-chip";
+      chip.textContent = `${label}: ${value}`;
+      contextItems.append(chip);
+    });
+  };
+
+  const setContext = (detail = {}) => {
+    if (detail.assessmentId !== undefined) contextState.assessmentId = text(detail.assessmentId);
+    if (detail.kind !== undefined) contextState.kind = text(detail.kind);
+    if (detail.ids !== undefined) contextState.ids = Array.isArray(detail.ids) ? detail.ids.map(text).filter(Boolean).slice(0, 64) : [];
+    renderContext();
+  };
 
   const scrollLatest = () => {
     const controller = window.VulnHunterConversationScroll;
@@ -194,6 +220,19 @@
   );
 
   reset?.addEventListener("click", clearContext);
+  contextClear?.addEventListener("click", () => setContext({ kind: "", ids: [] }));
+  document.addEventListener("vh:security-table-selection-change", (event) => {
+    const detail = event.detail || {};
+    setContext({ kind: detail.tableKey?.includes("components") ? "Components" : "Records", ids: detail.selectedIds || [] });
+  });
+  document.addEventListener("vh:context-selection", (event) => {
+    const detail = event.detail || {};
+    setContext({ kind: detail.kind || "Context", ids: detail.ids || [] });
+  });
+  document.addEventListener("vh:selected-assessment-change", (event) => {
+    const snapshot = event.detail || {};
+    setContext({ assessmentId: snapshot.assessment_projection?.assessment_id || snapshot.assessment_id || "" });
+  });
   observeMobilePlan();
   restoreContext();
 })();

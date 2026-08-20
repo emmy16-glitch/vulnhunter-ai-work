@@ -6,6 +6,7 @@ TEMPLATES = ROOT / "vulnhunter" / "web" / "templates" / "web"
 SCRIPT = STATIC / "conversation-mobile-inspector.js"
 OPEN_ADAPTER = STATIC / "conversation-inspector-open.js"
 STORE = STATIC / "workspace-state.js"
+BRIDGE = STATIC / "conversation-mobile-bridge.js"
 TEMPLATE = TEMPLATES / "_mobile_analysis_inspector.html"
 CONVERSATION = TEMPLATES / "conversation.html"
 
@@ -24,6 +25,13 @@ def test_inspector_requires_the_authoritative_selected_assessment():
     assert 'document.addEventListener("vh:mobile-projection"' not in script
     assert 'document.addEventListener("vh:mobile-reset"' not in script
     assert "if (!hasAuthoritativeAssessment())" in script
+
+
+def test_historical_mobile_plan_messages_are_projection_anchors():
+    bridge = _text(BRIDGE)
+    assert ".vh-chat-message.is-mobile_plan" in bridge
+    assert 'document.querySelectorAll("[data-mobile-hunt-card]")' in bridge
+    assert "replaceSelectedAssessment(payload)" in bridge
 
 
 def test_selected_assessment_store_announces_readiness_after_interface_is_defined():
@@ -70,8 +78,19 @@ def test_mobile_inspector_is_contextual_and_has_no_duplicate_bottom_navigation()
     assert "data-mobile-nav-destination" not in template
     assert "vh-mobile-workspace-nav" not in template
     assert "data-analysis-inspector-open" in conversation
-    for tab in ("overview", "activity", "findings", "artifacts", "reports"):
+    for tab in (
+        "overview",
+        "activity",
+        "findings",
+        "components",
+        "endpoints",
+        "artifacts",
+        "source-hunt",
+        "reports",
+    ):
         assert f'data-inspector-tab="{tab}"' in template
+    assert "data-inspector-components-table" in template
+    assert "data-inspector-endpoints-table" in template
     assert 'data-inspector-tab="graph"' not in template
     assert "Evidence relationships" in template
 
@@ -112,7 +131,7 @@ def test_inspector_tabs_have_keyboard_roving_focus():
     for key in ("ArrowLeft", "ArrowRight", "Home", "End"):
         assert key in script
     assert "tab.tabIndex = selected ? 0 : -1" in script
-    assert template.count('tabindex="-1"') == 6
+    assert template.count('tabindex="-1"') == 8
 
 
 def test_assessment_empty_states_are_compact_ordinary_language_statuses():

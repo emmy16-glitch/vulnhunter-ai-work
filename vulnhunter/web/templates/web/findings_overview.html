@@ -28,9 +28,9 @@
     </header>
 
     {% if findings %}
-      <div class="vh-table-wrap">
+      <div class="vh-table-wrap" data-security-table="findings" data-security-table-title="Findings" data-security-table-description="Persisted evidence-backed records; browser selection does not grant authority." data-security-table-empty="No findings match the current view." data-security-table-filters='[{"id":"verification","label":"Verification","options":[{"value":"all","label":"All states"},{"value":"verified","label":"Verified"},{"value":"candidate","label":"Candidate"},{"value":"rejected","label":"Rejected"}]},{"id":"severity","label":"Severity","options":[{"value":"all","label":"All severities"},{"value":"critical","label":"Critical"},{"value":"high","label":"High"},{"value":"medium","label":"Medium"},{"value":"low","label":"Low"}]}]'>
         <table class="vh-table">
-          <thead><tr><th>Finding</th><th>Severity</th><th>Verification</th><th>Confidence</th><th>Target</th><th>Assessment</th><th>Action</th></tr></thead>
+          <thead><tr><th data-column-id="finding" data-critical="true">Finding</th><th data-column-id="severity" data-critical="true">Severity</th><th data-column-id="verification" data-critical="true">Verification</th><th data-column-id="confidence">Confidence</th><th data-column-id="target">Target</th><th data-column-id="assessment">Assessment</th><th data-column-id="action">Action</th></tr></thead>
           <tbody>
             {% for finding in findings %}
               <tr>

@@ -195,6 +195,10 @@ def test_contextual_inspector_keeps_report_bound_to_selected_assessment():
     assert 'data-inspector-panel="reports"' in template
     assert "Format readiness is unavailable until the server provides" in template
     assert "data-inspector-reports" in template
+    assert "data-inspector-components-table" in template
+    assert "data-inspector-endpoints-table" in template
+    assert 'componentsTable: select("components-table")' in script
+    assert 'endpointsTable: select("endpoints-table")' in script
     assert 'reports: select("reports")' in script
     assert "const updateReports = () =>" in script
     assert "state.projection?.report" in script
@@ -240,3 +244,5 @@ def test_reference_workspace_shell_and_empty_state_hooks_are_present():
     assert ".vh-chat-tasks-panel" in styles
     assert ".vh-empty-workspace" in styles
     assert ".vh-empty-investigation-grid" in styles
+    assert "data-conversation-context-bar" in template
+    assert "vh-conversation-context" in styles

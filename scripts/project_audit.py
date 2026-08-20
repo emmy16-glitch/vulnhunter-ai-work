@@ -340,6 +340,16 @@ def main() -> None:
     print(f"Audit JSON: {json_path}")
     print(f"Audit report: {markdown_path}")
     print(f"Warnings: {len(result.warnings)}")
+    for warning in result.warnings:
+        print(f"Warning: {warning}")
+    if result.tracked_sensitive_name_hits:
+        print("Sensitive-looking tracked paths:")
+        for path in result.tracked_sensitive_name_hits:
+            print(f"  - {path}")
+    if result.tracked_generated_artifact_hits:
+        print("Tracked generated artifact paths:")
+        for path in result.tracked_generated_artifact_hits:
+            print(f"  - {path}")
 
     if arguments.strict and result.warnings:
         raise SystemExit(1)

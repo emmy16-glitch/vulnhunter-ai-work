@@ -157,16 +157,16 @@ def test_assessment_inspector_uses_task_language_before_system_language():
     template = _text(TEMPLATE)
     assert 'data-contract-name="Assessment Inspector"' in template
     for copy in (
-        "Assessment details",
+        "Assessment lifecycle",
         "Assessment ID",
         "Select an assessment to see its scope.",
-        "Saved assessment progress",
-        "Task stages",
-        "Persisted assessment state",
+        "Analysis capabilities",
+        "Persisted tool and policy state",
         "Activity",
         "Persisted events",
-        "Execution status",
+        "Worker status",
         "Backend-owned state",
+        "does not imply that every analysis capability completed successfully",
     ):
         assert copy in template
     for implementation_copy in (

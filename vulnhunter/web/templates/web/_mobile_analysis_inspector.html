@@ -3,14 +3,15 @@
   <div class="vh-analysis-inspector-inner">
     <header class="vh-analysis-inspector-header">
       <div class="vh-analysis-inspector-title">
-        <div><small>Selected assessment</small><h2>Assessment details</h2></div>
+        <div><small>Assessment</small><h2>Details</h2></div>
         <button type="button" class="vh-analysis-inspector-close" data-analysis-inspector-close aria-label="Return to conversation">×</button>
       </div>
       <p class="vh-visually-hidden">Technical and audit details remain available here without competing with the primary conversation.</p>
       <div class="vh-analysis-progress-row">
-        <div><strong data-inspector-state>Not selected</strong><p data-inspector-stage>Select an assessment to view its saved state.</p></div>
+        <div><span class="vh-analysis-progress-label">Assessment lifecycle</span><strong data-inspector-state>Not selected</strong><p data-inspector-stage>Select an assessment to view its saved state.</p></div>
         <b data-inspector-progress-value aria-label="Progress unavailable">—</b>
-        <div class="vh-analysis-progress" data-inspector-progress aria-label="Saved assessment progress"></div>
+        <div class="vh-analysis-progress" data-inspector-progress aria-label="Saved assessment lifecycle progress"></div>
+        <p class="vh-analysis-progress-note">Lifecycle completion records persisted assessment stages; it does not imply that every analysis capability completed successfully.</p>
       </div>
     </header>
 
@@ -22,7 +23,7 @@
     </dl>
 
     <div class="vh-analysis-tabs" role="tablist" aria-label="Assessment detail views">
-      <button type="button" role="tab" class="is-active" data-inspector-tab="overview" aria-selected="true" aria-controls="vh-inspector-overview">Summary</button>
+      <button type="button" role="tab" class="is-active" data-inspector-tab="overview" aria-selected="true" aria-controls="vh-inspector-overview">Overview</button>
       <button type="button" role="tab" data-inspector-tab="activity" aria-selected="false" aria-controls="vh-inspector-activity" tabindex="-1">Activity</button>
       <button type="button" role="tab" data-inspector-tab="findings" aria-selected="false" aria-controls="vh-inspector-findings" tabindex="-1">Findings <b data-inspector-findings-count aria-label="Finding count unavailable">—</b></button>
       <button type="button" role="tab" data-inspector-tab="components" aria-selected="false" aria-controls="vh-inspector-components" tabindex="-1">Components <b data-inspector-components-count aria-label="Component count unavailable">—</b></button>
@@ -33,13 +34,13 @@
     </div>
 
     <div class="vh-analysis-panels">
-      <section id="vh-inspector-overview" class="vh-analysis-panel" data-inspector-panel="overview" role="tabpanel" aria-label="Assessment summary">
+      <section id="vh-inspector-overview" class="vh-analysis-panel" data-inspector-panel="overview" role="tabpanel" aria-label="Assessment overview">
         <div class="vh-analysis-section">
-          <div class="vh-analysis-section-heading"><h3>Task stages</h3><small>Persisted assessment state</small></div>
+          <div class="vh-analysis-section-heading"><h3>Analysis capabilities</h3><small>Persisted tool and policy state</small></div>
           <div class="vh-inspector-tool-list" data-inspector-tools></div>
         </div>
         <div class="vh-analysis-section">
-          <div class="vh-analysis-section-heading"><h3>Execution status</h3><small>Backend-owned state</small></div>
+          <div class="vh-analysis-section-heading"><h3>Worker status</h3><small>Backend-owned state</small></div>
           <p class="vh-inspector-empty" data-inspector-worker role="status">Select an assessment to view its execution status.</p>
         </div>
       </section>

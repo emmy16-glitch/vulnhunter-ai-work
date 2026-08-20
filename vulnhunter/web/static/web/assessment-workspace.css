@@ -389,3 +389,405 @@
     transition: none;
   }
 }
+
+/* --------------------------------------------------------------------------
+   Canonical chat-first workspace composition
+   --------------------------------------------------------------------------
+   The global dark sidebar already owns task/conversation navigation. The
+   conversation surface therefore never renders a second permanent task rail,
+   and the assessment inspector remains contextual: overlay on normal desktop /
+   tablet widths, split-pane only on wide screens after an explicit open action.
+*/
+
+.vh-conversation-body .vh-chat-tasks-panel {
+  display: none !important;
+}
+
+.vh-chat-workspace,
+.vh-chat-workspace .vh-chat-main,
+.vh-chat-workspace .vh-chat-feed,
+.vh-chat-workspace .vh-message-copy,
+.vh-chat-workspace .vh-run-card,
+.vh-chat-workspace .vh-mobile-live-execution,
+.vh-chat-workspace .vh-mobile-plan-context,
+.vh-chat-workspace .vh-source-hunt-result {
+  word-break: normal;
+  overflow-wrap: break-word;
+}
+
+.vh-chat-workspace code,
+.vh-chat-workspace pre,
+.vh-chat-workspace .vh-analysis-artifact code,
+.vh-chat-workspace .vh-source-hunt-graph-list small {
+  overflow-wrap: anywhere;
+}
+
+.vh-chat-workspace .vh-chat-header {
+  min-height: 92px;
+  padding-top: 16px;
+  padding-bottom: 14px;
+}
+
+.vh-chat-workspace .vh-chat-context-line {
+  font-size: 11.5px;
+}
+
+.vh-chat-workspace .vh-chat-feed {
+  padding-top: 32px;
+  padding-bottom: 38px;
+}
+
+.vh-chat-workspace .vh-chat-composer-meta,
+.vh-chat-workspace .vh-composer-advanced > summary {
+  font-size: 10.5px;
+}
+
+/* The empty workspace is an invitation to start, not a second dashboard. */
+.vh-chat-workspace .vh-empty-workspace {
+  width: min(100%, 720px);
+  gap: 22px;
+  padding: 30px 32px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.vh-chat-workspace .vh-empty-workspace-header {
+  gap: 9px;
+}
+
+.vh-chat-workspace .vh-empty-workspace-header h2 {
+  font-size: 28px;
+}
+
+.vh-chat-workspace .vh-empty-workspace-header p {
+  max-width: 520px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.vh-chat-workspace .vh-empty-investigation-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.vh-chat-workspace .vh-empty-investigation-card {
+  min-height: 92px;
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-content: center;
+  column-gap: 12px;
+  row-gap: 3px;
+  padding: 16px;
+}
+
+.vh-chat-workspace .vh-empty-investigation-card > span {
+  grid-row: 1 / span 2;
+  width: 34px;
+  height: 34px;
+  background: var(--vh-pink-soft) !important;
+  color: var(--vh-ink) !important;
+}
+
+.vh-chat-workspace .vh-empty-investigation-card strong {
+  font-size: 14px;
+}
+
+.vh-chat-workspace .vh-empty-investigation-card small {
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.vh-chat-workspace .vh-empty-recent {
+  display: none;
+}
+
+/* Manual web authorization remains available only as progressive setup. Browser
+   Intelligence is started from the governed conversation/task path, not as a
+   permanent capability panel competing with APK or Source Hunt work. */
+.vh-chat-workspace .vh-chat-main > .vh-browser-intelligence-panel {
+  display: none;
+}
+
+.vh-chat-workspace:has(.vh-current-task-state:not(.is-idle))
+  .vh-chat-main > .vh-public-consent-panel {
+  display: none;
+}
+
+.vh-chat-workspace .vh-chat-main > .vh-public-consent-panel {
+  width: min(calc(100% - 44px), 860px);
+  margin: 18px auto 0;
+}
+
+/* Context should read like a human selection, while authoritative IDs remain
+   in JavaScript state and are revalidated on the server. */
+.vh-chat-workspace .vh-conversation-context {
+  width: min(calc(100% - 44px), 860px);
+  margin: 0 auto 8px;
+  padding: 10px 12px;
+  background: var(--vh-surface);
+}
+
+.vh-chat-workspace .vh-conversation-context-copy .vh-eyebrow {
+  margin-bottom: 4px;
+  font-size: 9.5px;
+}
+
+.vh-chat-workspace .vh-conversation-context-chip {
+  min-height: 28px;
+  padding: 4px 8px;
+  font-size: 11px;
+}
+
+.vh-chat-workspace .vh-chat-details-action {
+  order: -1;
+}
+
+/* Inspector: compact hierarchy, readable metadata, distinct lifecycle wording. */
+.vh-chat-workspace .vh-analysis-inspector[hidden] {
+  display: none !important;
+}
+
+.vh-chat-workspace .vh-analysis-inspector-header {
+  padding: 18px;
+}
+
+.vh-chat-workspace .vh-analysis-inspector-title small {
+  font-size: 10px;
+}
+
+.vh-chat-workspace .vh-analysis-inspector-title h2 {
+  font-size: 20px;
+}
+
+.vh-chat-workspace .vh-analysis-progress-label {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--vh-muted);
+  font-family: var(--vh-font-mono);
+  font-size: 9.5px;
+  font-weight: 720;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.vh-chat-workspace .vh-analysis-progress-row strong {
+  font-size: 13px;
+}
+
+.vh-chat-workspace .vh-analysis-progress-row p {
+  font-size: 11.5px;
+}
+
+.vh-chat-workspace .vh-analysis-progress-row > b {
+  font-size: 11px;
+}
+
+.vh-chat-workspace .vh-analysis-progress-note {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--vh-muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.vh-chat-workspace .vh-analysis-tabs {
+  gap: 4px;
+  padding: 9px 12px;
+}
+
+.vh-chat-workspace .vh-analysis-tabs button {
+  min-height: 38px;
+  padding: 6px 9px;
+  font-size: 10.5px;
+}
+
+.vh-chat-workspace .vh-analysis-panel {
+  padding: 18px;
+}
+
+.vh-chat-workspace .vh-analysis-section-heading h3,
+.vh-chat-workspace .vh-analysis-section-heading h4 {
+  font-size: 14px;
+}
+
+.vh-chat-workspace .vh-analysis-section-heading small {
+  font-size: 9.5px;
+}
+
+.vh-chat-workspace .vh-inspector-tool-list {
+  gap: 0;
+  border-top: 1px solid var(--vh-line);
+}
+
+.vh-chat-workspace .vh-inspector-tool {
+  min-height: 48px;
+  gap: 10px;
+  padding: 9px 4px;
+  border: 0;
+  border-bottom: 1px solid var(--vh-line);
+  background: transparent;
+}
+
+.vh-chat-workspace .vh-inspector-tool-marker {
+  width: 26px;
+  height: 26px;
+}
+
+.vh-chat-workspace .vh-inspector-tool strong {
+  font-size: 12.5px;
+}
+
+.vh-chat-workspace .vh-inspector-tool small,
+.vh-chat-workspace .vh-inspector-tool em {
+  font-size: 10.5px;
+}
+
+.vh-chat-workspace .vh-inspector-tool.is-partial .vh-inspector-tool-marker::before {
+  content: "~";
+}
+
+.vh-chat-workspace .vh-inspector-tool.is-blocked .vh-inspector-tool-marker::before {
+  content: "×";
+}
+
+.vh-chat-workspace .vh-inspector-tool.is-not_applicable .vh-inspector-tool-marker::before,
+.vh-chat-workspace .vh-inspector-tool.is-not-applicable .vh-inspector-tool-marker::before {
+  content: "—";
+}
+
+.vh-chat-workspace .vh-inspector-finding strong,
+.vh-chat-workspace .vh-inspector-artifact-list strong {
+  font-size: 13px;
+}
+
+.vh-chat-workspace .vh-inspector-finding small,
+.vh-chat-workspace .vh-inspector-artifact-list small,
+.vh-chat-workspace .vh-inspector-finding p,
+.vh-chat-workspace .vh-inspector-artifact-list p,
+.vh-chat-workspace .vh-inspector-artifact-list code,
+.vh-chat-workspace .vh-inspector-empty {
+  font-size: 11px;
+}
+
+/* The global sidebar is the one persistent navigation rail. Keep recent chat
+   rows useful but bounded; full history is still available through History. */
+.vh-conversation-body .vh-chat-shell .vh-chat-thread-list li:nth-child(n + 7) {
+  display: none;
+}
+
+/* Default desktop/tablet: conversation keeps full width; contextual details
+   overlay without shrinking it. */
+@media (min-width: 768px) and (max-width: 1439px) {
+  .vh-conversation-body .vh-chat-layout,
+  .vh-conversation-body .vh-chat-workspace.has-analysis-inspector .vh-chat-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .vh-conversation-body .vh-chat-main {
+    grid-column: 1;
+    min-width: 0;
+    border-right: 0;
+  }
+
+  .vh-conversation-body .vh-analysis-inspector:not([hidden]) {
+    position: absolute;
+    inset: 0 0 0 auto;
+    z-index: 80;
+    display: block !important;
+    width: min(430px, calc(100% - 32px));
+    border-left: 1px solid var(--vh-ink);
+    background: var(--vh-surface);
+    box-shadow: -5px 0 0 rgba(23, 23, 27, 0.14);
+  }
+}
+
+/* Wide desktop: the inspector may share the workspace only after the user
+   explicitly opens it. There is never a second permanent Chats & Tasks rail. */
+@media (min-width: 1440px) {
+  .vh-conversation-body .vh-chat-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .vh-conversation-body .vh-chat-main {
+    grid-column: 1;
+    min-width: 0;
+    border-right: 0;
+  }
+
+  .vh-conversation-body .vh-analysis-inspector {
+    display: none !important;
+    position: relative;
+    inset: auto;
+    width: auto;
+    box-shadow: none;
+  }
+
+  .vh-conversation-body .vh-chat-workspace.has-analysis-inspector .vh-chat-layout {
+    grid-template-columns: minmax(620px, 1fr) minmax(360px, var(--vh-inspector-width));
+  }
+
+  .vh-conversation-body
+    .vh-chat-workspace.has-analysis-inspector
+    .vh-analysis-inspector:not([hidden]) {
+    display: block !important;
+    grid-column: 2;
+    min-height: 0;
+  }
+
+  .vh-conversation-body .vh-analysis-inspector-close {
+    display: grid;
+  }
+}
+
+@media (max-width: 767px) {
+  .vh-chat-workspace .vh-chat-header {
+    min-height: 86px;
+  }
+
+  .vh-chat-workspace .vh-chat-context-line {
+    font-size: 10.5px;
+  }
+
+  .vh-chat-workspace .vh-empty-workspace {
+    width: 100%;
+    gap: 20px;
+    margin: 12px auto;
+    padding: 22px 12px;
+  }
+
+  .vh-chat-workspace .vh-empty-investigation-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .vh-chat-workspace .vh-empty-investigation-card {
+    min-height: 82px;
+  }
+
+  .vh-chat-workspace .vh-chat-composer-meta,
+  .vh-chat-workspace .vh-composer-advanced > summary {
+    font-size: 10px;
+  }
+
+  .vh-chat-workspace .vh-conversation-context {
+    width: calc(100% - 20px);
+    align-items: center;
+    flex-direction: row;
+    gap: 8px;
+    padding: 8px 10px;
+  }
+
+  .vh-chat-workspace .vh-conversation-context .vh-button-secondary {
+    width: auto;
+    min-height: 38px;
+  }
+
+  .vh-chat-workspace .vh-analysis-tabs button {
+    min-height: 44px;
+    font-size: 11px;
+  }
+
+  .vh-chat-workspace .vh-analysis-panel {
+    padding: 16px;
+    padding-bottom: max(26px, env(safe-area-inset-bottom));
+  }
+}

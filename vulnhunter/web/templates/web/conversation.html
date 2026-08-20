@@ -6,7 +6,7 @@
   <link rel="stylesheet" href="{% static 'web/conversation.css' %}?v=20260819-reference-shell1">
   <link rel="stylesheet" href="{% static 'web/conversation-mobile-execution.css' %}?v=20260819-reference-shell1">
   <link rel="stylesheet" href="{% static 'web/conversation-mobile-deferred-tools.css' %}?v=20260812-ui2">
-  <link rel="stylesheet" href="{% static 'web/assessment-workspace.css' %}?v=20260812-ui2">
+  <link rel="stylesheet" href="{% static 'web/assessment-workspace.css' %}?v=20260820-chat-first1">
   <link rel="stylesheet" href="{% static 'web/public-consent.css' %}?v=20260819-consent1">
   <link rel="stylesheet" href="{% static 'web/analysis-activity.css' %}?v=20260819-activity1">
   <link rel="stylesheet" href="{% static 'web/browser-intelligence.css' %}?v=20260820-obscura1">
@@ -19,8 +19,9 @@
   <script src="{% static 'web/conversation-autoscroll.js' %}?v=20260727-phone-acceptance1" defer></script>
   <script src="{% static 'web/conversation-mobile-bridge.js' %}?v=20260820-historical-hydration2" defer></script>
   <script src="{% static 'web/conversation-mobile.js' %}?v=20260819-reference-shell1" defer></script>
-  <script src="{% static 'web/conversation-mobile-context.js' %}?v=20260727-phone-acceptance1" defer></script>
+  <script src="{% static 'web/conversation-mobile-context.js' %}?v=20260820-chat-first1" defer></script>
   <script src="{% static 'web/conversation-mobile-inspector.js' %}?v=20260812-ui2" defer></script>
+  <script src="{% static 'web/conversation-inspector-open.js' %}?v=20260820-chat-first1" defer></script>
   <script src="{% static 'web/conversation-mobile-deferred-tools.js' %}?v=20260727-phone-acceptance1" defer></script>
   <script src="{% static 'web/assessment-workspace.js' %}?v=20260812-ui2" defer></script>
   <script src="{% static 'web/public-consent.js' %}?v=20260819-consent1" defer></script>
@@ -47,6 +48,9 @@
     </div>
 
     <div class="vh-chat-runtime" aria-label="Workspace actions">
+      {% if conversation.active_run %}
+        <button type="button" class="vh-chat-icon-action vh-chat-details-action" data-analysis-inspector-open aria-label="Open assessment details"><span>Details</span></button>
+      {% endif %}
       <button type="button" class="vh-chat-icon-action" data-history-toggle aria-expanded="false" aria-controls="vh-chat-history" aria-label="Open workspace history"><svg aria-hidden="true"><use href="#vh-i-history"></use></svg><span>History</span></button>
       <details class="vh-task-menu vh-context-menu">
         <summary class="vh-chat-icon-action" aria-label="More workspace actions"><span aria-hidden="true">•••</span></summary>
@@ -65,7 +69,7 @@
   </button>
 
   <div class="vh-chat-layout">
-    <aside class="vh-chat-tasks-panel" data-chat-tasks-panel aria-label="Chats and tasks">
+    <aside class="vh-chat-tasks-panel" data-chat-tasks-panel aria-label="Chats and tasks" hidden>
       <header class="vh-chat-tasks-panel-header">
         <div><p class="vh-eyebrow">Workspace</p><h2>Chats &amp; Tasks</h2></div>
         <button type="button" class="vh-chat-tasks-expand" data-history-toggle aria-label="Open all conversations">↗</button>
@@ -75,25 +79,7 @@
         <button type="button" data-task-filter="completed" role="tab" aria-selected="false">Completed <b>{{ conversation.task_counts.completed|default:0 }}</b></button>
         <button type="button" data-task-filter="cancelled" role="tab" aria-selected="false">Cancelled <b>{{ conversation.task_counts.cancelled|default:0 }}</b></button>
       </div>
-      <div class="vh-chat-tasks-list" data-desktop-task-list>
-        {% if conversation.active_run %}
-          <a class="vh-desktop-task-card is-active" data-task-state="{{ conversation.active_run.state|default:'active'|lower }}" href="{{ conversation.active_run.detail_url }}" aria-current="page">
-            <span class="vh-desktop-task-icon vh-is-apk" aria-hidden="true">APK</span>
-            <span><strong>{{ conversation.active_run.target|default:"Current APK analysis"|truncatechars:32 }}</strong><small>{{ conversation.active_run.state|default:"running"|title }} · {{ conversation.active_run.scanner|default:"static worker"|title }}</small></span>
-            <time>{{ conversation.active_run.profile|default:"active"|title }}</time>
-          </a>
-        {% endif %}
-        {% for item in conversation.recent_runs|slice:":12" %}
-          <a class="vh-desktop-task-card{% if item.run_id == conversation.active_run.run_id %} is-active{% endif %}" data-task-state="{{ item.state|default:'completed'|lower }}" href="{{ item.detail_url }}">
-            <span class="vh-desktop-task-icon{% if 'apk' in item.target|lower %} vh-is-apk{% elif 'http' in item.target|lower %} vh-is-web{% else %} vh-is-code{% endif %}" aria-hidden="true">{% if 'apk' in item.target|lower %}APK{% elif 'http' in item.target|lower %}WEB{% else %}SRC{% endif %}</span>
-            <span><strong>{{ item.target|default:"Assessment"|truncatechars:32 }}</strong><small>{{ item.state|default:"completed"|title }} · {{ item.scanner|default:item.profile|default:"assessment"|title }}</small></span>
-            <time>{{ item.profile|default:"—"|title }}</time>
-          </a>
-        {% empty %}
-          <p class="vh-chat-tasks-empty">No persisted tasks yet.</p>
-        {% endfor %}
-      </div>
-      <button type="button" class="vh-chat-tasks-all" data-history-toggle>View all conversations <span aria-hidden="true">→</span></button>
+      <div class="vh-chat-tasks-list" data-desktop-task-list></div>
     </aside>
 
     <main class="vh-chat-main" aria-label="Assessment conversation">
@@ -112,60 +98,56 @@
         </div>
       </details>
 
-      <details class="vh-public-consent-panel" data-public-consent-panel>
-        <summary><span><strong>Authorize a public website</strong><small>Verify domain control for bounded passive mapping</small></span><b aria-hidden="true">+</b></summary>
-        <form data-public-consent-form action="{% url 'web-public-consent-verify' %}" method="post">
-          {% csrf_token %}
-          <p class="vh-public-consent-intro">The site owner must publish the challenge token at <code>/.well-known/vulnhunter-consent.json</code>. Verification does not enable active scanning or bypass approval gates.</p>
-          <div class="vh-public-consent-grid">
-            <label>HTTPS target URL<input name="target_url" type="url" placeholder="https://example.com/community/" required></label>
-            <label>Published challenge token<input name="challenge_token" type="text" minlength="16" maxlength="256" autocomplete="off" required></label>
-            <label>Owner or organization<input name="owner" type="text" maxlength="200" required></label>
-            <label>Approving person<input name="approved_by" type="text" maxlength="200" required></label>
-            <label class="vh-public-consent-wide">Approved purpose<textarea name="purpose" rows="2" maxlength="2000" required>Bounded passive mapping</textarea></label>
-            <label>Authorization expires<input name="expires_at" type="datetime-local" required></label>
-          </div>
-          <div class="vh-public-consent-actions"><button type="submit" class="vh-button-primary" data-public-consent-submit>Verify consent</button><span data-public-consent-status role="status" aria-live="polite"></span></div>
-        </form>
-      </details>
-
-      <details class="vh-browser-intelligence-panel" data-browser-intelligence-panel>
-        <summary><span><strong>Browser Intelligence</strong><small>Run bounded browser evidence through the governed worker</small></span><b aria-hidden="true">+</b></summary>
-        <form data-browser-intelligence-form action="{% url 'web-conversation-browser-intelligence-start' %}" method="post">
-          {% csrf_token %}
-          <div class="vh-browser-intelligence-grid">
-            <label>Authorized target URL<input name="target_url" type="url" placeholder="https://authorized.example/" required></label>
-            <label>Authorization ID<input name="authorization_id" type="text" placeholder="auth-…" autocomplete="off" required></label>
-          </div>
-          <p class="vh-browser-intelligence-boundary">Passive browser actions are available by default. Controlled interaction and credentials remain governed by the server policy; arbitrary evaluation is disabled.</p>
-          <div class="vh-browser-intelligence-actions"><button type="submit" class="vh-button-primary" data-browser-intelligence-start>Start Browser Intelligence</button><span data-browser-intelligence-status role="status" aria-live="polite"></span></div>
-        </form>
-        <div data-browser-intelligence-sessions></div>
-      </details>
       <div class="vh-chat-feed" data-conversation-feed data-follow-latest="true" aria-live="polite" aria-relevant="additions text">
         <noscript><p class="vh-operational-notice is-danger">JavaScript is required for the interactive assessment workspace.</p></noscript>
         <section class="vh-empty-workspace" data-conversation-empty aria-labelledby="vh-empty-workspace-title"{% if conversation.has_user_messages or conversation.active_run %} hidden aria-hidden="true"{% endif %}>
-            <header class="vh-empty-workspace-header">
-              <span class="vh-empty-workspace-mark" aria-hidden="true"><svg><use href="#vh-i-shield"></use></svg></span>
-              <h2 id="vh-empty-workspace-title">VulnHunter Workspace</h2>
-              <p>What do you want to investigate?</p>
-            </header>
-            <div class="vh-empty-investigation-grid" aria-label="Investigation shortcuts">
-              <button type="button" class="vh-empty-investigation-card is-apk" data-empty-prompt="Please analyse this APK for security issues."><span aria-hidden="true"><svg><use href="#vh-i-mobile"></use></svg></span><strong>Analyse an APK</strong><small>Upload and analyse an Android application</small></button>
-              <button type="button" class="vh-empty-investigation-card is-web" data-empty-prompt="Assess this authorised public website for security issues."><span aria-hidden="true"><svg><use href="#vh-i-globe"></use></svg></span><strong>Assess a website</strong><small>Scan and analyse an authorised website</small></button>
-              <button type="button" class="vh-empty-investigation-card is-source" data-empty-prompt="Review this source code for security issues."><span aria-hidden="true"><svg><use href="#vh-i-policy"></use></svg></span><strong>Review source</strong><small>Inspect code, resources and configurations</small></button>
-              <button type="button" class="vh-empty-investigation-card is-findings" data-empty-prompt="Review the persisted findings from this assessment."><span aria-hidden="true"><svg><use href="#vh-i-finding"></use></svg></span><strong>Review findings</strong><small>Explore and triage previous results</small></button>
+          <header class="vh-empty-workspace-header">
+            <span class="vh-empty-workspace-mark" aria-hidden="true"><svg><use href="#vh-i-shield"></use></svg></span>
+            <h2 id="vh-empty-workspace-title">VulnHunter Workspace</h2>
+            <p>What do you want to investigate?</p>
+          </header>
+          <div class="vh-empty-investigation-grid" aria-label="Investigation shortcuts">
+            <button type="button" class="vh-empty-investigation-card is-apk" data-empty-prompt="Please analyse this APK for security issues."><span aria-hidden="true"><svg><use href="#vh-i-mobile"></use></svg></span><strong>Analyse an APK</strong><small>Upload and analyse an Android application</small></button>
+            <button type="button" class="vh-empty-investigation-card is-web" data-empty-prompt="Assess this authorised public website for security issues."><span aria-hidden="true"><svg><use href="#vh-i-globe"></use></svg></span><strong>Assess a website</strong><small>Scan and analyse an authorised website</small></button>
+            <button type="button" class="vh-empty-investigation-card is-source" data-empty-prompt="Review this source code for security issues."><span aria-hidden="true"><svg><use href="#vh-i-policy"></use></svg></span><strong>Source Hunt</strong><small>Trace attack surfaces, controls and source evidence</small></button>
+            <button type="button" class="vh-empty-investigation-card is-findings" data-empty-prompt="Review the persisted findings from this assessment."><span aria-hidden="true"><svg><use href="#vh-i-finding"></use></svg></span><strong>Review findings</strong><small>Explore and triage previous results</small></button>
+          </div>
+
+          <details class="vh-inline-disclosure vh-empty-advanced-start">
+            <summary>Advanced setup</summary>
+            <div class="vh-disclosure-body vh-empty-advanced-start-body">
+              <details class="vh-public-consent-panel" data-public-consent-panel>
+                <summary><span><strong>Authorize a public website</strong><small>Verify domain control for bounded passive mapping</small></span><b aria-hidden="true">+</b></summary>
+                <form data-public-consent-form action="{% url 'web-public-consent-verify' %}" method="post">
+                  {% csrf_token %}
+                  <p class="vh-public-consent-intro">The site owner must publish the challenge token at <code>/.well-known/vulnhunter-consent.json</code>. Verification does not enable active scanning or bypass approval gates.</p>
+                  <div class="vh-public-consent-grid">
+                    <label>HTTPS target URL<input name="target_url" type="url" placeholder="https://example.com/community/" required></label>
+                    <label>Published challenge token<input name="challenge_token" type="text" minlength="16" maxlength="256" autocomplete="off" required></label>
+                    <label>Owner or organization<input name="owner" type="text" maxlength="200" required></label>
+                    <label>Approving person<input name="approved_by" type="text" maxlength="200" required></label>
+                    <label class="vh-public-consent-wide">Approved purpose<textarea name="purpose" rows="2" maxlength="2000" required>Bounded passive mapping</textarea></label>
+                    <label>Authorization expires<input name="expires_at" type="datetime-local" required></label>
+                  </div>
+                  <div class="vh-public-consent-actions"><button type="submit" class="vh-button-primary" data-public-consent-submit>Verify consent</button><span data-public-consent-status role="status" aria-live="polite"></span></div>
+                </form>
+              </details>
+
+              <details class="vh-browser-intelligence-panel" data-browser-intelligence-panel>
+                <summary><span><strong>Browser Intelligence</strong><small>Run bounded browser evidence through the governed worker</small></span><b aria-hidden="true">+</b></summary>
+                <form data-browser-intelligence-form action="{% url 'web-conversation-browser-intelligence-start' %}" method="post">
+                  {% csrf_token %}
+                  <div class="vh-browser-intelligence-grid">
+                    <label>Authorized target URL<input name="target_url" type="url" placeholder="https://authorized.example/" required></label>
+                    <label>Authorization ID<input name="authorization_id" type="text" placeholder="auth-…" autocomplete="off" required></label>
+                  </div>
+                  <p class="vh-browser-intelligence-boundary">Passive browser actions are available by default. Controlled interaction and credentials remain governed by the server policy; arbitrary evaluation is disabled.</p>
+                  <div class="vh-browser-intelligence-actions"><button type="submit" class="vh-button-primary" data-browser-intelligence-start>Start Browser Intelligence</button><span data-browser-intelligence-status role="status" aria-live="polite"></span></div>
+                </form>
+                <div data-browser-intelligence-sessions></div>
+              </details>
             </div>
-            <section class="vh-empty-recent" aria-labelledby="vh-empty-recent-title">
-              <header><h3 id="vh-empty-recent-title">Recent</h3><button type="button" data-history-toggle>View all history <span aria-hidden="true">→</span></button></header>
-              <div class="vh-empty-recent-list">
-                {% for item in conversation.recent_runs|slice:":3" %}
-                  <a href="{{ item.detail_url }}" class="vh-empty-recent-item"><span class="vh-empty-recent-icon" aria-hidden="true">{% if 'apk' in item.target|lower %}APK{% elif 'http' in item.target|lower %}WEB{% else %}SRC{% endif %}</span><span><strong>{{ item.target|default:"Assessment"|truncatechars:42 }}</strong><small>{{ item.profile|default:"assessment"|title }}</small></span><span class="vh-empty-recent-state is-{{ item.state|default:'completed'|lower }}">{{ item.state|default:"completed"|title }}</span><time>{{ item.updated_at|slice:":10" }}</time></a>
-                {% empty %}
-                  <p class="vh-empty-recent-none">No persisted assessments yet.</p>
-                {% endfor %}
-              </div>
-            </section>
+          </details>
         </section>
       </div>
 
@@ -176,10 +158,10 @@
 
       <section class="vh-conversation-context" data-conversation-context-bar hidden aria-label="Current investigation context" aria-live="polite">
         <div class="vh-conversation-context-copy">
-          <span class="vh-eyebrow">Investigation context</span>
+          <span class="vh-eyebrow">Context</span>
           <div data-conversation-context-items></div>
         </div>
-        <button type="button" class="vh-button-secondary" data-conversation-context-clear>Clear selection</button>
+        <button type="button" class="vh-button-secondary" data-conversation-context-clear>Clear</button>
       </section>
 
       <form

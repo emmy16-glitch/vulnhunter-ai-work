@@ -6,6 +6,7 @@ from unittest.mock import Mock, patch
 
 from django.test import RequestFactory
 
+from vulnhunter.browser_intelligence import BrowserMode
 from vulnhunter.web import browser_intelligence_views as views
 
 
@@ -14,13 +15,32 @@ def _user() -> SimpleNamespace:
 
 
 def _service() -> SimpleNamespace:
+    capabilities = SimpleNamespace(
+        screenshot_available=True,
+        network_available=True,
+        console_available=True,
+        forms_available=True,
+        interactive_elements_available=True,
+        model_dump=lambda mode=None: {
+            "screenshot_available": True,
+            "network_available": True,
+            "console_available": True,
+            "forms_available": True,
+            "interactive_elements_available": True,
+        },
+    )
     session = SimpleNamespace(
         session_id="browser-session-1",
         owner_id="reviewer-1",
         runtime="obscura",
         runtime_version="0.2.0",
-        capabilities=SimpleNamespace(model_dump=lambda mode=None: {"snapshot": True}),
-        model_dump=lambda mode=None: {"session_id": "browser-session-1", "owner_id": "reviewer-1"},
+        mode=BrowserMode.PASSIVE,
+        capabilities=capabilities,
+        model_dump=lambda mode=None: {
+            "session_id": "browser-session-1",
+            "owner_id": "reviewer-1",
+            "mode": "passive",
+        },
     )
     service = SimpleNamespace(session=session)
     service.execute_action = Mock(
@@ -56,10 +76,18 @@ def test_start_returns_authoritative_session_and_message():
     assert payload["session"]["session_id"] == "browser-session-1"
     assert payload["message"]["kind"] == "browser_intelligence"
     assert payload["runtime_attached"] is True
+    assert "snapshot" in payload["allowed_actions"]
+    assert "take_screenshot" in payload["allowed_actions"]
+    assert "fill" not in payload["allowed_actions"]
+    assert "type" not in payload["allowed_actions"]
+    assert "select_option" not in payload["allowed_actions"]
     assert payload["blocked_actions"] == [
         "evaluate",
         "request_interception",
         "response_mutation",
+        "fill",
+        "type",
+        "select_option",
     ]
 
 
@@ -152,6 +180,7 @@ def test_state_restores_persisted_session_without_spawning_runtime():
     assert payload["ok"] is True
     assert payload["runtime_attached"] is False
     assert payload["allowed_actions"] == []
+    assert "fill" in payload["blocked_actions"]
     assert "runtime_detached" in payload["blocked_actions"]
     assert "Persisted browser state was restored" in payload["recovery"]
     store.load_session.assert_called_once_with(

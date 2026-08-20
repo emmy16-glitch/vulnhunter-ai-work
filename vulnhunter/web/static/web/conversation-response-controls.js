@@ -62,6 +62,7 @@
   const messageUrl = new URL(initial.message_url, window.location.href);
   const assessmentStop = workspace.querySelector("[data-conversation-stop]");
   const canonicalEmpty = feed.querySelector("[data-conversation-empty]");
+  if (canonicalEmpty) canonicalEmpty.dataset.chatEmptyState = "canonical";
   const terminalRunStates = new Set([
     "cancelled",
     "completed",
@@ -195,7 +196,9 @@
         ".vh-chat-message, [data-run-card], .vh-chat-action-card:not([data-empty-helper]), [data-browser-intelligence-card]",
       ),
     );
-    const syntheticEmpty = feed.querySelector("[data-chat-empty-state]");
+    const syntheticEmpty = feed.querySelector(
+      "[data-chat-empty-state]:not([data-conversation-empty])",
+    );
     if (hasConversation) {
       canonicalEmpty.hidden = true;
       canonicalEmpty.setAttribute("aria-hidden", "true");

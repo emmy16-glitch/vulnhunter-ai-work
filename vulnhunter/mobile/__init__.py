@@ -8,6 +8,17 @@ from vulnhunter.mobile.connectors import (
     build_mobile_connector_plan,
 )
 from vulnhunter.mobile.findings import correlate_mobile_findings
+from vulnhunter.mobile.intelligence import (
+    MobileAnalysisIntelligence,
+    MobileComponentSurface,
+    MobileEndpointReference,
+    MobileEvidenceState,
+    MobileOwnership,
+    MobileRecordType,
+    MobileToolExecutionStatus,
+    MobileTransportCorrelation,
+    build_mobile_intelligence,
+)
 from vulnhunter.mobile.manifest import analyze_decoded_manifest
 from vulnhunter.mobile.models import (
     MobileAnalysisProfile,
@@ -29,8 +40,17 @@ __all__ = [
     "MobileArtifactIngestor",
     "MobileArtifactRecord",
     "MobileFinding",
+    "MobileAnalysisIntelligence",
+    "MobileComponentSurface",
+    "MobileEndpointReference",
+    "MobileEvidenceState",
+    "MobileOwnership",
+    "MobileRecordType",
+    "MobileToolExecutionStatus",
+    "MobileTransportCorrelation",
     "analyze_decoded_manifest",
     "build_mobile_connector_plan",
+    "build_mobile_intelligence",
     "correlate_mobile_findings",
     "parse_apkid_json",
     "parse_mobsf_json",

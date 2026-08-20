@@ -106,3 +106,34 @@ def test_evidence_zip_contains_hash_manifest(tmp_path):
     with zipfile.ZipFile(artifact.path) as archive:
         manifest = json.loads(archive.read("manifest.json"))
     assert manifest["entries"][0]["sha256"]
+
+
+def test_layered_report_exports_are_machine_readable(tmp_path):
+    from pathlib import Path
+
+    from vulnhunter.mobile.layered_analysis import analyze_package
+    from vulnhunter.mobile.report_exports import (
+        endpoints_csv,
+        to_cyclonedx,
+        to_graph_json,
+        to_sarif,
+    )
+
+    package = tmp_path / "sample-layered.apk"
+    with zipfile.ZipFile(package, "w") as archive:
+        archive.writestr("AndroidManifest.xml", b'<manifest package="com.example.app"/>')
+        archive.writestr("classes.dex", b"dex\n035\x00" + b"x" * 128 + b"https://api.example.com")
+        archive.writestr("lib/arm64-v8a/libsample.so", b"\x7fELF" + b"x" * 32)
+
+    report = analyze_package(Path(package))
+    sarif = to_sarif(report)
+    cyclonedx = to_cyclonedx(report)
+    graph = to_graph_json(report)
+    csv_text = endpoints_csv(report)
+
+    assert sarif["version"] == "2.1.0"
+    assert cyclonedx["bomFormat"] == "CycloneDX"
+    assert cyclonedx["components"]
+    assert graph["nodes"]
+    assert graph["edges"]
+    assert "endpoint,host,port,protocol" in csv_text

@@ -1,0 +1,300 @@
+/* VulnHunter Browser Intelligence presentation.
+   This stylesheet owns the browser-worker setup and persisted browser evidence
+   projection. It deliberately uses the shared warm editorial design language;
+   browser execution remains governed by backend policy and action receipts. */
+
+.vh-browser-intelligence-panel {
+  margin: 0;
+  border: 1px solid var(--vh-line);
+  border-radius: 2px;
+  background: var(--vh-surface);
+  color: var(--vh-ink);
+}
+
+.vh-browser-intelligence-panel > summary {
+  display: flex;
+  min-height: 52px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 14px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.vh-browser-intelligence-panel > summary::-webkit-details-marker {
+  display: none;
+}
+
+.vh-browser-intelligence-panel > summary > span {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.vh-browser-intelligence-panel > summary strong {
+  font-size: 13.5px;
+  line-height: 1.35;
+}
+
+.vh-browser-intelligence-panel > summary small,
+.vh-browser-intelligence-boundary {
+  color: var(--vh-muted);
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+.vh-browser-intelligence-panel > summary > b {
+  color: var(--vh-muted);
+  font-family: var(--vh-font-mono);
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.vh-browser-intelligence-panel[open] > summary {
+  border-bottom: 1px solid var(--vh-line);
+  background: var(--vh-pink-soft);
+}
+
+.vh-browser-intelligence-panel form {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+}
+
+.vh-browser-intelligence-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.vh-browser-intelligence-grid label {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+  color: var(--vh-ink);
+  font-family: var(--vh-font-mono);
+  font-size: 10.5px;
+  font-weight: 700;
+}
+
+.vh-browser-intelligence-grid input {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 9px 11px;
+  border: 1px solid var(--vh-line-strong);
+  border-radius: 2px;
+  background: var(--vh-surface-strong);
+  color: var(--vh-ink);
+  font-family: var(--vh-font-family);
+  font-size: 13.5px;
+}
+
+.vh-browser-intelligence-grid input:focus-visible {
+  outline: 2px solid var(--vh-pink);
+  outline-offset: 2px;
+}
+
+.vh-browser-intelligence-boundary {
+  margin: 0;
+}
+
+.vh-browser-intelligence-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.vh-browser-intelligence-actions [data-browser-intelligence-status] {
+  color: var(--vh-muted);
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+
+.vh-browser-intelligence-actions [data-browser-intelligence-status].is-completed {
+  color: var(--vh-success);
+}
+
+.vh-browser-intelligence-actions [data-browser-intelligence-status].is-failed {
+  color: var(--vh-danger);
+}
+
+/* Live browser sessions belong in the conversation timeline, not inside the
+   empty-workspace setup panel. The client moves this container to the feed. */
+.vh-browser-intelligence-sessions {
+  display: grid;
+  width: min(100%, var(--vh-reading-width));
+  gap: 16px;
+  margin: 0 auto;
+}
+
+.vh-browser-intelligence-sessions:empty {
+  display: none;
+}
+
+.vh-browser-intelligence-card {
+  display: grid;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--vh-ink);
+  border-radius: 2px;
+  background: var(--vh-surface);
+  box-shadow: 3px 3px 0 var(--vh-ink);
+  color: var(--vh-ink);
+}
+
+.vh-browser-intelligence-card > header {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 15px;
+  border-bottom: 1px solid var(--vh-line);
+  background: var(--vh-surface-strong);
+}
+
+.vh-browser-intelligence-card > header > div {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.vh-browser-intelligence-card > header strong {
+  overflow-wrap: anywhere;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.vh-browser-intelligence-card > header small {
+  color: var(--vh-muted);
+  font-family: var(--vh-font-mono);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.vh-browser-intelligence-card > header [data-browser-intelligence-state] {
+  flex: 0 0 auto;
+  padding: 4px 7px;
+  border: 1px solid var(--vh-line);
+  border-radius: 999px;
+  color: var(--vh-muted);
+  font-family: var(--vh-font-mono);
+  font-size: 9.5px;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+.vh-browser-intelligence-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  padding: 12px 15px;
+  border-bottom: 1px solid var(--vh-line);
+}
+
+.vh-browser-intelligence-controls button {
+  min-height: 38px;
+  padding: 7px 10px;
+  border: 1px solid var(--vh-line-strong);
+  border-radius: 2px;
+  background: var(--vh-surface);
+  color: var(--vh-ink);
+  font-family: var(--vh-font-mono);
+  font-size: 10.5px;
+  font-weight: 680;
+  cursor: pointer;
+}
+
+.vh-browser-intelligence-controls button:hover,
+.vh-browser-intelligence-controls button:focus-visible {
+  border-color: var(--vh-ink);
+  background: var(--vh-pink-soft);
+}
+
+.vh-browser-intelligence-controls button:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.vh-browser-intelligence-live {
+  display: grid;
+  gap: 0;
+  padding: 0 15px;
+}
+
+.vh-browser-intelligence-receipt {
+  margin: 0;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--vh-line);
+  color: var(--vh-muted);
+  font-family: var(--vh-font-mono);
+  font-size: 10.5px;
+  line-height: 1.5;
+  overflow-wrap: break-word;
+}
+
+.vh-browser-intelligence-receipt:last-child {
+  border-bottom: 0;
+}
+
+.vh-browser-intelligence-receipt.is-completed,
+.vh-browser-intelligence-receipt.is-recorded {
+  color: var(--vh-success);
+}
+
+.vh-browser-intelligence-receipt.is-failed {
+  color: var(--vh-danger);
+}
+
+.vh-browser-intelligence-card > a[data-browser-intelligence-evidence] {
+  margin: 0 15px 14px;
+  padding-top: 11px;
+  border-top: 1px solid var(--vh-line);
+  color: var(--vh-ink);
+  font-family: var(--vh-font-mono);
+  font-size: 10.5px;
+  font-weight: 700;
+}
+
+@media (max-width: 767px) {
+  .vh-browser-intelligence-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .vh-browser-intelligence-panel form {
+    padding: 14px;
+  }
+
+  .vh-browser-intelligence-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .vh-browser-intelligence-actions button,
+  .vh-browser-intelligence-controls button {
+    min-height: 44px;
+  }
+
+  .vh-browser-intelligence-card > header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .vh-browser-intelligence-card > header [data-browser-intelligence-state] {
+    justify-self: start;
+  }
+
+  .vh-browser-intelligence-controls {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 420px) {
+  .vh-browser-intelligence-controls {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

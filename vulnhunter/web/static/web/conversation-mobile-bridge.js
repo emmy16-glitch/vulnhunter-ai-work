@@ -3,6 +3,7 @@
 
   const originalFetch = window.fetch.bind(window);
   const retryUrl = "/workspace/mobile-retry/";
+  const sourceHuntUrl = "/workspace/mobile-source-hunt/";
   const retryStoragePrefix = "vh-mobile-retry:";
   let refreshGeneration = 0;
 
@@ -42,6 +43,7 @@
     if (value.includes("/workspace/attachments/") && method === "POST") return "attachment";
     if (value.includes("/workspace/mobile-message/") && method === "POST") return "plan";
     if (value.includes("/workspace/mobile-followup/") && method === "POST") return "followup";
+    if (value.includes("/workspace/mobile-source-hunt/") && method === "POST") return "source-hunt";
     if (value.includes("/workspace/mobile-context/") && method === "GET") return "context";
     if (value.includes("/workspace/mobile-status/") && method === "GET") return "status";
     if (value.includes("/workspace/mobile-retry/") && method === "GET") return "retry-read";
@@ -76,12 +78,16 @@
 
   const retryCard = () => {
     const cards = document.querySelectorAll("[data-mobile-hunt-card]");
-    return cards.length ? cards[cards.length - 1] : null;
+    if (cards.length) return cards[cards.length - 1];
+    // Historical conversations render a persisted mobile-plan message rather than
+    // the live task-card marker; it is still an authoritative projection anchor.
+    const persisted = document.querySelectorAll(".vh-chat-message.is-mobile_plan");
+    return persisted.length ? persisted[persisted.length - 1] : null;
   };
 
   const removeMobileProjectionControls = () => {
     document
-      .querySelectorAll("[data-mobile-task-projection], [data-mobile-retry-control]")
+      .querySelectorAll("[data-mobile-task-projection], [data-mobile-retry-control], [data-mobile-source-hunt]")
       .forEach((item) => item.remove());
   };
 
@@ -125,6 +131,14 @@
     const projection = snapshot?.assessment_projection;
     const taskCard = snapshot?.task_card;
     const card = retryCard();
+    const persistedSummary = card?.querySelector(".vh-persisted-mobile-plan");
+    if (persistedSummary && taskCard) {
+      const label = persistedSummary.querySelector("strong");
+      const detail = persistedSummary.querySelector("small");
+      const plan = snapshot?.mobile_plan || {};
+      if (label) label.textContent = `${readableStage(plan.profile || "mobile")} APK analysis`;
+      if (detail) detail.textContent = `${Number(plan.tool_count || 0)} tools · ${readableStage(taskCard.state || projection?.execution?.state || "unavailable")}`;
+    }
     if (!card || !taskCard || taskCard.assessment_id !== projection?.assessment_id) return;
 
     const panel = document.createElement("section");
@@ -176,6 +190,73 @@
 
     const timeline = renderStageTimeline(projection);
     if (timeline) panel.append(timeline);
+    card.append(panel);
+  };
+
+  const renderSourceHuntProjection = (snapshot) => {
+    document.querySelectorAll("[data-mobile-source-hunt]").forEach((item) => item.remove());
+    const projection = snapshot?.assessment_projection;
+    const sourceHunt = projection?.source_hunt;
+    const actions = Array.isArray(projection?.allowed_actions) ? projection.allowed_actions : [];
+    const card = retryCard();
+    if (!card || !sourceHunt || (!actions.includes("start_source_hunt") && !actions.includes("view_source_hunt_graph"))) return;
+
+    const panel = document.createElement("section");
+    panel.className = "vh-inline-approval vh-source-hunt-action";
+    panel.dataset.mobileSourceHunt = "";
+    panel.setAttribute("aria-live", "polite");
+    const title = document.createElement("strong");
+    title.textContent = "Source Hunt · APK attack surface";
+    const detail = document.createElement("p");
+    const graph = sourceHunt.graph || {};
+    const nodes = Number(graph.node_count ?? graph.nodes?.length ?? 0);
+    const edges = Number(graph.edge_count ?? graph.edges?.length ?? 0);
+    if (sourceHunt.report_ready) {
+      detail.textContent = `${readableStage(sourceHunt.state)} · ${nodes} graph nodes · ${edges} graph edges`;
+    } else {
+      detail.textContent = "Trace retained JADX source against exported components, candidates, guards and security-sensitive sinks. No APK execution or endpoint contact is performed.";
+    }
+    const status = document.createElement("small");
+    status.textContent = sourceHunt.error || (sourceHunt.report_ready ? "Persisted graph is available in the inspector." : "Deterministic validation remains bounded by retained source coverage.");
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "vh-button-primary";
+    button.textContent = sourceHunt.report_ready ? "View attack graph" : "Investigate with Source Hunt";
+    if (sourceHunt.report_ready) {
+      button.addEventListener("click", () => {
+        document.querySelector('[data-inspector-tab="source-hunt"]')?.click();
+      });
+      panel.append(title, detail, status, button);
+      card.append(panel);
+      return;
+    }
+    button.addEventListener("click", async () => {
+      if (button.disabled) return;
+      button.disabled = true;
+      button.setAttribute("aria-busy", "true");
+      status.textContent = "Running deterministic Source Hunt from the persisted APK receipt…";
+      const body = new FormData();
+      if (sourceHunt.selected_seed_id) body.append("seed_id", sourceHunt.selected_seed_id);
+      try {
+        const response = await originalFetch(sourceHuntUrl, {
+          method: "POST",
+          body,
+          credentials: "same-origin",
+          headers: { "X-CSRFToken": csrfToken(), Accept: "application/json" },
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.detail || "The Source Hunt handoff could not be completed.");
+        replaceSelectedAssessment(data);
+        if (data.message) emitSupportingState("vh:conversation-message", data.message);
+        status.textContent = "Source Hunt completed and the report was persisted.";
+      } catch (sourceHuntError) {
+        status.textContent = sourceHuntError instanceof Error ? sourceHuntError.message : "The Source Hunt handoff failed closed.";
+        button.disabled = false;
+      } finally {
+        button.removeAttribute("aria-busy");
+      }
+    });
+    panel.append(title, detail, status, button);
     card.append(panel);
   };
 
@@ -254,6 +335,7 @@
       return;
     }
     renderTaskProjection(snapshot);
+    renderSourceHuntProjection(snapshot);
     renderRetryProjection(snapshot);
   };
 
@@ -317,6 +399,9 @@
           emitSupportingState("vh:mobile-plan", payload.mobile_plan);
         } else if (kind === "status" && payload?.mobile_execution) {
           emitSupportingState("vh:mobile-status", payload.mobile_execution);
+        } else if (kind === "source-hunt") {
+          replaceSelectedAssessment(payload);
+          if (payload?.message) emitSupportingState("vh:conversation-message", payload.message);
         } else if (["retry-read", "retry-write"].includes(kind)) {
           replaceSelectedAssessment(payload);
         } else if (kind === "reset" || (kind === "followup" && payload?.handoff)) {

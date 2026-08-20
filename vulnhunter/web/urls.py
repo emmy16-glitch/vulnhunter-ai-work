@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-from django.urls import path
+from django.urls import include, path
 from django.views.generic import RedirectView
 
 from vulnhunter.web import (
     active_validation_conversation_views,
     audit_views,
+    browser_intelligence_views,
     conversation_approval_views,
     conversation_mobile_extension_views,
     conversation_mobile_retry_views,
@@ -17,7 +18,10 @@ from vulnhunter.web import (
     governance_workspace_views,
     intelligence_views,
     lab_views,
+    mobile_records_views,
+    mobile_source_hunt_views,
     operations_views,
+    public_consent_views,
     readiness,
     remediation_final_report_conversation_views,
     remediation_final_report_views,
@@ -35,6 +39,12 @@ from vulnhunter.web import (
 )
 
 urlpatterns = [
+    path("api/v1/", include("vulnhunter.api.urls")),
+    path(
+        "favicon.ico",
+        RedirectView.as_view(url="/static/web/favicon.svg", permanent=False),
+        name="web-favicon",
+    ),
     path("health/", views.health_view, name="web-health"),
     path("ready/", readiness.deployment_readiness_view, name="web-deployment-readiness"),
     path("login/", unified_assessment_views.UnifiedLoginView.as_view(), name="web-login"),
@@ -44,6 +54,11 @@ urlpatterns = [
         "workspace/message/",
         conversational_views.message_view,
         name="web-conversation-message",
+    ),
+    path(
+        "workspace/public-consent/verify/",
+        public_consent_views.verify_public_consent_view,
+        name="web-public-consent-verify",
     ),
     path(
         "workspace/active-validation/",
@@ -131,6 +146,41 @@ urlpatterns = [
         name="web-conversation-mobile-followup",
     ),
     path(
+        "workspace/mobile-source-hunt/",
+        mobile_source_hunt_views.mobile_source_hunt_handoff_view,
+        name="web-conversation-mobile-source-hunt",
+    ),
+    path(
+        "workspace/mobile-records/",
+        mobile_records_views.mobile_records_view,
+        name="web-conversation-mobile-records",
+    ),
+    path(
+        "workspace/browser-intelligence/start/",
+        browser_intelligence_views.browser_intelligence_start_view,
+        name="web-conversation-browser-intelligence-start",
+    ),
+    path(
+        "workspace/browser-intelligence/<str:session_id>/action/",
+        browser_intelligence_views.browser_intelligence_action_view,
+        name="web-conversation-browser-intelligence-action",
+    ),
+    path(
+        "workspace/browser-intelligence/<str:session_id>/state/",
+        browser_intelligence_views.browser_intelligence_state_view,
+        name="web-conversation-browser-intelligence-state",
+    ),
+    path(
+        "workspace/browser-intelligence/<str:session_id>/finish/",
+        browser_intelligence_views.browser_intelligence_finish_view,
+        name="web-conversation-browser-intelligence-finish",
+    ),
+    path(
+        "workspace/browser-intelligence/<str:session_id>/evidence/<path:relative_path>/",
+        browser_intelligence_views.browser_intelligence_evidence_view,
+        name="web-conversation-browser-intelligence-evidence",
+    ),
+    path(
         "workspace/mobile-context/",
         conversation_mobile_views.mobile_context_view,
         name="web-conversation-mobile-context",
@@ -149,6 +199,11 @@ urlpatterns = [
         "workspace/mobile-runs/<str:job_id>/status/",
         conversation_mobile_views.mobile_status_view,
         name="web-conversation-mobile-status",
+    ),
+    path(
+        "workspace/mobile-activity/<str:run_id>/stream/",
+        conversation_mobile_views.mobile_activity_stream_view,
+        name="web-conversation-mobile-activity-stream",
     ),
     path(
         "workspace/mobile-extensions/approve/",
@@ -174,6 +229,11 @@ urlpatterns = [
         "workspace/runs/<str:run_id>/status/",
         conversational_views.status_view,
         name="web-conversation-status",
+    ),
+    path(
+        "workspace/runs/<str:run_id>/activity/stream/",
+        conversational_views.activity_stream_view,
+        name="web-conversation-activity-stream",
     ),
     path("source-hunt/", source_hunt_views.source_hunt_view, name="web-source-hunt"),
     path("status/", views.status_view, name="web-status"),

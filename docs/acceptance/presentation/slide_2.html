@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@900&family=Lato:wght@300;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        .slide-container { 
+            width: 1280px; 
+            min-height: 720px; 
+            background-color: #F4F7F6; 
+            position: relative;
+            overflow: hidden;
+            font-family: 'Lato', sans-serif;
+        }
+        .content-wrapper {
+            position: absolute;
+            left: 80px;
+            bottom: 80px;
+            width: 1120px;
+        }
+        .slide-title {
+            font-family: 'Playfair Display', serif;
+            font-weight: 900;
+            font-size: 56px;
+            color: #001219;
+            line-height: 1.1;
+            margin-bottom: 24px;
+            letter-spacing: -0.5px;
+            max-width: 900px;
+        }
+        .divider {
+            width: 120px;
+            height: 8px;
+            background-color: #CA6702;
+            margin-bottom: 48px;
+        }
+        .columns {
+            display: flex;
+            gap: 64px;
+            align-items: flex-start;
+        }
+        .col-metrics {
+            flex: 0 0 320px;
+        }
+        .metric-item {
+            margin-bottom: 32px;
+        }
+        .metric-number {
+            font-family: 'Playfair Display', serif;
+            font-weight: 900;
+            font-size: 64px;
+            color: #CA6702;
+            line-height: 1;
+        }
+        .metric-label {
+            font-weight: 700;
+            font-size: 20px;
+            color: #001219;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 8px;
+        }
+        .col-details {
+            flex: 1;
+        }
+        .bullet-list {
+            list-style: none;
+        }
+        .bullet-list li {
+            font-weight: 300;
+            font-size: 26px;
+            color: #005F73;
+            line-height: 1.5;
+            margin-bottom: 24px;
+            position: relative;
+            padding-left: 32px;
+        }
+        .bullet-list li::before {
+            content: "■";
+            position: absolute;
+            left: 0;
+            top: 2px;
+            color: #CA6702;
+            font-size: 20px;
+        }
+        .bullet-list li strong {
+            font-weight: 700;
+            color: #001219;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide-container">
+        <div class="content-wrapper">
+            <h2 class="slide-title">Static acceptance completed &mdash; but not every stage ran</h2>
+            <div class="divider"></div>
+            <div class="columns">
+                <div class="col-metrics">
+                    <div class="metric-item">
+                        <div class="metric-number">32</div>
+                        <div class="metric-label">Candidate Observations</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-number">7</div>
+                        <div class="metric-label">Captures</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-number">12</div>
+                        <div class="metric-label">DEX Files</div>
+                    </div>
+                </div>
+                <div class="col-details">
+                    <ul class="bullet-list">
+                        <li><strong>Completed:</strong> AAPT2, apksigner, APKiD, Apktool, Androguard, and YARA.</li>
+                        <li><strong>JADX: partial</strong>, 41,622 generated files, timeout return code 124.</li>
+                        <li><strong>Radare2/Ghidra: not run</strong> because V380 contains zero native libraries.</li>
+                        <li><strong>Dynamic execution: blocked fail-closed</strong> pending an approved isolated runtime and exact approval.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

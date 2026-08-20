@@ -78,10 +78,12 @@ def test_provider_control_is_automatic_and_provider_names_stay_hidden():
     assert "runtime.hidden = true" in script
     assert 'runtime.setAttribute("aria-hidden", "true")' in script
     assert 'runtime.classList.remove("is-ready", "is-warning", "is-offline")' in script
-    assert "Reasoning over the request…" in script
-    assert "Validating the response…" in script
-    assert "Formatting the final answer…" in script
-    assert 'querySelectorAll(".vh-provider-control")' in script
+    assert "Reasoning over the request…" not in script
+    assert "Validating the response…" not in script
+    assert "Formatting the final answer…" not in script
+    assert "setInterval" not in script
+    assert "setTimeout" not in script
+    assert 'querySelectorAll(".vh-provider-control")' not in script
     assert "select[data-provider-preference]" not in script
     assert '"AI reasoning ready"' not in script
     assert "Contacting Groq" not in script

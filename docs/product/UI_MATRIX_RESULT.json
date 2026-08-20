@@ -1,0 +1,26 @@
+{
+  "base_url": "http://127.0.0.1:8010",
+  "thread_id": "e949d9f5-a6b9-493b-b951-ef1c552cff06",
+  "widths": [320, 390, 768, 1024, 1280, 1440],
+  "all_widths": {
+    "horizontal_overflow": false,
+    "composer_present": true,
+    "inspector_present": true,
+    "page_errors": []
+  },
+  "controlled_active_task_fixture": {
+    "canonical_task_acceptance": "passed",
+    "rapid_sse_acceptance": "passed",
+    "stable_jadx_row": true,
+    "technical_activity_disclosure": true
+  },
+  "screenshots": [
+    "/tmp/vh-v380-analysis/ui-matrix-320.png",
+    "/tmp/vh-v380-analysis/ui-matrix-390.png",
+    "/tmp/vh-v380-analysis/ui-matrix-768.png",
+    "/tmp/vh-v380-analysis/ui-matrix-1024.png",
+    "/tmp/vh-v380-analysis/ui-matrix-1280.png",
+    "/tmp/vh-v380-analysis/ui-matrix-1440.png"
+  ],
+  "note": "The restored V380 thread is terminal and its current server projection does not include a live task block. The active-task and rapid-SSE browser fixtures verified the canonical block with real persisted-event-shaped payloads and no duplicated tool rows."
+}

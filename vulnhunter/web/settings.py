@@ -93,6 +93,8 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "rest_framework",
+    "channels",
     "vulnhunter.web",
 ]
 
@@ -126,6 +128,32 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = "vulnhunter.web.urls"
 WSGI_APPLICATION = "vulnhunter.web.wsgi.application"
+ASGI_APPLICATION = "vulnhunter.web.asgi.application"
+VULNHUNTER_REALTIME_WEBSOCKET_ENABLED = env_bool(
+    "VULNHUNTER_REALTIME_WEBSOCKET_ENABLED",
+    not DEBUG,
+)
+
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": ("rest_framework.authentication.SessionAuthentication",),
+    "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
+    "DEFAULT_RENDERER_CLASSES": ("rest_framework.renderers.JSONRenderer",),
+}
+
+REDIS_URL = os.environ.get("VULNHUNTER_REDIS_URL", "").strip()
+if REDIS_URL:
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels_redis.core.RedisChannelLayer",
+            "CONFIG": {"hosts": [REDIS_URL]},
+        }
+    }
+elif TESTING or DEBUG:
+    CHANNEL_LAYERS = {"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}}
+else:
+    raise ImproperlyConfigured(
+        "VULNHUNTER_REDIS_URL is required outside testing/debug for ASGI realtime delivery."
+    )
 
 TEMPLATES = [
     {
@@ -312,7 +340,8 @@ VULNHUNTER_NUCLEI_READINESS_REPORT = os.environ.get(
     "VULNHUNTER_NUCLEI_READINESS_REPORT",
     str(BASE_DIR / ".local" / "nuclei-readiness" / "readiness.json"),
 )
-VULNHUNTER_NUCLEI_PILOT_ENQUEUE_ENABLED = env_bool("VULNHUNTER_NUCLEI_PILOT_ENQUEUE_ENABLED", True)
+# Worker queue activation is an explicit deployment opt-in after readiness verification.
+VULNHUNTER_NUCLEI_PILOT_ENQUEUE_ENABLED = env_bool("VULNHUNTER_NUCLEI_PILOT_ENQUEUE_ENABLED", False)
 VULNHUNTER_NUCLEI_WORKER_SIGNING_KEY_FILE = os.environ.get(
     "VULNHUNTER_NUCLEI_WORKER_SIGNING_KEY_FILE",
     str(Path.home() / ".vulnhunter-nuclei-worker-key"),

@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@900&family=Lato:wght@300;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        .slide-container { 
+            width: 1280px; 
+            min-height: 720px; 
+            background-color: #F4F7F6; 
+            position: relative;
+            overflow: hidden;
+            font-family: 'Lato', sans-serif;
+        }
+        .content-wrapper {
+            position: absolute;
+            left: 80px;
+            bottom: 60px;
+            width: 1120px;
+        }
+        .slide-title {
+            font-family: 'Playfair Display', serif;
+            font-weight: 900;
+            font-size: 52px;
+            color: #001219;
+            line-height: 1.1;
+            margin-bottom: 24px;
+            letter-spacing: -0.5px;
+        }
+        .divider {
+            width: 120px;
+            height: 8px;
+            background-color: #CA6702;
+            margin-bottom: 40px;
+        }
+        .columns {
+            display: flex;
+            gap: 64px;
+            margin-bottom: 40px;
+        }
+        .col {
+            flex: 1;
+        }
+        .category-title {
+            font-weight: 700;
+            font-size: 28px;
+            color: #001219;
+            margin-bottom: 16px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .bullet-list {
+            list-style: none;
+        }
+        .bullet-list li {
+            font-weight: 300;
+            font-size: 24px;
+            color: #005F73;
+            line-height: 1.5;
+            margin-bottom: 16px;
+            position: relative;
+            padding-left: 32px;
+        }
+        .bullet-list li::before {
+            content: "■";
+            position: absolute;
+            left: 0;
+            top: 4px;
+            color: #CA6702;
+            font-size: 18px;
+        }
+        .bullet-list li strong {
+            font-weight: 700;
+            color: #001219;
+        }
+        code {
+            font-family: monospace;
+            background-color: #e0e6e8;
+            padding: 2px 6px;
+            font-size: 22px;
+            color: #001219;
+            font-weight: 700;
+        }
+        .footer-note {
+            font-weight: 300;
+            font-size: 24px;
+            color: #005F73;
+            line-height: 1.5;
+            border-top: 2px solid rgba(0, 95, 115, 0.2);
+            padding-top: 24px;
+        }
+        .footer-note strong {
+            color: #CA6702;
+            font-weight: 700;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide-container">
+        <div class="content-wrapper">
+            <h2 class="slide-title">YARA candidates were correlated &mdash; not overclaimed</h2>
+            <div class="divider"></div>
+            
+            <div class="columns">
+                <div class="col">
+                    <div class="category-title">WebView Bridge Hits</div>
+                    <ul class="bullet-list">
+                        <li>Resolved exclusively to bundled SDK namespaces.</li>
+                        <li>Includes <strong>JPush</strong>, <strong>ByteDance</strong>, <strong>Google Ads</strong>, <strong>Yandex Ads</strong>, and <strong>Bigo</strong>.</li>
+                    </ul>
+                </div>
+                <div class="col">
+                    <div class="category-title">Dynamic-Loader Hits</div>
+                    <ul class="bullet-list">
+                        <li>Resolved exclusively to bundled SDK namespaces.</li>
+                        <li>Includes <strong>Google Play services</strong> and <strong>Huawei HMS</strong>.</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="footer-note">
+                No app-owned <code>addJavascriptInterface</code>, <code>DexClassLoader</code>, or <code>PathClassLoader</code> call was found in the retained partial JADX tree. <br>
+                <strong>Caveat:</strong> Because JADX timed out, this absence is bounded evidence, not a universal negative.
+            </div>
+        </div>
+    </div>
+</body>
+</html>

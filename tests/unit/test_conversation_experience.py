@@ -33,8 +33,7 @@ def test_ordinary_question_reports_high_reasoning_unavailable_without_starting_s
     assert "Ollama" not in result.assistant_copy
 
 
-def test_groq_chat_copy_is_used_without_turning_question_into_scan(settings):
-    settings.VULNHUNTER_GROQ_ENABLED = True
+def test_chat_advisory_copy_is_used_without_turning_question_into_scan():
     advisory = json.dumps(
         {
             "intent": "chat",
@@ -44,8 +43,8 @@ def test_groq_chat_copy_is_used_without_turning_question_into_scan(settings):
     )
 
     with patch(
-        "vulnhunter.web.conversation_service._groq_advisory",
-        return_value=(advisory, "mocked Groq advisory"),
+        "vulnhunter.web.conversation_service._remote_advisory",
+        return_value=(advisory, "mocked AI advisory", "auto"),
     ):
         result = interpret_request(
             "Where can I find the link?",
@@ -73,6 +72,9 @@ def test_conversation_template_keeps_history_and_details_progressive():
     template = (ROOT / "vulnhunter/web/templates/web/conversation.html").read_text(encoding="utf-8")
 
     assert "data-history-toggle" in template
+    assert "data-conversation-stop" in template
+    assert "vh-activity-template" in template
+    assert "data-activity-entry" in template
     assert "data-history-panel hidden" in template
     assert "data-run-live-copy" in template
     assert '<details data-section="summary">' in template
@@ -90,13 +92,46 @@ def test_conversation_scroll_respects_manual_reading_position():
     assert "VulnHunterConversationScroll" in script
 
 
-def test_conversation_ui_has_elapsed_thinking_and_contextual_answers():
+def test_desktop_browser_acceptance_covers_live_sse_lifecycle():
+    script = (ROOT / "tests/ui/conversation_e2e.cjs").read_text(encoding="utf-8")
+
+    assert "data-activity-entry" in script
+    assert "after_sequence" in script
+    assert "SSE did not reconnect from a persisted cursor" in script
+    assert "data-conversation-stop" in script
+    assert "data-cancel-dialog" in script
+    assert "--start-only" in script
+    assert "data-run-card].is-cancelled" in script
+    assert "Show me the results" in script
+
+
+def test_first_class_activity_entries_have_state_aware_presentation():
+    template = (ROOT / "vulnhunter/web/templates/web/conversation.html").read_text(encoding="utf-8")
+    script = (ROOT / "vulnhunter/web/static/web/conversation.js").read_text(encoding="utf-8")
+    styles = (ROOT / "vulnhunter/web/static/web/conversation.css").read_text(encoding="utf-8")
+
+    assert "data-activity-entry" in template
+    assert "data-activity-marker" in template
+    assert "data-activity-meta" in template
+    assert "safeActivityState" in script
+    assert "event.error_message" in script
+    assert ".vh-chat-activity-entry.is-running" in styles
+    assert ".vh-chat-activity-entry.is-failed" in styles
+
+
+def test_conversation_runtime_uses_persisted_sse_and_keeps_composer_available():
     script = (ROOT / "vulnhunter/web/static/web/conversation.js").read_text(encoding="utf-8")
 
     assert "updateBusyCopy" in script
-    assert "announceRunProgress" in script
-    assert "next.final_message" in script
-    assert "run.current_step" in script
+    assert "new EventSource" in script
+    assert "mergeActivityPayload" in script
+    assert "renderActivityEntries" in script
+    assert "renderedActivity" in script
+    assert "clearActivityEntries" in script
+    assert "last_sequence" in script
+    assert "closeActivityStream" in script
+    assert "input.disabled = false" in script
+    assert "announceRunProgress" not in script
     assert "contextualReply" not in script
     assert "confirmedRuns" in script
 
@@ -159,6 +194,10 @@ def test_contextual_inspector_keeps_report_bound_to_selected_assessment():
     assert 'data-inspector-panel="reports"' in template
     assert "Format readiness is unavailable until the server provides" in template
     assert "data-inspector-reports" in template
+    assert "data-inspector-components-table" in template
+    assert "data-inspector-endpoints-table" in template
+    assert 'componentsTable: select("components-table")' in script
+    assert 'endpointsTable: select("endpoints-table")' in script
     assert 'reports: select("reports")' in script
     assert "const updateReports = () =>" in script
     assert "state.projection?.report" in script
@@ -166,3 +205,43 @@ def test_contextual_inspector_keeps_report_bound_to_selected_assessment():
     assert "updateReports();" in script
     assert 'event.target.closest?.("[data-analysis-inspector-open]")' in adapter
     assert "controller.click()" in adapter
+
+
+def test_apk_task_uses_one_evolving_block_with_collapsed_technical_activity():
+    template = (ROOT / "vulnhunter/web/templates/web/conversation.html").read_text(encoding="utf-8")
+    script = (ROOT / "vulnhunter/web/static/web/conversation-mobile.js").read_text(encoding="utf-8")
+    styles = (ROOT / "vulnhunter/web/static/web/conversation-mobile-execution.css").read_text(
+        encoding="utf-8"
+    )
+
+    assert "data-mobile-live-stages" in template
+    assert "data-mobile-live-technical-events" in template
+    assert "Technical activity" in template
+    assert "data-mobile-live-stages" in script
+    assert "data-mobile-tool-id" in script
+    assert "mobileLiveStageEntries" in script
+    assert "data-mobile-live-steps" not in script
+    assert ".vh-mobile-live-stage" in styles
+    assert ".vh-mobile-live-technical" in styles
+
+
+def test_reference_workspace_shell_and_empty_state_hooks_are_present():
+    template = (ROOT / "vulnhunter/web/templates/web/conversation.html").read_text(encoding="utf-8")
+    script = (ROOT / "vulnhunter/web/static/web/conversation.js").read_text(encoding="utf-8")
+    styles = (ROOT / "vulnhunter/web/static/web/conversation.css").read_text(encoding="utf-8")
+    mobile_script = (ROOT / "vulnhunter/web/static/web/conversation-mobile.js").read_text(
+        encoding="utf-8"
+    )
+
+    assert template.count("data-chat-tasks-panel") == 1
+    assert template.count("data-conversation-empty") == 1
+    assert template.count("data-empty-prompt") == 4
+    assert "data-task-filter" in template
+    assert "hasUserMessage" in script
+    assert "durationLabel" in mobile_script
+    assert "progressMeta" in mobile_script
+    assert ".vh-chat-tasks-panel" in styles
+    assert ".vh-empty-workspace" in styles
+    assert ".vh-empty-investigation-grid" in styles
+    assert "data-conversation-context-bar" in template
+    assert "vh-conversation-context" in styles

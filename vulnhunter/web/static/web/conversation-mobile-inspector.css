@@ -357,8 +357,13 @@
   border-left: 3px solid var(--vh-amber);
 }
 
-.vh-inspector-finding.is-verified {
+.vh-inspector-finding.is-verified,
+.vh-inspector-finding.is-verified_configuration {
   border-left-color: var(--vh-green);
+}
+
+.vh-inspector-finding.is-verified_configuration header b {
+  color: var(--vh-cyan);
 }
 
 .vh-inspector-finding header {
@@ -383,6 +388,10 @@
 
 .vh-inspector-finding.is-verified header b {
   color: var(--vh-green);
+}
+
+.vh-inspector-finding.is-verified_configuration header b {
+  color: var(--vh-cyan);
 }
 
 .vh-inspector-finding > strong,
@@ -414,8 +423,21 @@
   border-left: 3px solid var(--vh-green);
 }
 
-.vh-inspector-artifact-list article.is-failed {
+.vh-inspector-artifact-list article.is-failed,
+.vh-inspector-artifact-list article.is-operational_failure {
   border-left: 3px solid var(--vh-red);
+}
+
+.vh-inspector-artifact-list article.is-partial {
+  border-left: 3px solid var(--vh-amber);
+}
+
+.vh-inspector-artifact-list article.is-not_applicable {
+  border-left: 3px solid #94a3b8;
+}
+
+.vh-inspector-artifact-list article.is-blocked {
+  border-left: 3px solid var(--vh-purple);
 }
 
 .vh-inspector-artifact-list code {

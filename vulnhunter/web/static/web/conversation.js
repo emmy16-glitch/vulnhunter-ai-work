@@ -16,15 +16,20 @@
   const form = workspace.querySelector("[data-conversation-form]");
   const input = workspace.querySelector("[data-conversation-input]");
   const send = workspace.querySelector("[data-conversation-send]");
+  const stop = workspace.querySelector("[data-conversation-stop]");
   const thinking = workspace.querySelector("[data-conversation-thinking]");
   const thinkingCopy = workspace.querySelector("[data-thinking-copy]");
   const reset = workspace.querySelector("[data-conversation-reset]");
   const reasoningSelect = workspace.querySelector("[data-reasoning-effort]");
   const reasoningCopy = workspace.querySelector("[data-reasoning-copy]");
-  const historyToggle = workspace.querySelector("[data-history-toggle]");
+  const historyToggles = [...workspace.querySelectorAll("[data-history-toggle]")];
+  const historyToggle = historyToggles[0] || null;
   const historyPanel = workspace.querySelector("[data-history-panel]");
+  const emptyState = workspace.querySelector("[data-conversation-empty]");
+  const taskFilterButtons = [...workspace.querySelectorAll("[data-task-filter]")];
   const historyClose = workspace.querySelector("[data-history-close]");
   const messageTemplate = document.getElementById("vh-message-template");
+  const activityTemplate = document.getElementById("vh-activity-template");
   const runTemplate = document.getElementById("vh-run-template");
   const cancelDialog = document.querySelector("[data-cancel-dialog]");
   let cancelTarget = "";
@@ -34,11 +39,12 @@
     return form?.querySelector("input[name='csrfmiddlewaretoken']")?.value || "";
   };
 
-  if (!feed || !form || !input || !messageTemplate || !runTemplate) return;
+  if (!feed || !form || !input || !messageTemplate || !activityTemplate || !runTemplate) return;
 
   let activeRun = initial.active_run || null;
   let runCard = null;
-  let pollTimer = null;
+  let activitySource = null;
+  let activityReconnectTimer = null;
   let requestBusy = false;
   let busyStartedAt = 0;
   let busyTimer = null;
@@ -46,7 +52,11 @@
   let lastRunSignature = "";
   const confirmedRuns = new Set();
   const renderedMessages = new Set();
-  const announcedEvents = new Set();
+  const renderedActivity = new Map();
+
+  const publishRunUpdate = (run) => {
+    window.dispatchEvent(new CustomEvent("vulnhunter:run-update", { detail: { run } }));
+  };
 
   const stageDefinitions = [
     ["scope", "Checking authorised scope"],
@@ -107,8 +117,8 @@
   const setBusy = (busy, copy = "Understanding the request…") => {
     requestBusy = busy;
     if (send) send.disabled = busy;
-    input.disabled = busy;
-    if (thinking) thinking.hidden = !busy;
+    input.disabled = false;
+    if (thinking) thinking.hidden = !busy && !(activeRun && !activeRun.terminal);
     if (busyTimer) window.clearInterval(busyTimer);
     busyTimer = null;
     if (busy) {
@@ -123,8 +133,23 @@
   const messageKey = (message) =>
     [message.timestamp || "", message.role || "", message.kind || "", message.content || ""].join("|");
 
+  const hasUserMessage = (messages) =>
+    Array.isArray(messages) && messages.some((message) => text(message?.role).toLowerCase() === "user");
+
+  const appendPersistedMessages = (messages) => {
+    if (!hasUserMessage(messages)) return;
+    messages.forEach((message) => appendMessage(message, { forceScroll: false }));
+  };
+
+  const hideEmptyState = () => {
+    if (!emptyState) return;
+    emptyState.hidden = true;
+    emptyState.setAttribute("aria-hidden", "true");
+  };
+
   const appendMessage = (message, { animate = false, forceScroll = true } = {}) => {
     if (!message || typeof message !== "object") return;
+    hideEmptyState();
     const key = messageKey(message);
     if (renderedMessages.has(key)) return;
     renderedMessages.add(key);
@@ -141,23 +166,9 @@
     avatar.textContent = role === "user" ? "You" : "VH";
 
     const content = text(message.content || "");
-    if (
-      animate &&
-      role === "assistant" &&
-      content &&
-      !window.matchMedia("(prefers-reduced-motion: reduce)").matches
-    ) {
-      copy.textContent = "";
-      const words = content.split(" ");
-      let index = 0;
-      const interval = window.setInterval(() => {
-        copy.textContent += `${index ? " " : ""}${words[index] || ""}`;
-        index += 1;
-        if (index >= words.length) window.clearInterval(interval);
-      }, 18);
-    } else {
-      copy.textContent = content;
-    }
+    // Server responses are rendered as complete persisted messages. The browser
+    // must not simulate token or word streaming with a timer.
+    copy.textContent = content;
 
     const metadata = message.metadata && typeof message.metadata === "object" ? message.metadata : {};
     const authorization = metadata.authorization && typeof metadata.authorization === "object" ? metadata.authorization : null;
@@ -208,6 +219,26 @@
       attached.append(label, detail);
       body.insertBefore(attached, copy);
     }
+    const sourceHuntResult = metadata.source_hunt_result && typeof metadata.source_hunt_result === "object" ? metadata.source_hunt_result : null;
+    if (sourceHuntResult) {
+      const report = document.createElement("section");
+      report.className = "vh-source-hunt-result";
+      const reportTitle = document.createElement("strong");
+      reportTitle.textContent = "Source Hunt report";
+      const reportState = document.createElement("small");
+      reportState.textContent = `${prettyState(sourceHuntResult.coverage?.status || "bounded")} coverage · ${prettyState(sourceHuntResult.results?.length ? "completed" : "recorded")}`;
+      const reportDetail = document.createElement("p");
+      const nodes = Number(sourceHuntResult.graph?.nodes?.length || 0);
+      const edges = Number(sourceHuntResult.graph?.edges?.length || 0);
+      reportDetail.textContent = `${Number(sourceHuntResult.seeds_examined || 0)} seeds examined · ${nodes} nodes · ${edges} edges · ${Number(sourceHuntResult.verified_finding_count || 0)} verified findings`;
+      report.append(reportTitle, reportState, reportDetail);
+      if (sourceHuntResult.safe_error) {
+        const limitation = document.createElement("small");
+        limitation.textContent = text(sourceHuntResult.safe_error);
+        report.append(limitation);
+      }
+      body.append(report);
+    }
     const mobilePlan = metadata.mobile_plan && typeof metadata.mobile_plan === "object" ? metadata.mobile_plan : null;
     if (mobilePlan) {
       const planSummary = document.createElement("div");
@@ -222,15 +253,7 @@
     if (role === "assistant" && metadata.reasoning_effort) {
       const badge = document.createElement("span");
       badge.className = "vh-message-reasoning";
-      const provider = text(metadata.provider || "deterministic");
-      const model = text(metadata.model || "");
-      const detail = text(metadata.provider_detail || "");
-      const degraded = provider === "deterministic" && /groq/i.test(detail);
-      if (degraded) badge.classList.add("is-degraded");
-      badge.textContent = degraded
-        ? `${prettyState(metadata.reasoning_effort)} reasoning · Groq unavailable · deterministic fallback`
-        : `${prettyState(metadata.reasoning_effort)} reasoning · ${prettyState(provider)}${model ? ` · ${model}` : ""}`;
-      if (detail) badge.title = detail;
+      badge.textContent = `${prettyState(metadata.reasoning_effort)} reasoning · response ready`;
       body.append(badge);
     }
     const suggestions = Array.isArray(metadata.suggestions) ? metadata.suggestions : [];
@@ -261,6 +284,11 @@
     feed.append(fragment);
     scrollFeed({ force: forceScroll });
   };
+
+  document.addEventListener("vh:conversation-message", (event) => {
+    const message = event.detail;
+    if (message && typeof message === "object") appendMessage(message, { animate: true });
+  });
 
   const emptyBlock = (title, detail) => {
     const wrapper = document.createElement("div");
@@ -294,6 +322,73 @@
   const latestEvent = (run) => {
     const events = Array.isArray(run?.events) ? run.events : [];
     return events.length ? events[events.length - 1] : null;
+  };
+
+  const clearActivityEntries = () => {
+    renderedActivity.forEach((entry) => entry.remove());
+    renderedActivity.clear();
+  };
+
+  const safeActivityState = (event) => {
+    const value = text(event?.execution_state || event?.run_state || "recorded")
+      .toLowerCase()
+      .replace(/[^a-z0-9_-]+/g, "-");
+    return value || "recorded";
+  };
+
+  const renderActivityEntries = (run, { forceScroll = false } = {}) => {
+    const events = Array.isArray(run?.events) ? run.events : [];
+    events.forEach((event) => {
+      if (!event || typeof event !== "object") return;
+      const key = eventKey(event);
+      if (!key) return;
+      let article = renderedActivity.get(key);
+      if (!article) {
+        const fragment = activityTemplate.content.cloneNode(true);
+        article = fragment.querySelector("[data-activity-entry]");
+        article.dataset.activityKey = key;
+        renderedActivity.set(key, article);
+        feed.append(article);
+      }
+      const state = safeActivityState(event);
+      article.className = `vh-chat-activity-entry is-${state}`;
+      article.querySelector("[data-activity-marker]").textContent = [
+        "completed",
+        "success",
+        "verified",
+      ].includes(state)
+        ? "✓"
+        : ["failed", "error", "blocked", "cancelled"].includes(state)
+          ? "!"
+          : "•";
+      article.querySelector("[data-activity-type]").textContent = prettyState(
+        event.event_type || event.type || "Assessment activity",
+      );
+      article.querySelector("[data-activity-summary]").textContent = eventSummary(event);
+      const timestamp = event.timestamp || event.created_at || "";
+      const time = article.querySelector("[data-activity-time]");
+      time.dateTime = text(timestamp);
+      time.textContent = formatTimestamp(timestamp) || text(timestamp);
+      const detail = article.querySelector("[data-activity-detail]");
+      const detailText = text(event.error_message || event.detail || "");
+      detail.hidden = !detailText;
+      detail.textContent = detailText;
+      const meta = article.querySelector("[data-activity-meta]");
+      meta.replaceChildren();
+      [
+        event.tool_id ? `Tool ${event.tool_id}` : "",
+        event.policy_outcome ? prettyState(event.policy_outcome) : "",
+        event.approval_state ? `Approval ${prettyState(event.approval_state)}` : "",
+        event.authorization_reference ? `Auth ${event.authorization_reference}` : "",
+      ]
+        .filter(Boolean)
+        .forEach((value) => {
+          const chip = document.createElement("span");
+          chip.textContent = value;
+          meta.append(chip);
+        });
+    });
+    if (events.length && forceScroll) scrollFeed({ force: true });
   };
 
   const stageStatus = (run, key) => {
@@ -389,12 +484,29 @@
     container.className = `vh-execution-state is-${state}`;
     const title = document.createElement("strong");
     const detail = document.createElement("p");
-    title.textContent = state === "recovering" ? "Worker interrupted — recovering task" : prettyState(state);
+    title.textContent =
+      state === "recovering"
+        ? "Worker interrupted — recovering task"
+        : state === "failed"
+          ? "Assessment failed safely"
+          : state === "blocked"
+            ? "Assessment blocked"
+            : state === "cancelled"
+              ? "Assessment cancelled"
+              : prettyState(state);
     detail.textContent = text(
-      failure?.message || execution.reason ||
-        (state === "recovering" ? "Persisted state preserved. Restoring execution context…" : "Persisted assessment state is retained."),
+      failure?.message ||
+        execution.reason ||
+        (state === "recovering"
+          ? "Persisted state preserved. Restoring execution context…"
+          : "Persisted assessment state is retained."),
     );
     container.append(title, detail);
+    if (failure?.user_action) {
+      const action = document.createElement("small");
+      action.textContent = text(failure.user_action);
+      container.append(action);
+    }
     const preserved = Array.isArray(failure?.preserved) ? failure.preserved : [];
     if (preserved.length) {
       const kept = document.createElement("small");
@@ -622,7 +734,9 @@
     const allowed = Array.isArray(run.assessment_projection?.allowed_actions)
       ? run.assessment_projection.allowed_actions
       : [];
-    if (cancel) cancel.hidden = !allowed.includes("request_cancel");
+    const canCancel = allowed.includes("request_cancel");
+    if (cancel) cancel.hidden = !canCancel;
+    if (stop) stop.hidden = !canCancel;
     renderApproval(card, run);
     renderStages(card, run);
     renderExecutionState(card, run);
@@ -638,6 +752,7 @@
 
   const ensureRunCard = (run, { forceScroll = false } = {}) => {
     if (!runCard || runCard.dataset.runId !== text(run.run_id)) {
+      if (runCard) clearActivityEntries();
       runCard?.remove();
       const fragment = runTemplate.content.cloneNode(true);
       runCard = fragment.querySelector("[data-run-card]");
@@ -666,26 +781,6 @@
       terminal: run.terminal,
       projection_revision: run.assessment_projection?.projection_revision,
     });
-  };
-
-  const announceRunProgress = (previous, next) => {
-    const previousState = text(previous?.state);
-    const nextState = text(next?.state);
-    if (previousState === nextState && !next.terminal) return;
-    const key = `${text(next.run_id)}:${nextState}:${next.terminal ? "terminal" : "live"}`;
-    if (announcedEvents.has(key)) return;
-    announcedEvents.add(key);
-    const copy = next.terminal ? next.final_message : next.current_step;
-    if (!copy) return;
-    appendMessage(
-      {
-        role: "assistant",
-        kind: next.terminal ? "result" : "status",
-        content: copy,
-        timestamp: next.updated_at || new Date().toISOString(),
-      },
-      { animate: true, forceScroll: false },
-    );
   };
 
   const refreshSessionProtection = async () => {
@@ -751,17 +846,19 @@
       });
       const runId = text(data.run?.run_id || card.dataset.runId);
       if (runId) confirmedRuns.add(runId);
-      if (data.message) appendMessage(data.message, { animate: true });
+      if (data.message) appendMessage(data.message);
       if (data.run) {
         activeRun = normalizeRun(data.run);
         lastRunSignature = runSignature(activeRun);
+        publishRunUpdate(activeRun);
         ensureRunCard(activeRun, { forceScroll: true });
-        beginPolling(activeRun, { immediate: true });
+        renderActivityEntries(activeRun, { forceScroll: true });
+        openActivityStream(activeRun);
       }
     } catch (error) {
       appendMessage(
         { role: "assistant", kind: "error", content: error.message, timestamp: new Date().toISOString() },
-        { animate: true },
+        {},
       );
     } finally {
       button.disabled = false;
@@ -770,7 +867,7 @@
   };
 
   const cancelRun = async (card) => {
-    const target = card.querySelector("[data-run-target]")?.textContent || "this assessment";
+    const target = card?.querySelector("[data-run-target]")?.textContent || activeRun?.target || "this assessment";
     cancelTarget = target;
     const copy = cancelDialog?.querySelector("[data-cancel-dialog-copy]");
     if (copy) copy.textContent = `Cancel ${target}? No additional scanner work will be started.`;
@@ -780,6 +877,8 @@
   cancelDialog?.querySelector("[data-cancel-dialog-close]")?.addEventListener("click", () => {
     cancelDialog.close();
   });
+  stop?.addEventListener("click", () => cancelRun(runCard));
+
   cancelDialog?.querySelector("[data-cancel-dialog-confirm]")?.addEventListener("click", () => {
     if (!cancelTarget) return;
     input.value = `Cancel the current assessment for ${cancelTarget}`;
@@ -802,37 +901,129 @@
     });
   };
 
-  const fetchStatus = async (runId) => {
-    const url = text(initial.status_url_template).replace("RUN_ID", encodeURIComponent(runId));
-    const response = await fetch(url, {
-      credentials: "same-origin",
-      headers: { Accept: "application/json" },
-    });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.detail || "Assessment status is unavailable.");
-    return normalizeRun(data.run);
+  const closeActivityStream = () => {
+    if (activityReconnectTimer) window.clearTimeout(activityReconnectTimer);
+    activityReconnectTimer = null;
+    activitySource?.close();
+    activitySource = null;
   };
 
-  const beginPolling = (run, { immediate = false } = {}) => {
-    if (pollTimer) window.clearTimeout(pollTimer);
+  const updateLiveNotice = (run, copy = "") => {
+    if (!thinking || !thinkingCopy) return;
+    if (!run || run.terminal) {
+      thinking.hidden = true;
+      return;
+    }
+    thinking.hidden = false;
+    thinkingCopy.textContent = copy || text(run.active_summary || run.current_step || "Working with the current assessment state…");
+  };
+
+  const mergeActivityPayload = (payload) => {
+    if (!payload || typeof payload !== "object") return null;
+    const previous = activeRun;
+    const priorEvents = Array.isArray(previous?.events) ? previous.events : [];
+    const incomingEvents = Array.isArray(payload.events) ? payload.events : [];
+    const byKey = new Map();
+    [...priorEvents, ...incomingEvents].forEach((event) => {
+      if (!event || typeof event !== "object") return;
+      byKey.set(eventKey(event), event);
+    });
+    const mergedEvents = [...byKey.values()].sort(
+      (left, right) => Number(left.sequence || 0) - Number(right.sequence || 0),
+    );
+    const latestPersistedEvent = mergedEvents.at(-1);
+    const incomingProjection =
+      payload.assessment_projection && typeof payload.assessment_projection === "object"
+        ? payload.assessment_projection
+        : null;
+    const priorProjection =
+      previous?.assessment_projection && typeof previous.assessment_projection === "object"
+        ? previous.assessment_projection
+        : null;
+    const mergedProjection = Array.isArray(incomingProjection?.allowed_actions)
+      ? incomingProjection
+      : priorProjection;
+    const next = normalizeRun({
+      ...(previous || {}),
+      ...payload,
+      ...(mergedProjection ? { assessment_projection: mergedProjection } : {}),
+      state: payload.run_state || payload.state || latestPersistedEvent?.run_state || previous?.state,
+      execution_state:
+        payload.execution_state || latestPersistedEvent?.execution_state || previous?.execution_state,
+      active_summary: payload.active_summary || previous?.active_summary,
+      terminal: payload.terminal ?? previous?.terminal,
+      events: mergedEvents,
+      last_sequence: Math.max(
+        Number(previous?.last_sequence || 0),
+        Number(payload.last_sequence || 0),
+      ),
+    });
+    activeRun = next;
+    lastRunSignature = runSignature(next);
+    publishRunUpdate(next);
+          ensureRunCard(next);
+      renderActivityEntries(next);
+      updateLiveNotice(next);
+
+    return { previous, next };
+  };
+
+  const scheduleActivityReconnect = (run, delay = 1500) => {
     if (!run || run.terminal) return;
-    const tick = async () => {
+    if (activityReconnectTimer) window.clearTimeout(activityReconnectTimer);
+    activityReconnectTimer = window.setTimeout(() => {
+      activityReconnectTimer = null;
+      openActivityStream(activeRun || run);
+    }, delay);
+  };
+
+  const openActivityStream = (run) => {
+    closeActivityStream();
+    if (!run || run.terminal) {
+      updateLiveNotice(run);
+      return;
+    }
+    const template = text(initial.activity_stream_url_template);
+    if (!template || !("EventSource" in window)) {
+      updateLiveNotice(run, "Live activity is unavailable; saved state remains available.");
+      return;
+    }
+    const url = new URL(
+      template.replace("RUN_ID", encodeURIComponent(run.run_id)),
+      window.location.href,
+    );
+    url.searchParams.set("after_sequence", String(Number(run.last_sequence || 0)));
+    updateLiveNotice(run, "Connecting to live assessment activity…");
+    const source = new EventSource(url.toString(), { withCredentials: true });
+    activitySource = source;
+    source.addEventListener("activity", (message) => {
+      if (activitySource !== source) return;
       try {
-        const previous = activeRun;
-        const next = await fetchStatus(run.run_id);
-        const signature = runSignature(next);
-        if (signature !== lastRunSignature) {
-          announceRunProgress(previous, next);
-          activeRun = next;
-          lastRunSignature = signature;
-          ensureRunCard(activeRun);
+        const payload = JSON.parse(message.data);
+        const previousSequence = Number(activeRun?.last_sequence || 0);
+        const { next } = mergeActivityPayload(payload);
+        source.close();
+        activitySource = null;
+        if (next?.terminal) {
+          updateLiveNotice(next);
+          return;
         }
-        if (!next.terminal) pollTimer = window.setTimeout(tick, 1500);
+        const hasNewActivity = Number(payload.last_sequence || 0) > previousSequence;
+        scheduleActivityReconnect(next, hasNewActivity ? 120 : 1500);
       } catch (_error) {
-        pollTimer = window.setTimeout(tick, 4000);
+        source.close();
+        activitySource = null;
+        updateLiveNotice(activeRun, "Live activity could not be read safely; reconnecting…");
+        scheduleActivityReconnect(activeRun, 1500);
       }
+    });
+    source.onerror = () => {
+      if (activitySource !== source) return;
+      source.close();
+      activitySource = null;
+      updateLiveNotice(activeRun, "Live activity reconnecting…");
+      scheduleActivityReconnect(activeRun, 1500);
     };
-    pollTimer = window.setTimeout(tick, immediate ? 100 : 1200);
   };
 
   const resizeInput = () => {
@@ -848,8 +1039,41 @@
     if (open) historyClose?.focus();
   };
 
-  historyToggle?.addEventListener("click", () => openHistory(historyPanel?.hidden !== false));
+  historyToggles.forEach((toggle) => {
+    toggle.addEventListener("click", () => openHistory(historyPanel?.hidden !== false));
+  });
   historyClose?.addEventListener("click", () => openHistory(false));
+
+  taskFilterButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      const filter = text(button.dataset.taskFilter || "active");
+      taskFilterButtons.forEach((candidate) => {
+        const selected = candidate === button;
+        candidate.classList.toggle("is-active", selected);
+        candidate.setAttribute("aria-selected", selected ? "true" : "false");
+      });
+      workspace.querySelectorAll("[data-desktop-task-list] [data-task-state]").forEach((card) => {
+        const state = text(card.dataset.taskState || "completed").toLowerCase();
+        const matches = filter === "active"
+          ? ["running", "executing", "queued", "prepared", "waiting", "active"].includes(state)
+          : filter === "cancelled"
+            ? ["cancelled", "canceled"].includes(state)
+            : !["running", "executing", "queued", "prepared", "waiting", "active", "cancelled", "canceled"].includes(state);
+        card.hidden = !matches;
+      });
+    });
+  });
+
+  workspace.querySelectorAll("[data-empty-prompt]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const prompt = text(button.dataset.emptyPrompt || "");
+      if (!prompt) return;
+      input.value = prompt;
+      resizeInput();
+      hideEmptyState();
+      input.focus();
+    });
+  });
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && historyPanel && !historyPanel.hidden) openHistory(false);
   });
@@ -869,7 +1093,7 @@
       reasoningSelect.value = initial.reasoning_effort || "medium";
       appendMessage(
         { role: "assistant", kind: "error", content: error.message, timestamp: new Date().toISOString() },
-        { animate: true },
+        {},
       );
     } finally {
       reasoningSelect.disabled = false;
@@ -889,10 +1113,10 @@
     const selectedEffort = reasoningSelect?.value || initial.reasoning_effort || "medium";
     const busyCopy =
       selectedEffort === "high"
-        ? "Asking Groq to analyse deeply and checking governed context…"
+        ? "Analyzing the request and checking governed context…"
         : selectedEffort === "low"
-          ? "Asking Groq for a direct answer…"
-          : "Asking Groq to reason through the request…";
+          ? "Preparing a direct response…"
+          : "Reviewing the request…";
     setBusy(true, busyCopy);
     try {
       const data = await postForm(initial.message_url, {
@@ -900,25 +1124,28 @@
         reasoning_effort: reasoningSelect?.value || initial.reasoning_effort || "medium",
         provider_preference: initial.provider_preference || "auto",
       });
-      if (data.message) appendMessage(data.message, { animate: true });
+      if (data.message) appendMessage(data.message);
       if (data.clear_run) {
-        if (pollTimer) window.clearTimeout(pollTimer);
+        closeActivityStream();
+        clearActivityEntries();
         runCard?.remove();
         runCard = null;
         activeRun = null;
+        publishRunUpdate(null);
         lastRunSignature = "";
       }
       if (data.run) {
         activeRun = normalizeRun(data.run);
         lastRunSignature = runSignature(activeRun);
-        (activeRun.events || []).forEach((item) => announcedEvents.add(eventKey(item)));
+        publishRunUpdate(activeRun);
         ensureRunCard(activeRun, { forceScroll: true });
-        beginPolling(activeRun);
+        renderActivityEntries(activeRun, { forceScroll: true });
+        openActivityStream(activeRun);
       }
     } catch (error) {
       appendMessage(
         { role: "assistant", kind: "error", content: error.message, timestamp: new Date().toISOString() },
-        { animate: true },
+        {},
       );
     } finally {
       setBusy(false);
@@ -939,15 +1166,20 @@
     setBusy(true, "Starting a clean conversation…");
     try {
       const data = await postForm(initial.reset_url, {});
-      if (pollTimer) window.clearTimeout(pollTimer);
+      closeActivityStream();
       renderedMessages.clear();
-      announcedEvents.clear();
       confirmedRuns.clear();
       feed.replaceChildren();
+      if (emptyState) {
+        feed.append(emptyState);
+        emptyState.hidden = false;
+        emptyState.removeAttribute("aria-hidden");
+      }
       runCard = null;
       activeRun = null;
+      publishRunUpdate(null);
       lastRunSignature = "";
-      (data.messages || []).forEach((message) => appendMessage(message, { forceScroll: false }));
+      appendPersistedMessages(data.messages || []);
       scrollFeed({ behavior: "auto", force: true });
     } catch (error) {
       appendMessage({ role: "assistant", kind: "error", content: error.message, timestamp: new Date().toISOString() });
@@ -957,13 +1189,14 @@
     }
   });
 
-  (initial.messages || []).forEach((message) => appendMessage(message, { forceScroll: false }));
+  appendPersistedMessages(initial.messages || []);
   if (activeRun) {
     activeRun = normalizeRun(activeRun);
     lastRunSignature = runSignature(activeRun);
-    (activeRun.events || []).forEach((item) => announcedEvents.add(eventKey(item)));
+    publishRunUpdate(activeRun);
     ensureRunCard(activeRun);
-    beginPolling(activeRun);
+    renderActivityEntries(activeRun, { forceScroll: false });
+    openActivityStream(activeRun);
   }
   resizeInput();
   input.focus({ preventScroll: true });

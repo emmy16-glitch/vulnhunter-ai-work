@@ -23,6 +23,7 @@ from vulnhunter.hunt import (
 )
 from vulnhunter.mobile import MobileArtifactIngestor
 from vulnhunter.mobile.models import MobileArtifactRecord
+from vulnhunter.mobile.static_progress import MobileStaticProgressStore
 from vulnhunter.mobile.static_service import MobileStaticQueueService, create_mobile_static_job
 from vulnhunter.mobile.static_spool import MobileStaticSpool, MobileStaticSpoolError
 from vulnhunter.mobile.static_worker import MobileStaticWorkerPolicy
@@ -214,6 +215,11 @@ def test_signed_mobile_static_queue_runs_fixed_networkless_worker(tmp_path):
     assert receipt.captures[0].tool == "aapt2"
     assert receipt.captures[0].return_code == 0
     assert receipt.candidate_observations[0]["title"] == "APK contains native libraries"
+    progress = MobileStaticProgressStore(tmp_path / "spool").read(job_id=job.job_id, key=key)
+    assert progress is not None
+    candidates = progress.result_summary["hunt"]["candidates"]
+    assert candidates[0]["confidence"]
+    assert candidates[0]["evidence_receipts"]
     status = spool.status(job.job_id)
     assert status is not None
     assert status["state"] == "completed"
@@ -249,6 +255,9 @@ def test_conversation_ui_exposes_plus_button_progress_live_status_and_context():
     context_script = (ROOT / "vulnhunter/web/static/web/conversation-mobile-context.js").read_text(
         encoding="utf-8"
     )
+    thread_script = (ROOT / "vulnhunter/web/static/web/conversation-thread-client.js").read_text(
+        encoding="utf-8"
+    )
 
     assert "data-conversation-attach" in template
     assert "data-conversation-file" in template
@@ -257,9 +266,15 @@ def test_conversation_ui_exposes_plus_button_progress_live_status_and_context():
     assert "web-conversation-mobile-followup" in template
     assert "conversation-mobile-execution.css" in template
     assert "conversation-mobile-context.js" in template
-    assert 'setTimeout(() => item.classList.add("is-visible")' in script
+    assert "data-mobile-live-stages" in template
+    assert "mobileTaskState" in script
+    assert 'setTimeout(() => item.classList.add("is-visible")' not in script
     assert "watchMobileExecution" in script
     assert "data-mobile-execution-results" in script
+    assert "data-mobile-activity-stream-url-template" in template
+    assert "openMobileActivityStream" in script
+    assert 'form.dataset.mobileUploadMode !== "background"' in thread_script
+    assert 'form.dataset.mobileUploadMode === "background"' in script
     assert "activeMobilePlan" in context_script
     assert "bypassMobileFollowup" in context_script
     assert "form.requestSubmit()" in context_script
@@ -303,6 +318,9 @@ def test_chat_uploads_apk_answers_followups_then_hands_off_to_web_scan(client, s
             "/workspace/mobile-followup/",
             {"message": "What tools did you select for this APK?"},
         )
+        activity = client.get(
+            f"/workspace/mobile-activity/{request.json()['mobile_plan']['run_id']}/stream/"
+        )
         handoff = client.post(
             "/workspace/mobile-followup/",
             {"message": "Scan https://example.com using the passive profile"},
@@ -324,3 +342,139 @@ def test_chat_uploads_apk_answers_followups_then_hands_off_to_web_scan(client, s
     assert handoff.json() == {"handoff": True}
     assert context.status_code == 200
     assert context.json() == {"mobile_plan": None}
+    activity_body = b"".join(activity.streaming_content).decode()
+    assert activity.status_code == 200
+    assert "event: activity" in activity_body
+    assert "plan_proposed" in activity_body
+    assert "policy_denied" in activity_body
+
+
+@pytest.mark.django_db
+def test_mobile_activity_stream_returns_persisted_apk_events(client, monkeypatch):
+    user = get_user_model().objects.create_user(
+        username="mobile-activity-user",
+        password="long-test-password-1234",
+    )
+    client.force_login(user)
+    actor = SimpleNamespace(
+        governance_identity=SimpleNamespace(reviewer_id="mobile-activity-user"),
+        product_roles=("campaign-operator",),
+    )
+    plan = {
+        "run_id": "mobile-activity-01",
+        "execution": {"state": "gated", "reason": "Static worker is disabled."},
+        "profile": "static",
+    }
+    payload = {
+        "events": [
+            {
+                "event_id": "evt_0123456789abcdef01234567",
+                "sequence": 1,
+                "event_type": "policy_denied",
+                "summary": "The APK worker remained blocked by deployment policy.",
+                "timestamp": "2026-08-19T12:00:00+00:00",
+                "metadata": {"reason": "Static worker is disabled."},
+            }
+        ],
+        "last_sequence": 1,
+        "terminal": True,
+        "run_state": "blocked",
+    }
+    monkeypatch.setattr(
+        "vulnhunter.web.conversation_mobile_views._actor",
+        lambda *_args, **_kwargs: actor,
+    )
+    monkeypatch.setattr(
+        "vulnhunter.web.conversation_mobile_views.current_mobile_plan",
+        lambda *_args, **_kwargs: plan,
+    )
+    monkeypatch.setattr(
+        "vulnhunter.web.conversation_mobile_views._record_mobile_activity",
+        lambda **_kwargs: None,
+    )
+    monkeypatch.setattr(
+        "vulnhunter.web.conversation_mobile_views.activity_payload",
+        lambda *_args, **_kwargs: payload,
+    )
+
+    response = client.get("/workspace/mobile-activity/mobile-activity-01/stream/?after_sequence=0")
+    body = b"".join(response.streaming_content).decode()
+
+    assert response.status_code == 200
+    assert response["Content-Type"].startswith("text/event-stream")
+    assert "event: activity" in body
+    assert "policy_denied" in body
+    assert "Static worker is disabled." in body
+
+
+@pytest.mark.django_db
+def test_mobile_activity_stream_includes_latest_signed_progress(client, monkeypatch):
+    user = get_user_model().objects.create_user(
+        username="mobile-progress-user",
+        password="long-test-password-1234",
+    )
+    client.force_login(user)
+    actor = SimpleNamespace(
+        governance_identity=SimpleNamespace(reviewer_id="mobile-progress-user"),
+        product_roles=("campaign-operator",),
+    )
+    plan = {
+        "run_id": "mobile-progress-01",
+        "execution": {
+            "state": "queued",
+            "job_id": "mobile-progress-01",
+            "reason": "Waiting for the static worker.",
+        },
+        "profile": "static",
+    }
+    latest = {
+        "state": "running",
+        "job_id": "mobile-progress-01",
+        "progress": {
+            "active_tool": "jadx",
+            "events": [
+                {
+                    "sequence": 4,
+                    "at": "2026-08-19T12:00:04+00:00",
+                    "state": "running",
+                    "stage": "decompile",
+                    "detail": "JADX is collecting bounded source evidence.",
+                    "tool": "jadx",
+                    "tool_state": "running",
+                }
+            ],
+        },
+    }
+    monkeypatch.setattr(
+        "vulnhunter.web.conversation_mobile_views._actor",
+        lambda *_args, **_kwargs: actor,
+    )
+    monkeypatch.setattr(
+        "vulnhunter.web.conversation_mobile_views.current_mobile_plan",
+        lambda *_args, **_kwargs: plan,
+    )
+    monkeypatch.setattr(
+        "vulnhunter.web.conversation_mobile_views.mobile_static_status",
+        lambda *_args, **_kwargs: latest,
+    )
+    monkeypatch.setattr(
+        "vulnhunter.web.conversation_mobile_views._record_mobile_activity",
+        lambda **_kwargs: None,
+    )
+    monkeypatch.setattr(
+        "vulnhunter.web.conversation_mobile_views.activity_payload",
+        lambda *_args, **_kwargs: {
+            "events": [],
+            "last_sequence": 0,
+            "terminal": False,
+            "run_state": "executing",
+        },
+    )
+
+    response = client.get("/workspace/mobile-activity/mobile-progress-01/stream/?after_sequence=0")
+    body = b"".join(response.streaming_content).decode()
+
+    assert response.status_code == 200
+    assert '"sequence":4' in body
+    assert '"active_tool":"jadx"' in body
+    assert "JADX is collecting bounded source evidence." in body

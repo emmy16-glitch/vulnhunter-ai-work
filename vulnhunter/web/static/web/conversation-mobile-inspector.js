@@ -19,6 +19,10 @@
     events: select("events"),
     findings: select("findings"),
     findingsCount: select("findings-count"),
+    componentsTable: select("components-table"),
+    componentsCount: select("components-count"),
+    endpointsTable: select("endpoints-table"),
+    endpointsCount: select("endpoints-count"),
     artifacts: select("artifacts"),
     artifactsCount: select("artifacts-count"),
     graph: select("graph"),
@@ -26,6 +30,12 @@
     graphSection: select("graph-section"),
     reports: select("reports"),
     reportsCount: select("reports-count"),
+    sourceHuntCount: select("source-hunt-count"),
+    sourceHuntSummary: select("source-hunt-summary"),
+    sourceHuntResults: select("source-hunt-results"),
+    sourceHuntPaths: select("source-hunt-paths"),
+    sourceHuntGraph: select("source-hunt-graph"),
+    emptySourceHunt: select("empty-source-hunt"),
     emptyFindings: select("empty-findings"),
     emptyArtifacts: select("empty-artifacts"),
     emptyGraph: select("empty-graph"),
@@ -45,6 +55,7 @@
     returnFocus: null,
     sheetHistoryActive: false,
     unsubscribeSelectedAssessment: null,
+    securityTables: {},
   };
 
   const text = (value) => (value === null || value === undefined ? "" : String(value));
@@ -249,21 +260,49 @@
 
   const resultSummary = () => state.execution?.progress?.result_summary || {};
   const hunt = () => resultSummary().hunt || null;
+  const intelligence = () => state.projection?.intelligence || resultSummary().intelligence || {};
 
   const updateFindings = () => {
     elements.findings.replaceChildren();
-    const candidates = safeArray(hunt()?.candidates).map((candidate) => ({ ...candidate }));
+    const intelligencePayload = intelligence();
+    const candidates = (
+      safeArray(intelligencePayload.candidates).length
+        ? safeArray(intelligencePayload.candidates)
+        : safeArray(hunt()?.candidates)
+    ).map((candidate) => ({ ...candidate, state: candidate.state || "evidence_required" }));
+    const verifiedConfigurations = safeArray(intelligencePayload.verified_configurations).map(
+      (finding) => ({
+        ...finding,
+        state: "verified_configuration",
+      }),
+    );
+    const verifiedFindings = safeArray(intelligencePayload.verified_findings).map((finding) => ({
+      ...finding,
+      state: "verified",
+    }));
     const rejected = safeArray(hunt()?.rejected).map((candidate) => ({
       ...candidate,
       state: "rejected",
     }));
+    const operationalIssues = safeArray(intelligencePayload.operational_issues);
     const findings = [...candidates, ...rejected];
+    findings.unshift(...verifiedFindings);
+    findings.unshift(...verifiedConfigurations);
     const projectedFindings = state.projection?.findings || {};
-    const candidateCount = Number(projectedFindings.candidate_count);
-    const rejectedCount = Number(projectedFindings.rejected_count);
+    const candidateCount = Number(projectedFindings.candidate_count ?? candidates.length);
+    const rejectedCount = Number(projectedFindings.rejected_count ?? rejected.length);
+    const verifiedConfigurationCount = Number(
+      projectedFindings.verified_configuration_count ?? verifiedConfigurations.length,
+    );
+    const verifiedCount = Number(
+      projectedFindings.verified_security_finding_count ?? verifiedFindings.length,
+    );
     const hasProjectedCounts = Number.isInteger(candidateCount) && Number.isInteger(rejectedCount);
-    elements.findingsCount.textContent = hasProjectedCounts
+    const legacyFindingCount = hasProjectedCounts
       ? String(candidateCount + rejectedCount)
+      : "—";
+    elements.findingsCount.textContent = hasProjectedCounts
+      ? String(Number(legacyFindingCount) + verifiedCount + verifiedConfigurationCount)
       : "—";
 
     const verification = state.projection?.verification || resultSummary().verification || {};
@@ -292,6 +331,23 @@
       elements.findings.append(summary);
     }
 
+    const coverage = intelligencePayload.coverage || {};
+    const coverageSummary = document.createElement("article");
+    coverageSummary.className = "vh-inspector-finding is-coverage";
+    const coverageTitle = document.createElement("strong");
+    coverageTitle.textContent = "Analysis coverage";
+    const coverageCopy = document.createElement("p");
+    coverageCopy.textContent = [
+      `${Number(coverage.completed || 0)} completed`,
+      `${Number(coverage.partial || 0)} partial`,
+      `${Number(coverage.not_applicable || 0)} not applicable`,
+      `${Number(coverage.not_run || 0)} not run`,
+      `${Number(coverage.blocked || 0)} blocked`,
+      `${Number(coverage.failed || 0)} failed`,
+    ].join(" · ");
+    coverageSummary.append(coverageTitle, coverageCopy);
+    elements.findings.append(coverageSummary);
+
     findings.forEach((candidate) => {
       const dispositionState = text(candidate.state || "candidate").toLowerCase();
       const item = document.createElement("article");
@@ -313,32 +369,78 @@
             ? "Candidate observation awaiting verification."
             : "Persisted assessment disposition."),
       );
-      item.append(header, title, component, reason);
+      const evidenceMeta = document.createElement("small");
+      const evidenceId = text(candidate.evidence_id || candidate.evidence_reference || "");
+      const confidence = text(candidate.confidence || candidate.verification_confidence || "");
+      const verification = text(candidate.verification || candidate.verification_status || "");
+      const ownership = text(candidate.ownership || "");
+      const securityProperty = text(candidate.security_property || "");
+      evidenceMeta.textContent = [
+        ownership ? `Ownership ${pretty(ownership)}` : "",
+        securityProperty ? `Property ${pretty(securityProperty)}` : "",
+        confidence ? `Confidence ${pretty(confidence)}` : "",
+        verification ? `Verification ${pretty(verification)}` : "",
+        evidenceId ? `Evidence ${evidenceId.slice(0, 24)}${evidenceId.length > 24 ? "…" : ""}` : "",
+      ]
+        .filter(Boolean)
+        .join(" · ");
+      evidenceMeta.hidden = !evidenceMeta.textContent;
+      item.append(header, title, component, reason, evidenceMeta);
+      elements.findings.append(item);
+    });
+
+    operationalIssues.forEach((issue) => {
+      const item = document.createElement("article");
+      item.className = "vh-inspector-finding is-operational_issue";
+      const header = document.createElement("header");
+      const severity = document.createElement("span");
+      severity.textContent = "Operational";
+      const disposition = document.createElement("b");
+      disposition.textContent = pretty(issue.evidence_state || "operational_failure");
+      header.append(severity, disposition);
+      const title = document.createElement("strong");
+      title.textContent = text(issue.title || "Tool execution issue");
+      const detail = document.createElement("p");
+      detail.textContent = text(issue.failure_type || "The tool did not produce a complete result.");
+      item.append(header, title, detail);
       elements.findings.append(item);
     });
   };
 
   const updateArtifacts = () => {
     elements.artifacts.replaceChildren();
+    const intelligencePayload = intelligence();
+    const executions = safeArray(intelligencePayload.tool_executions);
     const captures = safeArray(resultSummary().captures);
+    const rows = executions.length ? executions : captures;
     const authoritativeCount = Number(state.projection?.evidence?.record_count);
     elements.artifactsCount.textContent = String(
-      Number.isInteger(authoritativeCount) ? authoritativeCount : captures.length,
+      Number.isInteger(authoritativeCount) ? authoritativeCount : rows.length,
     );
-    elements.emptyArtifacts.hidden = captures.length > 0;
-    captures.forEach((capture) => {
+    elements.emptyArtifacts.hidden = rows.length > 0;
+    rows.forEach((row) => {
       const item = document.createElement("article");
-      item.className = Number(capture.return_code) === 0 ? "is-success" : "is-failed";
+      const status = text(row.status).toLowerCase();
+      const fallbackStatus = Number(row.return_code) === 0 ? "completed" : "failed";
+      item.className = `is-${status || fallbackStatus}`;
       const title = document.createElement("strong");
-      title.textContent = pretty(capture.tool || "tool");
+      title.textContent = pretty(row.tool || "tool");
       const meta = document.createElement("small");
-      const duration = Number(capture.duration_ms || 0);
-      meta.textContent = `Exit ${Number(capture.return_code)} · ${(duration / 1000).toFixed(1)}s`;
+      const exit = row.exit_code ?? row.return_code;
+      const statusCopy = pretty(status || fallbackStatus);
+      meta.textContent = exit == null ? statusCopy : `${statusCopy} · Exit ${Number(exit)}`;
       const digest = document.createElement("code");
-      digest.textContent = `Evidence ${text(capture.output_sha256).slice(0, 24)}…`;
+      const evidenceDigest = text(
+        row.evidence_references?.[0] || row.output_sha256 || "receipt-digest-unavailable",
+      );
+      digest.textContent = `Evidence ${evidenceDigest.slice(0, 32)}${evidenceDigest.length > 32 ? "…" : ""}`;
       const metrics = document.createElement("p");
-      const evidence = capture.evidence && typeof capture.evidence === "object" ? capture.evidence : {};
-      metrics.textContent = text(evidence.library || "Bounded structured receipt stored");
+      const generated = row.generated_files == null ? "" : `${row.generated_files} files retained`;
+      const downstream = row.downstream_usable ? "downstream usable" : "";
+      const limitation = safeArray(row.coverage_limitations).join(" ");
+      metrics.textContent = [generated, downstream, limitation || text(row.detail || "")]
+        .filter(Boolean)
+        .join(" · ") || "Bounded structured receipt stored";
       item.append(title, meta, digest, metrics);
       elements.artifacts.append(item);
     });
@@ -386,6 +488,239 @@
       graph.evidence_required_paths || 0,
     )} requiring evidence · ${edges.length} relations`;
     elements.graph.append(summary);
+  };
+
+  const csrfToken = () => {
+    const cookie = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
+    if (cookie) return decodeURIComponent(cookie[1]);
+    return workspace.querySelector("input[name='csrfmiddlewaretoken']")?.value || "";
+  };
+
+  const copyValue = async (value, button) => {
+    const textValue = text(value);
+    if (!textValue) return;
+    try {
+      await navigator.clipboard.writeText(textValue);
+      button.textContent = "Copied";
+    } catch (_error) {
+      button.textContent = "Copy unavailable";
+    }
+    window.setTimeout(() => { button.textContent = "Copy"; }, 1200);
+  };
+
+  const recordDetails = (row, fields) => {
+    const wrapper = document.createElement("div");
+    wrapper.className = "vh-security-table-row-details";
+    const copy = document.createElement("p");
+    copy.textContent = fields.map(([label, key]) => `${label}: ${text(row[key]) || "Not recorded"}`).join(" · ");
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "vh-button-secondary";
+    button.textContent = "Copy";
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      copyValue(row.record_id || row.endpoint_id || row.component_id || row.id, button);
+    });
+    wrapper.append(copy, button);
+    return wrapper;
+  };
+
+  const postSourceHuntRecords = async (recordIds) => {
+    const uniqueIds = [...new Set(recordIds.map(text).filter(Boolean))].slice(0, 64);
+    if (!uniqueIds.length) throw new Error("Select at least one persisted component record.");
+    const body = new URLSearchParams();
+    body.set("record_ids", JSON.stringify(uniqueIds));
+    const response = await fetch("/workspace/mobile-source-hunt/", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "X-CSRFToken": csrfToken(), Accept: "application/json" },
+      body,
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.detail || "The Source Hunt handoff could not be completed.");
+    if (data.assessment_projection && window.vhSelectedAssessmentStore?.replace) {
+      window.vhSelectedAssessmentStore.replace(data);
+    }
+    if (data.message) {
+      document.dispatchEvent(new CustomEvent("vh:conversation-message", { detail: data.message }));
+    }
+    return data;
+  };
+
+  const mountProjectionTable = (key, root, rows, columns, options = {}) => {
+    if (!root || !window.VulnHunterSecurityTable?.mount) return;
+    root.replaceChildren();
+    state.securityTables[key]?.destroy?.();
+    state.securityTables[key] = window.VulnHunterSecurityTable.mount(root, {
+      tableKey: `mobile-${selectedAssessmentId()}-${key}`,
+      title: options.title,
+      description: options.description,
+      rows,
+      columns,
+      pageSize: 10,
+      emptyText: options.emptyText,
+      savedViews: [{ id: "core", label: "Core fields", visibleColumns: columns.filter((column) => column.core).map((column) => column.key) }],
+      bulkActions: options.bulkActions || [],
+      onRowExpand: options.onRowExpand,
+    });
+  };
+
+  const updateComponents = () => {
+    const payload = intelligence();
+    const rows = safeArray(payload.components || payload.manifest_components || state.projection?.components).map((row, index) => ({
+      ...row,
+      record_id: text(row.record_id || row.component_id || row.id || `component-${index}`),
+      name: text(row.name || row.class_name || row.component || "Unnamed component"),
+      type: text(row.type || row.component_type || row.kind || "component"),
+      ownership: text(row.ownership || row.owner || "unknown"),
+      permission: text(row.permission || row.required_permission || "none recorded"),
+      evidence_state: text(row.evidence_state || row.state || "observed"),
+    }));
+    elements.componentsCount.textContent = String(rows.length || Number(payload.component_count || 0) || "—");
+    mountProjectionTable("components", elements.componentsTable, rows, [
+      { key: "name", label: "Name", core: true },
+      { key: "type", label: "Type", core: true },
+      { key: "ownership", label: "Ownership", core: true },
+      { key: "permission", label: "Permission", core: false },
+      { key: "evidence_state", label: "Evidence state", core: true },
+    ], {
+      title: "Component surfaces",
+      description: "Persisted manifest records; selection is advisory until the server revalidates it.",
+      emptyText: "No persisted component records are available.",
+      bulkActions: [{
+        id: "source-hunt",
+        label: "Investigate with Source Hunt",
+        onClick: async (ids, button) => {
+          button.disabled = true;
+          try { await postSourceHuntRecords(ids); } finally { button.disabled = false; }
+        },
+      }],
+      onRowExpand: (row) => recordDetails(row, [["Record", "record_id"], ["Evidence", "evidence_reference"], ["Source", "source_path"]]),
+    });
+  };
+
+  const updateEndpoints = () => {
+    const payload = intelligence();
+    const rows = safeArray(payload.endpoints || payload.network_endpoints || payload.endpoint_references || state.projection?.endpoints).map((row, index) => ({
+      ...row,
+      record_id: text(row.record_id || row.endpoint_id || row.id || `endpoint-${index}`),
+      protocol: text(row.protocol || row.scheme || "unknown"),
+      host: text(row.host || row.hostname || "not recorded"),
+      port: text(row.port || "—"),
+      path: text(row.path || row.url_path || "/"),
+      ownership: text(row.ownership || row.owner || "unknown"),
+      service_role: text(row.service_role || row.role || "unknown"),
+      evidence_state: text(row.evidence_state || row.state || "observed"),
+    }));
+    elements.endpointsCount.textContent = String(rows.length || Number(payload.endpoint_count || 0) || "—");
+    mountProjectionTable("endpoints", elements.endpointsTable, rows, [
+      { key: "protocol", label: "Protocol", core: true },
+      { key: "host", label: "Host", core: true },
+      { key: "port", label: "Port", core: false },
+      { key: "path", label: "Path", core: true },
+      { key: "ownership", label: "Ownership", core: true },
+      { key: "service_role", label: "Service role", core: false },
+      { key: "evidence_state", label: "Evidence state", core: true },
+    ], {
+      title: "Endpoint references",
+      description: "Static evidence only; no network request is made from this table.",
+      emptyText: "No persisted endpoint references are available.",
+      onRowExpand: (row) => recordDetails(row, [["Record", "record_id"], ["Host", "host"], ["Path", "path"], ["Evidence", "evidence_reference"]]),
+    });
+  };
+
+  const updateSourceHunt = () => {
+    const hunt = state.projection?.source_hunt || {};
+    const graph = hunt.graph || {};
+    const results = safeArray(hunt.results);
+    const nodes = safeArray(graph.nodes);
+    const edges = safeArray(graph.edges);
+    const paths = safeArray(hunt.attack_paths || hunt.paths || graph.attack_paths);
+    const ready = hunt.report_ready === true;
+    elements.sourceHuntCount.textContent = ready ? String(nodes.length) : "—";
+    elements.emptySourceHunt.hidden = ready;
+    elements.sourceHuntSummary.replaceChildren();
+    elements.sourceHuntResults.replaceChildren();
+    elements.sourceHuntPaths.replaceChildren();
+    elements.sourceHuntGraph.replaceChildren();
+    if (!ready) return;
+
+    mountProjectionTable("source-hunt-paths", elements.sourceHuntPaths, paths.map((path, index) => ({
+      ...path,
+      record_id: text(path.path_id || path.id || `path-${index}`),
+      path_id: text(path.path_id || path.id || `path-${index}`),
+      state: text(path.state || path.status || "inconclusive"),
+      steps: Number(path.steps || path.step_count || path.nodes?.length || 0),
+      confidence: text(path.confidence || path.verification_confidence || "unknown"),
+      evidence: text(path.evidence_reference || path.evidence_id || "not recorded"),
+    })), [
+      { key: "path_id", label: "Path", core: true },
+      { key: "state", label: "State", core: true },
+      { key: "steps", label: "Steps", core: true },
+      { key: "confidence", label: "Confidence", core: true },
+      { key: "evidence", label: "Evidence", core: false },
+    ], {
+      title: "Persisted attack paths",
+      description: "List view remains authoritative when graph visualization is incomplete.",
+      emptyText: "No persisted attack paths are available.",
+      onRowExpand: (row) => recordDetails(row, [["Path", "path_id"], ["State", "state"], ["Evidence", "evidence"]]),
+    });
+
+    const summary = document.createElement("p");
+    summary.textContent = [
+      `${pretty(hunt.state)} state`,
+      `${Number(hunt.seeds_examined || results.length)} seeds examined`,
+      `${nodes.length} nodes`,
+      `${edges.length} edges`,
+      `${Number(hunt.verified_finding_count || 0)} verified findings`,
+    ].join(" · ");
+    elements.sourceHuntSummary.append(summary);
+
+    const coverage = document.createElement("small");
+    coverage.textContent = `${pretty(hunt.coverage?.status || "bounded")} retained-source coverage${safeArray(hunt.coverage?.limitations).length ? ` · ${safeArray(hunt.coverage.limitations).join(" ")}` : ""}`;
+    elements.sourceHuntSummary.append(coverage);
+
+    results.slice(0, 24).forEach((result) => {
+      const item = document.createElement("article");
+      item.className = `vh-inspector-finding is-${text(result.state || "inconclusive")}`;
+      const heading = document.createElement("strong");
+      heading.textContent = text(result.seed?.title || "Source Hunt seed");
+      const stateLabel = document.createElement("b");
+      stateLabel.textContent = pretty(result.state || "inconclusive");
+      const detail = document.createElement("p");
+      detail.textContent = text(result.summary || "No deterministic validation summary was recorded.");
+      const evidence = document.createElement("small");
+      evidence.textContent = [
+        result.bounded_negative ? "Bounded negative" : "Evidence status recorded",
+        safeArray(result.graph_node_ids).length ? `${safeArray(result.graph_node_ids).length} nodes` : "",
+        safeArray(result.graph_edge_ids).length ? `${safeArray(result.graph_edge_ids).length} edges` : "",
+      ].filter(Boolean).join(" · ");
+      item.append(heading, stateLabel, detail, evidence);
+      elements.sourceHuntResults.append(item);
+    });
+
+    const graphList = document.createElement("ol");
+    graphList.className = "vh-source-hunt-graph-list";
+    nodes.slice(0, 40).forEach((node) => {
+      const item = document.createElement("li");
+      const label = document.createElement("strong");
+      label.textContent = text(node.label || node.node_id || "Graph node");
+      const meta = document.createElement("small");
+      const provenance = safeArray(node.provenance)[0] || {};
+      meta.textContent = [
+        pretty(node.node_type || "node"),
+        pretty(node.state || "observed"),
+        provenance.source_path ? `${provenance.source_path}${provenance.line_start ? `:${provenance.line_start}` : ""}` : "provenance retained",
+      ].join(" · ");
+      item.append(label, meta);
+      graphList.append(item);
+    });
+    elements.sourceHuntGraph.append(graphList);
+    if (edges.length > 40) {
+      const note = document.createElement("small");
+      note.textContent = `${edges.length} persisted relations total; graph preview shows the first 40 nodes with provenance.`;
+      elements.sourceHuntGraph.append(note);
+    }
   };
 
   const reportFormats = [
@@ -479,8 +814,11 @@
     updateTools();
     updateEvents();
     updateFindings();
+    updateComponents();
+    updateEndpoints();
     updateArtifacts();
     updateGraph();
+    updateSourceHunt();
     updateReports();
   };
 

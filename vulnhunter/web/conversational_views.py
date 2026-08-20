@@ -2,23 +2,25 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
 from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import urlsplit
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
-from django.http import Http404, HttpRequest, HttpResponse, JsonResponse
+from django.http import Http404, HttpRequest, HttpResponse, JsonResponse, StreamingHttpResponse
 from django.shortcuts import render
 from django.urls import reverse
 from django.views.decorators.cache import cache_control
 from django.views.decorators.http import require_GET, require_POST
 
+from vulnhunter.agent_activity.hierarchy import build_activity_tree
 from vulnhunter.approvals import ApprovalStatus, ApprovalStore
 from vulnhunter.approvals.store import ApprovalConflictError, ApprovalStoreError
 from vulnhunter.assessment_graph import AssessmentGraphError, AssessmentGraphService
 from vulnhunter.product import ProductServiceError
+from vulnhunter.web import stream_views
 from vulnhunter.web.assessment_workflow import (
     AssessmentWorkflowError,
     AssessmentWorkflowService,
@@ -198,14 +200,25 @@ def _existing_run_bound_to_state(
     actor: object,
     target: str,
 ):
-    stored_target = state.get("target")
-    if not (
-        isinstance(stored_target, str)
-        and stored_target
-        and canonical_target(stored_target) == canonical_target(target)
-    ):
+    """Return only the explicitly persisted run for this conversation state.
+
+    A target URL is not an attempt identity. Looking up the latest run for a
+    matching target can attach a stale or superseded worker job to a new
+    conversation, so target matching is only a consistency check after the
+    persisted run ID has been resolved.
+    """
+
+    run_id = state.get("run_id")
+    if not isinstance(run_id, str) or not run_id:
         return None
-    return _latest_visible_run(actor, target=target)
+    try:
+        current = _visible_run(run_id, actor)
+    except Http404:
+        return None
+    current_target = canonical_target(
+        str(getattr(current, "scope_summary", None) or getattr(current, "objective", ""))
+    )
+    return current if current_target == canonical_target(target) else None
 
 
 def _authoritative_run(
@@ -215,22 +228,18 @@ def _authoritative_run(
     target: str | None = None,
 ):
     run_id = state.get("run_id")
-    if isinstance(run_id, str) and run_id:
-        try:
-            current = _visible_run(run_id, actor)
-        except Http404:
-            current = None
-        if current is not None:
-            if not target:
-                return current
-            current_target = canonical_target(
-                str(getattr(current, "scope_summary", None) or getattr(current, "objective", ""))
-            )
-            if current_target == canonical_target(target):
-                return current
-    if target:
-        return _existing_run_bound_to_state(state, actor, target)
-    return None
+    if not isinstance(run_id, str) or not run_id:
+        return None
+    try:
+        current = _visible_run(run_id, actor)
+    except Http404:
+        return None
+    if not target:
+        return current
+    current_target = canonical_target(
+        str(getattr(current, "scope_summary", None) or getattr(current, "objective", ""))
+    )
+    return current if current_target == canonical_target(target) else None
 
 
 def _sync_state_from_run(
@@ -416,6 +425,18 @@ def _run_payload(run: object) -> dict[str, object]:
     }
     command_plan = getattr(run, "command_plan_summary", {})
     plan = command_plan if isinstance(command_plan, Mapping) else {}
+    memory = getattr(run, "memory", {})
+    workflow_memory = memory.get("assessment_workflow", {}) if isinstance(memory, Mapping) else {}
+    authorization_id = (
+        str(
+            workflow_memory.get("authorization_id")
+            or plan.get("authorization_id")
+            or getattr(run, "authorization_id", "")
+            or ""
+        ).strip()
+        if isinstance(workflow_memory, Mapping)
+        else str(plan.get("authorization_id") or getattr(run, "authorization_id", "") or "").strip()
+    )
     template_hashes = plan.get("template_manifest_hashes", ())
     if not isinstance(template_hashes, (list, tuple)):
         template_hashes = ()
@@ -437,11 +458,14 @@ def _run_payload(run: object) -> dict[str, object]:
         "artifacts": [_safe_artifact(item) for item in artifacts],
         "last_sequence": (timeline.get("last_sequence", 0) if isinstance(timeline, dict) else 0),
         "approval": _approval_payload(run),
+        "authorization_id": authorization_id or None,
         "detail_url": reverse("web-scan-run-detail", kwargs={"run_id": run_id}),
         "findings_url": reverse("web-findings-overview"),
     }
     graph_payload = _assessment_graph_service().status_payload(run_id)
     if graph_payload is not None:
+        if authorization_id and not graph_payload.get("authorization_id"):
+            graph_payload = {**graph_payload, "authorization_id": authorization_id}
         payload["task_graph"] = graph_payload
         payload["chat_stage"] = graph_payload["chat_stage"]
     return enrich_run_payload(
@@ -449,6 +473,36 @@ def _run_payload(run: object) -> dict[str, object]:
         raw_events=raw_events,
         template_count=len(template_hashes),
     )
+
+
+def _conversation_stream_payload(run: object, *, after_sequence: int) -> dict[str, object]:
+    """Build one bounded conversation snapshot with only new activity events."""
+
+    payload = _run_payload(run)
+    incremental = activity_payload(str(run.run_id), after_sequence=after_sequence)
+    events = incremental.get("events", []) if isinstance(incremental, dict) else []
+    payload["events"] = events if isinstance(events, list) else []
+    payload["last_sequence"] = int(
+        incremental.get("last_sequence", after_sequence)
+        if isinstance(incremental, dict)
+        else after_sequence
+    )
+    payload["run_state"] = (
+        incremental.get("run_state") or payload.get("state")
+        if isinstance(incremental, dict)
+        else payload.get("state")
+    )
+    payload["active_summary"] = stream_views._active_summary(run)
+    if isinstance(incremental, dict) and incremental.get("terminal"):
+        payload["terminal"] = True
+    if not isinstance(payload.get("activity_tree"), dict):
+        payload["activity_tree"] = build_activity_tree(
+            payload.get("events", []),
+            task_id=str(run.run_id),
+            run_state=str(payload.get("run_state") or payload.get("state") or "running"),
+            last_sequence=int(payload.get("last_sequence", after_sequence) or after_sequence),
+        )
+    return payload
 
 
 def _visible_run(run_id: str, actor: object):
@@ -497,19 +551,41 @@ def workspace_view(request: HttpRequest) -> HttpResponse:
         state = _sync_state_from_run(request, state, authoritative)
     current_thread = getattr(request, "vulnhunter_thread", None)
     thread_items = tuple(thread_summary(item) for item in list_threads(request.user))
+    recent_runs = _recent_runs(actor)
+    messages = _messages(request)
+    has_user_messages = any(str(item.get("role", "")).lower() == "user" for item in messages)
+    task_counts = {"active": 0, "completed": 0, "cancelled": 0}
+    for item in recent_runs:
+        state = str(item.get("state", "")).strip().lower()
+        if state in {"running", "executing", "queued", "prepared", "waiting", "active"}:
+            task_counts["active"] += 1
+        elif state in {"cancelled", "canceled"}:
+            task_counts["cancelled"] += 1
+        else:
+            task_counts["completed"] += 1
     initial = {
         "thread_id": str(current_thread.thread_id) if current_thread is not None else "",
         "thread_title": current_thread.title
         if current_thread is not None
         else "Assessment Workspace",
         "threads": thread_items,
-        "messages": _messages(request),
+        "messages": messages,
+        "has_user_messages": has_user_messages,
         "active_run": active_run,
-        "recent_runs": _recent_runs(actor),
+        "recent_runs": recent_runs,
+        "task_counts": task_counts,
         "groq": advisory_runtime_status(),
         "message_url": reverse("web-conversation-message"),
         "status_url_template": reverse(
             "web-conversation-status",
+            kwargs={"run_id": "RUN_ID"},
+        ),
+        "activity_stream_url_template": reverse(
+            "web-conversation-activity-stream",
+            kwargs={"run_id": "RUN_ID"},
+        ),
+        "mobile_activity_stream_url_template": reverse(
+            "web-conversation-mobile-activity-stream",
             kwargs={"run_id": "RUN_ID"},
         ),
         "approval_url": reverse("web-conversation-approve"),
@@ -517,6 +593,10 @@ def workspace_view(request: HttpRequest) -> HttpResponse:
         "thread_create_url": reverse("web-conversation-thread-create"),
         "thread_list_url": reverse("web-conversation-thread-list"),
         "reasoning_url": reverse("web-conversation-reasoning"),
+        "realtime_ticket_url": reverse("api-v1-realtime-ticket"),
+        "realtime_websocket_enabled": bool(
+            getattr(settings, "VULNHUNTER_REALTIME_WEBSOCKET_ENABLED", False)
+        ),
         "reasoning_effort": thread_preferences(request)[0],
         "provider_preference": thread_preferences(request)[1],
     }
@@ -1039,6 +1119,36 @@ def message_view(request: HttpRequest) -> JsonResponse:
         },
     )
     return JsonResponse({"message": message, "run": _run_payload(run)}, status=201)
+
+
+@cache_control(private=True, no_store=True)
+@login_required
+@require_GET
+def activity_stream_view(request: HttpRequest, run_id: str):
+    """Stream one persisted conversation activity snapshot for EventSource."""
+
+    try:
+        actor = _actor(request, "scan.read")
+    except WebPermissionDenied as exc:
+        return JsonResponse({"detail": str(exc)}, status=403)
+    try:
+        after_sequence = stream_views._after_sequence_or_error(request)
+    except ValueError as exc:
+        return JsonResponse({"detail": str(exc)}, status=400)
+    run = _visible_run(run_id, actor)
+    payload = _conversation_stream_payload(run, after_sequence=after_sequence)
+    sequence = int(payload.get("last_sequence", after_sequence))
+
+    def event_stream() -> Iterator[str]:
+        yield from stream_views._event_stream(sequence=sequence, payload=payload)
+
+    response = StreamingHttpResponse(
+        event_stream(),
+        content_type="text/event-stream; charset=utf-8",
+    )
+    response["Cache-Control"] = "private, no-cache, no-store, must-revalidate"
+    response["X-Accel-Buffering"] = "no"
+    return response
 
 
 @cache_control(private=True, no_store=True)

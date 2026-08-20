@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@900&family=Lato:wght@300;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        .slide-container { 
+            width: 1280px; 
+            min-height: 720px; 
+            background-color: #F4F7F6; 
+            position: relative;
+            overflow: hidden;
+            font-family: 'Lato', sans-serif;
+        }
+        .content-wrapper {
+            position: absolute;
+            left: 80px;
+            bottom: 80px;
+            width: 900px;
+        }
+        .main-title {
+            font-family: 'Playfair Display', serif;
+            font-weight: 900;
+            font-size: 84px;
+            color: #001219;
+            line-height: 1.1;
+            margin-bottom: 24px;
+            letter-spacing: -1px;
+        }
+        .divider {
+            width: 160px;
+            height: 8px;
+            background-color: #CA6702;
+            margin-bottom: 32px;
+        }
+        .subtitle {
+            font-weight: 300;
+            font-size: 32px;
+            color: #005F73;
+            line-height: 1.4;
+            margin-bottom: 48px;
+            max-width: 800px;
+        }
+        .presenter-info {
+            font-weight: 700;
+            font-size: 20px;
+            color: #001219;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        .decorative-shape {
+            position: absolute;
+            right: -100px;
+            top: -100px;
+            width: 600px;
+            height: 600px;
+            border-radius: 50%;
+            background-color: #CA6702;
+            opacity: 0.05;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide-container">
+        <div class="decorative-shape"></div>
+        <div class="content-wrapper">
+            <h1 class="main-title">V380 APK Security Review</h1>
+            <div class="divider"></div>
+            <p class="subtitle">Verified findings, app-owned endpoint inventory, and bounded acceptance status</p>
+            <p class="presenter-info">Manus AI &middot; 19 August 2026</p>
+        </div>
+    </div>
+</body>
+</html>

@@ -10,6 +10,9 @@
   const thinkingCopy = workspace?.querySelector("[data-thinking-copy]");
   const reset = workspace?.querySelector("[data-conversation-reset]");
   const fileInput = workspace?.querySelector("[data-conversation-file]");
+  const contextBar = workspace?.querySelector("[data-conversation-context-bar]");
+  const contextItems = workspace?.querySelector("[data-conversation-context-items]");
+  const contextClear = workspace?.querySelector("[data-conversation-context-clear]");
   const messageTemplate = document.getElementById("vh-message-template");
   if (!form || !feed || !input || !messageTemplate) return;
 
@@ -20,8 +23,52 @@
   let activeMobilePlan = null;
   let bypassMobileFollowup = false;
   let contextBusy = false;
+  const contextState = {
+    assessmentId: "",
+    assessmentLabel: "",
+    kind: "",
+    ids: [],
+  };
 
   const text = (value) => (value === null || value === undefined ? "" : String(value));
+
+  const renderContext = () => {
+    if (!contextBar || !contextItems) return;
+    contextItems.replaceChildren();
+
+    const values = [];
+    if (contextState.assessmentId) {
+      values.push(contextState.assessmentLabel || "Selected assessment");
+    }
+    if (contextState.kind && contextState.ids.length) {
+      const noun = contextState.kind.toLowerCase();
+      values.push(
+        `${contextState.ids.length} ${noun}${contextState.ids.length === 1 ? "" : "s"} selected`,
+      );
+    }
+
+    contextBar.hidden = values.length === 0;
+    values.forEach((value) => {
+      const chip = document.createElement("span");
+      chip.className = "vh-conversation-context-chip";
+      chip.textContent = value;
+      contextItems.append(chip);
+    });
+  };
+
+  const setContext = (detail = {}) => {
+    if (detail.assessmentId !== undefined) contextState.assessmentId = text(detail.assessmentId);
+    if (detail.assessmentLabel !== undefined) {
+      contextState.assessmentLabel = text(detail.assessmentLabel);
+    }
+    if (detail.kind !== undefined) contextState.kind = text(detail.kind);
+    if (detail.ids !== undefined) {
+      contextState.ids = Array.isArray(detail.ids)
+        ? detail.ids.map(text).filter(Boolean).slice(0, 64)
+        : [];
+    }
+    renderContext();
+  };
 
   const scrollLatest = () => {
     const controller = window.VulnHunterConversationScroll;
@@ -29,7 +76,9 @@
       controller.scrollToLatest({ behavior: "smooth", force: true });
       return;
     }
-    window.requestAnimationFrame(() => feed.scrollTo({ top: feed.scrollHeight, behavior: "smooth" }));
+    window.requestAnimationFrame(() =>
+      feed.scrollTo({ top: feed.scrollHeight, behavior: "smooth" }),
+    );
   };
 
   const readJson = async (response) => {
@@ -157,7 +206,7 @@
 
       event.preventDefault();
       event.stopImmediatePropagation();
-      setBusy(true, "Reasoning over the selected APK plan and current evidence…");
+      setBusy(true, "Reviewing the selected APK evidence…");
       try {
         const payload = new FormData();
         payload.append("message", value);
@@ -194,6 +243,32 @@
   );
 
   reset?.addEventListener("click", clearContext);
+  contextClear?.addEventListener("click", () => setContext({ kind: "", ids: [] }));
+
+  document.addEventListener("vh:security-table-selection-change", (event) => {
+    const detail = event.detail || {};
+    const isComponentSelection = detail.tableKey?.includes("components");
+    setContext({
+      kind: isComponentSelection ? "component" : "record",
+      ids: detail.selectedIds || [],
+    });
+  });
+
+  document.addEventListener("vh:context-selection", (event) => {
+    const detail = event.detail || {};
+    setContext({ kind: detail.kind || "record", ids: detail.ids || [] });
+  });
+
+  document.addEventListener("vh:selected-assessment-change", (event) => {
+    const snapshot = event.detail || {};
+    const projection = snapshot.assessment_projection || {};
+    setContext({
+      assessmentId: projection.assessment_id || snapshot.assessment_id || "",
+      assessmentLabel: projection.subject?.label || "Selected assessment",
+    });
+  });
+
   observeMobilePlan();
   restoreContext();
+  renderContext();
 })();

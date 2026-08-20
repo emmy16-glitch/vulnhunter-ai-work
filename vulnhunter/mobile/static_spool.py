@@ -13,6 +13,7 @@ from typing import Literal, Self
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from vulnhunter.actions.models import sha256_json
+from vulnhunter.mobile.intelligence import MobileAnalysisIntelligence
 from vulnhunter.mobile.static_worker import MobileStaticAnalysisResult
 
 
@@ -126,6 +127,7 @@ class MobileStaticJobReceipt(BaseModel):
     reason: str = Field(min_length=3, max_length=500)
     captures: tuple[MobileCaptureReceipt, ...] = ()
     candidate_observations: tuple[dict[str, object], ...] = ()
+    intelligence: MobileAnalysisIntelligence | None = None
 
     @field_validator("completed_at")
     @classmethod
@@ -157,6 +159,7 @@ class MobileStaticJobReceipt(BaseModel):
                 for item in result.captures
             ),
             candidate_observations=result.candidate_observations,
+            intelligence=result.intelligence,
         )
 
 

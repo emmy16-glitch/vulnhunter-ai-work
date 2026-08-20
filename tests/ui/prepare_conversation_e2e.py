@@ -24,14 +24,67 @@ from django.contrib.auth import get_user_model
 from vulnhunter.authorization.models import AuthorizationLimits
 from vulnhunter.authorization.service import issue_authorization
 from vulnhunter.authorization.store import AuthorizationStore
+from vulnhunter.governance.auth import hash_secret
+from vulnhunter.governance.models import ReviewerIdentity, identity_record_sha256
+from vulnhunter.governance.service import bootstrap_administrator
+from vulnhunter.governance.store import GovernanceNotFoundError, GovernanceStore
 from vulnhunter.scope import validate_target
 from vulnhunter.web.assessment_workflow import bind_nuclei_authorization
 from vulnhunter.web.models import WebUserMapping
 
 
 USERNAME = "conversation-e2e"
-IDENTITY_ID = "admin-a"
+IDENTITY_ID = os.environ.get("VULNHUNTER_UI_GOVERNANCE_IDENTITY", "admin-a")
 PASSWORD = "Vh-Conversation-E2E-2026!"
+
+
+def prepare_governance_identity() -> None:
+    store = GovernanceStore.from_path(Path(settings.VULNHUNTER_GOVERNANCE_DATABASE))
+    store.initialize()
+    try:
+        identity = store.get_identity(IDENTITY_ID)
+    except GovernanceNotFoundError:
+        if store.identity_count() == 0:
+            identity = bootstrap_administrator(
+                store,
+                reviewer_id=IDENTITY_ID,
+                display_name="Conversation E2E Administrator",
+                secret="conversation-e2e-governance-secret",
+            )
+        else:
+            existing_admin = next(
+                (
+                    candidate
+                    for candidate in store.list_identities()
+                    if candidate.status == "active" and "campaign_admin" in candidate.roles
+                ),
+                None,
+            )
+            if existing_admin is None:
+                raise RuntimeError(
+                    "Cannot seed the conversation E2E identity: no active campaign administrator "
+                    "exists in the non-empty governance registry."
+                ) from None
+            salt, credential_hash = hash_secret("conversation-e2e-governance-secret")
+            data: dict[str, object] = {
+                "reviewer_id": IDENTITY_ID,
+                "display_name": "Conversation E2E Administrator",
+                "roles": ("campaign_admin",),
+                "conflict_tags": (),
+                "status": "active",
+                "credential_salt": salt,
+                "credential_hash": credential_hash,
+                "created_by": existing_admin.reviewer_id,
+                "created_at": datetime.now(UTC),
+                "status_changed_at": None,
+                "status_reason": None,
+                "record_sha256": "0" * 64,
+            }
+            data["record_sha256"] = identity_record_sha256(data)
+            # This is a local acceptance fixture, not a production identity API.
+            identity = store.create_identity(ReviewerIdentity.model_validate(data))
+    if identity.status != "active":
+        raise RuntimeError(f"Conversation E2E governance identity {IDENTITY_ID!r} is not active.")
 
 
 def prepare_user() -> None:
@@ -60,6 +113,7 @@ def prepare_reviewed_templates() -> None:
 
 
 def main() -> int:
+    prepare_governance_identity()
     prepare_user()
     prepare_reviewed_templates()
     target = validate_target(

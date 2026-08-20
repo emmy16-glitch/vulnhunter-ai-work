@@ -473,6 +473,9 @@ async function verifyContextualSearchAccess(page) {
         }),
       );
 
+      await page.locator("[data-conversation-form]").evaluate((form) => {
+        form.dataset.mobileUploadMode = "background";
+      });
       await page.locator("[data-conversation-file]").setInputFiles({
         name: "phone-acceptance.apk",
         mimeType: "application/vnd.android.package-archive",

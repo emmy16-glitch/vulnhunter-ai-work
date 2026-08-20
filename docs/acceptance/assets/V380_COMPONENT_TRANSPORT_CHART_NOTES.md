@@ -1,0 +1,3 @@
+# V380 component and transport chart review notes
+
+The chart `v380_component_transport_summary.png` was visually checked after generation. It uses the final durable-policy acceptance receipt and the retained partial JADX app-owned source inventory. It clearly displays 17 exported components without component permissions, split into 8 app-owned and 9 SDK/integration components; component types of 13 activities, 1 service, 1 receiver, and 2 providers; and 50 HTTP versus 29 HTTPS de-duplicated app-owned URL string literals. The chart footer explicitly states the static-only evidence boundary: no endpoint contact and no APK execution. Ownership and SDK labels are fully visible after refinement.

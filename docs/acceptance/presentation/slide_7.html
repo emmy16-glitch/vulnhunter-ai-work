@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@900&family=Lato:wght@300;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        .slide-container { 
+            width: 1280px; 
+            min-height: 720px; 
+            background-color: #F4F7F6; 
+            position: relative;
+            overflow: hidden;
+            font-family: 'Lato', sans-serif;
+        }
+        .content-wrapper {
+            position: absolute;
+            left: 80px;
+            bottom: 80px;
+            width: 1120px;
+        }
+        .slide-title {
+            font-family: 'Playfair Display', serif;
+            font-weight: 900;
+            font-size: 56px;
+            color: #001219;
+            line-height: 1.1;
+            margin-bottom: 24px;
+            letter-spacing: -0.5px;
+            max-width: 1000px;
+        }
+        .divider {
+            width: 120px;
+            height: 8px;
+            background-color: #CA6702;
+            margin-bottom: 48px;
+        }
+        .columns {
+            display: flex;
+            gap: 64px;
+            align-items: flex-start;
+        }
+        .col-metrics {
+            flex: 0 0 280px;
+        }
+        .metric-item {
+            margin-bottom: 40px;
+        }
+        .metric-number {
+            font-family: 'Playfair Display', serif;
+            font-weight: 900;
+            font-size: 80px;
+            color: #CA6702;
+            line-height: 1;
+        }
+        .metric-label {
+            font-weight: 700;
+            font-size: 24px;
+            color: #001219;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 8px;
+        }
+        .col-details {
+            flex: 1;
+        }
+        .bullet-list {
+            list-style: none;
+        }
+        .bullet-list li {
+            font-weight: 300;
+            font-size: 26px;
+            color: #005F73;
+            line-height: 1.5;
+            margin-bottom: 24px;
+            position: relative;
+            padding-left: 32px;
+        }
+        .bullet-list li::before {
+            content: "■";
+            position: absolute;
+            left: 0;
+            top: 2px;
+            color: #CA6702;
+            font-size: 20px;
+        }
+        .bullet-list li strong {
+            font-weight: 700;
+            color: #001219;
+        }
+        code {
+            font-family: monospace;
+            background-color: #e0e6e8;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 24px;
+            color: #001219;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide-container">
+        <div class="content-wrapper">
+            <h2 class="slide-title">The endpoint inventory is broad and unevenly protected</h2>
+            <div class="divider"></div>
+            <div class="columns">
+                <div class="col-metrics">
+                    <div class="metric-item">
+                        <div class="metric-number">50</div>
+                        <div class="metric-label">HTTP URLs</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-number" style="color: #005F73;">29</div>
+                        <div class="metric-label">HTTPS URLs</div>
+                    </div>
+                </div>
+                <div class="col-details">
+                    <ul class="bullet-list">
+                        <li><strong>50 HTTP</strong> versus <strong>29 HTTPS</strong> de-duplicated app-owned URL literals.</li>
+                        <li>HTTP hosts include <code>av380.net</code>, <code>av380.cn</code>, <code>nvcam.net</code>, and an Alibaba OSS endpoint.</li>
+                        <li>HTTP references cover ad delivery, device state, logging, media, time configuration, and update metadata.</li>
+                        <li>Remediation should eliminate HTTP fallback for authenticated, update, device-control, and endpoint-discovery traffic.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

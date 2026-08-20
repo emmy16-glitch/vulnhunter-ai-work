@@ -11,10 +11,12 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from collections import Counter
 from pathlib import Path
 
-from androguard.misc import AnalyzeAPK
+from androguard.core.apk import APK
+from androguard.core.dex import DEX
 
 _DANGEROUS_PERMISSIONS = {
     "android.permission.ACCEPT_HANDOVER",
@@ -108,7 +110,13 @@ def _api_family_counts(analysis: object, *, maximum_methods: int = 250_000) -> d
 
 
 def analyze(apk_path: Path) -> dict[str, object]:
-    apk, dex_files, analysis = AnalyzeAPK(str(apk_path))
+    # AnalyzeAPK eagerly builds a whole-program cross-reference graph. That
+    # graph is unnecessary for this adapter’s bounded manifest and inventory
+    # evidence and exceeds memory on large multi-DEX APKs such as V380. Parse
+    # the APK and each DEX independently so the worker can remain read-only and
+    # fail closed without losing the deterministic metadata surface.
+    apk = APK(str(apk_path), skip_analysis=False)
+    dex_files = [DEX(buff) for buff in apk.get_all_dex()]
     permissions = _strings(_safe_call(apk, "get_permissions", []))
     dangerous = sorted(
         permission for permission in permissions if permission in _DANGEROUS_PERMISSIONS
@@ -135,11 +143,24 @@ def analyze(apk_path: Path) -> dict[str, object]:
         "providers": _strings(_safe_call(apk, "get_providers", [])),
         "dex_count": len(dex_files or []),
         "class_count": class_count,
-        "api_family_counts": _api_family_counts(analysis),
+        "api_family_counts": {
+            family: sum(_api_family_counts(dex).get(family, 0) for dex in dex_files)
+            for family in _API_FAMILIES
+        },
     }
 
 
+def _quiet_androguard_logging() -> None:
+    try:
+        from loguru import logger
+    except ImportError:
+        return
+    logger.remove()
+    logger.add(sys.stderr, level="ERROR")
+
+
 def main() -> int:
+    _quiet_androguard_logging()
     parser = argparse.ArgumentParser()
     parser.add_argument("apk", type=Path)
     args = parser.parse_args()

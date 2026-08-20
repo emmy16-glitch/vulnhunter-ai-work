@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@900&family=Lato:wght@300;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        .slide-container { 
+            width: 1280px; 
+            min-height: 720px; 
+            background-color: #F4F7F6; 
+            position: relative;
+            overflow: hidden;
+            font-family: 'Lato', sans-serif;
+        }
+        .content-wrapper {
+            position: absolute;
+            left: 80px;
+            bottom: 60px;
+            width: 1120px;
+        }
+        .slide-title {
+            font-family: 'Playfair Display', serif;
+            font-weight: 900;
+            font-size: 52px;
+            color: #001219;
+            line-height: 1.1;
+            margin-top: 0;
+        }
+        .divider {
+            width: 120px;
+            height: 8px;
+            background-color: #CA6702;
+            margin-top: 24px;
+        }
+        .bullet-list {
+            list-style: none;
+            margin-top: 32px;
+        }
+        .bullet-list li {
+            font-weight: 300;
+            font-size: 24px;
+            color: #005F73;
+            line-height: 1.4;
+            margin-top: 16px;
+            position: relative;
+            padding-left: 32px;
+        }
+        .bullet-list li::before {
+            content: "■";
+            position: absolute;
+            left: 0;
+            top: 2px;
+            color: #CA6702;
+            font-size: 18px;
+        }
+        .bullet-list li strong {
+            font-weight: 700;
+            color: #001219;
+        }
+        .conclusion-box {
+            background-color: #001219;
+            padding-top: 32px;
+            padding-left: 40px;
+            padding-right: 40px;
+            margin-top: 40px;
+            min-height: 200px;
+        }
+        .conclusion-box p {
+            color: #F4F7F6;
+            font-size: 24px;
+            font-weight: 300;
+            line-height: 1.5;
+            margin-top: 16px;
+        }
+        .conclusion-box p:first-child {
+            margin-top: 0;
+        }
+        .conclusion-box strong {
+            color: #CA6702;
+            font-weight: 700;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide-container">
+        <div class="content-wrapper">
+            <h2 class="slide-title">Evidence package and conclusion</h2>
+            <div class="divider"></div>
+            <ul class="bullet-list">
+                <li>The static workflow produced real persisted evidence and a reproducible receipt.</li>
+                <li><strong>Verified findings:</strong> cleartext configuration and 17 exported components without component permissions.</li>
+                <li><strong>Evidence-required candidates:</strong> app-owned dynamic endpoint assignment and bundled-SDK WebView/loader surfaces.</li>
+            </ul>
+            <div class="conclusion-box">
+                <p><strong>Conclusion:</strong> V380 requires transport and component-surface hardening; the review is actionable without misrepresenting partial stages as full APK analysis.</p>
+                <p><strong>Source package:</strong> final acceptance receipt, detailed component/cleartext breakdown, JADX/YARA review, and YARA evidence notes.</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

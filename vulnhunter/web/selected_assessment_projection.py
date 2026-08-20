@@ -32,6 +32,7 @@ _SUPPORTED_EXECUTION_STATES = _ACTIVE_STATES | _TERMINAL_STATES
 _STATE_ALIASES = {
     "created": "prepared",
     "pending": "prepared",
+    "awaiting_approval": "prepared",
     "executing": "running",
     "evaluating": "running",
     "execution_blocked": "blocked",

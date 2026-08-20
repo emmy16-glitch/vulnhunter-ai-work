@@ -9,6 +9,7 @@ from vulnhunter.actions.models import sha256_json
 from vulnhunter.hunt.mobile_graph import build_mobile_evidence_graph
 from vulnhunter.hunt.mobile_runtime import MobileHuntExecutionReceipt, run_mobile_evidence_hunt
 from vulnhunter.mobile.artifacts import MobileArtifactIngestor
+from vulnhunter.mobile.intelligence import intelligence_counts
 from vulnhunter.mobile.models import MobileArtifactRecord
 from vulnhunter.mobile.static_progress import (
     MobileStaticProgressError,
@@ -88,7 +89,9 @@ def _report_summary(
     hunt: MobileHuntExecutionReceipt,
     verification: dict[str, object],
     review: dict[str, object],
+    intelligence: dict[str, object] | None = None,
 ) -> dict[str, object]:
+    intelligence_payload = intelligence or {}
     report_payload = {
         "assessment_id": job.run_id,
         "artifact_id": artifact.artifact_id,
@@ -97,6 +100,41 @@ def _report_summary(
         "verification": verification,
         "review_receipt_sha256": review["receipt_sha256"],
         "candidate_ids": [item.candidate_id for item in hunt.candidates],
+        "intelligence_sha256": intelligence_payload.get("intelligence_sha256"),
+        "intelligence_counts": intelligence_counts(intelligence_payload),
+        "coverage": intelligence_payload.get("coverage", {}),
+        "verified_configurations": intelligence_payload.get(
+            "verified_configurations",
+            [
+                item
+                for item in intelligence_payload.get("observations", [])
+                if isinstance(item, dict) and item.get("evidence_state") == "verified_configuration"
+            ],
+        ),
+        "verified_findings": intelligence_payload.get("verified_findings", []),
+        "evidence_required_candidates": intelligence_payload.get("candidates", []),
+        "operational_issues": intelligence_payload.get("operational_issues", []),
+        "ownership": {
+            "app_owned": sum(
+                item.get("ownership") == "app_owned"
+                for item in intelligence_payload.get("observations", [])
+                if isinstance(item, dict)
+            ),
+            "sdk_owned": sum(
+                item.get("ownership") == "sdk_owned"
+                for item in intelligence_payload.get("observations", [])
+                if isinstance(item, dict)
+            ),
+            "unknown": sum(
+                item.get("ownership") == "unknown"
+                for item in intelligence_payload.get("observations", [])
+                if isinstance(item, dict)
+            ),
+        },
+        "hypotheses": intelligence_payload.get("hypotheses", []),
+        "transport_correlations": intelligence_payload.get("transport_correlations", []),
+        "bounded_negative_claims": intelligence_payload.get("bounded_negative_claims", []),
+        "remediation_recommendations": intelligence_payload.get("remediation_recommendations", []),
         "evidence_receipts": sorted(
             {
                 receipt
@@ -186,6 +224,13 @@ class MobileStaticQueueService:
                 ],
                 "hunt": hunt.model_dump(mode="json"),
                 "graph": graph.model_dump(mode="json"),
+                "intelligence": (
+                    result.intelligence.model_dump(mode="json")
+                    if result.intelligence is not None
+                    else None
+                ),
+                "layered_report": result.layered_report,
+                "layered_report_error": result.layered_report_error,
             }
             if success:
                 verification = _verification_summary(hunt)
@@ -198,6 +243,11 @@ class MobileStaticQueueService:
                     hunt=hunt,
                     verification=verification,
                     review=review,
+                    intelligence=(
+                        result.intelligence.model_dump(mode="json")
+                        if result.intelligence is not None
+                        else None
+                    ),
                 )
             receipt = MobileStaticJobReceipt.from_result(job=job, result=result)
             self.spool.finish(

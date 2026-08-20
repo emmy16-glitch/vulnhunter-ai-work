@@ -20,13 +20,26 @@ _DEVICE_REFERENCE = re.compile(r"^[A-Za-z0-9._:@-]{1,255}$")
 
 
 def _executable(name: str) -> Path:
+    candidates: list[Path] = []
+    if name == "adb":
+        sdk_roots = [
+            Path(value)
+            for value in (os.environ.get("ANDROID_SDK_ROOT"), os.environ.get("ANDROID_HOME"))
+            if value
+        ]
+        sdk_roots.append(Path.home() / "android-sdk")
+        candidates.extend(root / "platform-tools" / "adb" for root in sdk_roots)
     located = shutil.which(name)
-    if not located:
-        raise RuntimeError(f"{name} is unavailable")
-    resolved = Path(located).resolve(strict=True)
-    if not resolved.is_file() or not os.access(resolved, os.X_OK):
-        raise RuntimeError(f"{name} is not an executable file")
-    return resolved
+    if located:
+        candidates.append(Path(located))
+    for candidate in candidates:
+        try:
+            resolved = candidate.expanduser().resolve(strict=True)
+        except OSError:
+            continue
+        if resolved.is_file() and os.access(resolved, os.X_OK):
+            return resolved
+    raise RuntimeError(f"{name} is unavailable")
 
 
 def _run(command: tuple[str, ...], *, timeout: int = 30) -> str:

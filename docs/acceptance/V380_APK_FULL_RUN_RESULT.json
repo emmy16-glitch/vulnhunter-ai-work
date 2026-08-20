@@ -1,0 +1,167 @@
+{
+  "acceptance": "real_apk_static_native",
+  "artifact_id": "apk-70a48a532156cd275bbf4efd",
+  "artifact_sha256": "70a48a532156cd275bbf4efdb74549153caf214d2d1be8937b66800888b3fd7c",
+  "artifact_size_bytes": 262655303,
+  "candidate_observation_count": 16,
+  "capabilities": [
+    {
+      "capability": "aapt2",
+      "capture_count": 0,
+      "code_present": true,
+      "generated_files": 0,
+      "real_apk": "NOT AVAILABLE",
+      "real_executable": null,
+      "return_codes": [],
+      "unit_tested": true
+    },
+    {
+      "capability": "apksigner",
+      "capture_count": 0,
+      "code_present": true,
+      "generated_files": 0,
+      "real_apk": "NOT AVAILABLE",
+      "real_executable": null,
+      "return_codes": [],
+      "unit_tested": true
+    },
+    {
+      "capability": "apkid",
+      "capture_count": 0,
+      "code_present": true,
+      "generated_files": 0,
+      "real_apk": "NOT AVAILABLE",
+      "real_executable": null,
+      "return_codes": [],
+      "unit_tested": true
+    },
+    {
+      "capability": "apktool",
+      "capture_count": 0,
+      "code_present": true,
+      "generated_files": 0,
+      "real_apk": "NOT AVAILABLE",
+      "real_executable": null,
+      "return_codes": [],
+      "unit_tested": true
+    },
+    {
+      "capability": "jadx",
+      "capture_count": 1,
+      "code_present": true,
+      "generated_files": 41995,
+      "real_apk": "PARTIAL",
+      "real_executable": "/tmp/vh-v380-analysis/release-tools/jadx-1.5.5/bin/jadx",
+      "return_codes": [
+        124
+      ],
+      "unit_tested": true
+    },
+    {
+      "capability": "androguard",
+      "capture_count": 1,
+      "code_present": true,
+      "generated_files": 0,
+      "real_apk": "FAIL",
+      "real_executable": "/home/ubuntu/vulnhunter-ai-work/scripts/mobile_androguard_adapter.py",
+      "return_codes": [
+        1
+      ],
+      "unit_tested": true
+    },
+    {
+      "capability": "yara",
+      "capture_count": 1,
+      "code_present": true,
+      "generated_files": 0,
+      "real_apk": "PASS",
+      "real_executable": "/home/ubuntu/vulnhunter-ai-work/scripts/mobile_yara_adapter.py",
+      "return_codes": [
+        0
+      ],
+      "unit_tested": true
+    },
+    {
+      "capability": "radare2",
+      "capture_count": 0,
+      "code_present": true,
+      "generated_files": 0,
+      "real_apk": "NOT RUN",
+      "real_executable": "/tmp/vh-v380-analysis/rabin2-wrapper",
+      "return_codes": [],
+      "unit_tested": true
+    },
+    {
+      "capability": "ghidra",
+      "capture_count": 0,
+      "code_present": true,
+      "generated_files": 0,
+      "real_apk": "NOT AVAILABLE",
+      "real_executable": null,
+      "return_codes": [],
+      "unit_tested": true
+    },
+    {
+      "capability": "dynamic execution (ADB/Frida/MobSF/emulator)",
+      "code_present": true,
+      "real_apk": "BLOCKED",
+      "real_executable": null,
+      "reason": "Dynamic analysis remains fail-closed until a disposable isolated runtime, device identity, private MobSF policy, and exact digest-bound approval are present.",
+      "unit_tested": true
+    }
+  ],
+  "capture_count": 3,
+  "dex_count": 12,
+  "dynamic_execution": {
+    "capability": "dynamic execution (ADB/Frida/MobSF/emulator)",
+    "code_present": true,
+    "real_apk": "BLOCKED",
+    "real_executable": null,
+    "reason": "Dynamic analysis remains fail-closed until a disposable isolated runtime, device identity, private MobSF policy, and exact digest-bound approval are present.",
+    "unit_tested": true
+  },
+  "evidence": {
+    "candidate_observation_ids": [
+      "mobile-tool-jadx-63bd81fbcd7eb75e",
+      "mobile-tool-androguard-16d32ec409f61a2b",
+      "yara-7b6b93ab7d953bc97a08",
+      "yara-200face92856142fa05e",
+      "yara-ee44c3d099f11a936508",
+      "yara-455aa7a0471f2d290ffe",
+      "yara-e31a9c4cff59838ccd51",
+      "yara-23e94776765ca485de78",
+      "yara-6830bbfb28c1ee285d44",
+      "yara-b67e8584eec7e7f6159a",
+      "yara-23c4e5ef16e46f02d3cd",
+      "yara-1b7ef9a9fb436fa4cb2a",
+      "yara-b1fa4bf2c5f766f499a0",
+      "yara-5776fe670f0636f162f1",
+      "yara-9d668c9c76f1bf63dfba",
+      "yara-cdf72f3dc8711e39134a"
+    ],
+    "progress_path": "/tmp/vh-v380-analysis/final-runtime/spool/completed/final-v380-acceptance.progress.json",
+    "receipt_path": "/tmp/vh-v380-analysis/final-runtime/spool/completed/final-v380-acceptance.receipt.json"
+  },
+  "job_id": "final-v380-acceptance",
+  "native_library_count": 0,
+  "progress_event_count": 9,
+  "progress_state": "completed",
+  "receipt_reason": "Read-only static and native APK inspection completed.",
+  "tool_states": {
+    "androguard": "failed",
+    "jadx": "failed",
+    "radare2": "planned",
+    "yara": "completed"
+  },
+  "unit_test_probe": {
+    "command": [
+      "pytest",
+      "-q",
+      "tests/unit/test_mobile_worker_runtime_repairs.py"
+    ],
+    "output": "......                                                                   [100%]\n6 passed in 0.39s",
+    "return_code": 0,
+    "status": "PASS"
+  },
+  "worker_state": "completed"
+}

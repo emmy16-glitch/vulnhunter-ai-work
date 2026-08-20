@@ -27,6 +27,44 @@ def test_stop_waiting_aborts_only_the_active_message_request() -> None:
     assert "window.VulnHunterResponseControls" in script
 
 
+def test_stop_waiting_is_hosted_with_the_visible_request_status() -> None:
+    script = SCRIPT.read_text(encoding="utf-8")
+
+    assert "const stopButtonHost = () =>" in script
+    assert 'data-progress-source="request-state"' in script
+    assert 'requestProgress?.querySelector(".vh-llm-progress-head")' in script
+    assert "thinkingNode?.parentElement || form" in script
+    assert "thinkingNode.append(button)" not in script
+    assert "if (state.stopButton.parentElement !== host) host.append(state.stopButton)" in script
+
+
+def test_terminal_assessment_state_hides_the_governed_cancel_control() -> None:
+    script = SCRIPT.read_text(encoding="utf-8")
+
+    assert 'workspace.querySelector("[data-conversation-stop]")' in script
+    assert '"cancelled"' in script
+    assert '"completed"' in script
+    assert "const reconcileGovernedAssessmentStop" in script
+    assert "terminalStateFromSnapshot(snapshot) || terminalStateFromCard(latestRun)" in script
+    assert "if (terminalRunStates.has(stateName)) assessmentStop.hidden = true" in script
+    assert 'document.addEventListener("vh:selected-assessment-change"' in script
+    assert 'attributeFilter: ["class"]' in script
+
+
+def test_canonical_empty_workspace_wins_over_legacy_synthetic_empty_state() -> None:
+    script = SCRIPT.read_text(encoding="utf-8")
+
+    assert 'const canonicalEmpty = feed.querySelector("[data-conversation-empty]")' in script
+    assert 'canonicalEmpty.dataset.chatEmptyState = "canonical"' in script
+    assert "const reconcileCanonicalEmptyState = () =>" in script
+    assert '"[data-chat-empty-state]:not([data-conversation-empty])"' in script
+    assert "syntheticEmpty?.remove()" in script
+    assert "canonicalEmpty.hidden = false" in script
+    assert 'canonicalEmpty.removeAttribute("aria-hidden")' in script
+    assert "if (feed.scrollTop !== 0) feed.scrollTop = 0" in script
+    assert "window.requestAnimationFrame(reconcileCanonicalEmptyState)" in script
+
+
 def test_message_actions_support_copy_edit_and_retry() -> None:
     script = SCRIPT.read_text(encoding="utf-8")
 

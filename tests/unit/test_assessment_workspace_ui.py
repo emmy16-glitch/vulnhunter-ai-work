@@ -72,6 +72,10 @@ def test_execution_state_card_uses_persisted_failure_contract() -> None:
 
     assert "taskCard.failure || execution.failure" in script
     assert "Worker interrupted — recovering task" in script
+    assert "Assessment failed safely" in script
+    assert "Assessment blocked" in script
+    assert "Assessment cancelled" in script
+    assert "failure?.user_action" in script
     assert "failure?.preserved" in script
     assert "data-execution-state" in template
 

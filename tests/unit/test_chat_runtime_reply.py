@@ -23,4 +23,5 @@ def test_commands_are_sent_to_the_authoritative_server_state() -> None:
     assert "initial.message_url" in script
     assert "postForm(initial.message_url" in script
     assert "run.current_step" in script
-    assert "next.final_message" in script
+    assert "mergeActivityPayload" in script
+    assert "last_sequence" in script

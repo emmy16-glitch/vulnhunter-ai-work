@@ -11,6 +11,7 @@
   <meta name="color-scheme" content="light">
   <meta name="theme-color" content="#f5f2ec">
   <title>{{ display_title }} | VulnHunter</title>
+  <link rel="icon" type="image/svg+xml" href="{% static 'web/favicon.svg' %}">
 
   {# Canonical tokens first; legacy specialist rules are loaded before their canonical owners. #}
   <link rel="stylesheet" href="{% static 'web/tokens.css' %}?v=20260812-ui2">
@@ -26,6 +27,8 @@
   {% block extra_styles %}{% endblock %}
 
   <script src="{% static 'web/app.js' %}?v=20260812-ui2" defer></script>
+  <script src="{% static 'web/security-state.js' %}?v=20260820-security-state1" defer></script>
+  <script src="{% static 'web/security-table.js' %}?v=20260820-security-table1" defer></script>
   <script src="{% static 'web/activity.js' %}?v=20260725-consolidate1" defer></script>
   <script src="{% static 'web/json-response-guard.js' %}?v=20260725-consolidate1"></script>
   <script src="{% static 'web/conversation-upload-coordinator.js' %}?v=20260727-phone-acceptance1" defer></script>

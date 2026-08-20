@@ -1,0 +1,133 @@
+{
+  "project_info": {
+    "title": "V380 APK Security Review",
+    "created": 1787164089.271,
+    "last_updated": 1787164263.731,
+    "total_slides": 12
+  },
+  "slides": [
+    {
+      "id": "cover",
+      "state": "edited",
+      "pageNum": 1
+    },
+    {
+      "id": "slide_1",
+      "state": "edited",
+      "pageNum": 2
+    },
+    {
+      "id": "slide_2",
+      "state": "edited",
+      "pageNum": 3
+    },
+    {
+      "id": "slide_3",
+      "state": "edited",
+      "pageNum": 4
+    },
+    {
+      "id": "slide_4",
+      "state": "edited",
+      "pageNum": 5
+    },
+    {
+      "id": "slide_5",
+      "state": "edited",
+      "pageNum": 6
+    },
+    {
+      "id": "slide_6",
+      "state": "edited",
+      "pageNum": 7
+    },
+    {
+      "id": "slide_7",
+      "state": "edited",
+      "pageNum": 8
+    },
+    {
+      "id": "slide_8",
+      "state": "edited",
+      "pageNum": 9
+    },
+    {
+      "id": "slide_9",
+      "state": "edited",
+      "pageNum": 10
+    },
+    {
+      "id": "slide_10",
+      "state": "edited",
+      "pageNum": 11
+    },
+    {
+      "id": "slide_11",
+      "state": "edited",
+      "pageNum": 12
+    }
+  ],
+  "outline": [
+    {
+      "id": "cover",
+      "title": "V380 APK Security Review",
+      "summary": "Title slide with subtitle and presenter info."
+    },
+    {
+      "id": "slide_1",
+      "title": "The review found a real transport-control problem",
+      "summary": "Details the verified high-severity cleartext configuration finding and app-owned HTTP URL string literals."
+    },
+    {
+      "id": "slide_2",
+      "title": "Static acceptance completed — but not every stage ran",
+      "summary": "Summarizes the completed, partial (JADX), and blocked (dynamic execution) stages of the static acceptance run."
+    },
+    {
+      "id": "slide_3",
+      "title": "17 exported components expand the reachable app surface",
+      "summary": "Breaks down the 17 medium-severity verified configuration observations by ownership and component type.",
+      "image_plan": "/home/ubuntu/vulnhunter-ai-work/docs/acceptance/assets/v380_component_transport_summary.png - Visual summary of component exposure and transport indicators matches Slide 3 metrics (17 components, 13 activities, 50 HTTP / 29 HTTPS)"
+    },
+    {
+      "id": "slide_4",
+      "title": "App-owned entry points deserve first remediation priority",
+      "summary": "Lists the 8 app-owned exported activities and the priority checks required for remediation."
+    },
+    {
+      "id": "slide_5",
+      "title": "SDK components remain part of the deployed attack surface",
+      "summary": "Lists the 9 SDK-owned exported components and their associated integration risks."
+    },
+    {
+      "id": "slide_6",
+      "title": "Cleartext paths span security-sensitive service families",
+      "summary": "Categorizes the app-owned cleartext paths into service families like billing, updates, IoT, and telemetry."
+    },
+    {
+      "id": "slide_7",
+      "title": "The endpoint inventory is broad and unevenly protected",
+      "summary": "Compares the 50 HTTP and 29 HTTPS de-duplicated app-owned URL literals and their roles."
+    },
+    {
+      "id": "slide_8",
+      "title": "Server-controlled endpoint assignment is an app-owned candidate risk",
+      "summary": "Details the evidence-required candidate risk of dynamic server endpoint assignment via sDynamicAssign* fields."
+    },
+    {
+      "id": "slide_9",
+      "title": "YARA candidates were correlated — not overclaimed",
+      "summary": "Explains how WebView bridge and dynamic-loader YARA hits were resolved to bundled SDK namespaces."
+    },
+    {
+      "id": "slide_10",
+      "title": "Recommended actions preserve the safety boundary",
+      "summary": "Lists the recommended remediation actions and the requirement to keep dynamic analysis fail-closed."
+    },
+    {
+      "id": "slide_11",
+      "title": "Evidence package and conclusion",
+      "summary": "Concluding slide summarizing the verified findings, candidate observations, and actionable outcome."
+    }
+  ]
+}

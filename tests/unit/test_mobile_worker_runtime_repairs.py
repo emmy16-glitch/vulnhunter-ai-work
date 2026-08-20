@@ -1,6 +1,9 @@
 from pathlib import Path
 
-from vulnhunter.mobile.static_toolchain import MobileStaticToolchainError
+from vulnhunter.mobile.static_toolchain import (
+    MobileStaticToolchain,
+    MobileStaticToolchainError,
+)
 from vulnhunter.mobile.static_worker import _controlled_failure_reason
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -41,6 +44,22 @@ def test_controlled_worker_failure_explains_the_actual_boundary():
     assert "MobileStaticToolchainError" not in reason
 
 
+def test_apktool_framework_link_is_materialized_inside_private_home(tmp_path):
+    trusted_framework = Path("/usr/share/android-framework-res/framework-res.apk")
+    if not trusted_framework.is_file():
+        return
+    framework = tmp_path / "home" / ".local" / "share" / "apktool" / "framework"
+    framework.mkdir(parents=True)
+    link = framework / "1.apk"
+    link.symlink_to(trusted_framework)
+
+    MobileStaticToolchain._materialize_apktool_framework(tmp_path / "home")
+
+    assert link.is_file()
+    assert not link.is_symlink()
+    assert link.read_bytes() == trusted_framework.read_bytes()
+
+
 def test_assessment_creation_is_only_exposed_in_the_conversation_workspace():
     history = _text("vulnhunter/web/templates/web/agent_runs.html")
 
@@ -59,3 +78,19 @@ def test_scrollable_workspace_regions_have_visible_scrollbars():
     assert ".vh-chat-feed" in conversation
     assert "scrollbar-width: thin" in conversation
     assert "min-height: 44px" in conversation
+
+
+def test_directory_writing_tools_use_aggregate_kernel_file_limit():
+    toolchain = _text("vulnhunter/mobile/static_toolchain.py")
+
+    assert "file_limit = self.policy.maximum_generated_bytes" in toolchain
+    assert "enforce_workspace_bound(workspace)" in toolchain
+    assert "RLIMIT_FSIZE is a limit on each individual file" in toolchain
+
+
+def test_multithreaded_tools_get_separate_cpu_guard_from_wall_timeout():
+    toolchain = _text("vulnhunter/mobile/static_toolchain.py")
+
+    assert "cpu_limit = spec.timeout_seconds * 4" in toolchain
+    assert "RLIMIT_CPU" in toolchain
+    assert "subprocess.run(timeout=...) is wall-clock time" in toolchain

@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@900&family=Lato:wght@300;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        .slide-container { 
+            width: 1280px; 
+            min-height: 720px; 
+            background-color: #F4F7F6; 
+            position: relative;
+            overflow: hidden;
+            font-family: 'Lato', sans-serif;
+        }
+        .content-wrapper {
+            position: absolute;
+            left: 80px;
+            bottom: 80px;
+            width: 1120px;
+        }
+        .slide-title {
+            font-family: 'Playfair Display', serif;
+            font-weight: 900;
+            font-size: 52px;
+            color: #001219;
+            line-height: 1.1;
+            margin-bottom: 24px;
+            letter-spacing: -0.5px;
+            max-width: 1000px;
+        }
+        .divider {
+            width: 120px;
+            height: 8px;
+            background-color: #CA6702;
+            margin-bottom: 40px;
+        }
+        .columns {
+            display: flex;
+            gap: 40px;
+            align-items: flex-end;
+        }
+        .col-text {
+            flex: 0 0 480px;
+        }
+        .col-image {
+            flex: 1;
+            display: flex;
+            justify-content: flex-end;
+        }
+        .bullet-list {
+            list-style: none;
+        }
+        .bullet-list li {
+            font-weight: 300;
+            font-size: 24px;
+            color: #005F73;
+            line-height: 1.5;
+            margin-bottom: 20px;
+            position: relative;
+            padding-left: 32px;
+        }
+        .bullet-list li::before {
+            content: "■";
+            position: absolute;
+            left: 0;
+            top: 4px;
+            color: #CA6702;
+            font-size: 18px;
+        }
+        .bullet-list li strong {
+            font-weight: 700;
+            color: #001219;
+        }
+        .chart-image {
+            width: 600px;
+            height: 320px;
+            object-fit: contain;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide-container">
+        <div class="content-wrapper">
+            <h2 class="slide-title">17 exported components expand the reachable app surface</h2>
+            <div class="divider"></div>
+            <div class="columns">
+                <div class="col-text">
+                    <ul class="bullet-list">
+                        <li>All 17 were persisted as <strong>medium / verified_configuration</strong> observations.</li>
+                        <li><strong>8 app-owned</strong> components; <strong>9 SDK/integration</strong> components.</li>
+                        <li>Type mix: <strong>13 activities, 1 service, 1 receiver, 2 providers</strong>.</li>
+                        <li>Exported status is not automatically exploitable; each component needs caller, intent, and permission review.</li>
+                    </ul>
+                </div>
+                <div class="col-image">
+                    <img src="/home/ubuntu/vulnhunter-ai-work/docs/acceptance/assets/v380_component_transport_summary.png" alt="Component and Transport Summary" class="chart-image">
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -24,22 +24,27 @@ def test_provider_routing_is_automatic_and_hidden_from_the_user() -> None:
     assert "runtime.hidden = true" in script
     assert 'runtime.setAttribute("aria-hidden", "true")' in script
     assert 'runtime.classList.remove("is-ready", "is-warning", "is-offline")' in script
-    assert 'querySelectorAll(".vh-provider-control")' in script
-    assert "initial.thread_id" in script
+    assert 'querySelectorAll(".vh-provider-control")' not in script
     assert 'option value="groq"' not in script
     assert 'option value="huggingface"' not in script
     assert "select[data-provider-preference]" not in script
     assert '"AI reasoning ready"' not in script
 
 
-def test_provider_progress_is_incremental_without_exposing_partial_model_json() -> None:
+def test_provider_progress_is_one_request_state_without_fake_timed_stages() -> None:
     script = SCRIPT.read_text(encoding="utf-8")
 
     assert 'progress.dataset.progressMode = "validated-stages"' in script
+    assert 'progress.dataset.progressSource = "request-state"' in script
     assert "Reasoning over the request" in script
-    assert "Validating the response" in script
-    assert "Formatting the final answer" in script
-    assert "data-llm-progress-elapsed" in script
+    assert "Reasoning over the request…" not in script
+    assert "Validating the response" not in script
+    assert "Formatting the final answer" not in script
+    assert "data-llm-progress-elapsed" not in script
+    assert "setInterval" not in script
+    assert "setTimeout" not in script
+    assert "currentStage" not in script
+    assert "progressSteps" not in script
     assert "stream: true" not in script
     assert "partial JSON" not in script
     assert "Contacting Groq" not in script
@@ -71,7 +76,6 @@ def test_provider_control_uses_only_self_hosted_live_static_styles() -> None:
     assert ".style.removeProperty" not in script
     assert "ResizeObserver" not in script
     assert ".vh-llm-progress" in response_styles
-    assert ".vh-llm-progress-step.is-active" in response_styles
     assert "background: var(--vh-pink)" in response_styles
     assert "border-radius: 999px" not in composer_styles + response_styles
     assert "rgba(108, 124, 255" not in composer_styles + response_styles

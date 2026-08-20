@@ -24,6 +24,7 @@ def test_assessment_ui_uses_sse_instead_of_browser_timers() -> None:
     assert "new EventSource" in activity
     assert "activity/stream/" in urls
     assert "web-agent-run-activity-stream" in urls
+    assert "web-conversation-activity-stream" in urls
     assert "setTimeout(poll" not in activity
     assert "setInterval" not in app
 

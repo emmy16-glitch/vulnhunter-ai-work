@@ -60,6 +60,17 @@
   }
 
   const messageUrl = new URL(initial.message_url, window.location.href);
+  const assessmentStop = workspace.querySelector("[data-conversation-stop]");
+  const canonicalEmpty = feed.querySelector("[data-conversation-empty]");
+  if (canonicalEmpty) canonicalEmpty.dataset.chatEmptyState = "canonical";
+  const terminalRunStates = new Set([
+    "cancelled",
+    "completed",
+    "failed",
+    "blocked",
+    "rejected",
+    "expired",
+  ]);
   const state = {
     controller: null,
     stopButton: null,
@@ -113,10 +124,31 @@
     return true;
   };
 
+  const stopButtonHost = () => {
+    const requestProgress = workspace.querySelector(
+      '[data-progress-source="request-state"], [data-progress-mode="validated-stages"]',
+    );
+    const progressHead = requestProgress?.querySelector(".vh-llm-progress-head");
+    if (progressHead) return progressHead;
+
+    // The legacy thinking node is intentionally visually suppressed when the
+    // request-status component owns the user-facing progress state. Never put
+    // the stop control inside that hidden subtree, otherwise the user cannot
+    // cancel their local wait even though the request is still in flight.
+    const thinkingNode = workspace.querySelector("[data-conversation-thinking]");
+    return thinkingNode?.parentElement || form;
+  };
+
   const installStopButton = () => {
-    if (state.stopButton?.isConnected) return;
-    const progressHead = document.querySelector(".vh-llm-progress-head");
-    if (!progressHead) return;
+    const host = stopButtonHost();
+    if (!host) return;
+
+    if (state.stopButton?.isConnected) {
+      if (state.stopButton.parentElement !== host) host.append(state.stopButton);
+      updateStopButton();
+      return;
+    }
+
     const button = document.createElement("button");
     button.type = "button";
     button.className = "vh-stop-response";
@@ -126,9 +158,58 @@
       "Stop waiting for this response. The remote provider may already have received the request.";
     button.hidden = true;
     button.addEventListener("click", stopCurrentResponse);
-    progressHead.append(button);
+    host.append(button);
     state.stopButton = button;
     updateStopButton();
+  };
+
+  const terminalStateFromCard = (card) => {
+    if (!(card instanceof HTMLElement)) return "";
+    const stateClass = [...card.classList].find((name) => name.startsWith("is-"));
+    return stateClass ? stateClass.slice(3).toLowerCase() : "";
+  };
+
+  const terminalStateFromSnapshot = (snapshot) => {
+    const projection = snapshot?.assessment_projection || {};
+    const task = snapshot?.task_card || {};
+    return String(
+      projection.execution?.state ||
+        projection.state ||
+        task.state ||
+        snapshot?.state ||
+        "",
+    ).toLowerCase();
+  };
+
+  const reconcileGovernedAssessmentStop = (snapshot = null) => {
+    if (!assessmentStop) return;
+    const runCards = [...feed.querySelectorAll("[data-run-card]")];
+    const latestRun = runCards.at(-1);
+    const stateName = terminalStateFromSnapshot(snapshot) || terminalStateFromCard(latestRun);
+    if (terminalRunStates.has(stateName)) assessmentStop.hidden = true;
+  };
+
+  const reconcileCanonicalEmptyState = () => {
+    if (!canonicalEmpty) return;
+    const hasConversation = Boolean(
+      feed.querySelector(
+        ".vh-chat-message, [data-run-card], .vh-chat-action-card:not([data-empty-helper]), [data-browser-intelligence-card]",
+      ),
+    );
+    const syntheticEmpty = feed.querySelector(
+      "[data-chat-empty-state]:not([data-conversation-empty])",
+    );
+    if (hasConversation) {
+      canonicalEmpty.hidden = true;
+      canonicalEmpty.setAttribute("aria-hidden", "true");
+      syntheticEmpty?.remove();
+      return;
+    }
+
+    syntheticEmpty?.remove();
+    canonicalEmpty.hidden = false;
+    canonicalEmpty.removeAttribute("aria-hidden");
+    if (feed.scrollTop !== 0) feed.scrollTop = 0;
   };
 
   const currentFetch = window.fetch.bind(window);
@@ -261,10 +342,27 @@
 
   bindAllMessageActions();
   installStopButton();
+  reconcileGovernedAssessmentStop();
+  window.requestAnimationFrame(reconcileCanonicalEmptyState);
   new MutationObserver(() => {
     bindAllMessageActions();
     installStopButton();
-  }).observe(feed, { childList: true, subtree: true });
+    reconcileGovernedAssessmentStop();
+    reconcileCanonicalEmptyState();
+  }).observe(feed, { childList: true, subtree: true, attributes: true, attributeFilter: ["class"] });
+
+  document.addEventListener("vh:selected-assessment-change", (event) => {
+    reconcileGovernedAssessmentStop(event.detail || null);
+    reconcileCanonicalEmptyState();
+  });
+
+  // Provider control is dynamically loaded before this script, but keep a
+  // bounded DOM observer so the stop control is re-homed if the request-status
+  // node appears after initial installation in a slow browser.
+  new MutationObserver(() => installStopButton()).observe(workspace, {
+    childList: true,
+    subtree: true,
+  });
 
   window.VulnHunterResponseControls = Object.freeze({ stopCurrentResponse });
 })();

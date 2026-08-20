@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import json
+from collections.abc import Iterator
+from datetime import UTC, datetime
 from pathlib import Path
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
-from django.http import HttpRequest, JsonResponse
+from django.http import HttpRequest, JsonResponse, StreamingHttpResponse
 from django.urls import reverse
 from django.views.decorators.cache import cache_control
 from django.views.decorators.http import require_GET, require_POST
@@ -46,12 +49,143 @@ from vulnhunter.web.mobile_conversation_state import (
     remember_mobile_plan,
 )
 from vulnhunter.web.mobile_execution import enqueue_mobile_static_if_ready, mobile_static_status
-from vulnhunter.web.services import WebPermissionDenied
+from vulnhunter.web.services import WebPermissionDenied, activity_payload, activity_service
 
 _AUTO_ANALYSIS_TEXT = (
     "Run a full automatic security analysis of this APK using every available safe static and "
     "native tool. Record verified findings and list any approval-gated follow-up checks."
 )
+
+
+def _record_mobile_activity(
+    *,
+    plan: dict[str, object],
+    execution: dict[str, object],
+    requested_by: str,
+) -> None:
+    run_id = str(plan.get("run_id") or "")
+    if not run_id:
+        return
+    state = str(execution.get("state") or "prepared")
+    reason = str(execution.get("reason") or "")
+    progress = execution.get("progress")
+    progress_map = progress if isinstance(progress, dict) else {}
+    progress_events = progress_map.get("events")
+    progress_list = progress_events if isinstance(progress_events, list) else []
+    latest_progress = progress_list[-1] if progress_list else {}
+    latest_progress_sequence = (
+        str(latest_progress.get("sequence") or "") if isinstance(latest_progress, dict) else ""
+    )
+    signature = "|".join(
+        (
+            state,
+            reason,
+            str(execution.get("job_id") or ""),
+            str(progress_map.get("active_tool") or ""),
+            latest_progress_sequence,
+            str(latest_progress.get("detail") or "") if isinstance(latest_progress, dict) else "",
+        )
+    )
+    activity = activity_service()
+    try:
+        events = activity.feed(run_id, after_sequence=0).events
+        latest = events[-1] if events else None
+        latest_signature = (
+            str(latest.metadata.get("mobile_execution_signature")) if latest is not None else ""
+        )
+        if latest_signature == signature:
+            return
+        if state == "queued":
+            event_type, run_state, source, execution_state = (
+                "tool_execution_started",
+                "executing",
+                "tool",
+                "queued",
+            )
+            summary = "The governed APK static worker was queued for execution."
+        elif state == "running":
+            event_type, run_state, source, execution_state = (
+                "tool_progress",
+                "executing",
+                "tool",
+                "running",
+            )
+            summary = "The governed APK static worker is collecting bounded evidence."
+        elif state == "completed":
+            event_type, run_state, source, execution_state = (
+                "tool_execution_completed",
+                "completed",
+                "tool",
+                "succeeded",
+            )
+            summary = "The governed APK static worker completed and persisted its evidence receipt."
+        elif state in {"gated", "blocked", "rejected"}:
+            event_type, run_state, source, execution_state = (
+                "policy_denied",
+                "blocked",
+                "policy",
+                "blocked",
+            )
+            summary = reason or "The APK worker remained blocked by deployment policy."
+        elif state == "failed":
+            event_type, run_state, source, execution_state = (
+                "tool_execution_failed",
+                "failed",
+                "tool",
+                "failed",
+            )
+            summary = reason or "The governed APK worker failed closed."
+        else:
+            event_type, run_state, source, execution_state = (
+                "plan_proposed",
+                "planning",
+                "planner",
+                "not_started",
+            )
+            summary = "The governed APK assessment plan is ready."
+        activity.record_transition(
+            run_id=run_id,
+            timestamp=datetime.now(UTC),
+            event_type=event_type,
+            summary=summary,
+            run_state=run_state,
+            source=source,
+            tool_id="mobile-static-worker" if source == "tool" else None,
+            execution_state=execution_state,
+            policy_outcome="denied" if event_type == "policy_denied" else "allowed",
+            metadata={
+                "mobile_execution_signature": signature,
+                "requested_by": requested_by,
+                "profile": plan.get("profile"),
+                "requested_profile": plan.get("requested_profile"),
+                "dynamic_deferred": plan.get("dynamic_deferred", False),
+                "reason": reason,
+                "job_id": execution.get("job_id"),
+                "mobile_progress_sequence": latest_progress_sequence or None,
+                "mobile_progress_stage": (
+                    latest_progress.get("stage") if isinstance(latest_progress, dict) else None
+                ),
+                "mobile_progress_tool": (
+                    latest_progress.get("tool") if isinstance(latest_progress, dict) else None
+                ),
+                "mobile_progress_tool_state": (
+                    latest_progress.get("tool_state") if isinstance(latest_progress, dict) else None
+                ),
+                "mobile_progress_detail": (
+                    latest_progress.get("detail") if isinstance(latest_progress, dict) else None
+                ),
+            },
+        )
+    except (OSError, RuntimeError, TypeError, ValueError):
+        return
+
+
+def _mobile_event_stream(*, sequence: int, payload: dict[str, object]) -> Iterator[str]:
+    encoded = json.dumps(payload, separators=(",", ":"), sort_keys=True, default=str)
+    yield "retry: 1500\\n"
+    yield f"id: {sequence}\\n"
+    yield "event: activity\\n"
+    yield f"data: {encoded}\\n\\n"
 
 
 def _ingestor() -> MobileArtifactIngestor:
@@ -107,6 +241,11 @@ def _start_mobile_hunt(
         artifact=artifact,
         workspace_id=_workspace_id(request),
     )
+    _record_mobile_activity(
+        plan=plan,
+        execution={"state": "prepared"},
+        requested_by=requested_by,
+    )
     execution = enqueue_mobile_static_if_ready(
         request,
         plan=plan,
@@ -120,6 +259,7 @@ def _start_mobile_hunt(
             kwargs={"job_id": execution["job_id"]},
         )
     plan["execution"] = execution
+    _record_mobile_activity(plan=plan, execution=execution, requested_by=requested_by)
     remember_mobile_plan(request, plan)
     message = _append_message(
         request,
@@ -470,6 +610,58 @@ def mobile_context_reset_view(request: HttpRequest) -> JsonResponse:
         return JsonResponse({"detail": str(exc)}, status=403)
     clear_mobile_plan(request)
     return JsonResponse({"cleared": True})
+
+
+@cache_control(private=True, no_store=True)
+@login_required
+@require_GET
+def mobile_activity_stream_view(
+    request: HttpRequest,
+    run_id: str,
+) -> StreamingHttpResponse | JsonResponse:
+    try:
+        actor = _actor(request, "scan.read")
+    except WebPermissionDenied as exc:
+        return JsonResponse({"detail": str(exc)}, status=403)
+    requested_by = actor.governance_identity.reviewer_id
+    plan = current_mobile_plan(request, requested_by=requested_by)
+    if plan is None or str(plan.get("run_id") or "") != run_id:
+        return JsonResponse({"detail": "Mobile assessment does not exist."}, status=404)
+    execution = plan.get("execution")
+    if not isinstance(execution, dict):
+        execution = {"state": "prepared"}
+    job_id = str(execution.get("job_id") or "")
+    if job_id:
+        latest = mobile_static_status(
+            request,
+            job_id=job_id,
+            requested_by=requested_by,
+        )
+        if isinstance(latest, dict):
+            execution = {**execution, **latest}
+    _record_mobile_activity(plan=plan, execution=execution, requested_by=requested_by)
+    try:
+        after_sequence = int(request.GET.get("after_sequence", "0"))
+    except ValueError:
+        return JsonResponse(
+            {"detail": "after_sequence must be a non-negative integer."},
+            status=400,
+        )
+    if after_sequence < 0:
+        return JsonResponse(
+            {"detail": "after_sequence must be a non-negative integer."},
+            status=400,
+        )
+    payload = activity_payload(run_id, after_sequence=after_sequence)
+    payload.update({"mobile_plan": plan, "mobile_execution": execution})
+    sequence = int(payload.get("last_sequence", after_sequence))
+    response = StreamingHttpResponse(
+        _mobile_event_stream(sequence=sequence, payload=payload),
+        content_type="text/event-stream; charset=utf-8",
+    )
+    response["Cache-Control"] = "no-cache, no-store, private"
+    response["X-Accel-Buffering"] = "no"
+    return response
 
 
 @cache_control(private=True, no_store=True)

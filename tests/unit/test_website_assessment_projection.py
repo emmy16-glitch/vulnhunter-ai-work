@@ -58,6 +58,15 @@ def test_website_projection_binds_every_surface_and_graph_authorization():
     }
 
 
+def test_website_projection_maps_approval_pending_to_prepared_state():
+    projection = website_assessment_projection(_payload(state="awaiting_approval"))
+
+    assert projection is not None
+    assert projection["execution"]["state"] == "prepared"
+    assert projection["health"]["assessment"] == "in_progress"
+    assert "request_cancel" not in projection["allowed_actions"]
+
+
 def test_website_projection_uses_persisted_stage_activity_and_result_counts():
     payload = _payload()
     payload["events"] = [

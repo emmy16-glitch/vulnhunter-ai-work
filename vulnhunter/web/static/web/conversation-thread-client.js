@@ -8,6 +8,7 @@
   const originalFetch = window.fetch.bind(window);
   const csrfToken = form.querySelector("input[name='csrfmiddlewaretoken']")?.value || "";
   const fileInput = workspace.querySelector("[data-conversation-file]");
+  const mobileChatUpload = Boolean(form.dataset.mobileMessageUrl);
 
   const withThread = (input, init = {}) => {
     const request = input instanceof Request ? input : null;
@@ -151,6 +152,7 @@
   fileInput?.addEventListener(
     "change",
     async (event) => {
+      if (mobileChatUpload && form.dataset.mobileUploadMode !== "background") return;
       const file = fileInput.files?.[0];
       if (!file) return;
       event.stopImmediatePropagation();

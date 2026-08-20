@@ -38,6 +38,19 @@ def test_stop_waiting_is_hosted_with_the_visible_request_status() -> None:
     assert "if (state.stopButton.parentElement !== host) host.append(state.stopButton)" in script
 
 
+def test_terminal_assessment_state_hides_the_governed_cancel_control() -> None:
+    script = SCRIPT.read_text(encoding="utf-8")
+
+    assert 'workspace.querySelector("[data-conversation-stop]")' in script
+    assert '"cancelled"' in script
+    assert '"completed"' in script
+    assert "const reconcileGovernedAssessmentStop" in script
+    assert "terminalStateFromSnapshot(snapshot) || terminalStateFromCard(latestRun)" in script
+    assert "if (terminalRunStates.has(stateName)) assessmentStop.hidden = true" in script
+    assert 'document.addEventListener("vh:selected-assessment-change"' in script
+    assert 'attributeFilter: ["class"]' in script
+
+
 def test_message_actions_support_copy_edit_and_retry() -> None:
     script = SCRIPT.read_text(encoding="utf-8")
 

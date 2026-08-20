@@ -61,6 +61,7 @@
 
   const messageUrl = new URL(initial.message_url, window.location.href);
   const assessmentStop = workspace.querySelector("[data-conversation-stop]");
+  const canonicalEmpty = feed.querySelector("[data-conversation-empty]");
   const terminalRunStates = new Set([
     "cancelled",
     "completed",
@@ -185,6 +186,27 @@
     const latestRun = runCards.at(-1);
     const stateName = terminalStateFromSnapshot(snapshot) || terminalStateFromCard(latestRun);
     if (terminalRunStates.has(stateName)) assessmentStop.hidden = true;
+  };
+
+  const reconcileCanonicalEmptyState = () => {
+    if (!canonicalEmpty) return;
+    const hasConversation = Boolean(
+      feed.querySelector(
+        ".vh-chat-message, [data-run-card], .vh-chat-action-card:not([data-empty-helper]), [data-browser-intelligence-card]",
+      ),
+    );
+    const syntheticEmpty = feed.querySelector("[data-chat-empty-state]");
+    if (hasConversation) {
+      canonicalEmpty.hidden = true;
+      canonicalEmpty.setAttribute("aria-hidden", "true");
+      syntheticEmpty?.remove();
+      return;
+    }
+
+    syntheticEmpty?.remove();
+    canonicalEmpty.hidden = false;
+    canonicalEmpty.removeAttribute("aria-hidden");
+    if (feed.scrollTop !== 0) feed.scrollTop = 0;
   };
 
   const currentFetch = window.fetch.bind(window);
@@ -318,14 +340,17 @@
   bindAllMessageActions();
   installStopButton();
   reconcileGovernedAssessmentStop();
+  window.requestAnimationFrame(reconcileCanonicalEmptyState);
   new MutationObserver(() => {
     bindAllMessageActions();
     installStopButton();
     reconcileGovernedAssessmentStop();
+    reconcileCanonicalEmptyState();
   }).observe(feed, { childList: true, subtree: true, attributes: true, attributeFilter: ["class"] });
 
   document.addEventListener("vh:selected-assessment-change", (event) => {
     reconcileGovernedAssessmentStop(event.detail || null);
+    reconcileCanonicalEmptyState();
   });
 
   // Provider control is dynamically loaded before this script, but keep a

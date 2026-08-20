@@ -109,11 +109,19 @@ class ObscuraMcpProcess:
                 for tool in tools
                 if isinstance(tool, dict) and isinstance(tool.get("name"), str)
             }
+            # The web API advertises every BrowserActionType below as supported. Preflight
+            # must therefore verify every MCP tool that _action_to_tool can dispatch so a
+            # session never reports ready and fails later only because one mapped tool was
+            # absent from the runtime catalog.
             required = {
                 "browser_navigate",
                 "browser_snapshot",
+                "browser_links",
                 "browser_interactive_elements",
                 "browser_detect_forms",
+                "browser_get_attribute",
+                "browser_count",
+                "browser_search",
                 "browser_click",
                 "browser_fill",
                 "browser_type",

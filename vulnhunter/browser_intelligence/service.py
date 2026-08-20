@@ -275,9 +275,19 @@ class BrowserIntelligenceService:
     ) -> list[str]:
         evidence_ids: list[str] = []
         if action.action_type == BrowserActionType.GET_NETWORK_REQUESTS:
-            self._network.extend(self._network_from_result(result))
+            observations = self._network_from_result(result)
+            for observation in observations:
+                self.store.append_network(
+                    observation, owner_id=self.owner_id, session=self.session
+                )
+            self._network.extend(observations)
         elif action.action_type == BrowserActionType.GET_CONSOLE_MESSAGES:
-            self._console.extend(self._console_from_result(result))
+            observations = self._console_from_result(result)
+            for observation in observations:
+                self.store.append_console(
+                    observation, owner_id=self.owner_id, session=self.session
+                )
+            self._console.extend(observations)
         elif action.action_type == BrowserActionType.TAKE_SCREENSHOT:
             for index, image in enumerate(result.get("images", [])):
                 if not isinstance(image, bytes):

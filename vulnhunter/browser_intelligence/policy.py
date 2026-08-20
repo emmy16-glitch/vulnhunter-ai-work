@@ -70,7 +70,6 @@ class BrowserPolicy:
             BrowserActionType.FILL,
             BrowserActionType.TYPE,
             BrowserActionType.SELECT_OPTION,
-            BrowserActionType.GET_ATTRIBUTE,
         }:
             if not parameters.get("ref") and not parameters.get("selector"):
                 raise BrowserPolicyError("element actions require a ref or selector")
@@ -89,6 +88,12 @@ class BrowserPolicy:
                     raise BrowserPolicyError(
                         "credential-like fields require an explicit credential policy"
                     )
+        elif action.action_type == BrowserActionType.GET_ATTRIBUTE:
+            if not parameters.get("ref") and not parameters.get("selector"):
+                raise BrowserPolicyError("element actions require a ref or selector")
+            attribute = self._require_string(parameters, "attribute")
+            if len(attribute) > 100 or any(ord(c) < 32 for c in attribute):
+                raise BrowserPolicyError("attribute name is invalid")
         elif action.action_type == BrowserActionType.SEARCH_TEXT:
             self._require_string(parameters, "query")
         elif action.action_type == BrowserActionType.WAIT_FOR_TEXT:
@@ -105,10 +110,6 @@ class BrowserPolicy:
             direction = str(parameters.get("direction", "down"))
             if direction not in {"top", "bottom", "up", "down", "left", "right"}:
                 raise BrowserPolicyError("unsupported scroll direction")
-        elif action.action_type == BrowserActionType.GET_ATTRIBUTE:
-            attribute = self._require_string(parameters, "attribute")
-            if len(attribute) > 100 or any(ord(c) < 32 for c in attribute):
-                raise BrowserPolicyError("attribute name is invalid")
         elif action.action_type == BrowserActionType.COUNT:
             self._require_string(parameters, "selector")
         if action.action_type == BrowserActionType.GET_CURRENT_URL:

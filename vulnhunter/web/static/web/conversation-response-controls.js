@@ -113,10 +113,31 @@
     return true;
   };
 
+  const stopButtonHost = () => {
+    const requestProgress = workspace.querySelector(
+      '[data-progress-source="request-state"], [data-progress-mode="validated-stages"]',
+    );
+    const progressHead = requestProgress?.querySelector(".vh-llm-progress-head");
+    if (progressHead) return progressHead;
+
+    // The legacy thinking node is intentionally visually suppressed when the
+    // request-status component owns the user-facing progress state. Never put
+    // the stop control inside that hidden subtree, otherwise the user cannot
+    // cancel their local wait even though the request is still in flight.
+    const thinkingNode = workspace.querySelector("[data-conversation-thinking]");
+    return thinkingNode?.parentElement || form;
+  };
+
   const installStopButton = () => {
-    if (state.stopButton?.isConnected) return;
-    const thinkingNode = document.querySelector("[data-conversation-thinking]");
-    if (!thinkingNode) return;
+    const host = stopButtonHost();
+    if (!host) return;
+
+    if (state.stopButton?.isConnected) {
+      if (state.stopButton.parentElement !== host) host.append(state.stopButton);
+      updateStopButton();
+      return;
+    }
+
     const button = document.createElement("button");
     button.type = "button";
     button.className = "vh-stop-response";
@@ -126,7 +147,7 @@
       "Stop waiting for this response. The remote provider may already have received the request.";
     button.hidden = true;
     button.addEventListener("click", stopCurrentResponse);
-    thinkingNode.append(button);
+    host.append(button);
     state.stopButton = button;
     updateStopButton();
   };
@@ -265,6 +286,14 @@
     bindAllMessageActions();
     installStopButton();
   }).observe(feed, { childList: true, subtree: true });
+
+  // Provider control is dynamically loaded before this script, but keep a
+  // bounded DOM observer so the stop control is re-homed if the request-status
+  // node appears after initial installation in a slow browser.
+  new MutationObserver(() => installStopButton()).observe(workspace, {
+    childList: true,
+    subtree: true,
+  });
 
   window.VulnHunterResponseControls = Object.freeze({ stopCurrentResponse });
 })();

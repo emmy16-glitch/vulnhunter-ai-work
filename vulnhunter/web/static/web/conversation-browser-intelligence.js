@@ -101,6 +101,16 @@
     const workspace = document.querySelector('[data-conversation-workspace]');
     if (!form || !sessions || !template || !workspace) return;
 
+    /* The setup form lives in the progressive empty-workspace disclosure, but
+       live Browser Intelligence sessions are task evidence. Move only the
+       session projection into the persistent conversation feed so it remains
+       visible after the empty state disappears. */
+    const feed = workspace.querySelector('[data-conversation-feed]');
+    if (feed && sessions.closest('[data-conversation-empty]')) {
+      sessions.classList.add('vh-browser-intelligence-sessions');
+      feed.append(sessions);
+    }
+
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
       const data = new FormData(form);

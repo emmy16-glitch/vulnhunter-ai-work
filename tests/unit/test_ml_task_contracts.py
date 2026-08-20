@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
 from pydantic import ValidationError
@@ -131,6 +131,20 @@ def test_advisory_result_cannot_claim_human_or_future_fields():
     ):
         with pytest.raises(ValidationError, match="cannot claim"):
             AdvisoryTaskResult(**{**base, "output": {forbidden: 0.5}})
+
+
+def test_advisory_result_normalizes_timezone_to_utc():
+    plus_two = timezone(timedelta(hours=2))
+    result = AdvisoryTaskResult(
+        model_id="baseline-nb",
+        model_version="1",
+        task="review_priority",
+        task_schema_version="review-priority-v1",
+        output={"suggested_review_priority": "normal_review"},
+        created_at=datetime(2026, 8, 8, 19, 0, tzinfo=plus_two),
+    )
+    assert result.created_at == NOW
+    assert result.created_at.tzinfo is UTC
 
 
 def test_advisory_result_requires_exact_task_schema_version():

@@ -21,6 +21,8 @@ from vulnhunter.browser_intelligence import (
 )
 from vulnhunter.scope.models import ApprovedTarget
 
+_TEST_PNG = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR" + (b"\x00" * 13)
+
 
 class _FakeRuntime:
     def __init__(self) -> None:
@@ -43,7 +45,7 @@ class _FakeRuntime:
     def execute(self, action: BrowserAction) -> dict[str, object]:
         self.calls.append((action.action_type.value, dict(action.parameters)))
         if action.action_type == BrowserActionType.TAKE_SCREENSHOT:
-            return {"images": [b"not-a-real-png"]}
+            return {"images": [_TEST_PNG]}
         if action.action_type == BrowserActionType.GET_NETWORK_REQUESTS:
             return {
                 "requests": [
@@ -64,7 +66,15 @@ class _LargeScreenshotRuntime(_FakeRuntime):
     def execute(self, action: BrowserAction) -> dict[str, object]:
         if action.action_type == BrowserActionType.TAKE_SCREENSHOT:
             self.calls.append((action.action_type.value, dict(action.parameters)))
-            return {"images": [b"x" * 2_048]}
+            return {"images": [_TEST_PNG.ljust(2_048, b"x")]}
+        return super().execute(action)
+
+
+class _InvalidScreenshotRuntime(_FakeRuntime):
+    def execute(self, action: BrowserAction) -> dict[str, object]:
+        if action.action_type == BrowserActionType.TAKE_SCREENSHOT:
+            self.calls.append((action.action_type.value, dict(action.parameters)))
+            return {"images": [b"not-a-png"]}
         return super().execute(action)
 
 
@@ -272,3 +282,36 @@ def test_service_blocks_screenshot_before_persisting_when_evidence_budget_is_exc
     assert not (
         tmp_path / "workspace-test" / "browser-test-session" / "screenshots" / "0001-00.png"
     ).exists()
+
+
+def test_service_rejects_invalid_screenshot_bytes_as_failed_evidence(tmp_path: Path) -> None:
+    runtime = _InvalidScreenshotRuntime()
+    session = _session(datetime.now(UTC))
+    store = BrowserIntelligenceStore(tmp_path)
+    store.save_session(session)
+    service = BrowserIntelligenceService(
+        session=session,
+        target=_target(),
+        policy=BrowserPolicy(
+            target=_target(),
+            authorization_id="authorization-test",
+            mode=BrowserMode.CONTROLLED_INTERACTIVE,
+        ),
+        runtime=runtime,
+        store=store,
+        owner_id="owner-a",
+    )
+
+    screenshot = service.execute_action(
+        BrowserAction(
+            action_type="take_screenshot",
+            parameters={"width": 800, "height": 600},
+            requested_by="test",
+        )
+    )
+
+    assert screenshot.status == BrowserActionStatus.FAILED
+    assert screenshot.error_category == "screenshot_failure"
+    assert screenshot.error_message == "browser screenshot evidence is not a valid PNG"
+    assert service.session.screenshot_count == 0
+    assert service.session.evidence_ids == ()

@@ -141,15 +141,27 @@ def _service_for_request(request, body: dict[str, Any]) -> BrowserIntelligenceSe
     )
 
 
-def _session_payload(service: BrowserIntelligenceService) -> dict[str, Any]:
-    session = service.session
+def _session_payload_from_session(session, *, runtime_attached: bool) -> dict[str, Any]:
+    blocked_actions = ["evaluate", "request_interception", "response_mutation"]
+    if not runtime_attached:
+        blocked_actions.append("runtime_detached")
     return {
         "session": session.model_dump(mode="json"),
         "capabilities": session.capabilities.model_dump(mode="json"),
         "runtime": BrowserRuntimeName.OBSCURA.value,
-        "allowed_actions": [item.value for item in BrowserActionType],
-        "blocked_actions": ["evaluate", "request_interception", "response_mutation"],
+        "runtime_attached": runtime_attached,
+        "allowed_actions": [item.value for item in BrowserActionType] if runtime_attached else [],
+        "blocked_actions": blocked_actions,
     }
+
+
+def _session_payload(service: BrowserIntelligenceService) -> dict[str, Any]:
+    return _session_payload_from_session(service.session, runtime_attached=True)
+
+
+def _workspace_id(request) -> str:
+    session_key = getattr(request.session, "session_key", None)
+    return str(request.GET.get("workspace_id") or session_key or "workspace")
 
 
 def _error_response(exc: Exception, status: int = 400) -> JsonResponse:
@@ -227,12 +239,35 @@ def browser_intelligence_action_view(request, session_id: str):
 def browser_intelligence_state_view(request, session_id: str):
     try:
         actor = _actor(request)
+        owner_id = str(actor.governance_identity.reviewer_id)
         service = _RUNTIME_MANAGER.get(session_id)
-        if service is None or service.session.owner_id != str(
-            actor.governance_identity.reviewer_id
-        ):
-            raise BrowserIntelligenceWebError("Browser session is unavailable or not accessible.")
-        return JsonResponse({"ok": True, **_session_payload(service)})
+        if service is not None:
+            if service.session.owner_id != owner_id:
+                raise BrowserIntelligenceWebError(
+                    "Browser session is unavailable or not accessible."
+                )
+            return JsonResponse({"ok": True, **_session_payload(service)})
+
+        # A browser refresh or a request routed to another web process must not erase
+        # durable session truth. Restore the persisted projection without silently
+        # spawning a second Obscura process. Actions remain fail-closed until the live
+        # worker/runtime is explicitly attached again.
+        try:
+            session = _store().load_session(
+                session_id,
+                owner_id=owner_id,
+                workspace_id=_workspace_id(request),
+            )
+        except Exception as exc:
+            raise BrowserIntelligenceWebError(
+                "Browser session is unavailable or not accessible."
+            ) from exc
+        payload = _session_payload_from_session(session, runtime_attached=False)
+        payload["recovery"] = (
+            "Persisted browser state was restored. The live runtime is detached; "
+            "captured evidence remains available, but new browser actions require a live worker."
+        )
+        return JsonResponse({"ok": True, **payload})
     except WebPermissionDenied as exc:
         return _error_response(exc, 403)
     except BrowserIntelligenceWebError as exc:
@@ -268,9 +303,7 @@ def browser_intelligence_evidence_view(request, session_id: str, relative_path: 
         session = store.load_session(
             session_id,
             owner_id=str(actor.governance_identity.reviewer_id),
-            workspace_id=str(
-                request.GET.get("workspace_id") or request.session.session_key or "workspace"
-            ),
+            workspace_id=_workspace_id(request),
         )
         path = store.artifact_path(session.workspace_id, session.session_id, relative_path)
         if path.suffix.casefold() != ".png" or not path.is_file():

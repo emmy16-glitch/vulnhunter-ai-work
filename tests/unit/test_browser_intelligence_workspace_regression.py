@@ -6,9 +6,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 def test_browser_intelligence_has_a_real_style_owner_loaded_by_conversation():
-    template = (
-        ROOT / "vulnhunter/web/templates/web/conversation.html"
-    ).read_text(encoding="utf-8")
+    template = (ROOT / "vulnhunter/web/templates/web/conversation.html").read_text(encoding="utf-8")
     stylesheet = ROOT / "vulnhunter/web/static/web/browser-intelligence.css"
 
     assert stylesheet.exists()
@@ -21,12 +19,10 @@ def test_browser_intelligence_has_a_real_style_owner_loaded_by_conversation():
 
 
 def test_live_browser_sessions_leave_the_empty_setup_panel_and_enter_the_feed():
-    script = (
-        ROOT / "vulnhunter/web/static/web/conversation-browser-intelligence.js"
-    ).read_text(encoding="utf-8")
-    template = (
-        ROOT / "vulnhunter/web/templates/web/conversation.html"
-    ).read_text(encoding="utf-8")
+    script = (ROOT / "vulnhunter/web/static/web/conversation-browser-intelligence.js").read_text(
+        encoding="utf-8"
+    )
+    template = (ROOT / "vulnhunter/web/templates/web/conversation.html").read_text(encoding="utf-8")
 
     assert "data-browser-intelligence-sessions" in template
     assert "sessions.closest('[data-conversation-empty]')" in script
@@ -37,9 +33,9 @@ def test_live_browser_sessions_leave_the_empty_setup_panel_and_enter_the_feed():
 
 
 def test_browser_intelligence_remains_governed_and_evidence_backed():
-    script = (
-        ROOT / "vulnhunter/web/static/web/conversation-browser-intelligence.js"
-    ).read_text(encoding="utf-8")
+    script = (ROOT / "vulnhunter/web/static/web/conversation-browser-intelligence.js").read_text(
+        encoding="utf-8"
+    )
 
     assert "authorization_id" in script
     assert "workspace_id" in script

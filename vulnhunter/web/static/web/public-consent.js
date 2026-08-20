@@ -8,6 +8,22 @@
   const status = form.querySelector("[data-public-consent-status]");
   const csrf = form.querySelector("[name=csrfmiddlewaretoken]")?.value || "";
 
+  // The form uses implicit wrapping labels, which are valid HTML. Add stable
+  // explicit accessible names as well so browser/tooling audits and assistive
+  // technology receive the same concise field names regardless of layout.
+  const fieldNames = {
+    challenge_token: "Published challenge token",
+    owner: "Owner or organization",
+    approved_by: "Approving person",
+    expires_at: "Authorization expires",
+  };
+  Object.entries(fieldNames).forEach(([name, label]) => {
+    const field = form.querySelector(`[name="${name}"]`);
+    if (field && !field.getAttribute("aria-label") && !field.getAttribute("aria-labelledby")) {
+      field.setAttribute("aria-label", label);
+    }
+  });
+
   const setStatus = (message, kind = "") => {
     status.textContent = message;
     status.classList.toggle("is-success", kind === "success");

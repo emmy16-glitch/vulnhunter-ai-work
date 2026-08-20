@@ -60,6 +60,14 @@ class _FakeRuntime:
         self.closed = True
 
 
+class _LargeScreenshotRuntime(_FakeRuntime):
+    def execute(self, action: BrowserAction) -> dict[str, object]:
+        if action.action_type == BrowserActionType.TAKE_SCREENSHOT:
+            self.calls.append((action.action_type.value, dict(action.parameters)))
+            return {"images": [b"x" * 2_048]}
+        return super().execute(action)
+
+
 def _target() -> ApprovedTarget:
     return ApprovedTarget(
         original_url="http://127.0.0.1:8000/app",
@@ -226,3 +234,41 @@ def test_service_persists_receipts_network_console_and_screenshot(tmp_path: Path
     assert len(store.list_receipts(owner_id="owner-a", session=service.session)) == 4
     assert store.load_report(owner_id="owner-a", session=service.session) == report
     assert runtime.closed is True
+
+
+def test_service_blocks_screenshot_before_persisting_when_evidence_budget_is_exceeded(
+    tmp_path: Path,
+) -> None:
+    runtime = _LargeScreenshotRuntime()
+    session = _session(datetime.now(UTC))
+    store = BrowserIntelligenceStore(tmp_path)
+    store.save_session(session)
+    service = BrowserIntelligenceService(
+        session=session,
+        target=_target(),
+        policy=BrowserPolicy(
+            target=_target(),
+            authorization_id="authorization-test",
+            mode=BrowserMode.CONTROLLED_INTERACTIVE,
+            limits=BrowserActionLimits(maximum_screenshots=2, maximum_evidence_bytes=1_024),
+        ),
+        runtime=runtime,
+        store=store,
+        owner_id="owner-a",
+    )
+
+    screenshot = service.execute_action(
+        BrowserAction(
+            action_type="take_screenshot",
+            parameters={"width": 800, "height": 600},
+            requested_by="test",
+        )
+    )
+
+    assert screenshot.status == BrowserActionStatus.BLOCKED
+    assert screenshot.error_message == "browser evidence byte budget is exhausted"
+    assert service.session.screenshot_count == 0
+    assert service.session.evidence_ids == ()
+    assert not (
+        tmp_path / "workspace-test" / "browser-test-session" / "screenshots" / "0001-00.png"
+    ).exists()

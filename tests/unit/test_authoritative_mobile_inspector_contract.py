@@ -32,6 +32,8 @@ def test_historical_mobile_plan_messages_are_projection_anchors():
     assert ".vh-chat-message.is-mobile_plan" in bridge
     assert 'document.querySelectorAll("[data-mobile-hunt-card]")' in bridge
     assert "replaceSelectedAssessment(payload)" in bridge
+    assert 'const persistedSummary = card?.querySelector(".vh-persisted-mobile-plan")' in bridge
+    assert "taskCard.state || projection?.execution?.state" in bridge
 
 
 def test_selected_assessment_store_announces_readiness_after_interface_is_defined():

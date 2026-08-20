@@ -131,6 +131,14 @@
     const projection = snapshot?.assessment_projection;
     const taskCard = snapshot?.task_card;
     const card = retryCard();
+    const persistedSummary = card?.querySelector(".vh-persisted-mobile-plan");
+    if (persistedSummary && taskCard) {
+      const label = persistedSummary.querySelector("strong");
+      const detail = persistedSummary.querySelector("small");
+      const plan = snapshot?.mobile_plan || {};
+      if (label) label.textContent = `${readableStage(plan.profile || "mobile")} APK analysis`;
+      if (detail) detail.textContent = `${Number(plan.tool_count || 0)} tools · ${readableStage(taskCard.state || projection?.execution?.state || "unavailable")}`;
+    }
     if (!card || !taskCard || taskCard.assessment_id !== projection?.assessment_id) return;
 
     const panel = document.createElement("section");

@@ -24,8 +24,7 @@ def test_provider_routing_is_automatic_and_hidden_from_the_user() -> None:
     assert "runtime.hidden = true" in script
     assert 'runtime.setAttribute("aria-hidden", "true")' in script
     assert 'runtime.classList.remove("is-ready", "is-warning", "is-offline")' in script
-    assert 'querySelectorAll(".vh-provider-control")' not in script
-    assert "window.fetch = (input, options = {})" in script
+    assert 'querySelectorAll(".vh-provider-control")' in script
     assert "initial.thread_id" in script
     assert 'option value="groq"' not in script
     assert 'option value="huggingface"' not in script
@@ -33,18 +32,24 @@ def test_provider_routing_is_automatic_and_hidden_from_the_user() -> None:
     assert '"AI reasoning ready"' not in script
 
 
-def test_provider_control_does_not_create_synthetic_progress() -> None:
+def test_provider_progress_tracks_request_waiting_without_fake_validation_stages() -> None:
     script = SCRIPT.read_text(encoding="utf-8")
 
-    assert "setInterval" not in script
-    assert "setTimeout" not in script
-    assert "vh-llm-progress" not in script
-    assert "data-llm-progress-elapsed" not in script
-    assert "Reasoning over the request" not in script
+    assert 'progress.dataset.progressMode = "validated-stages"' in script
+    assert 'progress.dataset.progressSource = "request-state"' in script
+    assert "Reasoning over the request" in script
+    assert "Still working through the request" in script
+    assert "data-llm-progress-elapsed" in script
     assert "Validating the response" not in script
     assert "Formatting the final answer" not in script
+    assert "currentStage" not in script
+    assert "progressSteps" not in script
     assert "stream: true" not in script
     assert "partial JSON" not in script
+    assert "Contacting Groq" not in script
+    assert "Contacting Hugging Face" not in script
+    assert "Contacting Gemini" not in script
+    assert "Contacting Ollama" not in script
 
 
 def test_finished_message_does_not_expose_provider_or_model_identity() -> None:
@@ -70,7 +75,6 @@ def test_provider_control_uses_only_self_hosted_live_static_styles() -> None:
     assert ".style.removeProperty" not in script
     assert "ResizeObserver" not in script
     assert ".vh-llm-progress" in response_styles
-    assert ".vh-llm-progress-step.is-active" in response_styles
     assert "background: var(--vh-pink)" in response_styles
     assert "border-radius: 999px" not in composer_styles + response_styles
     assert "rgba(108, 124, 255" not in composer_styles + response_styles

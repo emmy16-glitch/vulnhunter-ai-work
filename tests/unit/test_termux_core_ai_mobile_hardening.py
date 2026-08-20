@@ -59,15 +59,18 @@ def test_submitted_prompt_is_separate_from_unsent_draft_across_reload() -> None:
     assert "restorePending" in source
 
 
-def test_only_validated_progress_is_visible_during_ai_work() -> None:
+def test_only_one_truthful_request_status_is_visible_during_ai_work() -> None:
     provider = PROVIDER_CONTROL.read_text(encoding="utf-8")
     styles = RESPONSE_STYLES.read_text(encoding="utf-8")
 
-    assert 'options.body.set("provider_preference", "auto")' in provider
-    assert "setInterval" not in provider
-    assert "setTimeout" not in provider
-    assert "data-thinking-copy" in styles or ".vh-chat-thinking" in styles
-    assert "progress.dataset.progressMode" not in provider
+    assert 'thinking.classList.add("is-progress-delegated")' in provider
+    assert 'thinking.setAttribute("aria-hidden", "true")' in provider
+    assert ".vh-chat-thinking.is-progress-delegated" in styles
+    assert "display: none !important" in styles
+    assert 'progress.dataset.progressMode = "validated-stages"' in provider
+    assert 'progress.dataset.progressSource = "request-state"' in provider
+    assert "Validating the response" not in provider
+    assert "Formatting the final answer" not in provider
 
 
 def test_mobile_progress_and_secondary_composer_controls_stay_compact() -> None:

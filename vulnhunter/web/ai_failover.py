@@ -57,6 +57,16 @@ def _env_int(name: str, default: int, *, minimum: int, maximum: int) -> int:
     return min(max(value, minimum), maximum)
 
 
+def _provider_timeout(*, read_seconds: int, connect_seconds: int) -> httpx.Timeout:
+    """Fail over quickly on unreachable providers while allowing bounded model reads."""
+    return httpx.Timeout(
+        connect=float(connect_seconds),
+        read=float(read_seconds),
+        write=float(connect_seconds),
+        pool=float(connect_seconds),
+    )
+
+
 def _circuit(name: str) -> _ProviderCircuit:
     with _CIRCUIT_LOCK:
         return _CIRCUITS.setdefault(name, _ProviderCircuit())
@@ -300,7 +310,10 @@ def _gemini_advisory(
     if not _MODEL_PATTERN.fullmatch(model):
         return None, "Gemini model name is invalid."
 
-    timeout = _env_int("VULNHUNTER_GEMINI_TIMEOUT_SECONDS", 75, minimum=5, maximum=180)
+    read_timeout = _env_int("VULNHUNTER_GEMINI_TIMEOUT_SECONDS", 75, minimum=5, maximum=180)
+    connect_timeout = _env_int(
+        "VULNHUNTER_GEMINI_CONNECT_TIMEOUT_SECONDS", 5, minimum=1, maximum=30
+    )
     prompt = _build_prompt(
         conversation_service,
         text,
@@ -327,7 +340,9 @@ def _gemini_advisory(
                 "x-goog-api-key": api_key,
             },
             json=body,
-            timeout=timeout,
+            timeout=_provider_timeout(
+                read_seconds=read_timeout, connect_seconds=connect_timeout
+            ),
             follow_redirects=False,
         )
     except httpx.TimeoutException:
@@ -382,7 +397,10 @@ def _ollama_advisory(
     if not _MODEL_PATTERN.fullmatch(model):
         return None, "Ollama model name is invalid."
 
-    timeout = _env_int("VULNHUNTER_OLLAMA_TIMEOUT_SECONDS", 120, minimum=10, maximum=300)
+    read_timeout = _env_int("VULNHUNTER_OLLAMA_TIMEOUT_SECONDS", 120, minimum=10, maximum=300)
+    connect_timeout = _env_int(
+        "VULNHUNTER_OLLAMA_CONNECT_TIMEOUT_SECONDS", 2, minimum=1, maximum=30
+    )
     prompt = _build_prompt(
         conversation_service,
         text,
@@ -411,7 +429,9 @@ def _ollama_advisory(
         response = httpx.post(
             f"{api_base}/api/chat",
             json=body,
-            timeout=timeout,
+            timeout=_provider_timeout(
+                read_seconds=read_timeout, connect_seconds=connect_timeout
+            ),
             follow_redirects=False,
         )
     except httpx.TimeoutException:

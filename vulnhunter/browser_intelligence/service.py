@@ -289,9 +289,12 @@ class BrowserIntelligenceService:
                 )
             self._console.extend(observations)
         elif action.action_type == BrowserActionType.TAKE_SCREENSHOT:
-            for index, image in enumerate(result.get("images", [])):
-                if not isinstance(image, bytes):
-                    continue
+            images = [image for image in result.get("images", []) if isinstance(image, bytes)]
+            existing_bytes = sum(artifact.size_bytes for artifact in self._screenshots)
+            incoming_bytes = sum(len(image) for image in images)
+            if existing_bytes + incoming_bytes > self.policy.limits.maximum_evidence_bytes:
+                raise BrowserPolicyError("browser evidence byte budget is exhausted")
+            for index, image in enumerate(images):
                 evidence_id = f"browser-evidence-{uuid4().hex[:16]}"
                 relative = f"screenshots/{sequence:04d}-{index:02d}.png"
                 artifact = BrowserEvidenceArtifact(

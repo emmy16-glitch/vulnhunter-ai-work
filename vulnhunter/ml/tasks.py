@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Literal, Self
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from vulnhunter.ml.models import TrainingExample
 
@@ -178,6 +178,13 @@ class AdvisoryTaskResult(BaseModel):
     created_at: datetime
     advisory_only: Literal[True] = True
 
+    @field_validator("created_at")
+    @classmethod
+    def normalize_created_at(cls, value: datetime) -> datetime:
+        if value.tzinfo is None or value.utcoffset() is None:
+            raise ValueError("advisory result timestamp must include a timezone")
+        return value.astimezone(UTC)
+
     @model_validator(mode="after")
     def task_schema_matches_registry(self) -> Self:
         contract = TASK_CONTRACTS[self.task]
@@ -196,9 +203,7 @@ class AdvisoryTaskResult(BaseModel):
             raise ValueError(
                 "advisory result cannot claim human labels or unimplemented P3.7 fields"
             )
-        if self.created_at.tzinfo is None or self.created_at.utcoffset() is None:
-            raise ValueError("advisory result timestamp must include a timezone")
-        return self.model_copy(update={"created_at": self.created_at.astimezone(UTC)})
+        return self
 
 
 def require_binary_training_label(

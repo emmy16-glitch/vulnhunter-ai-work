@@ -141,8 +141,36 @@ def _service_for_request(request, body: dict[str, Any]) -> BrowserIntelligenceSe
     )
 
 
+def _allowed_actions_for_session(session, *, runtime_attached: bool) -> list[str]:
+    if not runtime_attached:
+        return []
+    allowed = set(BrowserActionType)
+    if session.mode == BrowserMode.PASSIVE:
+        allowed.difference_update(
+            {
+                BrowserActionType.FILL,
+                BrowserActionType.TYPE,
+                BrowserActionType.SELECT_OPTION,
+            }
+        )
+    capabilities = session.capabilities
+    if not capabilities.screenshot_available:
+        allowed.discard(BrowserActionType.TAKE_SCREENSHOT)
+    if not capabilities.network_available:
+        allowed.discard(BrowserActionType.GET_NETWORK_REQUESTS)
+    if not capabilities.console_available:
+        allowed.discard(BrowserActionType.GET_CONSOLE_MESSAGES)
+    if not capabilities.forms_available:
+        allowed.discard(BrowserActionType.DETECT_FORMS)
+    if not capabilities.interactive_elements_available:
+        allowed.discard(BrowserActionType.GET_INTERACTIVE_ELEMENTS)
+    return [item.value for item in BrowserActionType if item in allowed]
+
+
 def _session_payload_from_session(session, *, runtime_attached: bool) -> dict[str, Any]:
     blocked_actions = ["evaluate", "request_interception", "response_mutation"]
+    if session.mode == BrowserMode.PASSIVE:
+        blocked_actions.extend(["fill", "type", "select_option"])
     if not runtime_attached:
         blocked_actions.append("runtime_detached")
     return {
@@ -150,7 +178,9 @@ def _session_payload_from_session(session, *, runtime_attached: bool) -> dict[st
         "capabilities": session.capabilities.model_dump(mode="json"),
         "runtime": BrowserRuntimeName.OBSCURA.value,
         "runtime_attached": runtime_attached,
-        "allowed_actions": [item.value for item in BrowserActionType] if runtime_attached else [],
+        "allowed_actions": _allowed_actions_for_session(
+            session, runtime_attached=runtime_attached
+        ),
         "blocked_actions": blocked_actions,
     }
 

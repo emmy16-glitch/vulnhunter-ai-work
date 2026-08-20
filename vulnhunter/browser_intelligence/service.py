@@ -31,6 +31,8 @@ from .policy import BrowserPolicy, BrowserPolicyError
 from .runtime import ObscuraMcpProcess, ObscuraRuntimeError
 from .store import BrowserIntelligenceStore, BrowserStoreError
 
+_PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
+
 
 class BrowserIntelligenceError(RuntimeError):
     """Raised when the governed browser workflow fails closed."""
@@ -290,6 +292,10 @@ class BrowserIntelligenceService:
             self._console.extend(observations)
         elif action.action_type == BrowserActionType.TAKE_SCREENSHOT:
             images = [image for image in result.get("images", []) if isinstance(image, bytes)]
+            if not images:
+                raise ObscuraRuntimeError("browser screenshot returned no image evidence")
+            if any(not _looks_like_png(image) for image in images):
+                raise ObscuraRuntimeError("browser screenshot evidence is not a valid PNG")
             existing_bytes = sum(artifact.size_bytes for artifact in self._screenshots)
             incoming_bytes = sum(len(image) for image in images)
             if existing_bytes + incoming_bytes > self.policy.limits.maximum_evidence_bytes:
@@ -439,6 +445,8 @@ class BrowserIntelligenceService:
     @staticmethod
     def _runtime_error_category(message: str) -> BrowserErrorCategory:
         lowered = message.casefold()
+        if "screenshot" in lowered:
+            return BrowserErrorCategory.SCREENSHOT_FAILURE
         if "timed out" in lowered:
             return (
                 BrowserErrorCategory.ACTION_CANCELLED
@@ -514,6 +522,10 @@ def _decode_rows(result: Mapping[str, Any]) -> list[dict[str, Any]]:
             }
         )
     return rows
+
+
+def _looks_like_png(image: bytes) -> bool:
+    return len(image) >= 24 and image.startswith(_PNG_SIGNATURE) and image[12:16] == b"IHDR"
 
 
 def _optional_int(value: Any) -> int | None:

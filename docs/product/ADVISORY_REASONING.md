@@ -20,9 +20,9 @@ approved private-lab scan
 
 All three stages use one configured reasoning model. The default is `openai/gpt-oss-120b`, and every stage requests `high` reasoning effort.
 
-There is no smaller-model fallback and no cross-provider fallback inside this reasoning session. If the configured model cannot complete a stage, the session abstains instead of silently lowering reasoning quality.
+There is no smaller-model fallback and no cross-provider fallback inside this finding-intelligence reasoning session. If the configured model cannot complete a stage, the session abstains instead of silently lowering reasoning quality.
 
-A normal successful finding therefore uses exactly three model requests. Queue delivery may retry the same queued analysis within its fixed delivery limit, but a retry does not select a weaker model.
+A normal successful finding therefore uses exactly three model requests. Queue delivery may retry the same queued analysis within its fixed delivery limit, but a retry does not select a weaker model or another provider.
 
 ## Supplied context
 
@@ -58,7 +58,7 @@ The application stores the structured conclusions, not hidden chain-of-thought.
 
 ## Failure behavior
 
-The advisory layer fails safely without lowering model quality:
+The finding-intelligence advisory layer fails safely without lowering model quality:
 
 - missing key: the advisory stage does not run;
 - disabled intelligence: no analysis is queued;
@@ -69,7 +69,7 @@ The advisory layer fails safely without lowering model quality:
 - provider returns a different model than requested: the response is rejected;
 - damaged optional activity timeline: the persisted advisory report remains unaffected.
 
-No advisory failure changes a scanner finding or its deterministic verification result. No advisory failure authorizes a lower-capability model to answer in its place.
+No advisory failure changes a scanner finding or its deterministic verification result. No finding-intelligence advisory failure authorizes a lower-capability model or a different provider to answer in its place.
 
 ## Codespaces settings
 
@@ -99,15 +99,25 @@ The intelligence worker starts only when Groq is enabled and the protected key f
 
 Conversation workspaces use `high` reasoning effort. Legacy `low` and `medium` workspace values are treated as `high` at runtime.
 
-Provider selection is explicit. Legacy `auto` is normalized to the configured primary provider rather than enabling provider failover. If that high-reasoning provider is unavailable, ordinary chat reports the unavailable state instead of substituting a weaker model, another provider, or canned deterministic reasoning copy.
+Ordinary conversational advisory reasoning has a separate availability contract from the provider-bound finding-intelligence session above. When deployment/data policy permits it, ordinary chat silently tries the approved high-capability chain:
 
-Deterministic routing remains available for authoritative workspace operations such as authorization checks, scope validation, status reads, approval state, cancellation, and execution control.
+```text
+Groq -> Gemini -> loopback Ollama
+```
+
+Provider switching is hidden from ordinary user-facing copy and does not reset the durable conversation or authoritative task timeline. Repeated provider failures use a short circuit-breaker cooldown and later probe the preferred provider again so recovery can restore the primary route automatically. The adapter uses short connection timeouts and longer bounded reasoning read timeouts so an unreachable fallback does not stall the conversation for its full reasoning window.
+
+This conversational failover is **not** permission to downgrade to an arbitrary smaller model, route prohibited/private data to a new provider, or bypass any provider/model approval. If no eligible provider completes the answer, ordinary chat reports a short unavailable/retry state rather than substituting canned deterministic reasoning copy.
+
+Deterministic routing remains available for authoritative workspace operations such as authorization checks, scope validation, status reads, approval state, cancellation, and execution control regardless of model availability.
 
 ## Source Hunt policy
 
-Source Hunt is pinned to the configured `VULNHUNTER_GROQ_MODEL`. Its CLI rejects an attempt to select a different model, and its worker allowlist contains only the configured model.
+Remote Source Hunt source processing remains pinned to the exact provider/model allowed by its approval. Its CLI rejects an attempt to select a different model, and its worker allowlist contains only the configured model for that approved path.
 
-Source Hunt remains attacker-first source-code analysis. It does not gain tool execution or arbitrary exploitation authority from the reasoning-model change.
+The ordinary conversational fallback chain does not override a Source Hunt approval. Source code may not be sent to Gemini, Ollama, or any other provider merely because the approved Source Hunt provider failed.
+
+Source Hunt remains attacker-first source-code analysis. It does not gain tool execution or arbitrary exploitation authority from the reasoning-model or conversational failover changes.
 
 ## Phone workspace behavior
 

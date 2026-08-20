@@ -55,6 +55,7 @@ def test_start_returns_authoritative_session_and_message():
     assert payload["ok"] is True
     assert payload["session"]["session_id"] == "browser-session-1"
     assert payload["message"]["kind"] == "browser_intelligence"
+    assert payload["runtime_attached"] is True
     assert payload["blocked_actions"] == [
         "evaluate",
         "request_interception",
@@ -127,3 +128,32 @@ def test_action_denies_other_owner_before_runtime_call():
 
     assert response.status_code == 400
     service.execute_action.assert_not_called()
+
+
+def test_state_restores_persisted_session_without_spawning_runtime():
+    factory = RequestFactory()
+    request = factory.get(
+        "/workspace/browser-intelligence/browser-session-1/state/?workspace_id=workspace-1"
+    )
+    request.user = _user()
+    request.session = SimpleNamespace(session_key="workspace-1")
+    actor = SimpleNamespace(governance_identity=SimpleNamespace(reviewer_id="reviewer-1"))
+    persisted_session = _service().session
+    store = SimpleNamespace(load_session=Mock(return_value=persisted_session))
+    views._RUNTIME_MANAGER.remove("browser-session-1")
+
+    with patch.object(views, "_actor", return_value=actor), patch.object(
+        views, "_store", return_value=store
+    ):
+        response = views.browser_intelligence_state_view(request, "browser-session-1")
+
+    assert response.status_code == 200
+    payload = json.loads(response.content)
+    assert payload["ok"] is True
+    assert payload["runtime_attached"] is False
+    assert payload["allowed_actions"] == []
+    assert "runtime_detached" in payload["blocked_actions"]
+    assert "Persisted browser state was restored" in payload["recovery"]
+    store.load_session.assert_called_once_with(
+        "browser-session-1", owner_id="reviewer-1", workspace_id="workspace-1"
+    )

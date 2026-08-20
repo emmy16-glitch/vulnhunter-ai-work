@@ -60,6 +60,15 @@
   }
 
   const messageUrl = new URL(initial.message_url, window.location.href);
+  const assessmentStop = workspace.querySelector("[data-conversation-stop]");
+  const terminalRunStates = new Set([
+    "cancelled",
+    "completed",
+    "failed",
+    "blocked",
+    "rejected",
+    "expired",
+  ]);
   const state = {
     controller: null,
     stopButton: null,
@@ -150,6 +159,32 @@
     host.append(button);
     state.stopButton = button;
     updateStopButton();
+  };
+
+  const terminalStateFromCard = (card) => {
+    if (!(card instanceof HTMLElement)) return "";
+    const stateClass = [...card.classList].find((name) => name.startsWith("is-"));
+    return stateClass ? stateClass.slice(3).toLowerCase() : "";
+  };
+
+  const terminalStateFromSnapshot = (snapshot) => {
+    const projection = snapshot?.assessment_projection || {};
+    const task = snapshot?.task_card || {};
+    return String(
+      projection.execution?.state ||
+        projection.state ||
+        task.state ||
+        snapshot?.state ||
+        "",
+    ).toLowerCase();
+  };
+
+  const reconcileGovernedAssessmentStop = (snapshot = null) => {
+    if (!assessmentStop) return;
+    const runCards = [...feed.querySelectorAll("[data-run-card]")];
+    const latestRun = runCards.at(-1);
+    const stateName = terminalStateFromSnapshot(snapshot) || terminalStateFromCard(latestRun);
+    if (terminalRunStates.has(stateName)) assessmentStop.hidden = true;
   };
 
   const currentFetch = window.fetch.bind(window);
@@ -282,10 +317,16 @@
 
   bindAllMessageActions();
   installStopButton();
+  reconcileGovernedAssessmentStop();
   new MutationObserver(() => {
     bindAllMessageActions();
     installStopButton();
-  }).observe(feed, { childList: true, subtree: true });
+    reconcileGovernedAssessmentStop();
+  }).observe(feed, { childList: true, subtree: true, attributes: true, attributeFilter: ["class"] });
+
+  document.addEventListener("vh:selected-assessment-change", (event) => {
+    reconcileGovernedAssessmentStop(event.detail || null);
+  });
 
   // Provider control is dynamically loaded before this script, but keep a
   // bounded DOM observer so the stop control is re-homed if the request-status

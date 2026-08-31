@@ -37,7 +37,7 @@ production = [
     "psycopg[binary]>=3.2,<4",
 ]
 opensandbox = [
-    "opensandbox==0.1.15",
+    "opensandbox==0.1.16",
     "cryptography>=48.0.1,<50",
 ]
 
